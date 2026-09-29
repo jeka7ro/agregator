@@ -1,9 +1,7 @@
-import React, { useState } from 'react'
-import woltImg from '../assets/platforms/wolt.png'
+import React from 'react'
 
 export default function PlatformLogo({ platform, size = 20, className = '' }) {
   const p = (platform || '').toLowerCase().replace('_food', '')
-  const [woltImgError, setWoltImgError] = useState(false)
 
   // 1. Glovo (Official brand icon: #FFC244 yellow with #00A082 green official pin)
   if (p === 'glovo') {
@@ -20,28 +18,16 @@ export default function PlatformLogo({ platform, size = 20, className = '' }) {
     )
   }
 
-  // 2. Wolt (Official brand icon: authentic cyan app icon with white Wolt script, bundled asset + SVG fallback)
+  // 2. Wolt (Official brand icon: authentic cyan #00C2E8 circle with crisp white Wolt vector)
   if (p === 'wolt') {
-    if (!woltImgError) {
-      return (
-        <img 
-          src={woltImg} 
-          alt="Wolt" 
-          style={{ width: size, height: size }}
-          className={`rounded-full shrink-0 object-cover shadow-xs select-none ${className}`}
-          title="Wolt"
-          onError={() => setWoltImgError(true)}
-        />
-      )
-    }
     return (
       <div 
         style={{ width: size, height: size }}
-        className={`inline-flex items-center justify-center rounded-full bg-[#00C2E8] text-white shrink-0 overflow-hidden shadow-xs select-none font-black ${className}`}
+        className={`inline-flex items-center justify-center rounded-full bg-[#00C2E8] text-white shrink-0 overflow-hidden shadow-xs select-none ${className}`}
         title="Wolt"
       >
-        <span style={{ fontSize: Math.max(8, size * 0.45) }} className="italic font-black tracking-tighter leading-none -translate-y-[0.5px]">
-          W
+        <span style={{ fontSize: Math.max(7, size * 0.46), letterSpacing: '-0.4px' }} className="font-black italic lowercase tracking-tight leading-none -translate-y-[0.5px]">
+          wolt
         </span>
       </div>
     )

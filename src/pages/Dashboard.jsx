@@ -417,7 +417,7 @@ export default function Dashboard() {
               }`}
             >
               {b !== 'all' ? (
-                <BrandAvatar brand={b} size={18} className="rounded-full shrink-0" />
+                <BrandAvatar brand={b} size={22} className="rounded-full shrink-0 shadow-xs" />
               ) : (
                 <Store size={14} className={isActive ? 'text-white' : 'text-slate-400'} />
               )}
