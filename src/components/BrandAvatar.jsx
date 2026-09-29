@@ -1,5 +1,11 @@
 import React, { useState } from 'react'
 
+import pokiWokiLogo from '../assets/brands/poki-woki.png'
+import rollMasterLogo from '../assets/brands/roll-master.png'
+import loveSushiLogo from '../assets/brands/love-sushi.png'
+import smashMeLogo from '../assets/brands/smash-me.png'
+import crunchLogo from '../assets/brands/crunch.webp'
+
 export function cleanRestaurantName(name) {
   if (!name) return ''
   return name
@@ -21,7 +27,7 @@ export function getBrandInfo(restaurantOrName) {
   if (lower.includes('poki') || lower.includes('woki') || lower.includes('ikura')) {
     return {
       name: 'Poki Woki',
-      logo: '/brands/poki-woki.png',
+      logo: pokiWokiLogo,
       short: 'PW',
       bgClass: 'bg-emerald-950/60 border-emerald-800/50 text-emerald-400'
     }
@@ -31,7 +37,7 @@ export function getBrandInfo(restaurantOrName) {
   if (lower.includes('love sushi') || (lower.includes('love') && lower.includes('sushi'))) {
     return {
       name: 'Love Sushi',
-      logo: '/brands/love-sushi.png',
+      logo: loveSushiLogo,
       short: 'LS',
       bgClass: 'bg-pink-950/60 border-pink-800/50 text-pink-400'
     }
@@ -41,7 +47,7 @@ export function getBrandInfo(restaurantOrName) {
   if (lower.includes('smash')) {
     return {
       name: 'Smash Me',
-      logo: '/brands/smash-me.png',
+      logo: smashMeLogo,
       short: 'SM',
       bgClass: 'bg-amber-950/60 border-amber-800/50 text-amber-400'
     }
@@ -51,7 +57,7 @@ export function getBrandInfo(restaurantOrName) {
   if (lower.includes('crunch')) {
     return {
       name: 'Crunch',
-      logo: '/brands/crunch.webp',
+      logo: crunchLogo,
       short: 'CR',
       bgClass: 'bg-purple-950/60 border-purple-800/50 text-purple-400'
     }
@@ -61,7 +67,7 @@ export function getBrandInfo(restaurantOrName) {
   if (lower.includes('roll') || lower.includes('master') || lower.includes('rm ') || lower.startsWith('rm') || lower.includes('sushi master')) {
     return {
       name: 'Roll Master',
-      logo: '/brands/roll-master.png',
+      logo: rollMasterLogo,
       short: 'RM',
       bgClass: 'bg-zinc-900 border-zinc-700/60 text-zinc-200'
     }
@@ -71,7 +77,7 @@ export function getBrandInfo(restaurantOrName) {
   if (lower.includes('sushi')) {
     return {
       name: 'Love Sushi',
-      logo: '/brands/love-sushi.png',
+      logo: loveSushiLogo,
       short: 'LS',
       bgClass: 'bg-pink-950/60 border-pink-800/50 text-pink-400'
     }
@@ -79,7 +85,7 @@ export function getBrandInfo(restaurantOrName) {
 
   return {
     name: 'Roll Master',
-    logo: '/brands/roll-master.png',
+    logo: rollMasterLogo,
     short: 'RM',
     bgClass: 'bg-zinc-900 border-zinc-700/60 text-zinc-200'
   }
@@ -93,7 +99,7 @@ export default function BrandAvatar({ brand, size = 32, className = '' }) {
     return (
       <div 
         style={{ width: size, height: size }}
-        className={`relative shrink-0 rounded-full overflow-hidden bg-slate-900 border border-slate-700 p-0.5 flex items-center justify-center shadow-xs ${className}`}
+        className={`relative shrink-0 rounded-full overflow-hidden bg-white/95 border border-slate-200 dark:border-slate-700 p-0.5 flex items-center justify-center shadow-xs ${className}`}
         title={info.name}
       >
         <img
