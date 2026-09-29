@@ -37,11 +37,11 @@ export default function MainLayout() {
           <div className={`h-16 shrink-0 px-6 flex items-center border-b ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-sm tracking-wider shadow-sm shrink-0">
-                A2
+                M2
               </div>
               <div className="min-w-0">
                 <h1 className={`text-sm font-bold tracking-tight leading-none uppercase truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  Aggregator <span className="text-emerald-600 dark:text-emerald-400">2.0</span>
+                  MONITORING <span className="text-emerald-600 dark:text-emerald-400">2.0</span>
                 </h1>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-1 truncate">
                   {t('nav.subtitle')}

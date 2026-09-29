@@ -46,7 +46,7 @@ export const translations = {
       toggle_language: 'Comută Limba'
     },
     nav: {
-      title: 'Aggregator 2.0',
+      title: 'MONITORING 2.0',
       subtitle: 'Operations Suite',
       menu: 'Meniu Operațional',
       dashboard: 'Dashboard',
@@ -366,7 +366,7 @@ export const translations = {
       toggle_language: 'Change Language'
     },
     nav: {
-      title: 'Aggregator 2.0',
+      title: 'MONITORING 2.0',
       subtitle: 'Operations Suite',
       menu: 'Operations Menu',
       dashboard: 'Dashboard',
@@ -686,7 +686,7 @@ export const translations = {
       toggle_language: 'Переключить язык'
     },
     nav: {
-      title: 'Aggregator 2.0',
+      title: 'MONITORING 2.0',
       subtitle: 'Operations Suite',
       menu: 'Операционное меню',
       dashboard: 'Панель управления',
