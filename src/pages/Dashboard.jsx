@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { useLiveChecks } from '../hooks/useLiveChecks'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
+import { getApiUrl } from '../lib/api'
 import { 
   Loader2, 
   Store, 
@@ -273,11 +274,11 @@ export default function Dashboard() {
   const handleVerifyAll = () => {
     setIsVerifying(true)
     setVerifyStatus({ isRunning: true, totalChecks: 208, current: 0, errors: 0, offline: 0, results: [] })
-    fetch('http://localhost:3002/api/check-all', { method: 'POST' }).catch(console.error)
+    fetch(getApiUrl('/api/check-all'), { method: 'POST' }).catch(console.error)
   }
 
   const handleStopVerify = () => {
-    fetch('http://localhost:3002/api/check-stop', { method: 'POST' }).catch(console.error)
+    fetch(getApiUrl('/api/check-stop'), { method: 'POST' }).catch(console.error)
     setIsVerifying(false)
   }
 
@@ -291,7 +292,7 @@ export default function Dashboard() {
     let interval
     const checkStatus = async () => {
       try {
-        const res = await fetch('http://localhost:3002/api/check-status')
+        const res = await fetch(getApiUrl('/api/check-status'))
         if (res.ok) {
           const data = await res.json()
           if (data.success && data.status) {

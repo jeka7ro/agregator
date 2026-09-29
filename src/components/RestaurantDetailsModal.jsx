@@ -4,6 +4,8 @@ import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
 import BrandAvatar, { cleanRestaurantName } from './BrandAvatar'
 import PlatformLogo from './PlatformLogo'
+import { getApiUrl } from '../lib/api'
+import { supabase } from '../lib/supabaseClient'
 
 export default function RestaurantDetailsModal({ restaurant, isOpen, onClose }) {
   const { isDark } = useTheme()
@@ -19,20 +21,36 @@ export default function RestaurantDetailsModal({ restaurant, isOpen, onClose }) 
 
     setActiveTab('overview')
 
-    // Fetch stops
+    // Fetch stops: try API first, fallback to Supabase direct query
     setLoadingStops(true)
-    fetch(`http://localhost:3002/api/stop-events?restaurantId=${restaurant.id}&limit=20`)
+    fetch(getApiUrl(`/api/stop-events?restaurantId=${restaurant.id}&limit=20`))
       .then(res => res.json())
       .then(data => {
-        if (data.success) {
-          setStops(data.events || [])
+        if (data.success && data.events) {
+          setStops(data.events)
+        } else {
+          throw new Error('API failed')
         }
       })
-      .catch(console.error)
+      .catch(async () => {
+        try {
+          const { data, error } = await supabase
+            .from('stop_events')
+            .select('*')
+            .eq('restaurant_id', restaurant.id)
+            .order('started_at', { ascending: false })
+            .limit(20)
+          if (!error && data) {
+            setStops(data)
+          }
+        } catch (sbErr) {
+          console.error('Supabase stops error:', sbErr)
+        }
+      })
       .finally(() => setLoadingStops(false))
 
     // Fetch stopped products from iiko / discrepancies
-    fetch(`http://localhost:3002/api/own-brands/stopped-products?restaurantId=${restaurant.id}`)
+    fetch(getApiUrl(`/api/own-brands/stopped-products?restaurantId=${restaurant.id}`))
       .then(res => res.json())
       .then(data => {
         if (data.success && data.products) {

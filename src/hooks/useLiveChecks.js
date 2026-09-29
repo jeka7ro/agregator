@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { getApiUrl } from '../lib/api'
 
 export function useLiveChecks() {
   const [restaurants, setRestaurants] = useState([])
@@ -12,9 +13,9 @@ export function useLiveChecks() {
       if (!silent) setLoading(true)
       
       let rests = []
-      // 1. Try local API first (fastest, authoritative in local environment)
+      // 1. Try API first (fastest, authoritative in local environment)
       try {
-        const localRes = await fetch('http://localhost:3002/api/settings/restaurants')
+        const localRes = await fetch(getApiUrl('/api/settings/restaurants'))
         if (localRes.ok) {
           const localJson = await localRes.json()
           if (localJson.success && Array.isArray(localJson.restaurants) && localJson.restaurants.length > 0) {
@@ -22,10 +23,10 @@ export function useLiveChecks() {
           }
         }
       } catch (localErr) {
-        console.warn('Local restaurants fetch error, falling back to Supabase:', localErr)
+        console.warn('Restaurants API fetch error, falling back to Supabase:', localErr)
       }
 
-      // 2. Fallback to Supabase if local API had no data
+      // 2. Fallback to Supabase if API had no data
       if (!rests || rests.length === 0) {
         try {
           const { data, error: restaurantsError } = await supabase.from('restaurants').select('*, brands(*)')
@@ -39,7 +40,7 @@ export function useLiveChecks() {
 
       let checksDict = {}
       try {
-        const res = await fetch('http://localhost:3002/api/live-checks')
+        const res = await fetch(getApiUrl('/api/live-checks'))
         if (res.ok) {
           const json = await res.json()
           if (json.success && json.checks) {
@@ -52,7 +53,31 @@ export function useLiveChecks() {
           }
         }
       } catch (err) {
-        console.error('API Error:', err)
+        console.warn('Live checks API unreachable, falling back to Supabase:', err)
+      }
+
+      // Fallback to Supabase for checks if API was empty/unreachable
+      if (Object.keys(checksDict).length === 0) {
+        try {
+          const { data: dbChecks } = await supabase
+            .from('monitoring_checks')
+            .select('*')
+            .order('checked_at', { ascending: false })
+            .limit(300)
+
+          if (Array.isArray(dbChecks)) {
+            dbChecks.forEach(c => {
+              if (!checksDict[c.restaurant_id]) {
+                checksDict[c.restaurant_id] = {}
+              }
+              if (!checksDict[c.restaurant_id][c.platform]) {
+                checksDict[c.restaurant_id][c.platform] = c
+              }
+            })
+          }
+        } catch (err) {
+          console.warn('Supabase checks fallback failed:', err)
+        }
       }
 
       const transformed = (rests || []).map(r => {

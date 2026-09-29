@@ -23,6 +23,7 @@ import { useLiveChecks } from '../hooks/useLiveChecks'
 import PlatformLogo from '../components/PlatformLogo'
 import BrandAvatar, { getBrandInfo, cleanRestaurantName } from '../components/BrandAvatar'
 import RestaurantDetailsModal from '../components/RestaurantDetailsModal'
+import { getApiUrl } from '../lib/api'
 import WebhookIntegrationModal from '../components/WebhookIntegrationModal'
 
 function AnimatedNumber({ value }) {
@@ -216,11 +217,11 @@ export default function Monitoring() {
     setIsVerifying(true)
     setShowReport(true)
     setVerifyStatus({ isRunning: true, totalChecks: 0, current: 0, errors: 0, offline: 0, results: [] })
-    fetch('http://localhost:3002/api/check-all', { method: 'POST' }).catch(console.error)
+    fetch(getApiUrl('/api/check-all'), { method: 'POST' }).catch(console.error)
   }
 
   const handleStopVerify = () => {
-    fetch('http://localhost:3002/api/check-stop', { method: 'POST' }).catch(console.error)
+    fetch(getApiUrl('/api/check-stop'), { method: 'POST' }).catch(console.error)
     setIsVerifying(false)
   }
 
@@ -229,7 +230,7 @@ export default function Monitoring() {
     if (isVerifying) {
       interval = setInterval(async () => {
         try {
-          const res = await fetch('http://localhost:3002/api/check-status')
+          const res = await fetch(getApiUrl('/api/check-status'))
           if (res.ok) {
             const data = await res.json()
             setVerifyStatus(data.status)

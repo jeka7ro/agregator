@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { X, Webhook, Play, RefreshCw, Copy, Check } from 'lucide-react'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
+import { getApiUrl } from '../lib/api'
 
 export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTriggered }) {
   const { isDark } = useTheme()
@@ -19,7 +20,7 @@ export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTrig
 
   const fetchStatus = () => {
     setLoading(true)
-    fetch('http://localhost:3002/api/webhooks/status')
+    fetch(getApiUrl('/api/webhooks/status'))
       .then(r => r.json())
       .then(d => {
         if (d.success) setStatusData(d)
@@ -47,7 +48,7 @@ export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTrig
     setSimulating(true)
     setSimResult(null)
     try {
-      const res = await fetch('http://localhost:3002/api/webhooks/simulate', {
+      const res = await fetch(getApiUrl('/api/webhooks/simulate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

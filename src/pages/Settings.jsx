@@ -26,6 +26,8 @@ import BrandAvatar, { cleanRestaurantName, getBrandInfo } from '../components/Br
 import PlatformLogo from '../components/PlatformLogo'
 import RestaurantDetailsModal from '../components/RestaurantDetailsModal'
 import WebhookIntegrationModal from '../components/WebhookIntegrationModal'
+import { getApiUrl } from '../lib/api'
+import { supabase } from '../lib/supabaseClient'
 
 const AUTHORITATIVE_BRANDS = ['Roll Master', 'Poki Woki', 'Love Sushi', 'Smash Me', 'Crunch']
 
@@ -82,7 +84,7 @@ export default function Settings() {
       localStorage.setItem('telegram_bot_token', botToken)
       localStorage.setItem('telegram_test_chat_id', testChatId)
 
-      const res = await fetch('http://localhost:3002/api/telegram/test', {
+      const res = await fetch(getApiUrl('/api/telegram/test'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -108,12 +110,24 @@ export default function Settings() {
     try {
       setLoading(true)
       const [statusRes, restsRes] = await Promise.all([
-        fetch('http://localhost:3002/api/settings/status').then(r => r.json()).catch(() => null),
-        fetch('http://localhost:3002/api/settings/restaurants').then(r => r.json()).catch(() => null)
+        fetch(getApiUrl('/api/settings/status')).then(r => r.json()).catch(() => null),
+        fetch(getApiUrl('/api/settings/restaurants')).then(r => r.json()).catch(() => null)
       ])
 
       if (statusRes && statusRes.success) setStatusInfo(statusRes)
-      if (restsRes && restsRes.success) setRestaurants(restsRes.restaurants || [])
+      if (restsRes && restsRes.success && Array.isArray(restsRes.restaurants) && restsRes.restaurants.length > 0) {
+        setRestaurants(restsRes.restaurants)
+      } else {
+        // Fallback to Supabase if API endpoint is not available
+        try {
+          const { data: dbRests } = await supabase.from('restaurants').select('*, brands(*)').order('name')
+          if (dbRests && dbRests.length > 0) {
+            setRestaurants(dbRests)
+          }
+        } catch (dbErr) {
+          console.warn('Supabase fallback for settings restaurants failed:', dbErr)
+        }
+      }
     } catch (err) {
       console.error('Error loading settings data:', err)
       showToast(t('settings.toast_save_error', 'Eroare la încărcarea datelor de configurare'), 'error')
@@ -130,7 +144,7 @@ export default function Settings() {
   const handleTriggerMonitoring = async () => {
     try {
       setIsTriggeringMonitoring(true)
-      const res = await fetch('http://localhost:3002/api/settings/trigger-monitoring', {
+      const res = await fetch(getApiUrl('/api/settings/trigger-monitoring'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       })
@@ -151,7 +165,7 @@ export default function Settings() {
   const handleTriggerSalesSync = async () => {
     try {
       setIsTriggeringSalesSync(true)
-      const res = await fetch('http://localhost:3002/api/settings/trigger-sales-sync', {
+      const res = await fetch(getApiUrl('/api/settings/trigger-sales-sync'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ days: 2 })
@@ -185,10 +199,31 @@ export default function Settings() {
           : (editingRestaurant.working_hours?.notification_enabled !== false)
       }
 
-      const res = await fetch(`http://localhost:3002/api/settings/restaurants/${editingRestaurant.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      let saveSuccess = false
+
+      // Try worker API first if reachable
+      try {
+        const res = await fetch(getApiUrl(`/api/settings/restaurants/${editingRestaurant.id}`), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: editingRestaurant.name,
+            city: editingRestaurant.city,
+            address: editingRestaurant.address,
+            glovo_url: editingRestaurant.glovo_url,
+            wolt_url: editingRestaurant.wolt_url,
+            bolt_url: editingRestaurant.bolt_url,
+            iiko_restaurant_id: editingRestaurant.iiko_restaurant_id,
+            revenue_per_hour: editingRestaurant.revenue_per_hour,
+            is_active: editingRestaurant.is_active,
+            working_hours: workingHoursPayload
+          })
+        })
+        const data = await res.json()
+        if (data.success) saveSuccess = true
+      } catch (apiErr) {
+        // Fallback to direct Supabase update (useful on Netlify if worker is offline)
+        const { error: sbErr } = await supabase.from('restaurants').update({
           name: editingRestaurant.name,
           city: editingRestaurant.city,
           address: editingRestaurant.address,
@@ -199,11 +234,12 @@ export default function Settings() {
           revenue_per_hour: editingRestaurant.revenue_per_hour,
           is_active: editingRestaurant.is_active,
           working_hours: workingHoursPayload
-        })
-      })
+        }).eq('id', editingRestaurant.id)
 
-      const data = await res.json()
-      if (data.success) {
+        if (!sbErr) saveSuccess = true
+      }
+
+      if (saveSuccess) {
         setRestaurants(prev => prev.map(r => r.id === editingRestaurant.id ? { 
           ...r, 
           ...editingRestaurant,
@@ -212,7 +248,7 @@ export default function Settings() {
         setEditingRestaurant(null)
         showToast(t('settings.toast_save_success'), 'success')
       } else {
-        showToast(t('settings.toast_save_error') + ' ' + (data.error || 'Eroare necunoscută'), 'error')
+        showToast(t('settings.toast_save_error'), 'error')
       }
     } catch (err) {
       console.error('Error updating restaurant:', err)

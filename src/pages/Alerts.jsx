@@ -5,6 +5,7 @@ import { useLanguage } from '../lib/LanguageContext'
 import { AlertOctagon, TrendingDown, Clock, ExternalLink, Loader2, AlertCircle, CheckCircle2, X, Check } from 'lucide-react'
 import BrandAvatar, { cleanRestaurantName } from '../components/BrandAvatar'
 import PlatformLogo from '../components/PlatformLogo'
+import { getApiUrl } from '../lib/api'
 
 const HOURLY_LOSS_RATE = 50 // 50 RON per hour fallback if restaurant metadata is missing
 
@@ -102,7 +103,7 @@ export default function Alerts() {
 
     try {
       if (resolvingIncident.id) {
-        await fetch(`http://localhost:3002/api/stop-events/${resolvingIncident.id}/resolve`, {
+        await fetch(getApiUrl(`/api/stop-events/${resolvingIncident.id}/resolve`), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ reason: resolveReason })

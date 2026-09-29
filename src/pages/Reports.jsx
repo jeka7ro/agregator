@@ -4,6 +4,8 @@ import { useLanguage } from '../lib/LanguageContext'
 import { Loader2, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, Download } from 'lucide-react'
 import BrandAvatar, { cleanRestaurantName } from '../components/BrandAvatar'
 import PlatformLogo from '../components/PlatformLogo'
+import { getApiUrl } from '../lib/api'
+import { supabase } from '../lib/supabaseClient'
 
 function StatusBadge({ status, t }) {
   if (status === 'available' || status === 'open' || status === 'online') {
@@ -35,16 +37,35 @@ export default function Reports() {
   const fetchReports = async (p) => {
     setLoading(true)
     try {
-      const res = await fetch(`http://localhost:3002/api/reports/verifications?page=${p}&limit=${limit}`)
+      const res = await fetch(getApiUrl(`/api/reports/verifications?page=${p}&limit=${limit}`))
       const json = await res.json()
       if (json.success) {
         setData(json.data)
         setTotal(json.total)
         setTotalPages(json.totalPages)
         setPage(json.page)
+      } else {
+        throw new Error('API returned success=false')
       }
     } catch (err) {
-      console.error("Failed to fetch reports:", err)
+      console.warn("API reports fetch failed, falling back to Supabase:", err)
+      try {
+        const offset = (p - 1) * limit
+        const { data: dbData, count } = await supabase
+          .from('monitoring_checks')
+          .select('*, restaurants(name, city)', { count: 'exact' })
+          .order('checked_at', { ascending: false })
+          .range(offset, offset + limit - 1)
+
+        if (dbData && dbData.length > 0) {
+          setData(dbData)
+          setTotal(count || dbData.length)
+          setTotalPages(Math.ceil((count || dbData.length) / limit) || 1)
+          setPage(p)
+        }
+      } catch (dbErr) {
+        console.error("Supabase fallback for reports failed:", dbErr)
+      }
     } finally {
       setLoading(false)
     }
@@ -70,7 +91,7 @@ export default function Reports() {
       // Fetch a larger batch for export (up to 500 rows)
       let exportRows = data
       try {
-        const res = await fetch(`http://localhost:3002/api/reports/verifications?page=1&limit=500`)
+        const res = await fetch(getApiUrl(`/api/reports/verifications?page=1&limit=500`))
         const json = await res.json()
         if (json.success && json.data && json.data.length > 0) {
           exportRows = json.data
