@@ -1,0 +1,45 @@
+# Environment & Secrets (NEVER COMMIT)
+.env
+.env.*
+!.env.example
+workers/.env
+workers/.env.*
+!workers/.env.example
+
+# Dependencies
+node_modules/
+workers/node_modules/
+
+# Puppeteer & Chrome binaries
+workers/chrome/
+workers/.puppeteer_cache/
+.puppeteer_cache/
+chrome/
+
+# Production Build
+dist/
+dist-ssr/
+
+# Large Logs & Dumps
+*.log
+workers/*.log
+api.log
+workers/api.log
+workers/dump.json
+
+# OS & Editor files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

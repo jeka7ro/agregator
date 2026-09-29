@@ -1,0 +1,59 @@
+[
+  {
+    "name": "_gat_UA-145233741-1",
+    "value": "1",
+    "domain": ".glovoapp.com",
+    "path": "/",
+    "expires": 1775053333,
+    "size": 20,
+    "httpOnly": false,
+    "secure": false,
+    "session": false,
+    "priority": "Medium",
+    "sameParty": false,
+    "sourceScheme": "Secure"
+  },
+  {
+    "name": "_ga",
+    "value": "GA1.2.1106581732.1775053273",
+    "domain": ".glovoapp.com",
+    "path": "/",
+    "expires": 1809613273.021542,
+    "size": 30,
+    "httpOnly": false,
+    "secure": false,
+    "session": false,
+    "priority": "Medium",
+    "sameParty": false,
+    "sourceScheme": "Secure"
+  },
+  {
+    "name": "_gid",
+    "value": "GA1.2.936360902.1775053273",
+    "domain": ".glovoapp.com",
+    "path": "/",
+    "expires": 1775139673,
+    "size": 30,
+    "httpOnly": false,
+    "secure": false,
+    "session": false,
+    "priority": "Medium",
+    "sameParty": false,
+    "sourceScheme": "Secure"
+  },
+  {
+    "name": "_dd_s",
+    "value": "rum=0&expire=1775054174810",
+    "domain": "partners.glovoapp.com",
+    "path": "/",
+    "expires": 1775054178,
+    "size": 31,
+    "httpOnly": false,
+    "secure": false,
+    "session": false,
+    "sameSite": "Strict",
+    "priority": "Medium",
+    "sameParty": false,
+    "sourceScheme": "Secure"
+  }
+]

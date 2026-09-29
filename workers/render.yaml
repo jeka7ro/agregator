@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: foodtracker-worker
+    runtime: node
+    rootDir: workers
+    buildCommand: ./render-build.sh
+    startCommand: node src/api-server.js
+    envVars:
+      - key: NODE_VERSION
+        value: "18"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: PORT
+        value: "10000"
+      - key: PUPPETEER_CACHE_DIR
+        value: "/opt/render/project/src/workers/.puppeteer_cache"

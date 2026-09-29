@@ -1,0 +1,5 @@
+UPDATE restaurants SET wolt_url = 'https://wolt.com/ro/rou/iasi/restaurant/poki-woki-iasi-67dad68ddb56261b0e642504' WHERE id = 'f27c7fba-ecdf-4f44-a752-195d5caf9561';
+UPDATE restaurants SET wolt_url = 'https://wolt.com/ro/rou/oradea/restaurant/poki-woki-oradea-67dd59415e61a1513fbf7045' WHERE id = '6c692a12-c55c-45b4-8278-f960ec406e91';
+UPDATE restaurants SET wolt_url = 'https://wolt.com/ro/rou/iasi/restaurant/roll-master-iasi-67dad68ddb56261b0e642501' WHERE id = '10049ce8-3358-425f-9dc6-543ca4a40f7c';
+UPDATE restaurants SET wolt_url = 'https://wolt.com/ro/rou/oradea/restaurant/poki-woki-oradea-67dd59415e61a1513fbf7045' WHERE id = '14adb9aa-a9aa-4b71-9846-41f367f98c24';
+UPDATE restaurants SET wolt_url = 'https://wolt.com/ro/rou/oradea/restaurant/roll-master-oradea-67dd59415e61a1513fbf7038' WHERE id = '7990f9b6-9fa0-46d4-9ec5-219d10458ecc';

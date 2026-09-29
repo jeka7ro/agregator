@@ -1,0 +1,67 @@
+﻿Provider Name,Brand Name,Address,City,Provider Status,Is accepting takeaway orders?
+Crunch City Park,Crunch,"Bulevardul Alexandru Lăpușneanu 116C, 900419 Constanta Romania (City Park Mall, Smash me)",Constanta,active,Yes
+Crunch Vivo,Crunch,"Strada Avram Iancu 492-500, (Smash Me Vivo), 407280 Cluj-Napoca Romania",Cluj-Napoca,active,Yes
+Love Sushi Bacau,Love Sushi,"Bacău, 29 Strada 9 Mai",Bacau,active,Yes
+Love Sushi Botosani,Love Sushi,"Bulevardul George Enescu 4, 710171 Botosani Romania",Botosani,active,No
+Love Sushi Braila,Love Sushi,"Strada Școlilor 2, 810009 Braila Romania",Braila,active,Yes
+Love Sushi Brasov,Love Sushi,"Calea București 107, Brașov 500299, Romania",Brasov,active,No
+Love Sushi Ceaikovski,Love Sushi,"Strada Ceaikovski 9, București",Bucharest,active,No
+Love Sushi Cluj-Napoca,Love Sushi,"Strada Emil Isac 15, 400394 Cluj-Napoca Romania",Cluj-Napoca,active,No
+Love Sushi Constanta,Love Sushi,"Bulevardul Tomis 56, 900178 Constanta Romania",Constanta,active,No
+Love Sushi Craiova,Love Sushi,"Calea București 80, Sushi Master, Craiova",Craiova,active,No
+Love Sushi Galati,Love Sushi,"Strada Brasov 91, 800686 Galati Romania",Galati,active,No
+Love Sushi Halelor,Love Sushi,"Strada Halelor 17, 030167 Bucharest Romania",Bucharest,active,No
+Love Sushi Iasi Piata Voievozilor,Love Sushi,"Piața Voievozilor A9, 700589 Iasi Romania",Iasi,active,No
+Love Sushi Iasi Tudor Vladimirescu,Love Sushi,"Bulevardul Tudor Vladimirescu 111, 700560 Iasi Romania",Iasi,active,No
+Love Sushi Lujerului,Love Sushi,"Bulevardul Iuliu Maniu 19, 061344 Bucharest Romania (Supernova Lujerului)",Bucharest,active,No
+Love Sushi Oradea,Love Sushi,"Oradea, Str. Nufărului 30",Oradea,active,No
+Love Sushi Piatra Neamt,Love Sushi,"Bulevardul Decebal 79, 610046 Piatra Neamt Romania",Piatra Neamt,active,Yes
+Love Sushi Sibiu,Love Sushi,"Sibiu, 1a Bulevardul Mihai Viteazul",Sibiu,active,No
+Love Sushi Suceava,Love Sushi,"Bulevardul George Enescu 38, 720253 Suceava Romania",Suceava,active,Yes
+Love Sushi Sud Plaza,Love Sushi,"Strada Mareșal Constantin Prezan 70-72, 300744 Timisoara Romania",Timisoara,active,No
+Love Sushi Targu-Mures,Love Sushi,"Bulevardul 1 Decembrie 1918 157, 540445 Targu Mures Romania",Targu Mures,active,No
+Love Sushi Titan,Love Sushi,"Bulevardul 1 Decembrie 1918 33A, 032455 Bucharest Romania",Bucharest,active,No
+Love Sushi Tulcea,Love Sushi,"Strada Isaccei 57 bis, 820241 Tulcea Romania",Tulcea,active,Yes
+Poki-Woki Bacau,Poki-Woki,"Strada 9 Mai 29, 600066 Bacau Romania",Bacau,active,No
+Poki-Woki Botosani,Poki-Woki,"Bulevardul George Enescu 4, 710171 Botosani Romania",Botosani,hidden,No
+Poki-Woki Braila,Poki-Woki,"Strada Școlilor 2, 810009 Braila Romania",Braila,active,Yes
+Poki-Woki Brasov,Poki-Woki,"Calea București 107, 500299 Brasov Romania",Brasov,active,No
+Poki-Woki Ceaikovski,Poki-Woki,"Strada Ceaikovski 9, 020261 Bucharest Romania",Bucharest,active,No
+Poki-Woki Cluj,Poki-Woki,"Str. Emil Isac 15, Cluj Napoca",Cluj-Napoca,active,No
+Poki-Woki Constanta,Poki-Woki,"Bd. Tomis 56, Constanta, Romania",Constanta,active,No
+Poki-Woki Craiova,Poki-Woki,"Electroputere Mall, Calea București 80",Craiova,active,No
+Poki-Woki Galati,Poki-Woki,"Strada Brașov 91, Galați 800402, Romania",Galati,active,No
+Poki-Woki Halelor,Poki-Woki,"Halelor 17, Bucuresti",Bucharest,active,No
+Poki-Woki Lujerului,Poki-Woki,"Bulevardul Iuliu Maniu 19, Bucuresti (Supernova Lujerului)",Bucharest,active,No
+Poki-Woki Oradea,Poki-Woki,"Lotus Center, Str. Nufărului 30, Oradea 410583, Romania",Oradea,active,Yes
+Poki-Woki Piata Voievozilor,Poki-Woki,"Piața Voievozilor a9, Iași, Romania",Iasi,hidden,No
+Poki-Woki Piatra Neamt,Poki-Woki,"Bulevardul Decebal 79, 610046 Piatra Neamt Romania",Piatra Neamt,active,No
+Poki-Woki Pitesti,Poki-Woki,"Fosta Taverna Teilor, Strada Teilor 33, Pitești 110030",Pitesti,active,No
+Poki-Woki Suceava,Poki-Woki,"Bulevardul George Enescu 38, 720253 Suceava Romania",Suceava,hidden,Yes
+Poki-Woki Sud Plaza,Poki-Woki,"Strada Mareșal Constantin Prezan 70-72, 300744 Timisoara Romania",Timisoara,active,No
+Poki-Woki Titan,Poki-Woki,"Bulevardul 1 Decembrie 1918 33A, Bucuresti",Bucharest,active,No
+Poki-Woki Tudor Vladimirescu,Poki-Woki,"Bulevardul Tudor Vladimirescu 111 Cămin T17, Iasi",Iasi,hidden,No
+Poki-Woki Tulcea,Poki-Woki,"Strada Isaccei 57 bis, Complex Pelican, 820241 Tulcea",Tulcea,active,Yes
+Poki-Woki Târgu Mureș,Poki-Woki,"Bulevardul 1 Decembrie 1918 157, Târgu Mureș 540445, Romania",Targu Mures,hidden,No
+Roll Master - Botosani,Roll Master,"Bulevardul George Enescu 4, 710171 Botosani Romania",Botosani,active,No
+Roll Master Bacau,Roll Master,"Strada 9 Mai 29, Bacău 600066, Romania",Bacau,active,Yes
+Roll Master Braila,Roll Master,"Strada Școlilor 2, 810009 Brăila",Braila,active,Yes
+Roll Master Brasov,Roll Master,"Calea București 107, Brașov 500053 (Galeriile Carrefour)",Brasov,active,Yes
+Roll Master Ceaikovski,Roll Master,Str. Ceaikovski 9,Bucharest,active,Yes
+Roll Master Cluj,Roll Master,"str. Emil Isac 15, Cluj",Cluj-Napoca,active,Yes
+Roll Master Constanta,Roll Master,Bd. Tomis 56,Constanta,active,Yes
+Roll Master Craiova,Roll Master,"Calea București 80, Sushi Master, Craiova",Craiova,active,Yes
+Roll Master Galati,Roll Master,"Strada Brașov 91, Galați 800402, Romania",Galati,active,Yes
+Roll Master Halelor,Roll Master,"Strada Halelor 17, 030118 București",Bucharest,active,Yes
+Roll Master Lujerului,Roll Master,"Bulevardul Iuliu Maniu 19, 061344 Bucharest Romania (Supernova Lujerului)",Bucharest,active,Yes
+Roll Master Oradea,Roll Master,"Centrul Comercial Lotus Retail Park, Strada Ștefan Octavian Iosif 7, Oradea 410230, România",Oradea,active,Yes
+Roll Master Piatra Neamt,Roll Master,"Bulevardul Decebal 79, 610046 Piatra Neamt Romania",Piatra Neamt,active,Yes
+Roll Master Piața Voievozilor,Roll Master,"Piața Voievozilor A9, Iași",Iasi,active,Yes
+Roll Master Pitesti,Roll Master,"Fosta Taverna Teilor, Strada Teilor 33, Pitești 110030, Romania",Pitesti,active,Yes
+Roll Master Sibiu,Roll Master,"Bulevardul Mihai Viteazul 1a, Șelimbăr 550350, Romania",Sibiu,active,Yes
+Roll Master Suceava,Roll Master,"Bulevardul George Enescu 38, 720253 Suceava Romania",Suceava,active,Yes
+Roll Master Sud Plaza,Roll Master,Strada Constantin Prezan nr 70-72 Timisoara,Timisoara,active,Yes
+Roll Master Targu Mures,Roll Master,"Bulevardul 1 Decembrie 1918 157, Târgu Mureș 540445, Romania",Targu Mures,active,Yes
+Roll Master Titan,Roll Master,"Bulevardul 1 Decembrie 1918 33a, Food Court Auchan Titan, Bucuresti",Bucharest,active,Yes
+Roll Master Tudor Vladimirescu,Roll Master,"Bulevardul Tudor Vladimirescu 111 Cămin T17, Iasi",Iasi,active,Yes
+Roll Master Tulcea,Roll Master,"Strada Isaccei 57 bis, Complex Pelican, 820241 Tulcea",Tulcea,active,Yes

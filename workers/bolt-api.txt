@@ -1,0 +1,2795 @@
+BoltFoodAPI (1.0)
+
+Download OpenAPI specification:Download
+
+Terms of Use
+
+By accessing and using the Bolt Food API and related materials, you agree to the Terms of Use for Bolt Food API.
+
+Overview
+
+Thank you for choosing the Bolt Food API, designed to help integrate your store with the Bolt Food application and delivery.
+
+This API will allow you to:
+
+Manage assortment and menus, including prices and discounts
+Automate order acceptance, rejection, and fulfillment operations
+Integrate with Point of Sales (POS) systems
+Manage Dine-In Orders
+
+For stores integration visit Bolt Stores API
+
+Terminology
+Provider represents a single merchant entry in the Bolt Food app, which could be a restaurant.
+Integrator The party implementing the integration.
+How to onboard?
+
+Once you’ve read the Terms of Use, Bolt Food will provide the Integrator with a document containing:
+
+Questions regarding the scope of integration
+Test setup details
+The API endpoints once they are ready for testing
+Bolt Food will provide the following:
+integrator_id: your integrator id, unique across all providers, specific per environment (staging/prod)
+provider_id: Unique value for each provider
+secret_key: Unique signature for the integrator_id (e.g. cT+NCWBPvJLeKRD6p9UfIJ+PG+1d39J8TTG12Ic1qmQ=)
+Integrator requirements
+
+The integrator must provide webhooks for New Order, Cancel Order, Status Update, along with authentication method details (more here)
+
+Other values
+Requests timeout: 60 seconds for all requests sent via this API.
+Versioning
+Versioning and Backward Compatibility Policy
+
+The Bolt Delivery API is a rolling-version API. The structure of API requests and responses is maintained as fully backward compatible with the very first API version ever released. In practice, this means the following:
+
+In the request formats to the API (i.e., the part the integrator needs to implement):
+No existing endpoints are ever removed, but new ones might be exposed.
+No mandatory fields can be introduced, but new optional fields might appear.
+Existing mandatory fields could become optional or deprecated (the latter implying their usage is not recommended but will be supported).
+In the response formats, including webhook payloads (i.e., the data the integrator receives from Bolt):
+No mandatory fields are ever removed, but new ones might be exposed.
+Existing optional fields could become mandatory or deprecated (the latter implying their usage is not recommended but will be supported).
+
+Overall, Bolt makes every reasonable effort to ensure the business logic remains operational and that no changes need to be implemented when newer versions of the API are released.
+
+Changelog
+
+You can find the changelog here
+
+Authentication
+Integrator webhooks authentication
+
+For authenticating requests coming from Bolt Food there are two options:
+
+Basic authentication
+Utilizing an identity server
+Basic authentication
+You will provide us with a username and a password and we will send an Authorization header with each request to your endpoints.
+The Authorization header that we will send will have the value: Basic base64($username:$password)
+Identity server for getting a bearer token
+
+This will imply that you will give us an endpoint that we will call with a payload you can specify (e.g. client_id, client_secret, scope, etc.). The payload will be encoded as x-www-form-urlencoded in a POST request to your identity server.
+
+The response from this endpoint will contain 2 things:
+
+token - this will be a token that we will then use in the Authorization header for subsequent requests to your endpoints (webhooks);
+expires_at - timestamp at which the token will expire, we use it to cache the token so we don’t send requests to your identity server each time we need to call one of your webhooks. The format that must by used is the unix timestamp in seconds
+Signing request that reach Bolt Food API
+
+In order to secure the communication, we will verify the signature for all the requests that are reaching our API. We will require 2 headers with each request we get on our webhooks:
+
+x-external-integrator-id which contains your integrator id (you will get this from Bolt Food when your test account will be created);
+x-server-authorization-hmac-sha256 which contains the signature of the raw payload (outputed in base64) computed with sha256 algorithm and a secret key that you will receive from Bolt Food. Example how to compute it can be found in the Postman collection or following this code snippet example:
+const CryptoJS = require('crypto-js');
+const secret = '<put your secret key here>';
+const body = pm.request.body.raw;
+const key = CryptoJS.HmacSHA256(body, secret);
+const base64key = key.toString(CryptoJS.enc.Base64);
+pm.request.headers.upsert({
+    key: 'x-server-authorization-hmac-sha256',
+    value: base64key
+});
+
+Playground
+
+👉 use the following form to verify that your code is generating the right values for the x-server-authorization-hmac-sha256 header.
+
+You can freely paste the integrator ID and secret provided by Bolt here, all of the calculations happen in the browser and your secret is not sent anywhere.
+
+INTEGRATOR ID
+
+SECRET
+
+REQUEST BODY
+
+X-SERVER-AUTHORIZATION-HMAC-SHA256
+
+API changes and request handling
+Idempotency rules for Bolt outbound traffic
+
+Due to retry mechanism Bolt might send the same event multiple times. To prevent issues with order duplication integration system must assure idempotency. For example when receiving the same order_id for event:
+
+new_order : Integrator should send back HTTP 200 response for each request and make sure to not duplicate the order
+cancel_order: Order should be canceled and HTTP 200 response have to be sent to each request
+Outbound request retries
+
+Bolt Food provides functionality to retry an outbound request in order to increase the probability of receiving a successful response.
+This functionality is disabled by default and can be enabled by contacting Bolt Food support.
+
+When are outbound requests retried?
+
+An outbound request will be retried from Bolt’s side for one of the following scenarios:
+
+The received response was not successful (HTTP 2xx response code)
+The request timed out
+
+The timeout for an outbound request is 5 seconds.
+
+How often are outbound requests resent?
+
+Bolt Food will retry sending outbound requests until a successful response is received or after a total of 5 retried attempts is reached.
+
+The attempts are resent using an exponential backoff algorithm by resending after 2request_attempt_number seconds, where request_attempt_number is in the range [1…5].
+
+This means that the requests will be sent using the following time frame:
+
+First retry: at least 2 seconds after the original request was rejected.
+Second retry: at least 4 seconds after the previous request was rejected.
+Third retry: at least 8 seconds after the previous request was rejected.
+Fourth retry: at least 16 seconds after the previous request was rejected.
+Fifth retry: at least 32 seconds after the previous request was rejected.
+Inbound request rate limiting
+Name	Generic endpoint	Limit (per user per second)	Cumulative limit
+Menu integration			
+Menu push	/genericClient/pushMenu	3	
+Menu get	/genericClient/getMenu	100	
+Menu item availability update	/genericClient/updateMenuItemAvailability	10	
+Order integration			
+Accept incoming order	/genericClient/acceptOrder	100	
+Reject incoming order	/genericClient/rejectOrder	100	
+Mark order as ready for pickup	/genericClient/markOrderAsReadyForPickUp	100	
+Mark order as picked up	/genericClient/markOrderAsPickedUp	100	
+Mark order as delivered	/genericClient/markOrderAsDelivered	100	
+Provider integration			
+Start accepting orders	/genericClient/startAcceptingOrders	100	
+Pause Orders	/genericClient/pauseOrders	100	
+Update provider schedule	/genericClient/updateProviderSchedule	100	
+Warehouse integration			
+Update SKU quantities	/genericClient/updateMenuQuantity	100	5,000,000 per store per day
+Get Menu Quantity	/genericClient/getMenuQuantity	1	
+Mark order with items as ready for pickup	/genericClient/markOrderWithItemsAsReadyForPickUp	100	
+PIM integration			
+Create or fully overwrite products	/pim/v1/products/import/create	100	100,000 SKUs per region per hour
+Partially update products	/pim/v1/products/import/edit	100	100,000 SKUs per region per hour
+Retrieve product import status	/pim/v1/products/import/status/retrieve	100	
+Apply pending product import	/pim/v1/products/import/apply	100	
+Cancel pending product import	/pim/v1/products/import/cancel	100	
+Delist products	/pim/v1/products/delist	10	100,000 SKUs per region per hour
+Get category tree	/pim/v1/categoryTree/get	100	
+Set category tree	/pim/v1/categoryTree/set	30	
+Rearrange categories	/pim/v1/category/rearrange	30	
+Set category products	/pim/v1/category/products/set	30	
+Set layout	/pim/v1/layout/set	30	
+Create a menu draft	/pim/v1/menu/drafts/create	100	
+Retrieve menu draft state	/pim/v1/menu/drafts/state/retrieve	100	
+Reject a menu draft	/pim/v1/menu/drafts/reject	100	
+Publish menu	/pim/v1/menu/drafts/publish	25 req/day	
+List menu publications	/pim/v1/menu/publish/list	100	
+Cancel menu publishing	/pim/v1/menu/publish/cancel	100	
+Import selling prices	/pim/v1/products/prices/import	10	150,000 SKUs per store per hour
+Import discount selling price list	/pim/v1/products/discount/prices/import	10	150,000 SKUs per store per hour
+Bulk import timetables	/pim/v1/timetable/createInBatch	100	
+Retrieve timetable list	/pim/v1/timetable/list	100	
+In the "Limit (per user per second)" section, the user is represented by the "x-external-integrator-id" header
+If the default cumulative limits do not suit your integration needs, contact our technical support, and we will adjust them accordingly.
+Please contact Bolt Food and provide a list of static IPs, in case you receive responses similar to
+{
+   "code": 430,
+   "message": "TOO_MANY_REQUESTS",
+    "error_data": { "text": "Too many consecutive requests." }
+}
+
+Menu integration
+Menu structure
+
+ℹ️ Each provider can have only one active menu.
+
+Bolt Food menu has the following components:
+
+Category - Consists of one or more dishes (assigned in children_ids). E.g. Breakfast, Burgers, Lunch etc.
+Dish - Item inside a category. It may have none to many option groups assigned (children_ids)
+Option group - Group which can be assigned one to many dishes. E.g. "Selecti your pasta type", "Add extras to your pizza"
+Option - options inside option groups. E.g. "Short pasta", "Extra cheese"
+Tags - predefined list of tags to mark item e.g. as packaging_fee, vegeterian etc.
+Fees - Item defining a fee, such as bottle deposits, SUP directive fees, which can be assigned to other items of type Dish or Option.
+(Deprecated - please do not use) Tag multipliers - Array used in order to denote how many tag instances are attached to a single item. Example: [{tag: “sup_cup”, multiplier: 3}, {tag: “sup_container”, multiplier: 2}]. Currently only used for SUP directive business tags.
+Option group types
+type	description	example
+option_select_group	One modifier per list. The list must contain at least two items and selecting an item is mandatory for customers.	
+
+option_multi_select_group	Customers can select or ignore all items	
+
+option_counter_group	Modifiers with counter. Customers can select the quantity needed per item	
+Image guidelines
+
+Size: the minimum recommended height and width of the image is 1200px, up to 10mb.
+
+More detailed guide on photos.
+
+Item availability
+
+Each menu push (/pushMenu) will overwrite previous menu and item availabilities, meaning all unavailable items should be sent to /updateMenuItemAvailability after every menu push with one request (all unavailable items combined into one request). Afterwards dishes and/or options can be updated with /updateMenuItemAvailability.
+
+Fees
+
+Menu items of type "fee" are used to define the applicable fees for items in the menu being pushed, as defined by various container-deposit legislations across markets. The price of a fee is applied on top of the base price of the menu item for which the fee is assigned. For example if a menu item is priced at 10 EUR, and has a fee assigned, with the price of the fee item being 0.5 EUR, then the total price amount of the item will be 10.5 EUR. The extra price from the attached fee is reflected accordingly in the Bolt Food application. By default, for the currently supported fees, the fee price is not included in the merchant's commission computation, the applied VAT rate for the fee price is 0 and the fee price is not included in any discount computation. Currently the following fee types are supported:
+
+Fee type	Description
+deposit	Should be used for bottle deposits.
+Modifies the content of the basket in order to have correct financial information Bolt Food is sending an order to the POS system. See order integration.
+sup_cup	Should be used for the fee applicable to plastic cups, as per the SUP directive. Modifies the content of the basket in order to have correct financial information Bolt is sending an order to the POS system. See order integration for the flow
+sup_container	Should be used for the fee applicable to plastic food containers, as per the SUP directive. Modifies the content of the basket in order to have correct financial information Bolt is sending an order to the POS system. See order integration for the flow
+Business tags and reserved SKUs
+
+There are 2 types of tags:
+
+business tags - tags that trigger a certain logic and may result in side effects
+display tags - used only to display some information to the user (e.g. spicy)
+
+The usage of some business tags may result in side effects regarding the structure of an order, like adding a new item, which may have a reserved SKU.
+
+Available tags
+tag	description
+spicy	Marks an item as spicy
+spicy1	Marks an item with spiciness level 1 (mild)
+spicy2	Marks an item with spiciness level 2 (medium)
+spicy3	Marks an item with spiciness level 3 (hot)
+vegan	Marks an item as vegan
+vegetarian	Marks an item as vegetarian
+kosher	Marks an item as kosher
+halal	Marks an item as halal
+gluten_free	Marks an item as gluten free
+lactose_free	Marks an item as lactose free
+children	Marks an item as intended for children
+alco	Marks an item as containing alcohol
+age_restriction_alcohol_pl	Checkbox for alcohol added. Tagged items will be blurred. Only valid in Poland.
+energy	Marks an item as an energy drink
+medical	Marks an item as a medical product
+tobacco	Marks an item as a tobacco product
+adult	Marks an item as an adult (18+) product
+packaging_fee	Marks an item as a packaging fee item
+special_offer	Marks an item as a special offer
+no_discounts	Excludes an item from discounts
+no_targeted_discount	Excludes an item from targeted discounts
+double_deals	Marks an item as participating in Double Deals promotions
+donation	Marks an item as a donation item
+bulky	Marks an item as bulky
+combo_special_item	Marks an item as part of a combo offering
+(Deprecated - Please use Fees instead) Business tags
+tag	description
+bottle_deposit	Can be used when the bottle price of any drink is part of the price of the entire item but has a different VAT value.
+Modifies the content of the basket in order to have correct financial information Bolt is sending an order to the POS system. See order integration for the flow.
+sup_cup	Should be used to annotate items that include the extra price fee for the plastic cups subject to SUP directive. Modifies the content of the basket in order to have correct financial information Bolt is sending an order to the POS system. See order integration for the flow
+sup_container	Should be used to annotate items that include the extra price fee for the plastic food containers subject to SUP directive. Modifies the content of the basket in order to have correct financial information Bolt is sending an order to the POS system. See order integration for the flow
+Special offer tags
+tag	description
+special_offer_5	Marks a 5% discount (needed to activate a promotion)
+special_offer_10	Marks a 10% discount (needed to activate a promotion)
+special_offer_15	Marks a 15% discount (needed to activate a promotion)
+special_offer_20	Marks a 20% discount (needed to activate a promotion)
+special_offer_25	Marks a 25% discount (needed to activate a promotion)
+special_offer_30	Marks a 30% discount (needed to activate a promotion)
+special_offer_35	Marks a 35% discount (needed to activate a promotion)
+special_offer_40	Marks a 40% discount (needed to activate a promotion)
+special_offer_45	Marks a 45% discount (needed to activate a promotion)
+special_offer_50	Marks a 50% discount (needed to activate a promotion)
+(Deprecated - Please use Fees instead) Reserved SKUs
+sku	description
+bottle_deposit	Used by items that were added in the basket by after using the bottle_deposit tag.
+Do not use bottle_deposit tag in order to not receive this SKU
+sup_cup	Used by items that were added in the basket by using the sup_cup tag.
+Do not use sup_cup tag in order to not receive this SKU
+sup_container	Used by items that were added in the basket by using the sup_container tag.
+Do not use sup_container tag in order to not receive this SKU
+⚠️ IMPORTANT
+
+Sending an empty tag array via API will delete any previously added tags. All relevant tags (business, discount, custom) should be included and sent together every time.
+
+Provider integration
+Overview
+
+In Bolt Food's ecosystem, providers operate under two statuses: active and inactive. While both statuses allow providers to be visible in the app, the inactive status prevents customers from placing orders. Providers are automatically closed based on their designated working hours.
+
+Managing Provider Statuses
+
+The provider status, whether active or inactive, serves to temporarily pause receiving new orders. This status can be modified using two key actions:
+
+pauseOrders This action transitions the provider to an inactive state, halting order reception.
+startAcceptingOrders This action reactivates the provider, allowing them to resume receiving orders.
+
+Additionally, a Status Update Webhook is triggered each time the provider's status changes. These changes can occur due to actions initiated by the integrator, by Bolt Food when a provider misses an order, or through manual adjustments made within the Bolt Food backoffice.
+
+Order integration
+Introduction
+
+This API facilitates the integration with Bolt Food offering two options:
+
+1-way integration With 1-way integration the provider uses the Bolt Restaurant App. Integrators are required to implement receiving New Order requests. More details are provided in the 1-way integration section below.
+2-way integration This method removes tablet requirement. Integrators need to implement all API methods listed in the API for this type of integration.
+Order flow for 2-way integration
+POS
+BoltFood
+Customer
+POS
+BoltFood
+Customer
+alt
+[Accept order]
+[Reject order]
+[Did not respond to the order
+within X minutes]
+opt
+[If a pickup order]
+Place order
+newOrder
+HTTP 200 OK
+acceptOrder
+HTTP 200 OK
+Order is accepted & being prepared
+rejectOrder
+HTTP 200 OK
+Order canceled
+cancelOrder
+HTTP 200 OK
+Order canceled
+statusUpdate (inactive)
+HTTP 200 OK
+Order is ready
+markOrderAsReadyForPickup
+Order is Ready
+HTTP 200 OK
+Picked up the order
+markOrderAsPickedUp
+HTTP 200 OK
+Once an order is accepted in POS it cannot be canceled by the POS.
+If there is no response to an order within X minutes Bolt Food will cancel the order and mark the provider as inactive. The duration of X minutes is determined on a per-city basis. For the configured time for the cities you operate in, please ask a Bolt Food representative. Bolt Food will notify the POS system about this event through the statusUpdate endpoint. In such an event, the POS system should display the status to the provider, who should manually trigger the process of going back active (startAcceptingOrders). It's important not to automate the process of the provider going active after not accepting an order.
+Order flow for 1-way integration
+Order integration
+
+All orders are sent to the Integrator once accepted from the tablet. In case of order cancellation after acceptance, a notification will be sent to the Cancel Order endpoint (optional to implement).
+
+Item mapping
+
+In the 1-way integration, the menu in Bolt Food will be used. For this, the provider needs to map the items with the correct SKUs (POS IDs) in Bolt Food Provider Portal. Keeping the correct mapping is the responsibility of the provider.
+
+However, in case of incorrect mapping, the POS should support the following:
+
+Item prices should not be validated with SKU prices in POS. The value sent by Bolt Food should be used.
+In case of an order with missing SKUs, the provider should be able to map items afterward in POS or on-the-go when the order is sent.
+POS should display the item name sent by Bolt Food to alert the provider of an SKU mismatch.
+Customer places and order
+In the Bolt Food Restaurant application, order can be either accepted or rejected.
+If the order was accepted, Bolt Food will notify the customer of this.
+If the order was accepted, Bolt Food will send the order to the POS system and expect an HTTP 200 OK response if it was successfully processed.
+All further steps will be managed from the Bolt Food tablet.
+Dine-In Order integration
+Introduction
+
+The Dine-in initiative introduces a new experience by allowing customers to use QR codes on restaurant tables to place orders and pay through the Bolt Food ecosystem.
+
+Terminology
+
+Order & Pay (O&P): Upon arriving at a restaurant and being seated at their table, diners can scan a QR code provided on the table. This QR code directs them to an easy-to-use interface where they can browse the menu, add items to a basket, review their selection, and proceed to checkout to pay for their order. Once the payment is successfully completed, the order will be sent to the restaurant for preparation and served to the diners.
+Note: No additional items can be added to the order after the payment is completed. If diners wish to order more, they will need to place a new order.
+
+Pay & Go (P&G): Upon arriving at a restaurant and being seated at their table, diners wait for the waiter to take their order. Once the order is placed by the waiter through the POS system, diners can scan a QR code available on their table. This QR code directs them to an interface where they can view the details of their placed order. From this interface, diners can proceed to checkout and pay for their order conveniently through the Bolt platform.
+
+Order & Pay (O&P):
+Order flow for Generic 2-way integration
+
+After the diner places the order, a New Order outbound request is being sent.
+
+Update via order inbound endpoints:
+
+/genericClient/acceptOrder: accepts the order
+/genericClient/rejectOrder: rejects the order
+/genericClient/markOrderAsReadyForPickUp: marks the order as completed
+Implementation details of interest:
+Receiving dine-in orders
+Updating an order via inbound requests
+Order flow for Generic 1-way integration:
+
+Notes:
+
+All the other order flows (i.e. accept order, reject order etc.) are handled by the App as specified for 1 way integrations
+
+New Order outbound request is sent after the order is finished.
+
+Implementation details of interest:
+
+Receiving dine-in orders
+
+The dine-in orders will be received through the same partner webhook that you are currently using: New Order
+
+The main difference between the Regular order is dine-in orders are the following:
+
+In order to differentiate the dine-in order from other order types (“delivery”, “pickup”, “own_delivery”) you can use a new value that will be added to the order_type field: “dine_in”
+In order to use dine-in orders, you’ll have to use a new field instead of order_id which will be called extended_order_id: string.
+
+ℹ️Please note that for this dine-in case you’ll have to follow Idempotency rules for outbound traffic for extended_order_id instead of order_id, since the order_id can be duplicated for the Pay & Go scenario.
+
+ℹ️The extended_order_id will have the following format “${main_order_id}_${item_group_id}” (which are presented more bellow, although you can consider the format nonessential)
+
+The specific dine-in information will be in a present in a dine_in_details object that consists of the following fields:
+table: string => this will contain the table number in a string format
+item_group_id: number => present in the composition of the extended_order_id, can be considered nonessential and was added for potential future enhancements and overall flexibility
+main_order_id: number => present in the composition of the extended_order_id, can be considered nonessential and was added for potential future enhancements and overall flexibility
+waiter_tip: GenericPosPrice => the tips the waiter has received for the order
+
+Updating an order via inbound requests
+
+In order to update an order you may call the following endpoints:
+
+Accept incoming order endpoint: /genericClient/acceptOrder: to accept the order
+Reject incoming order endpoint: /genericClient/rejectOrder: to reject the order
+Mark order as picked up endpoint: /genericClient/markOrderAsPickedUp: to mark the order as finished
+
+Each of these endpoints will have the new extended_order_id field in the body of the request.
+
+Please note that the order_id: number field is still required and should be populated
+
+Order & Pay (O&P) Flow Examples
+
+Note: This example is for 2-way, but the Received Order payloads are also available for 1 way
+
+Note: Some info from the payload are cut off since they are not essential for presenting the behaviour
+
+New Order outbound request will be sent, with a similar payload:
+{
+  "provider_id": "9GVFLQRuMR",
+  "order_id": 162111164,
+  "extended_order_id": "162111164-199",
+  "order_reference_id": "Z6GG8",
+  "order_type": "dine_in",
+  <...>
+  "customer": {
+    "user_id": "GU-02144db5-793e-44b8-a2fe-4c7c8f7b9a06",
+    <...>
+  },
+  "items": [
+    {
+      "name": "GENERIC_WEBHOOK_DISH_NAME_5_EN",
+      "sku": "sku-sglkijb012",
+      "qty": 1,
+      "unit_item_price": {
+        "value": 5.12,
+        "currency": "eur"
+      },
+      "options": [],
+      "total_item_price": {
+        "value": 5.12,
+        "currency": "eur"
+      }
+    }
+  ],
+  "total_order_price": {
+    "value": 5.12,
+    "currency": "eur"
+  },
+  "dine_in_details": {
+    "table": "4",
+    "main_order_id": 162111164,
+    "item_group_id": 199,
+    "dine_in_flow": "order_and_pay"
+  }
+}
+
+
+Here a new Order&Pay order was received for table 4.
+
+Order can be accepted by calling the "Accept incoming order" endpoint with the following body:
+{
+    "provider_id": "9GVFLQRuMR",
+    "order_id": 162111164,
+    "extended_order_id": "162111164-199"
+}
+
+
+Note: Both the order_id and the extended_order_id should be present for the Dine-in flow
+
+The order can be rejected by calling the "Reject incoming order" with the following body:
+{
+    "provider_id": "9GVFLQRuMR",
+    "order_id": 162111164,
+    "extended_order_id": "162111164-199"
+}
+
+
+Note: Both the order_id and the extended_order_id should be present for the Dine-in flow
+
+If the order has been accepted, you can finalize it by using the "Mark Order as Ready for Pickup" endpoint with the following request body:
+{
+    "provider_id": "9GVFLQRuMR",
+    "order_id": 162111164,
+    "extended_order_id": "162111164-199"
+}
+
+
+Note: Both the order_id and the extended_order_id should be present for the Dine-in flow
+
+Pay & Go (P&G)
+Order flow for integration:
+
+Order Placement: The waiter takes the customer's order and enters it in the POS system.
+
+Viewing Orders: Customers can scan the QR code on their table at any time to view active orders for that table. Additionally, they can check detailed order information on the checkout screen. Order data is fetched from the POS system through a Get Active POS Orders for Table outbound request, ensuring it reflects the most up-to-date order details.
+
+Paying for the Order:
+
+Locking the Order: When the customer opts to pay, the order is locked to prevent further modifications. This is achieved by sending a lock update request (is_locked = true) to the POS system.
+
+Order Creation on Bolt: After the order is locked on the POS system, a corresponding order is created on the Bolt platform, allowing the customer to proceed with payment.
+
+Handling Unfinished Payments: If payment is not completed within a specified time frame, the lock on the POS order is automatically released through an outbound lock update request (is_locked = false). The order can be now modified on the POS side, if needed.
+
+Finalizing the Order: After the payment is successfully completed on Bolt, an outbound Order Update request with the type order_paid is sent, confirming the order's completion.
+
+Implementation details of interest:
+POS
+BoltFood
+Eater
+POS
+BoltFood
+Eater
+This endpoint must be implemented by the POS system.
+The order is locked to prevent modifications during the payment process.
+Payment confirmed, order is finalized.
+Payment not finalised, the order is unlocked.
+alt
+[Payment successful]
+[Payment unsuccessful]
+loop
+[Retry Payment]
+Scan QR Code
+*Retrieve active orders for the table
+Display orders created by the waiter
+Attempt to pay for the order
+*Lock the order for payment
+Send notification that the order is paid (Receive Order Update webhook)
+*Unlock the order
+The POS system needs to implement the following APIs:
+Get active POS orders for table
+Update Order Lock
+The POS system needs to support processing of the following outbound requests:
+Order Update outbound request with ORDER_PAID type
+Order Update outbound request with ORDER_PAID_PARTIALLY type - for split bill payments
+1. Get active POS orders for table
+
+This request fetches the active table orders from the POS system.
+
+Request Body:
+
+Parameter	Type	Required	Description
+provider_id	string	Yes	Unique identifier for the POS provider.
+table	string	Yes	The table identifier which is a number in string format.
+
+Example Request Body:
+
+{
+    "provider_id": "exampleProvider",
+    "table": "12"
+}
+
+
+Response Body:
+
+Field	Type	Description
+orders	array	A list of active orders associated with the specified table.
+
+Each order object within the orders array includes:
+
+Field	Type	Description
+external_order_id	string	Unique order identifier provided by POS for the order.
+order_id_hash	string	This is a unique hash generated by the POS based on the order details.
+It acts as an identifier to track any changes made to the order since it was
+last accessed.
+POS systems can use any hash function they prefer, as long as it consistently
+generates a unique string that accurately represents
+the current state of the POS order object.
+is_final	boolean	Indicates if the order is locked for payment.
+order_items	array	List of items included in the order.
+order_total	object	Total cost of the order, includes discounts if any.
+
+Each order_item object within the order_items array includes:
+
+Field	Type	Description
+name	string	Name of the menu item.
+menu_item_sku	string	SKU identifier for the menu item.
+quantity	number	Quantity of this item ordered.
+price	object	Price details for the menu item.
+options	array	Options for menu item.
+
+Each price object includes:
+
+Field	Type	Description
+value	number	Current price of the item or order total.
+original_price	number	Original price before any discounts (optional).
+
+Each option object within the options array includes:
+
+Field	Type	Description
+name	string	Name of the option (e.g., extra cheese).
+menu_item_sku	string	SKU identifier for the option.
+quantity	number	Quantity of this option selected.
+price	object	Price details for the option (same structure as price above).
+
+Response example:
+
+{
+    "orders": [
+        {
+            "external_order_id": "pos_order_id_1",
+            "order_id_hash": "hash12345",
+            "is_final": true,
+            "order_items": [
+                {
+                    "name": "Margherita Pizza",
+                    "menu_item_sku": "sku123",
+                    "quantity": 2,
+                    "price": {
+                        "value": 8.99,
+                        "original_price": 10.99
+                    },
+                    "options": [
+                        {
+                            "name": "Extra Cheese",
+                            "menu_item_sku": "sku124",
+                            "quantity": 1,
+                            "price": {
+                                "value": 1.5,
+                                "original_price": null
+                            }
+                        }
+                    ]
+                }
+            ],
+            "order_total": {
+                "value": 18.48,
+                "original_price": 21.98
+            }
+        }
+    ]
+}
+
+2. Update Order Lock
+
+This request locks an order for payment, preventing any further modifications. It updates the is_locked status of the specified order and returns the updated order details. Locking the order ensures that no changes can be made during the payment process, preserving the integrity of the payment amount and order details. If the payment is not completed within a configurable time frame, the system will automatically send this outbound request again to unlock the order, allowing the eater to modify it before attempting payment again. This process ensures a seamless and consistent payment experience while maintaining accurate order information.
+
+Request Body:
+
+Parameter	Type	Required	Description
+external_order_id	string	Yes	Unique order identifier provided by POS for the order.
+provider_id	string	Yes	Unique identifier for the POS provider.
+is_locked	boolean	Yes	Specifies whether acquire (true) or release (false) POS order lock.
+
+Request body example:
+
+{
+    "external_order_id": "order12345",
+    "provider_id": "exampleProvider",
+    "is_locked": true
+}
+
+
+Response Body:
+
+Field	Type	Description
+external_order_id	string	Unique order identifier provided by the POS for the order.
+order_id_hash	string	This unique hash is generated by the POS system from the order details.
+is_final	boolean	Indicates if the order is locked on the POS side.
+order_items	array	List of items included in the order.
+order_total	object	Total cost of the order, includes discounts if any.
+
+Each order_item object within the order_items array includes:
+
+Field	Type	Description
+name	string	Name of the menu item.
+menu_item_sku	string	SKU identifier for the menu item.
+quantity	number	Quantity of this item ordered.
+price	object	Price details for the menu item.
+options	array	Options for menu item.
+
+Each price object includes:
+
+Field	Type	Description
+value	number	Current price of the item or order total.
+original_price	number	Original price before any discounts (optional).
+
+Each option object within the options array includes:
+
+Field	Type	Description
+name	string	Name of the option (e.g., extra cheese).
+menu_item_sku	string	SKU identifier for the option.
+quantity	number	Quantity of this option selected.
+price	object	Price details for the option (same structure as price above).
+
+Response example:
+
+{
+    "external_order_id": "pos_order_id_1",
+    "order_id_hash": "hash12345",
+    "is_final": true,
+    "order_items": [
+        {
+            "name": "Margherita Pizza",
+            "menu_item_sku": "sku123",
+            "quantity": 2,
+            "price": {
+                "value": 8.99,
+                "original_price": 10.99
+            },
+            "options": [
+                {
+                    "name": "Extra Cheese",
+                    "menu_item_sku": "sku124",
+                    "quantity": 1,
+                    "price": {
+                        "value": 1.5,
+                        "original_price": null
+                    }
+                }
+            ]
+        }
+    ],
+    "order_total": {
+        "value": 20.98,
+        "original_price": 24.98
+    }
+}
+
+3. Payment notifications
+3.1 Order Paid Notification
+
+After the order is paid, a Receive Order Update outbound request of ORDER_PAID type is sent. This includes external_order_id which is the order identifier provided by POS.
+
+3.2 Order Paid Partially Notification - Split Bill
+
+For cases where diners wish to split the bill, a partial payment can be made for selected items. Once the payment is completed, an outbound Receive Order Update request of type ORDER_PAID_PARTIALLY is sent. This request includes the external_order_id (the order identifier provided by the POS system), the order_items_total for the selected items, and a list of the selected order_items.
+
+When Get Active POS Orders for Table is being later called, the paid items should no longer appear in the active order, once the POS system processes the request.
+
+Note: Any other webhook outbound requests that are not mentioned as part of Pay&Go flow should be ignored for Pay&Go orders.
+
+Menu Integration
+Menu push
+POST
+/genericClient/pushMenu
+
+The integrators will use the push menu webhook to push a new menu for their restaurant. After a new menu is successfully pushed, the menu will be visible after a couple of minutes in the Bolt Food app.
+
+HEADER PARAMETERS
+x-external-integrator-id
+required
+string
+
+Integration ID provided by Bolt Food. It will be unique across all providers.
+
+x-server-authorization-hmac-sha256
+required
+string
+Example: cT+NCWBPvJLeKRD6p9UfIJ+PG+1d39J8TTG12Ic1qmQ=
+
+Signature of the raw payload outputted in base64, computed with sha256 algorithm and a secret key that you will receive from Bolt Food.
+
+REQUEST BODY SCHEMA: application/json
+provider_id
+string (ProviderId)
+
+A unique string identifier of the provider (contact Bolt Food support to obtain one)
+
+provider_ids
+Array of strings (ProviderId)
+
+Provider ids specified in this field must belong to the same restaurant chain (vendor entity in Bolt Food terminology) per one city, otherwise a bad request response is returned"
+
+root_key
+required
+string
+
+root_key is the key of the menu item of type menu
+
+force_reimport_images
+boolean
+
+Flag which enables reupload of all menu images, for reprocessing
+
+menu
+required
+object
+
+Menu structure is like a tree (top node is the menu node), on the next level we have categories. Under menu categories we have dishes. Under dishes we may have option groups. Each option group must have at least one option.
+
+currency
+string
+
+Currency for all the prices of menu items from the menu, in ISO 4217 format (e.g. EUR, USD). If provided it will be validated against the official country currency (as configured by Bolt Food) for the provider location.
+
+Responses
+200 
+
+The operation succeeded
+
+400 
+
+Bad request
+
+401 
+
+Not authorized (invalid authorization credentials)
+
+403 
+
+Forbidden
+
+429 
+
+Too many requests
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Copy
+Expand allCollapse all
+{
+"value": 
+{
+"provider_id": "RESTO_ID",
+"root_key": "mzo270ahrq",
+"menu": 
+{}
+}
+}
+Menu get
+POST
+/genericClient/getMenu
+
+The integrators will use the get menu webhook to get active menu for their restaurant.
+
+Recommendations
+
+This endpoint is meant to be used one time to receive the restaurant’s current menu as a template for future menu pushes.
+
+HEADER PARAMETERS
+x-external-integrator-id
+required
+string
+
+Integration ID provided by Bolt Food. It will be unique across all providers.
+
+x-server-authorization-hmac-sha256
+required
+string
+Example: cT+NCWBPvJLeKRD6p9UfIJ+PG+1d39J8TTG12Ic1qmQ=
+
+Signature of the raw payload outputted in base64, computed with sha256 algorithm and a secret key that you will receive from Bolt Food.
+
+REQUEST BODY SCHEMA: application/json
+provider_id
+string (ProviderId)
+
+A unique string identifier of the provider (contact Bolt Food support to obtain one)
+
+Responses
+200 
+
+The operation succeeded
+
+400 
+
+Bad request
+
+401 
+
+Not authorized (invalid authorization credentials)
+
+403 
+
+Forbidden
+
+429 
+
+Too many requests
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Copy
+{
+"provider_id": "RESTO_ID"
+}
+Response samples
+200
+Content type
+application/json
+Copy
+Expand allCollapse all
+{
+"menu": 
+{
+"1": 
+{},
+"2": 
+{},
+"3": 
+{},
+"4": 
+{},
+"5": 
+{},
+"6": 
+{},
+"7": 
+{},
+"8": 
+{},
+"9": 
+{},
+"10": 
+{},
+"11": 
+{},
+"12": 
+{},
+"13": 
+{},
+"14": 
+{},
+"15": 
+{},
+"16": 
+{},
+"17": 
+{},
+"18": 
+{},
+"19": 
+{},
+"20": 
+{}
+}
+}
+Menu item availability update
+POST
+/genericClient/updateMenuItemAvailability
+
+The integrators can use this endpoint to change menu item availability (i.e., schedule transitions to IN STOCK or OUT OF STOCK).
+
+Each time a menu item availability request comes in, all other scheduled menu item availabilities for the SKUs in the current payload will be canceled. To schedule more than 2 transitions for the same item, both transitions should be specified in the same request.
+
+e.g., If you plan to move an item (with SKU = "random-item-SKU") out of stock from 14:00 to 16:00, the integrator should send a single request with two availability transitions (one transition to OUT OF STOCK with the corresponding timestamp for 14:00, and a transition to IN STOCK with the timestamp for 16:00).
+
+Each menu push will clear item availabilities. It will take couple of minutes before tha availability change is visible in Bolt Food app.
+
+HEADER PARAMETERS
+x-external-integrator-id
+required
+string
+
+Integration ID provided by Bolt Food. It will be unique across all providers.
+
+x-server-authorization-hmac-sha256
+required
+string
+Example: cT+NCWBPvJLeKRD6p9UfIJ+PG+1d39J8TTG12Ic1qmQ=
+
+Signature of the raw payload outputted in base64, computed with sha256 algorithm and a secret key that you will receive from Bolt Food.
+
+REQUEST BODY SCHEMA: application/json
+provider_id
+required
+string
+
+Unique value for provider (given by Bolt Food)
+
+menu_item_availability_updates
+required
+Array of objects
+
+list of menu item availability transitions
+
+string
+Responses
+200 
+
+The operation succeeded
+
+304 
+
+Not modified (the requested entity is already in the desired state)
+
+400 
+
+Bad request
+
+401 
+
+Not authorized (invalid authorization credentials)
+
+403 
+
+Forbidden
+
+404 
+
+Entity not found
+
+429 
+
+Too many requests
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Copy
+Expand allCollapse all
+{
+"provider_id": "RESTO_ID",
+"menu_item_availability_updates": 
+[
+{},
+{}
+]
+}
+Order integration
+Accept incoming order
+POST
+/genericClient/acceptOrder
+
+The integrator will call this endpoint whenever they would like to accept an incoming order from Bolt Food.
+
+Once an order is accepted, the reject order webhook will no longer be callable (it will return BAD_REQUEST). If you’d like to cancel an order accepted by mistake or that you can no longer cook, please call Bolt Food support.
+
+HEADER PARAMETERS
+x-external-integrator-id
+required
+string
+
+Integration ID provided by Bolt Food. It will be unique across all providers.
+
+x-server-authorization-hmac-sha256
+required
+string
+Example: cT+NCWBPvJLeKRD6p9UfIJ+PG+1d39J8TTG12Ic1qmQ=
+
+Signature of the raw payload outputted in base64, computed with sha256 algorithm and a secret key that you will receive from Bolt Food.
+
+REQUEST BODY SCHEMA: application/json
+provider_id
+required
+string (ProviderId)
+
+A unique string identifier of the provider (contact Bolt Food support to obtain one)
+
+order_id
+required
+integer (NumericOrderId)
+
+A numeric identifier of an order, provided by Bolt Food
+
+order_delay_reason
+string
+
+Specify an order delay reason.
+
+delay_time_in_seconds
+number
+
+You can specify the new cooking time in number of seconds.
+
+Warning: This does not represent an addition to the current cooking time that you received. This is representing the new absolute duration value of the cooking time for this particular order, meaning that choosing the value of 300 represents that you are planning on cooking the order for a total duration of 5 minutes.
+
+Responses
+200 
+
+The operation succeeded
+
+304 
+
+Not modified (the requested entity is already in the desired state)
+
+400 
+
+Bad request
+
+401 
+
+Not authorized (invalid authorization credentials)
+
+403 
+
+Forbidden
+
+404 
+
+Entity not found
+
+429 
+
+Too many requests
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Copy
+{
+"provider_id": "RESTO_ID",
+"order_id": 7527572
+}
+Reject incoming order
+POST
+/genericClient/rejectOrder
+
+The integrator will call this endpoint whenever they would like to reject an incoming order from Bolt Food.
+
+HEADER PARAMETERS
+x-external-integrator-id
+required
+string
+
+Integration ID provided by Bolt Food. It will be unique across all providers.
+
+x-server-authorization-hmac-sha256
+required
+string
+Example: cT+NCWBPvJLeKRD6p9UfIJ+PG+1d39J8TTG12Ic1qmQ=
+
+Signature of the raw payload outputted in base64, computed with sha256 algorithm and a secret key that you will receive from Bolt Food.
+
+REQUEST BODY SCHEMA: 
+application/json
+application/xml
+application/json
+provider_id
+required
+string (ProviderId)
+
+A unique string identifier of the provider (contact Bolt Food support to obtain one)
+
+order_id
+required
+integer (NumericOrderId)
+
+A numeric identifier of an order, provided by Bolt Food
+
+reject_reason
+string
+Enum: "do_not_wish_to_serve_this_client" "too_many_orders" "other"
+
+Reject reason
+
+reject_comment
+string
+
+Reject comment.
+
+Responses
+200 
+
+The operation succeeded
+
+304 
+
+Not modified (the requested entity is already in the desired state)
+
+400 
+
+Bad request
+
+401 
+
+Not authorized (invalid authorization credentials)
+
+403 
+
+Forbidden
+
+404 
+
+Entity not found
+
+429 
+
+Too many requests
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+application/xml
+application/json
+Copy
+{
+"provider_id": "RESTO_ID",
+"order_id": 1122211,
+"reject_reason": "other",
+"reject_comment": "Burger is out of stock."
+}
+Mark order as ready for pickup
+POST
+/genericClient/markOrderAsReadyForPickup
+
+The integrator will call this endpoint whenever they would like to mark the order as ready for pickup. This enables courier to be able to pick up the order.
+
+HEADER PARAMETERS
+x-external-integrator-id
+required
+string
+
+Integration ID provided by Bolt Food. It will be unique across all providers.
+
+x-server-authorization-hmac-sha256
+required
+string
+Example: cT+NCWBPvJLeKRD6p9UfIJ+PG+1d39J8TTG12Ic1qmQ=
+
+Signature of the raw payload outputted in base64, computed with sha256 algorithm and a secret key that you will receive from Bolt Food.
+
+REQUEST BODY SCHEMA: application/json
+provider_id
+required
+string (ProviderId)
+
+A unique string identifier of the provider (contact Bolt Food support to obtain one)
+
+order_id
+required
+integer (NumericOrderId)
+
+A numeric identifier of an order, provided by Bolt Food
+
+pickup_confirmation_code
+string
+
+An optional code that Courier should provide on the Order pickup
+
+pickup_bag_count
+integer
+
+Number of bags the courier should pick up, shown as a hint in the courier app. Optional - omit unless greater than 0.
+
+Responses
+200 
+
+The operation succeeded
+
+304 
+
+Not modified (the requested entity is already in the desired state)
+
+400 
+
+Bad request
+
+401 
+
+Not authorized (invalid authorization credentials)
+
+403 
+
+Forbidden
+
+404 
+
+Entity not found
+
+429 
+
+Too many requests
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Copy
+{
+"provider_id": "string",
+"order_id": 123456789,
+"pickup_confirmation_code": "string",
+"pickup_bag_count": 0
+}
+Mark order as picked up
+POST
+/genericClient/markOrderAsPickedUp
+
+The integrator will call this endpoint in order to mark orders of type:
+
+OWN_DELIVERY - as picked up by their courier
+PICKUP - as picked up by the customer.
+
+The integrator should not call this endpoint for DELIVERY type orders.
+
+HEADER PARAMETERS
+x-external-integrator-id
+required
+string
+
+Integration ID provided by Bolt Food. It will be unique across all providers.
+
+x-server-authorization-hmac-sha256
+required
+string
+Example: cT+NCWBPvJLeKRD6p9UfIJ+PG+1d39J8TTG12Ic1qmQ=
+
+Signature of the raw payload outputted in base64, computed with sha256 algorithm and a secret key that you will receive from Bolt Food.
+
+REQUEST BODY SCHEMA: application/json
+provider_id
+required
+string (ProviderId)
+
+A unique string identifier of the provider (contact Bolt Food support to obtain one)
+
+order_id
+required
+integer (NumericOrderId)
+
+A numeric identifier of an order, provided by Bolt Food
+
+Responses
+200 
+
+The operation succeeded
+
+304 
+
+Not modified (the requested entity is already in the desired state)
+
+400 
+
+Bad request
+
+401 
+
+Not authorized (invalid authorization credentials)
+
+403 
+
+Forbidden
+
+404 
+
+Entity not found
+
+429 
+
+Too many requests
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Copy
+{
+"provider_id": "RESTO_ID",
+"order_id": 7527572
+}
+Mark order as delivered
+POST
+/genericClient/markOrderAsDelivered
+
+The integrator will call this endpoint in order to mark orders of type OWN_DELIVERY (restaurants using their own couriers) as delivered to the customer.
+
+The integrator should not call this endpoint for DELIVERY/PICKUP orders.
+
+HEADER PARAMETERS
+x-external-integrator-id
+required
+string
+
+Integration ID provided by Bolt Food. It will be unique across all providers.
+
+x-server-authorization-hmac-sha256
+required
+string
+Example: cT+NCWBPvJLeKRD6p9UfIJ+PG+1d39J8TTG12Ic1qmQ=
+
+Signature of the raw payload outputted in base64, computed with sha256 algorithm and a secret key that you will receive from Bolt Food.
+
+REQUEST BODY SCHEMA: application/json
+provider_id
+required
+string (ProviderId)
+
+A unique string identifier of the provider (contact Bolt Food support to obtain one)
+
+order_id
+required
+integer (NumericOrderId)
+
+A numeric identifier of an order, provided by Bolt Food
+
+Responses
+200 
+
+The operation succeeded
+
+304 
+
+Not modified (the requested entity is already in the desired state)
+
+400 
+
+Bad request
+
+401 
+
+Not authorized (invalid authorization credentials)
+
+403 
+
+Forbidden
+
+404 
+
+Entity not found
+
+429 
+
+Too many requests
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Copy
+{
+"provider_id": "RESTO_ID",
+"order_id": 7527572
+}
+Dine-In Order integration by waiter
+Waiter Create Order
+POST
+/genericClient/waiter/createOrder
+
+The integrator will call this endpoint to create a DINE-IN order in the Bolt platform.
+
+This call has to include the SKUs used in the latest menu pushed to the Bolt platform for that specific restaurant.
+
+To use this endpoint please contact Bolt Food
+
+HEADER PARAMETERS
+x-external-integrator-id
+required
+string
+
+Integration ID provided by Bolt Food. It will be unique across all providers.
+
+x-server-authorization-hmac-sha256
+required
+string
+Example: cT+NCWBPvJLeKRD6p9UfIJ+PG+1d39J8TTG12Ic1qmQ=
+
+Signature of the raw payload outputted in base64, computed with sha256 algorithm and a secret key that you will receive from Bolt Food.
+
+REQUEST BODY SCHEMA: application/json
+provider_id
+required
+string (ProviderId)
+
+A unique string identifier of the provider (contact Bolt Food support to obtain one)
+
+table
+required
+string
+
+The table number for the order.
+
+order_items
+required
+Array of objects (GenericCreateOrderItem)
+
+Array of GenericCreateOrderItem objects. The GenericCreateOrderItem object consists of the details needed for an item that will be present in the order.
+
+append_to_existing_order
+object (GenericAppendExistingOrder)
+
+Used to append the items in this payload to an existing order.
+Thus, this newly added items will create a new Item Group for the existing mentioned order.
+Do not use this field when trying to create an order from scratch
+
+
+Responses
+200 
+
+OK
+
+304 
+
+Not modified (the requested entity is already in the desired state)
+
+400 
+
+Bad request
+
+401 
+
+Not authorized (invalid authorization credentials)
+
+403 
+
+Forbidden
+
+404 
+
+Entity not found
+
+429 
+
+Too many requests
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Example
+Example 1
+Example 2
+Example 1
+Copy
+Expand allCollapse all
+{
+"provider_id": "RESTO_ID",
+"table": "4",
+"order_items": 
+[
+{},
+{}
+],
+"append_to_existing_order": 
+{
+"order_id": 154514104
+}
+}
+Response samples
+200
+Content type
+application/json
+Copy
+{
+"order_id": 7527572,
+"item_group_id": 123,
+"extended_order_id": "7527572-123"
+}
+Waiter Finalize Order
+POST
+/genericClient/waiter/finalizeOrder
+
+The integrator will call this endpoint to finalize a DINE-IN order based on the reason.
+
+Reasons:
+
+"payment_not_processed_by_bolt" — indicates that the user can't / won't pay the order through the Bolt system, and thus would have to pay locally at the store.
+HEADER PARAMETERS
+x-external-integrator-id
+required
+string
+
+Integration ID provided by Bolt Food. It will be unique across all providers.
+
+x-server-authorization-hmac-sha256
+required
+string
+Example: cT+NCWBPvJLeKRD6p9UfIJ+PG+1d39J8TTG12Ic1qmQ=
+
+Signature of the raw payload outputted in base64, computed with sha256 algorithm and a secret key that you will receive from Bolt Food.
+
+REQUEST BODY SCHEMA: application/json
+provider_id
+required
+string (ProviderId)
+
+A unique string identifier of the provider (contact Bolt Food support to obtain one)
+
+order_id
+required
+integer (NumericOrderId)
+
+A numeric identifier of an order, provided by Bolt Food
+
+extended_order_id
+string (ExtendedOrderId)
+
+The extended order id received in the outbound request payload.
+
+It will be prioritized over order_id in case it is present.
+
+Can be skipped for the following reasons:
+
+"payment_not_processed_by_bolt"
+reason
+required
+any
+Value: "payment_not_processed_by_bolt"
+
+The reason for finalizing the order from the waiter side
+
+Responses
+200 
+
+The operation succeeded
+
+400 
+
+Bad request
+
+401 
+
+Not authorized (invalid authorization credentials)
+
+403 
+
+Forbidden
+
+404 
+
+Entity not found
+
+429 
+
+Too many requests
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Copy
+{
+"provider_id": "RESTO_ID",
+"order_id": 7527572,
+"extended_order_id": "7527572-123",
+"reason": "payment_not_processed_by_bolt"
+}
+Provider Integration
+Start accepting orders
+POST
+/genericClient/startAcceptingOrders
+
+The integrator should call this endpoint in order to start accepting new orders.
+
+HEADER PARAMETERS
+x-external-integrator-id
+required
+string
+
+Integration ID provided by Bolt Food. It will be unique across all providers.
+
+x-server-authorization-hmac-sha256
+required
+string
+Example: cT+NCWBPvJLeKRD6p9UfIJ+PG+1d39J8TTG12Ic1qmQ=
+
+Signature of the raw payload outputted in base64, computed with sha256 algorithm and a secret key that you will receive from Bolt Food.
+
+REQUEST BODY SCHEMA: application/json
+provider_id
+required
+string (ProviderId)
+
+A unique string identifier of the provider (contact Bolt Food support to obtain one)
+
+Responses
+200 
+
+The operation succeeded
+
+304 
+
+Not modified (the requested entity is already in the desired state)
+
+400 
+
+Bad request
+
+401 
+
+Not authorized (invalid authorization credentials)
+
+403 
+
+Forbidden
+
+404 
+
+Entity not found
+
+429 
+
+Too many requests
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Copy
+{
+"provider_id": "RESTO_ID"
+}
+Pause Orders
+POST
+/genericClient/pauseOrders
+
+The integrator should call this endpoint when they wish to pause new orders from coming in.
+
+HEADER PARAMETERS
+x-external-integrator-id
+required
+string
+
+Integration ID provided by Bolt Food. It will be unique across all providers.
+
+x-server-authorization-hmac-sha256
+required
+string
+Example: cT+NCWBPvJLeKRD6p9UfIJ+PG+1d39J8TTG12Ic1qmQ=
+
+Signature of the raw payload outputted in base64, computed with sha256 algorithm and a secret key that you will receive from Bolt Food.
+
+REQUEST BODY SCHEMA: application/json
+provider_id
+required
+string (ProviderId)
+
+A unique string identifier of the provider (contact Bolt Food support to obtain one)
+
+resume_at
+number
+
+A UNIX timestamp specifying when new orders should resumed. If not provided, orders will be paused indefinitely.
+
+Responses
+200 
+
+The operation succeeded
+
+304 
+
+Not modified (the requested entity is already in the desired state)
+
+400 
+
+Bad request
+
+401 
+
+Not authorized (invalid authorization credentials)
+
+403 
+
+Forbidden
+
+404 
+
+Entity not found
+
+429 
+
+Too many requests
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Copy
+{
+"provider_id": "string",
+"resume_at": 0
+}
+Update provider schedule
+POST
+/genericClient/updateProviderSchedule
+
+Endpoint used to set provider working hours.
+
+In case working hours are 18:00 PM -> 1:00 AM, then it needs to be defined in 2 different days: 18:00-23:59 and 00:00-01:00, see example-2
+
+Timezone: The working hours provided need to be relative to the local city timezone.
+
+HEADER PARAMETERS
+x-external-integrator-id
+required
+string
+
+Integration ID provided by Bolt Food. It will be unique across all providers.
+
+x-server-authorization-hmac-sha256
+required
+string
+Example: cT+NCWBPvJLeKRD6p9UfIJ+PG+1d39J8TTG12Ic1qmQ=
+
+Signature of the raw payload outputted in base64, computed with sha256 algorithm and a secret key that you will receive from Bolt Food.
+
+REQUEST BODY SCHEMA: application/json
+provider_id
+required
+string (ProviderId)
+
+A unique string identifier of the provider (contact Bolt Food support to obtain one)
+
+schedule
+required
+object
+
+A day number - array of timetables dictionary
+
+Responses
+200 
+
+The operation succeeded
+
+304 
+
+Not modified (the requested entity is already in the desired state)
+
+400 
+
+Bad request
+
+401 
+
+Not authorized (invalid authorization credentials)
+
+403 
+
+Forbidden
+
+404 
+
+Entity not found
+
+429 
+
+Too many requests
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Example
+example-1
+example-2
+example-1
+Copy
+Expand allCollapse all
+{
+"provider_id": "RESTO_ID",
+"schedule": 
+{
+"0": 
+[]
+}
+}
+Order integration Partner Webhooks
+Receive Send New Order Webhook
+
+Bolt Food will send you a request that announces that a order for your POS (a webhook needs to be provided to Bolt Food).
+
+REQUEST BODY SCHEMA: application/json
+provider_id
+required
+string (ProviderId)
+
+A unique string identifier of the provider (contact Bolt Food support to obtain one)
+
+order_id
+required
+integer (NumericOrderId)
+
+A numeric identifier of an order, provided by Bolt Food
+
+extended_order_id
+string (ExtendedOrderId)
+
+The id used for Dine In Orders. It is built using the following format: "${main_order_id}_${item_group_id}"
+
+order_reference_id
+required
+string (OrderReferenceId)
+
+Bolt Food order reference id is a short alphanumerical string that identifies the order
+
+order_type
+required
+string
+Enum: "delivery" "pickup" "own_delivery"
+
+The type of the order based on how it is delivered
+
+order_dispatch_type
+string
+Enum: "regular" "scheduled"
+
+The dispatch type of the order specific for the scheduled orders feature (you can enable this feature by contacting Bolt Food)
+
+payment_type
+required
+string
+Enum: "cash" "card_online"
+
+The type of payment chose by the Bolt Food customer
+
+created_ts
+required
+number
+
+The UNIX timestamp in seconds when the order has been created
+
+created_datetime
+required
+string
+
+The ISO datetime in the restaurant's timezone when the order has been created
+
+due_ts
+required
+number
+
+The UNIX timestamp in seconds when the order needs to be ready for pick up
+
+due_datetime
+required
+string
+
+The ISO datetime in the restaurant's timezone when the order needs to be ready for pick up
+
+customer
+required
+object (GenericPosUserInfo)
+
+A GenericPosUserInfo object that contains information about the customer
+
+items
+required
+Array of objects (GenericPosItem)
+
+Array of GenericPosItem objects
+
+total_order_price
+required
+object (GenericPosApiPrice)
+
+The total price of the order
+
+delivery_fee
+object (GenericPosApiPrice)
+
+The price of the delivery fee for the order (user for ROD orders)
+
+small_order_fee
+object (GenericPosApiPrice)
+
+The price of the small order fee in case the order is small (user for ROD orders)
+
+service_fee
+object (GenericPosApiPrice)
+
+The price of the service fee collected
+
+user_note
+string
+
+User note for the order.
+
+order_source
+string
+
+The entity sending the order - always has the value 'Bolt'
+
+pick_up_ts
+number
+
+The UNIX timestamp in seconds when the order will be picked up
+
+dine_in_details
+object (GenericPosDineInDetails)
+
+A GenericPosDineInDetails object containing the extra order details needed for dine-in functionality (see Dine In Order Integration for more info - you can enable this functionality by contacting Bolt Food)
+
+max_acceptance_ts
+number
+
+The UNIX timestamp in seconds value representing the final moment when the order can be accepted. Thus, afterwards the order will fail with the reason DID NOT RESPOND. This field can be enabled by contacting Bolt Food.
+
+total_overbooking_amount
+object (GenericPosPrice)
+
+The total overbooking amount for the order
+
+Responses
+200 
+
+The operation succeeded
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Copy
+Expand allCollapse all
+{
+"provider_id": "flQ2cdKDoj",
+"order_id": 133035352,
+"order_reference_id": "WWJ98",
+"order_type": "delivery",
+"payment_type": "card_online",
+"created_ts": 1695386605,
+"created_datetime": "2023-09-19T14:43:25.828+02:00",
+"due_ts": 1695387506,
+"due_datetime": "2023-09-19T14:58:26.828+02:00",
+"customer": 
+{
+"user_id": "187f8ce9-0f7a-483d-8d41-8d97878f994c",
+"partial_name": "John D.",
+"partial_phone": "********1234",
+"address_info": { }
+},
+"total_order_price": 
+{
+"value": 6.76,
+"currency": "eur"
+},
+"items": 
+[
+{}
+]
+}
+Receive Cancel Order Webhook
+
+Bolt Food will send you a request that announces that the order has been canceled (a webhook needs to be provided to Bolt Food)
+
+REQUEST BODY SCHEMA: application/json
+provider_id
+required
+string (ProviderId)
+
+A unique string identifier of the provider (contact Bolt Food support to obtain one)
+
+order_id
+required
+integer (NumericOrderId)
+
+A numeric identifier of an order, provided by Bolt Food
+
+order_reference_id
+required
+string (OrderReferenceId)
+
+Bolt Food order reference id is a short alphanumerical string that identifies the order
+
+extended_order_ids
+Array of strings (ExtendedOrderId)
+
+An array of representing the affected extended_order_ids values, in string format (present for Dine-In functionality only)
+
+reject_reason
+string
+Value: "payment_not_processed_by_bolt"
+
+The reason why the order is cancelled
+
+Responses
+200 
+
+The operation succeeded
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Example
+Example 1
+Example 2
+Example 1
+Copy
+{
+"provider_id": "flQ2cdKDoj",
+"order_id": 133035352,
+"order_reference_id": "WWJ98"
+}
+Receive Order Update Webhook
+
+Bolt Food will send you a request that announces a specific order update (a webhook needs to be provided to Bolt Food)
+
+Please contact Bolt Food if you want to receive these type of updates.
+
+REQUEST BODY SCHEMA: application/json
+provider_id
+required
+string (ProviderId)
+
+A unique string identifier of the provider (contact Bolt Food support to obtain one)
+
+request_type
+required
+string
+Enum: "order_paid" "order_paid_partially" "order_preparing"
+
+The type of update request received. Used to mark events and differentiate between payloads.
+
+
+order_paid: Announces that the order has been paid by the user. The fields the payload uses: required ones, external_order_id
+
+order_paid_partially: Announces that a partial payment for selected items has been made. The fields the payload uses: required ones, external_order_id, order_items
+
+order_preparing: Announces that the order has started preparing. The fields the payload uses: required ones
+main_order_id
+required
+integer (NumericOrderId)
+
+Bolt Food order id (order_id in new order request sent to integrator)
+
+extended_order_ids
+Array of strings (ExtendedOrderId)
+
+An array of representing the affected extended_order_ids values, in string format (present for Dine-In functionality only)
+
+waiter_tip
+object (GenericPosPrice)
+
+A GenericPosPrice object representing the tip the waiter received for the order
+
+order_items_total
+object (GenericPosPrice)
+
+A GenericPosPrice object representing the total amount of the paid order items
+
+external_order_id
+string
+
+The order id provided from the POS side, to be able to identify for which order a payment was made.
+
+order_items
+Array of arrays
+
+An array containing the items for which a payment was made. Used in the split the bill scenario.
+
+Responses
+200 
+
+The operation succeeded
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Example
+Example 1
+Example 2
+Example 3
+Example 1
+Copy
+Expand allCollapse all
+{
+"provider_id": "flQ2cdKDoj",
+"request_type": "order_paid",
+"main_order_id": 133035352,
+"extended_order_ids": 
+[
+"133035352_1",
+"133035352_2"
+],
+"waiter_tip": 
+{
+"value": 3.14,
+"currency": "eur"
+},
+"order_items_total": 
+{
+"value": 31.4,
+"currency": "eur"
+},
+"external_order_id": "pos_order_1"
+}
+Receive Provider Status Updates Webhook
+
+Bolt Food will send you a request when the status of a provider changes (a webhook needs to be provided to Bolt Food)
+
+REQUEST BODY SCHEMA: application/json
+provider_id
+required
+string (ProviderId)
+
+A unique string identifier of the provider (contact Bolt Food support to obtain one)
+
+new_status
+required
+string
+Enum: "active" "inactive"
+
+New status of the provider
+
+Responses
+200 
+
+The operation succeeded
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Copy
+{
+"provider_id": "flQ2cdKDoj",
+"new_status": "active"
+}
+Receive Courier Details Webhook
+
+Bolt Food will send you a request that provides courier information for a specific order (a webhook needs to be provided to Bolt Food)
+
+REQUEST BODY SCHEMA: application/json
+provider_id
+required
+string (ProviderId)
+
+A unique string identifier of the provider (contact Bolt Food support to obtain one)
+
+order_id
+required
+integer (NumericOrderId)
+
+A numeric identifier of an order, provided by Bolt Food
+
+order_reference_id
+required
+string (OrderReferenceId)
+
+Bolt Food order reference id is a short alphanumerical string that identifies the order
+
+courier
+required
+object
+
+Object containing courier information
+
+Responses
+200 
+
+The operation succeeded
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Copy
+Expand allCollapse all
+{
+"provider_id": "flQ2cdKDoj",
+"order_id": 133035352,
+"order_reference_id": "WWJ98",
+"courier": 
+{
+"partial_name": "John D.",
+"phone": "+407222xxxxx",
+"eta_ts": 1695218784
+}
+}
+Receive Deduction Webhook
+
+Bolt Food will send you a request when a deduction has been applied to an order (a webhook needs to be provided to Bolt Food)
+
+REQUEST BODY SCHEMA: application/json
+idempotency_id
+required
+string <uuid>
+
+Unique identifier of the deduction event, used for deduplication with at-least-once delivery
+
+order_id
+required
+integer (NumericOrderId)
+
+A numeric identifier of an order, provided by Bolt Food
+
+order_reference_id
+required
+string (OrderReferenceId)
+
+Bolt Food order reference id is a short alphanumerical string that identifies the order
+
+provider_id
+required
+string (ProviderId)
+
+A unique string identifier of the provider (contact Bolt Food support to obtain one)
+
+created_at
+required
+integer
+
+The UNIX timestamp in seconds when the deduction was created
+
+reasons
+required
+Array of objects
+
+List of reasons for the deduction
+
+description
+required
+string
+
+Comma-separated list of refunded basket items in the format "{quantity} x {item_name}". May be an empty string when the deduction applies to the entire order or individual basket item details are not available.
+
+deducted_amount
+required
+object
+
+The monetary amount deducted
+
+Responses
+200 
+
+The operation succeeded
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Copy
+Expand allCollapse all
+{
+"idempotency_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+"order_id": 123456789,
+"order_reference_id": "WWJ98",
+"provider_id": "flQ2cdKDoj",
+"created_at": 1771592153,
+"reasons": 
+[
+{},
+{}
+],
+"description": "2 x Margherita Pizza, 1 x Coca Cola",
+"deducted_amount": 
+{
+"value": 5.99,
+"currency": "eur"
+}
+}
+PIM integration: Option and Option Groups
+Create or Update Options
+POST
+/pim/v1/option/upsert
+
+Creates options in bulk or updates options attributes if they already exist (identified by SKU). (you can enable this feature by contacting the Bolt Food support) sku attribute is optional for creating options, if not provided, the option will be created with a generated SKU. sku attribute is mandatory for updating options.
+
+extended_sku attribute is the SKU of the product/dish the option is meant to extend and inherit its attributes (tags, codes and prices) if not overridden. extended_sku is optional and can be updated later. If not product found with provided extended_sku, a PRODUCT_NOT_FOUND (code: 40018) error will be returned and changes will be discarded.
+
+HEADER PARAMETERS
+x-external-integrator-id
+required
+string
+
+Integration ID provided by Bolt Food. It will be unique across all providers.
+
+x-server-authorization-hmac-sha256
+required
+string
+Example: cT+NCWBPvJLeKRD6p9UfIJ+PG+1d39J8TTG12Ic1qmQ=
+
+Signature of the raw payload outputted in base64, computed with sha256 algorithm and a secret key that you will receive from Bolt Food.
+
+REQUEST BODY SCHEMA: application/json
+region_id
+required
+integer (RegionId)
+
+An identifier of the region that the operation applies to. Consult technical support or the PIM Web interface to retrieve this id
+
+options
+required
+Array of objects (ExternalOptionRequest)
+
+Array of option requests
+
+Responses
+200 
+
+A synchronous operation has been executed
+
+400 
+
+Bad request
+
+401 
+
+Not authorized (invalid authorization credentials)
+
+403 
+
+Forbidden
+
+429 
+
+Too many requests
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Copy
+Expand allCollapse all
+{
+"region_id": 0,
+"options": 
+[
+{}
+]
+}
+Response samples
+200
+Content type
+application/json
+Example
+SuccessfulOperationResult
+UnsuccessfulOperationResult
+SuccessfulOperationResult
+Copy
+{
+"state": "success"
+}
+List Options
+POST
+/pim/v1/option/list
+
+Lists options (optionally filtered by provided SKUs.
+
+HEADER PARAMETERS
+x-external-integrator-id
+required
+string
+
+Integration ID provided by Bolt Food. It will be unique across all providers.
+
+x-server-authorization-hmac-sha256
+required
+string
+Example: cT+NCWBPvJLeKRD6p9UfIJ+PG+1d39J8TTG12Ic1qmQ=
+
+Signature of the raw payload outputted in base64, computed with sha256 algorithm and a secret key that you will receive from Bolt Food.
+
+REQUEST BODY SCHEMA: application/json
+region_id
+required
+integer (RegionId)
+
+An identifier of the region that the operation applies to. Consult technical support or the PIM Web interface to retrieve this id
+
+option_skus
+Array of strings (Sku) [ items [ 1 .. 255 ] characters ]
+
+Array of option SKUs to filter by
+
+page
+required
+object (PageQuery)
+
+Limit and offset for pagination
+
+Responses
+200 
+
+OK
+
+400 
+
+Bad request
+
+401 
+
+Not authorized (invalid authorization credentials)
+
+403 
+
+Forbidden
+
+429 
+
+Too many requests
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Copy
+Expand allCollapse all
+{
+"region_id": 0,
+"option_skus": 
+[
+"string"
+],
+"page": 
+{
+"offset": 0,
+"limit": 1
+}
+}
+Response samples
+200
+Content type
+application/json
+Copy
+Expand allCollapse all
+{
+"options": 
+[
+{}
+],
+"total_count": 0
+}
+Create or Update Option Groups
+POST
+/pim/v1/optionGroup/upsert
+
+Creates option groups in bulk or updates option groups attributes if they already exist (identified by external ID). (you can enable this feature by contacting the Bolt Food support) external_id attribute is optional for creating option groups, if not provided, the option group will be created with a generated external ID. external_id attribute is mandatory for updating options.
+
+HEADER PARAMETERS
+x-external-integrator-id
+required
+string
+
+Integration ID provided by Bolt Food. It will be unique across all providers.
+
+x-server-authorization-hmac-sha256
+required
+string
+Example: cT+NCWBPvJLeKRD6p9UfIJ+PG+1d39J8TTG12Ic1qmQ=
+
+Signature of the raw payload outputted in base64, computed with sha256 algorithm and a secret key that you will receive from Bolt Food.
+
+REQUEST BODY SCHEMA: application/json
+region_id
+required
+integer (RegionId)
+
+An identifier of the region that the operation applies to. Consult technical support or the PIM Web interface to retrieve this id
+
+option_groups
+required
+Array of objects (ExternalOptionGroupRequest)
+
+Array of option requests
+
+Responses
+200 
+
+A synchronous operation has been executed
+
+400 
+
+Bad request
+
+401 
+
+Not authorized (invalid authorization credentials)
+
+403 
+
+Forbidden
+
+429 
+
+Too many requests
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Copy
+Expand allCollapse all
+{
+"region_id": 0,
+"option_groups": 
+[
+{}
+]
+}
+Response samples
+200
+Content type
+application/json
+Example
+SuccessfulOperationResult
+UnsuccessfulOperationResult
+SuccessfulOperationResult
+Copy
+{
+"state": "success"
+}
+List Option Groups
+POST
+/pim/v1/optionGroup/list
+
+Lists option groups (optionally filtered by provided external IDs.
+
+HEADER PARAMETERS
+x-external-integrator-id
+required
+string
+
+Integration ID provided by Bolt Food. It will be unique across all providers.
+
+x-server-authorization-hmac-sha256
+required
+string
+Example: cT+NCWBPvJLeKRD6p9UfIJ+PG+1d39J8TTG12Ic1qmQ=
+
+Signature of the raw payload outputted in base64, computed with sha256 algorithm and a secret key that you will receive from Bolt Food.
+
+REQUEST BODY SCHEMA: application/json
+region_id
+required
+integer (RegionId)
+
+An identifier of the region that the operation applies to. Consult technical support or the PIM Web interface to retrieve this id
+
+option_group_external_ids
+Array of strings (OptionGroupExternalId) [ items [ 1 .. 255 ] characters ]
+
+Array of option group external IDs to filter by
+
+page
+required
+object (PageQuery)
+
+Limit and offset for pagination
+
+Responses
+200 
+
+OK
+
+400 
+
+Bad request
+
+401 
+
+Not authorized (invalid authorization credentials)
+
+403 
+
+Forbidden
+
+429 
+
+Too many requests
+
+500 
+
+Internal server error
+
+Request samples
+Payload
+Content type
+application/json
+Copy
+Expand allCollapse all
+{
+"region_id": 0,
+"option_group_external_ids": 
+[
+"string"
+],
+"page": 
+{
+"offset": 0,
+"limit": 1
+}
+}
+Response samples
+200
+Content type
+application/json
+Copy
+Expand allCollapse all
+{
+"option_groups": 
+[
+{}
+],
+"total_count": 0
+}

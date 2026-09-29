@@ -1,0 +1,112 @@
+[
+  {
+    "id": "evt_1790677726998_zsajl",
+    "timestamp": "2026-09-29T10:28:46.998Z",
+    "platform": "glovo",
+    "event_type": "CLOSED",
+    "store_id": "426935",
+    "restaurant_id": null,
+    "restaurant_name": null,
+    "action_taken": "STORE_OFFLINE",
+    "notification_sent": false,
+    "payload_summary": {
+      "store_id": "426935",
+      "status": "CLOSED",
+      "is_open": false
+    }
+  },
+  {
+    "id": "evt_1790672068479_7jelb",
+    "timestamp": "2026-09-29T08:54:28.479Z",
+    "platform": "bolt",
+    "event_type": "ACTIVE",
+    "provider_id": "fORQSGWvmf",
+    "restaurant_id": "46e6b5a3-8537-46e6-8f5a-6eff4db84979",
+    "restaurant_name": "CONSTANTA (Roll Master)",
+    "action_taken": "STORE_RECOVERED",
+    "signature_valid": true,
+    "notification_sent": false,
+    "payload_summary": {
+      "provider_id": "fORQSGWvmf",
+      "status": "ACTIVE",
+      "is_active": true
+    }
+  },
+  {
+    "id": "evt_1790672062345_1q0rk",
+    "timestamp": "2026-09-29T08:54:22.345Z",
+    "platform": "bolt",
+    "event_type": "INACTIVE",
+    "provider_id": "fORQSGWvmf",
+    "restaurant_id": "46e6b5a3-8537-46e6-8f5a-6eff4db84979",
+    "restaurant_name": "CONSTANTA (Roll Master)",
+    "action_taken": "STORE_OFFLINE",
+    "signature_valid": true,
+    "notification_sent": false,
+    "payload_summary": {
+      "provider_id": "fORQSGWvmf",
+      "status": "INACTIVE",
+      "is_active": false
+    }
+  },
+  {
+    "id": "evt_1790672057918_s94b0",
+    "timestamp": "2026-09-29T08:54:17.918Z",
+    "platform": "wolt",
+    "event_type": "VENUE_OFFLINE_ALERT_RECOVERED",
+    "venue_id": "67dd59415e61a1513fbf7046",
+    "restaurant_id": "46e6b5a3-8537-46e6-8f5a-6eff4db84979",
+    "restaurant_name": "CONSTANTA (Roll Master)",
+    "action_taken": "STORE_RECOVERED",
+    "notification_sent": false,
+    "payload_summary": {
+      "detected_at": "2026-09-29T08:54:17.827Z",
+      "details": {}
+    }
+  },
+  {
+    "id": "evt_1790672037494_bdnsc",
+    "timestamp": "2026-09-29T08:53:57.494Z",
+    "platform": "wolt",
+    "event_type": "VENUE_OFFLINE_ALERT_TRIGGERED",
+    "venue_id": "67dd59415e61a1513fbf7046",
+    "restaurant_id": "46e6b5a3-8537-46e6-8f5a-6eff4db84979",
+    "restaurant_name": "CONSTANTA (Roll Master)",
+    "action_taken": "STORE_OFFLINE",
+    "notification_sent": false,
+    "payload_summary": {
+      "detected_at": "2026-09-29T08:53:57.349Z",
+      "details": {}
+    }
+  },
+  {
+    "id": "evt_1790672023609_uvna3",
+    "timestamp": "2026-09-29T08:53:43.609Z",
+    "platform": "wolt",
+    "event_type": "VENUE_OFFLINE_ALERT_TRIGGERED",
+    "venue_id": "67dac56ea0d80030d679bc08",
+    "restaurant_id": null,
+    "restaurant_name": null,
+    "action_taken": "STORE_OFFLINE",
+    "notification_sent": false,
+    "payload_summary": {
+      "detected_at": "2026-09-29T08:53:43.492Z",
+      "details": {}
+    }
+  },
+  {
+    "id": "evt_1790672008735_5csce",
+    "timestamp": "2026-09-29T08:53:28.735Z",
+    "platform": "wolt",
+    "event_type": "VENUE_OFFLINE_ALERT_TRIGGERED",
+    "venue_id": "67dafe6e21bfd57729792a5f",
+    "restaurant_id": null,
+    "restaurant_name": null,
+    "action_taken": "STORE_OFFLINE",
+    "notification_sent": false,
+    "payload_summary": {
+      "detected_at": "2026-09-29T08:53:28.634Z",
+      "details": {}
+    }
+  }
+]
