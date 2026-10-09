@@ -63,6 +63,21 @@ export default function PlatformLogo({ platform, size = 20, className = '' }) {
     )
   }
 
+  // 5. Smart Kiosk
+  if (p === 'kiosk' || p === 'smart_kiosk' || p === 'kitchen') {
+    return (
+      <div 
+        style={{ width: size, height: size }}
+        className={`inline-flex items-center justify-center rounded-full bg-purple-600 text-white font-black shrink-0 overflow-hidden shadow-xs select-none ${className}`}
+        title="Smart Kiosk"
+      >
+        <span style={{ fontSize: Math.max(7, size * 0.42), letterSpacing: '-0.3px' }} className="font-extrabold leading-none uppercase">
+          SK
+        </span>
+      </div>
+    )
+  }
+
   return (
     <div 
       style={{ width: size, height: size, fontSize: Math.max(9, size * 0.55) }}

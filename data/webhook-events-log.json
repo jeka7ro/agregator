@@ -1,5 +1,20 @@
 [
   {
+    "id": "evt_1791549572456_76kk5",
+    "timestamp": "2026-10-09T12:39:32.456Z",
+    "platform": "wolt",
+    "event_type": "VENUE_OFFLINE_ALERT_TRIGGERED",
+    "venue_id": "67dafe6e21bfd57729792a5f",
+    "restaurant_id": null,
+    "restaurant_name": null,
+    "action_taken": "STORE_OFFLINE",
+    "notification_sent": false,
+    "payload_summary": {
+      "detected_at": "2026-10-09T12:39:32.377Z",
+      "details": {}
+    }
+  },
+  {
     "id": "evt_1790677726998_zsajl",
     "timestamp": "2026-09-29T10:28:46.998Z",
     "platform": "glovo",

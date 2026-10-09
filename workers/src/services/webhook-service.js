@@ -490,7 +490,7 @@ class WebhookService {
 
     /**
      * GLOVO WEBHOOK HANDLER
-     * Handles store open/close events forwarded from Valentin's integration
+     * Handles store open/close events forwarded from Glovo integration
      */
     async handleGlovoWebhook(payload, headers = {}) {
         this.stats.glovo.total++
@@ -524,7 +524,7 @@ class WebhookService {
                 const targetChatId = restaurant.telegram_group_id || restaurant.working_hours?.telegram_group_id
                 if (targetChatId) {
                     const message = [
-                        `🔴 <b>STOP TOTAL — Glovo (Webhook Valentin)</b>`,
+                        `🔴 <b>STOP TOTAL — Glovo (Webhook)</b>`,
                         `📍 <b>${restaurant.name}</b> · ${restaurant.city || ''}`,
                         `⏱ Detectat de Glovo la: ${new Date().toLocaleTimeString('ro-RO')}`,
                         `⚠️ Locația a fost închisă pe platforma Glovo.`,
@@ -548,7 +548,7 @@ class WebhookService {
                 const targetChatId = restaurant.telegram_group_id || restaurant.working_hours?.telegram_group_id
                 if (targetChatId) {
                     const message = [
-                        `🟢 <b>REVENIRE ONLINE — Glovo (Webhook Valentin)</b>`,
+                        `🟢 <b>REVENIRE ONLINE — Glovo (Webhook)</b>`,
                         `📍 <b>${restaurant.name}</b> · ${restaurant.city || ''}`,
                         `⏱ Revenit la: ${new Date().toLocaleTimeString('ro-RO')}`,
                         `✅ Magazinul este din nou deschis pe Glovo.`

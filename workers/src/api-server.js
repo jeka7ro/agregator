@@ -21,6 +21,7 @@ import { discoverSingleRestaurant } from './utils/auto-discover.js'
 import { salesSync } from './services/sales-sync.js'
 import { saveLiveChecksCache, loadLiveChecksCache, loadStopEventsCache, loadViolationsCache } from './utils/cache.js'
 import { webhookService } from './services/webhook-service.js'
+import { enrichOrderItems, matchProductImage } from './services/product-matcher.js'
 import './index.js' // Start all cron jobs in the background
 
 // --- Prevent Puppeteer / Node crashes on unhandled errors ---
@@ -89,7 +90,7 @@ app.post('/api/webhooks/bolt', async (req, res) => {
     }
 })
 
-// 3. Glovo Webhook receiver (forwarded from Valentin's integration)
+// 3. Glovo Webhook receiver
 app.post('/api/webhooks/glovo', async (req, res) => {
     try {
         const result = await webhookService.handleGlovoWebhook(req.body, req.headers)
@@ -100,11 +101,471 @@ app.post('/api/webhooks/glovo', async (req, res) => {
     }
 })
 
+// 4. Iiko Cloud Webhook receiver (Order creation, delivery updates, table orders)
+app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
+    try {
+        const payload = req.body || {}
+        console.log('[API SERVER] Received Iiko Webhook payload:', JSON.stringify(payload).slice(0, 500))
+
+        let processedCount = 0
+        try {
+            // Fetch active restaurants for matching
+            const { data: restaurants } = await supabase
+                .from('restaurants')
+                .select('id, name, city, is_active, iiko_restaurant_id, iiko_config')
+
+            let rawList = []
+            if (Array.isArray(payload)) {
+                for (const item of payload) {
+                    const orderData = item.eventInfo?.order || item.order || {}
+                    if (item.eventInfo || item.order) {
+                        rawList.push({
+                            ...item.eventInfo,
+                            ...orderData,
+                            organizationId: item.organizationId || item.eventInfo?.organizationId,
+                            eventType: item.eventType,
+                            eventTime: item.eventTime
+                        })
+                    } else {
+                        rawList.push(item)
+                    }
+                }
+            } else if (payload && typeof payload === 'object') {
+                if (Array.isArray(payload.orders)) {
+                    rawList = payload.orders.map(o => ({
+                        ...(o.order || o),
+                        organizationId: o.organizationId || payload.organizationId
+                    }))
+                } else if (payload.eventInfo || payload.order) {
+                    const orderData = payload.eventInfo?.order || payload.order || {}
+                    rawList.push({
+                        ...payload.eventInfo,
+                        ...orderData,
+                        organizationId: payload.organizationId || payload.eventInfo?.organizationId,
+                        eventType: payload.eventType,
+                        eventTime: payload.eventTime
+                    })
+                } else if (payload.id || payload.orderId) {
+                    rawList.push(payload)
+                }
+            }
+
+            const rowsToUpsert = []
+            for (const o of rawList) {
+                const orgId = o.organizationId || o.organization_id || o.orgId || o.org_id
+                const targetRestId = o.restaurant_id || o.restaurantId
+
+                let matchedRest = null
+                if (targetRestId) {
+                    matchedRest = (restaurants || []).find(r => r.id === targetRestId)
+                }
+                if (!matchedRest && orgId) {
+                    const matchingRests = (restaurants || []).filter(r => 
+                        r.iiko_restaurant_id === orgId || 
+                        r.iiko_config?.organizationId === orgId || 
+                        r.iiko_config?.organization_id === orgId
+                    )
+                    if (matchingRests.length === 1) {
+                        matchedRest = matchingRests[0]
+                    } else if (matchingRests.length > 1) {
+                        const itemNamesStr = (Array.isArray(o.items) ? o.items : [])
+                            .map(it => it.product?.name || it.product_name || it.name || '')
+                            .join(' ')
+                            .toLowerCase()
+
+                        for (const candidate of matchingRests) {
+                            const cats = candidate.iiko_config?.categories || []
+                            const nameLower = candidate.name.toLowerCase()
+                            if (cats.some(c => itemNamesStr.includes(c.toLowerCase()))) {
+                                matchedRest = candidate
+                                break
+                            }
+                            if (nameLower.includes('love sushi') && itemNamesStr.includes('love')) {
+                                matchedRest = candidate
+                                break
+                            }
+                            if (nameLower.includes('poki') && (itemNamesStr.includes('poki') || itemNamesStr.includes('poke') || itemNamesStr.includes('burger'))) {
+                                matchedRest = candidate
+                                break
+                            }
+                            if (nameLower.includes('roll master') && itemNamesStr.includes('roll')) {
+                                matchedRest = candidate
+                                break
+                            }
+                        }
+                        if (!matchedRest) {
+                            matchedRest = matchingRests.find(r => r.is_active) || matchingRests[0]
+                        }
+                    }
+                }
+                if (!matchedRest && o.restaurant_name) {
+                    const lower = o.restaurant_name.toLowerCase()
+                    matchedRest = (restaurants || []).find(r => r.name.toLowerCase().includes(lower))
+                }
+
+                if (!matchedRest) continue
+
+                const baseId = o.id || o.orderId || o.order_id || o.number || o.externalNumber || `order_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
+                const uniqueOrderId = `${baseId}_${matchedRest.id}`
+
+                const rawSource = (o.sourceKey || o.source || o.platform || o.eventType || '').toLowerCase()
+                let platform = 'restaurant'
+                if (rawSource.includes('glovo')) platform = 'glovo'
+                else if (rawSource.includes('wolt')) platform = 'wolt'
+                else if (rawSource.includes('bolt')) platform = 'bolt'
+                else if (rawSource.includes('delivery')) platform = 'delivery'
+                else if (rawSource.includes('table') || rawSource.includes('pos') || rawSource.includes('dine') || rawSource.includes('instore')) platform = 'restaurant'
+
+                const total_amount = parseFloat(o.sum || o.total || o.total_amount || o.resultSum || 0)
+
+                let placed_at = o.whenCreated || o.whenClosed || o.created_at || o.placed_at || o.eventTime
+                if (placed_at && typeof placed_at === 'string' && placed_at.includes(' ') && !placed_at.includes('T')) {
+                    placed_at = placed_at.replace(' ', 'T')
+                }
+                try {
+                    placed_at = placed_at ? new Date(placed_at).toISOString() : new Date().toISOString()
+                } catch (_) {
+                    placed_at = new Date().toISOString()
+                }
+
+                const rawItems = Array.isArray(o.items) ? o.items : []
+                const items = rawItems.map(it => {
+                    const pName = it.product?.name || it.product_name || it.name || 'Articol'
+                    const price = parseFloat(it.price || it.resultSum || 0)
+                    const qty = parseFloat(it.amount || it.quantity || 1)
+                    return {
+                        product_name: pName,
+                        price,
+                        amount: qty,
+                        sum: parseFloat(it.resultSum || (price * qty)),
+                        quantity: qty
+                    }
+                })
+
+                rowsToUpsert.push({
+                    restaurant_id: matchedRest.id,
+                    order_id: uniqueOrderId,
+                    platform,
+                    total_amount,
+                    placed_at,
+                    items
+                })
+            }
+
+            if (rowsToUpsert.length > 0) {
+                const uniqueMap = new Map()
+                for (const r of rowsToUpsert) uniqueMap.set(r.order_id, r)
+                const uniqueRows = Array.from(uniqueMap.values())
+
+                const { error: insErr } = await supabase.from('platform_sales').upsert(uniqueRows, { onConflict: 'order_id' })
+                if (!insErr) processedCount = uniqueRows.length
+                else console.error('[API SERVER] Ingestion error:', insErr)
+            }
+        } catch (procErr) {
+            console.error('[API SERVER] Failed to process iiko orders:', procErr)
+        }
+
+        res.status(200).json({ 
+            success: true, 
+            status: 'ok', 
+            orders_processed: processedCount,
+            received_at: new Date().toISOString() 
+        })
+    } catch (err) {
+        console.error('[API SERVER] Iiko webhook error:', err)
+        res.status(200).json({ status: 'ok', error: err.message })
+    }
+})
+
+// ─── 5. SMART KIOSK & BUCĂTARI WEBHOOK RECEIVER (FLUXUL 1) ───
+app.post(['/api/webhooks/kiosk', '/api/webhooks/kitchen'], async (req, res) => {
+    try {
+        const payload = req.body || {}
+        console.log('[API SERVER] Received Kiosk/Kitchen Webhook payload:', JSON.stringify(payload).slice(0, 300))
+
+        const event = payload.event || 'order.created'
+        const orderData = payload.order || payload
+
+        if (!orderData || (!orderData.orderId && !orderData.orderNumber && !orderData.id)) {
+            return res.status(400).json({ success: false, error: 'Missing order details in payload' })
+        }
+
+        // Fetch active restaurants for matching with brands
+        const { data: restaurants } = await supabase
+            .from('restaurants')
+            .select('id, name, city, is_active, brand_id, brands(name)')
+
+        // Match restaurant by brand AND city/location
+        let matchedRest = null
+        const rawBrand = (orderData.brand || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+        const locName = (orderData.locationName || '').toLowerCase()
+        const locId = (orderData.locationId || '').toLowerCase()
+        const cityKey = locName.includes('cluj') || locId.includes('cluj') ? 'cluj' 
+            : locName.includes('constanta') || locId.includes('constanta') ? 'constanta'
+            : locName.includes('iasi') || locId.includes('iasi') ? 'iasi'
+            : locName.includes('timisoara') || locId.includes('timisoara') ? 'timisoara'
+            : ''
+
+        if (rawBrand && cityKey) {
+            matchedRest = (restaurants || []).find(r => {
+                const rName = r.name.toLowerCase()
+                const rCity = (r.city || '').toLowerCase()
+                const bName = (r.brands?.name || '').toLowerCase()
+                const brandMatch = (rawBrand.includes('smash') && (rName.includes('smash') || bName.includes('smash'))) ||
+                                   (rawBrand.includes('poki') && (rName.includes('poki') || bName.includes('poki'))) ||
+                                   (rawBrand.includes('love') && (rName.includes('love') || bName.includes('love'))) ||
+                                   (rawBrand.includes('roll') && (rName.includes('roll') || bName.includes('roll'))) ||
+                                   rName.includes(rawBrand) || bName.includes(rawBrand)
+                const locMatch = rCity.includes(cityKey) || rName.includes(cityKey)
+                return brandMatch && locMatch
+            })
+        }
+        if (!matchedRest && rawBrand) {
+            matchedRest = (restaurants || []).find(r => {
+                const rName = r.name.toLowerCase()
+                const bName = (r.brands?.name || '').toLowerCase()
+                return (rawBrand.includes('smash') && (rName.includes('smash') || bName.includes('smash'))) ||
+                       (rawBrand.includes('poki') && (rName.includes('poki') || bName.includes('poki'))) ||
+                       (rawBrand.includes('love') && (rName.includes('love') || bName.includes('love'))) ||
+                       (rawBrand.includes('roll') && (rName.includes('roll') || bName.includes('roll')))
+            })
+        }
+        if (!matchedRest && locName) {
+            matchedRest = (restaurants || []).find(r => r.name.toLowerCase().includes(locName) || locName.includes(r.name.toLowerCase()))
+        }
+        if (!matchedRest) {
+            matchedRest = (restaurants || []).find(r => r.is_active) || (restaurants || [])[0]
+        }
+
+        const restaurantId = matchedRest ? matchedRest.id : 'kiosk-central'
+        const baseId = orderData.orderId || orderData.orderNumber || `kiosk_${Date.now()}`
+        const uniqueOrderId = `kiosk_${baseId}`
+
+        const total_amount = parseFloat(orderData.totalAmount || orderData.total || 0)
+        let placed_at = orderData.createdAt || payload.timestamp || new Date().toISOString()
+        try {
+            placed_at = new Date(placed_at).toISOString()
+        } catch (_) {
+            placed_at = new Date().toISOString()
+        }
+
+        const rawItems = Array.isArray(orderData.items) ? orderData.items : []
+        const items = rawItems.map((it, idx) => {
+            const modifiersStr = Array.isArray(it.modifiers) && it.modifiers.length > 0 ? ` (${it.modifiers.join(', ')})` : ''
+            const commentStr = it.comment ? ` [${it.comment}]` : ''
+            const pName = `${it.name || it.product_name || 'Articol'}${modifiersStr}${commentStr}`
+            const price = parseFloat(it.unitPrice || it.price || 0)
+            const qty = parseFloat(it.quantity || it.amount || 1)
+            const baseName = it.name || it.product_name || 'Articol'
+            const matched = matchProductImage(baseName, orderData.brand || matchedRest?.brands?.name || 'Smash Me')
+            const itemImg = it.image || it.imageUrl || it.image_url || it.imageLinks?.[0] || it.buttonImageUrl || matched?.image || null
+            const itemDesc = it.description || matched?.description || null
+            const itemIngr = it.ingredients || it.composition || matched?.ingredients || null
+            return {
+                index: it.index || idx + 1,
+                id: it.id || `item_${idx + 1}`,
+                name: baseName,
+                product_name: pName,
+                price,
+                unitPrice: price,
+                amount: qty,
+                quantity: qty,
+                sum: parseFloat(it.totalPrice || (price * qty)),
+                totalPrice: parseFloat(it.totalPrice || (price * qty)),
+                image: itemImg,
+                imageUrl: itemImg,
+                description: itemDesc,
+                ingredients: itemIngr,
+                modifiers: it.modifiers || [],
+                comment: it.comment || null,
+                _order_meta: idx === 0 ? {
+                    orderNumber: orderData.orderNumber || baseId,
+                    brand: orderData.brand || matchedRest?.brands?.name || 'smashme',
+                    channel: orderData.channel || 'kiosk',
+                    orderType: orderData.orderType || 'La masă',
+                    paymentMethod: orderData.paymentMethod || 'CASH',
+                    paymentSubtype: orderData.paymentSubtype || (orderData.paymentMethod?.toLowerCase() === 'cash' ? 'La Casă' : ''),
+                    iikoOrderId: orderData.iikoOrderId || orderData.iiko_order_id || null,
+                    tableNumber: orderData.tableNumber || null,
+                    kioskId: orderData.kioskId || null
+                } : undefined
+            }
+        })
+
+        const row = {
+            restaurant_id: restaurantId,
+            order_id: uniqueOrderId,
+            platform: 'kiosk',
+            total_amount,
+            placed_at,
+            items
+        }
+
+        const { error: insErr } = await supabase.from('platform_sales').upsert([row], { onConflict: 'order_id' })
+        if (insErr) {
+            console.error('[API SERVER] Failed to save Kiosk order to platform_sales:', insErr)
+        } else {
+            console.log(`[API SERVER] Saved Kiosk order: #${orderData.orderNumber || baseId} (${total_amount} RON, ${items.length} items)`)
+        }
+
+        res.status(200).json({
+            success: true,
+            status: 'ok',
+            event,
+            orderNumber: orderData.orderNumber || null,
+            orderId: uniqueOrderId,
+            matchedRestaurant: matchedRest?.name || 'Locație Atribuită',
+            received_at: new Date().toISOString()
+        })
+    } catch (err) {
+        console.error('[API SERVER] Kiosk webhook processing error:', err)
+        res.status(500).json({ success: false, error: err.message })
+    }
+})
+
+// ─── 6. ENDPOINT DE VERIFICARE BUCĂTARI CĂTRE SMART KIOSK (FLUXUL 2) ───
+app.post('/api/kitchen/verify', async (req, res) => {
+    try {
+        const { orderNumber, verified = true, cookName = 'Bucătar Șef', cookId = 'CK-01', status = 'ready', notes = '' } = req.body
+        const kioskApiUrl = process.env.KITCHEN_KIOSK_API_URL || 'http://localhost:3000'
+
+        console.log(`[API SERVER] Forwarding kitchen verification for order #${orderNumber} to Kiosk at ${kioskApiUrl}...`)
+
+        const response = await fetch(`${kioskApiUrl}/api/webhooks/kitchen/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                orderNumber,
+                verified,
+                cookName,
+                cookId,
+                status,
+                notes
+            }),
+            signal: AbortSignal.timeout(5000)
+        })
+
+        const data = await response.json().catch(() => ({}))
+        res.json({ success: true, forwarded_to: `${kioskApiUrl}/api/webhooks/kitchen/verify`, kiosk_response: data })
+    } catch (err) {
+        console.error('[API SERVER] Forwarding verification to Kiosk failed:', err.message)
+        res.status(200).json({ 
+            success: false, 
+            error: `Nu s-a putut trimite confirmarea către Kiosk (${err.message}). Asigurați-vă că serverul Kiosk rulează pe portul configurat.` 
+        })
+    }
+})
+
+// Kitchen Activity Diagnostic (checks recent orders in the last 20 mins)
+app.get('/api/kitchen-status', async (req, res) => {
+    try {
+        const { restaurantId, minutes = 20 } = req.query
+        const since = new Date(Date.now() - parseInt(minutes) * 60 * 1000).toISOString()
+
+        let q = supabase
+            .from('platform_sales')
+            .select('id, order_id, platform, total_amount, placed_at, restaurant_id, items')
+            .gte('placed_at', since)
+            .order('placed_at', { ascending: false })
+
+        if (restaurantId) q = q.eq('restaurant_id', restaurantId)
+
+        const { data, error } = await q
+        if (error) throw error
+
+        const totalOrders = data?.length || 0
+        const restaurantOrders = data?.filter(o => o.platform === 'restaurant' || o.platform === 'dine_in' || o.platform === 'IN-STORE') || []
+        const deliveryOrders = data?.filter(o => o.platform !== 'restaurant' && o.platform !== 'dine_in' && o.platform !== 'IN-STORE') || []
+
+        res.json({
+            success: true,
+            minutes_window: parseInt(minutes),
+            kitchen_busy: totalOrders > 0,
+            total_orders_count: totalOrders,
+            restaurant_orders_count: restaurantOrders.length,
+            delivery_orders_count: deliveryOrders.length,
+            latest_order_at: data?.[0]?.placed_at || null,
+            recent_orders: data?.slice(0, 10) || []
+        })
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message })
+    }
+})
+
 // 3. Webhook Status & Diagnostics
 app.get('/api/webhooks/status', (req, res) => {
     try {
         const status = webhookService.getStatus()
         res.json({ success: true, ...status })
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message })
+    }
+})
+
+app.get('/api/webhooks/orders', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit || '50')
+        const { data: orders, error } = await supabase
+            .from('platform_sales')
+            .select('*')
+            .order('placed_at', { ascending: false })
+            .limit(limit)
+
+        if (error) throw error
+
+        const { data: rests } = await supabase.from('restaurants').select('id, name, city, brand_id, brands(name, logo_url)')
+        const restMap = {}
+        ;(rests || []).forEach(r => restMap[r.id] = r)
+
+        const enriched = (orders || []).map(o => {
+            const rest = restMap[o.restaurant_id]
+            let bName = rest?.brands?.name || ''
+            const rName = rest?.name || o.restaurant_name || ''
+            const rLower = rName.toLowerCase()
+            const allItemsText = (o.items || []).map(it => it.product_name || it.name || '').join(' ').toLowerCase()
+
+            if (rLower.includes('smash') || allItemsText.includes('burger') || allItemsText.includes('smash') || (o.order_id || '').toLowerCase().includes('smash')) {
+                bName = 'Smash Me'
+            } else if (rLower.includes('poki') || rLower.includes('woki') || allItemsText.includes('poke') || allItemsText.includes('poki') || allItemsText.includes('ramen')) {
+                bName = 'Poki Woki'
+            } else if (rLower.includes('love sushi') || rLower.includes('love') || allItemsText.includes('love')) {
+                bName = 'Love Sushi'
+            } else if (rLower.includes('roll') || rLower.includes('master') || rLower.includes('sushi master')) {
+                bName = 'Roll Master'
+            } else if (rLower.includes('crunch')) {
+                bName = 'Crunch'
+            }
+
+            let displayRestName = rName
+            if (displayRestName === 'CLUJ' || displayRestName === 'CLUJ-NAPOCA') {
+                displayRestName = `${bName || 'Smash Me'} Cluj`
+            }
+
+            // Extract metadata from first item or order
+            const meta = (o.items || [])[0]?._order_meta || {}
+            const orderNum = meta.orderNumber || (o.order_id?.startsWith('kiosk_') ? o.order_id.replace('kiosk_', '') : o.order_id)
+            const iikoId = meta.iikoOrderId || (o.order_id?.includes('-') ? o.order_id.split('_')[0] : `iiko_${Date.now()}`)
+
+            return {
+                ...o,
+                items: enrichOrderItems(o.items || [], bName || 'Smash Me'),
+                restaurant_name: displayRestName || 'Restaurant N/A',
+                restaurant_city: rest?.city || o.restaurant_city || '',
+                brand_name: bName || 'Smash Me',
+                brand_logo: rest?.brands?.logo_url || null,
+                order_number: orderNum,
+                brand: bName || 'Smash Me',
+                channel: meta.channel || o.platform,
+                order_type: meta.orderType || (o.platform === 'kiosk' ? 'La masă' : 'Delivery'),
+                payment_method: meta.paymentMethod || (o.platform === 'kiosk' ? 'CASH' : 'CARD'),
+                payment_subtype: meta.paymentSubtype || (o.platform === 'kiosk' ? 'La Casă' : ''),
+                iiko_order_id: iikoId,
+                table_number: meta.tableNumber || null,
+                kiosk_id: meta.kioskId || null
+            }
+        })
+
+        res.json({ success: true, count: enriched.length, orders: enriched })
     } catch (err) {
         res.status(500).json({ success: false, error: err.message })
     }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X, Clock, ExternalLink, AlertTriangle, ShieldCheck, ShoppingBag, Database, Send, CheckCircle2, Loader2, Calendar } from 'lucide-react'
+import { X, Clock, ExternalLink, AlertTriangle, ShieldCheck, ShoppingBag, Database, Send, CheckCircle2, Loader2, Calendar, Flame, UtensilsCrossed } from 'lucide-react'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
 import BrandAvatar, { cleanRestaurantName } from './BrandAvatar'
@@ -15,6 +15,8 @@ export default function RestaurantDetailsModal({ restaurant, isOpen, onClose }) 
   const [stops, setStops] = useState([])
   const [stoppedProducts, setStoppedProducts] = useState([])
   const [loadingStops, setLoadingStops] = useState(false)
+  const [kitchenStatus, setKitchenStatus] = useState(null)
+  const [loadingKitchen, setLoadingKitchen] = useState(false)
 
   useEffect(() => {
     if (!isOpen || !restaurant?.id) return
@@ -60,6 +62,20 @@ export default function RestaurantDetailsModal({ restaurant, isOpen, onClose }) 
         }
       })
       .catch(() => setStoppedProducts([]))
+
+    // Fetch kitchen activity status (live orders from iiko in the last 30 mins)
+    setLoadingKitchen(true)
+    fetch(getApiUrl(`/api/kitchen-status?restaurantId=${restaurant.id}&minutes=30`))
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setKitchenStatus(data)
+        } else {
+          setKitchenStatus(null)
+        }
+      })
+      .catch(() => setKitchenStatus(null))
+      .finally(() => setLoadingKitchen(false))
   }, [isOpen, restaurant?.id])
 
   if (!isOpen || !restaurant) return null
@@ -214,6 +230,42 @@ export default function RestaurantDetailsModal({ restaurant, isOpen, onClose }) 
                   <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                     Calcul downtime financiar
                   </div>
+                </div>
+              </div>
+
+              {/* Diagnostic Bucătărie & Comenzi Live (iiko) */}
+              <div className={`p-4 rounded-2xl border transition-all ${
+                kitchenStatus?.kitchen_busy 
+                  ? (isDark ? 'bg-amber-950/20 border-amber-800/40 text-amber-200' : 'bg-amber-50/80 border-amber-200 text-amber-900')
+                  : (isDark ? 'bg-slate-800/40 border-slate-700/60 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700')
+              }`}>
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <div className="flex items-center gap-2">
+                    <Flame size={16} className={kitchenStatus?.kitchen_busy ? 'text-amber-500 animate-pulse' : 'text-slate-400'} />
+                    <span className="text-xs font-bold uppercase tracking-wider">
+                      Diagnostic Activitate Bucătărie (Ultimele 30 min)
+                    </span>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                    kitchenStatus?.kitchen_busy
+                      ? 'bg-amber-500 text-white'
+                      : (isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600')
+                  }`}>
+                    {loadingKitchen ? 'Verificare...' : kitchenStatus?.kitchen_busy ? 'BUCĂTĂRIE ÎN LUCRU' : 'ZERO COMENZI RECENTE'}
+                  </span>
+                </div>
+                <div className="text-xs">
+                  {loadingKitchen ? (
+                    <span className="text-slate-400">Se interoghează starea comenzilor live iiko...</span>
+                  ) : kitchenStatus?.kitchen_busy ? (
+                    <span>
+                      S-au recepționat <strong>{kitchenStatus.total_orders_count} comenzi</strong> recent ({kitchenStatus.restaurant_orders_count} restaurant / casă, {kitchenStatus.delivery_orders_count} livrări). Bucătăria gătește comenzi fizice.
+                    </span>
+                  ) : (
+                    <span className="text-slate-500 dark:text-slate-400">
+                      Nicio comandă nouă recepționată în ultimele 30 de minute (iiko Cloud Webhook pregătit).
+                    </span>
+                  )}
                 </div>
               </div>
 

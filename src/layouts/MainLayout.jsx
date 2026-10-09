@@ -2,6 +2,7 @@ import React from 'react'
 import { Outlet, NavLink } from 'react-router-dom'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
+import { BUILD_INFO } from '../lib/buildInfo'
 import LanguageToggle from '../components/LanguageToggle'
 import { 
   LayoutDashboard, 
@@ -82,8 +83,20 @@ export default function MainLayout() {
             ))}
           </nav>
 
-          {/* Status Badge at bottom */}
-          <div className={`p-4 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'} mt-auto`}>
+          {/* Status Badge & Build Info at bottom */}
+          <div className={`p-4 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'} mt-auto space-y-2`}>
+            {/* Build Number, Date & Time (Clean Human Sans Font - No Robotic Monospace) */}
+            <div className="flex items-center justify-between px-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 select-none">
+              <span className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/80"></span>
+                <span>{t('common.build', 'Build')} {BUILD_INFO.buildNumber}</span>
+              </span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                {BUILD_INFO.formatted}
+              </span>
+            </div>
+
+            {/* HQ Live Card */}
             <div className={`p-3 rounded-2xl flex items-center gap-3 ${isDark ? 'bg-slate-800/60 border border-slate-700/60' : 'bg-slate-50 border border-slate-200'}`}>
               <div className="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">
                 HQ

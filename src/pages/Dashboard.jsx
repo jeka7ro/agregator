@@ -20,11 +20,14 @@ import {
   ShoppingBag,
   Play,
   RotateCw,
-  Square
+  Square,
+  Webhook
 } from 'lucide-react'
 import BrandAvatar, { getBrandInfo, cleanRestaurantName } from '../components/BrandAvatar'
 import PlatformLogo from '../components/PlatformLogo'
 import RestaurantDetailsModal from '../components/RestaurantDetailsModal'
+import WebhookIntegrationModal from '../components/WebhookIntegrationModal'
+import ZoomChartsSuite from '../components/charts/ZoomChartsSuite'
 
 function KPICard({ title, online, total, platform, isDark, t }) {
   const percentage = total > 0 ? Math.round((online / total) * 100) : 0
@@ -71,6 +74,7 @@ export default function Dashboard() {
   const [dossierRestaurant, setDossierRestaurant] = useState(null)
   const [isVerifying, setIsVerifying] = useState(false)
   const [verifyStatus, setVerifyStatus] = useState(null)
+  const [showWebhookModal, setShowWebhookModal] = useState(false)
 
   const authoritativeBrands = ['Roll Master', 'Poki Woki', 'Love Sushi', 'Smash Me', 'Crunch']
 
@@ -322,7 +326,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col h-full w-full space-y-6">
+    <div className="w-full space-y-6 pb-12">
       
       {/* Header Operativ */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -358,6 +362,16 @@ export default function Dashboard() {
               <span>{t('dashboard.btn_run_check', 'Rulează Verificare Live')}</span>
             </button>
           )}
+
+          <button
+            onClick={() => setShowWebhookModal(true)}
+            className="px-4 h-9 rounded-full border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+            title={t('webhooks.modal_title')}
+          >
+            <Webhook size={14} />
+            <span>{t('webhooks.btn_live', 'Webhooks Live')}</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          </button>
 
           <div className={`px-4 h-9 rounded-full border text-xs font-medium flex items-center shadow-xs ${
             isDark ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-600'
@@ -397,6 +411,14 @@ export default function Dashboard() {
         <KPICard title="iiko" online={stats.health.iiko.online} total={stats.health.iiko.total} platform="iiko" isDark={isDark} t={t} />
       </div>
 
+      {/* ZoomCharts™ Visual Intelligence Suite (DrillDown Donut + ZoomTime Timeline) */}
+      <ZoomChartsSuite 
+        restaurants={restaurants} 
+        checks={checks} 
+        isDark={isDark} 
+        t={t} 
+      />
+
       {/* Tabs Filtru Branduri */}
       <div className="flex flex-wrap items-center gap-2 w-full">
         {['all', ...authoritativeBrands].map(b => {
@@ -435,7 +457,7 @@ export default function Dashboard() {
       </div>
 
       {/* CARD PRINCIPAL: TABEL OPERATIONAL COMPLET */}
-      <div className={`rounded-2xl shadow-sm border overflow-hidden flex flex-col flex-1 transition-colors ${
+      <div className={`rounded-2xl shadow-sm border overflow-hidden flex flex-col transition-colors ${
         isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
       }`}>
         
@@ -514,7 +536,7 @@ export default function Dashboard() {
         </div>
 
         {/* Tabelul de Date Conform SmartDevize */}
-        <div className="overflow-x-auto flex-1 custom-scrollbar">
+        <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse min-w-[950px]">
             <thead className={`border-b text-[11px] font-bold uppercase tracking-wider sticky top-0 z-10 select-none ${
               isDark ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'
@@ -739,6 +761,13 @@ export default function Dashboard() {
           onClose={() => setDossierRestaurant(null)}
         />
       )}
+
+      {/* Modal Webhooks Live */}
+      <WebhookIntegrationModal
+        isOpen={showWebhookModal}
+        onClose={() => setShowWebhookModal(false)}
+        onWebhookTriggered={() => fetchData(true)}
+      />
 
     </div>
   )
