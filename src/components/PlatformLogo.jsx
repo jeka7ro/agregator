@@ -78,6 +78,21 @@ export default function PlatformLogo({ platform, size = 20, className = '' }) {
     )
   }
 
+  // 6. Casierie / POS (Casa de marcat)
+  if (p === 'casierie' || p === 'pos' || p === 'in-store' || p === 'restaurant') {
+    return (
+      <div 
+        style={{ width: size, height: size }}
+        className={`inline-flex items-center justify-center rounded-full bg-blue-600 text-white font-black shrink-0 overflow-hidden shadow-xs select-none ${className}`}
+        title="Casierie (POS)"
+      >
+        <span style={{ fontSize: Math.max(6.5, size * 0.38), letterSpacing: '-0.2px' }} className="font-extrabold leading-none uppercase">
+          POS
+        </span>
+      </div>
+    )
+  }
+
   return (
     <div 
       style={{ width: size, height: size, fontSize: Math.max(9, size * 0.55) }}

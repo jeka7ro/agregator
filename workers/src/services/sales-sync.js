@@ -196,12 +196,23 @@ export class SalesSync {
                             for (const o of orders) {
                                 if (!o.order) continue
 
-                                const rawSource = o.order.sourceKey || ''
-                                let platform = rawSource.trim()
-                                if (!platform) platform = 'IN-STORE'
-                                else if (platform.toLowerCase().includes('glovo')) platform = 'glovo'
-                                else if (platform.toLowerCase().includes('wolt')) platform = 'wolt'
-                                else if (platform.toLowerCase().includes('bolt')) platform = 'bolt'
+                                const rawSource = (o.order.sourceKey || '').toLowerCase()
+                                const orderTypeName = (o.order.orderType?.name || '').toLowerCase()
+                                const operatorName = (o.order.operator?.name || '').toLowerCase()
+                                const conceptionName = (o.order.conception?.name || '').toLowerCase()
+
+                                const isKiosk = rawSource.includes('kiosk') ||
+                                    orderTypeName.includes('kiosk') ||
+                                    operatorName.includes('kiosk') ||
+                                    conceptionName.includes('kiosk') ||
+                                    (o.order.externalNumber && String(o.order.externalNumber).toLowerCase().startsWith('kiosk'))
+
+                                let platform = 'casierie'
+                                if (rawSource.includes('glovo')) platform = 'glovo'
+                                else if (rawSource.includes('wolt')) platform = 'wolt'
+                                else if (rawSource.includes('bolt')) platform = 'bolt'
+                                else if (isKiosk) platform = 'kiosk'
+                                else platform = 'casierie'
 
                                 const total_amount = o.order.sum || 0
                                 

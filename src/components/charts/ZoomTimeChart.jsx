@@ -360,16 +360,13 @@ export default function ZoomTimeChart({ checks = [], isDark = false, t }) {
         isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
       }`}
     >
-      {/* SECTION 1: Top Header (Exact height matching left card) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800/80 h-[56px] shrink-0">
+      {/* SECTION 1: Top Header (Streamlined & aligned) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800/80 min-h-[46px] shrink-0">
         <div>
           <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Activity size={16} className="text-cyan-500" />
             <span>{tr('charts.timeline_title', 'Evoluție Uptime & Disponibilitate')}</span>
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            {tr('charts.timeline_subtitle', 'Monitorizare continuă a disponibilității și pierderilor estimate')}
-          </p>
         </div>
 
         {/* Range Buttons */}

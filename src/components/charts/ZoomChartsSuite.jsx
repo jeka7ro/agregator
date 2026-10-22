@@ -4,7 +4,7 @@ import { useLanguage } from '../../lib/LanguageContext'
 import ZoomDrilldownPie from './ZoomDrilldownPie'
 import ZoomTimeChart from './ZoomTimeChart'
 
-export default function ZoomChartsSuite({ restaurants = [], checks = [], isDark = false, t }) {
+export default function ZoomChartsSuite({ restaurants = [], checks = [], salesData = null, isDark = false, t }) {
   const { t: contextT } = useLanguage()
   const tr = t || contextT
   const [activeView, setActiveView] = useState('both') // 'both' | 'pie' | 'timeline'
@@ -19,9 +19,6 @@ export default function ZoomChartsSuite({ restaurants = [], checks = [], isDark 
             <LayoutGrid size={16} className="text-emerald-500" />
             <span>{tr('charts.suite_title', 'Analiză Operațională & Vizuală')}</span>
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            {tr('charts.suite_subtitle', 'Distribuție multi-nivel a rețelei și evoluție temporală în timp real')}
-          </p>
         </div>
 
         {/* View Switchers */}
@@ -87,6 +84,7 @@ export default function ZoomChartsSuite({ restaurants = [], checks = [], isDark 
             <ZoomDrilldownPie 
               restaurants={restaurants} 
               checks={checks} 
+              salesData={salesData}
               isDark={isDark} 
               t={t} 
             />

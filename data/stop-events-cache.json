@@ -1,5 +1,623 @@
 [
   {
+    "id": "stop_1791965634874_kl2ow",
+    "restaurant_id": "8b02140e-a340-41ca-9a83-b4950016ee15",
+    "platform": "glovo",
+    "stopped_at": "2026-10-14T08:13:54.874Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": null,
+    "duration_minutes": null,
+    "estimated_loss_amount": 0
+  },
+  {
+    "id": "stop_1791965619162_zgt88",
+    "restaurant_id": "c72bd8f7-b064-4093-8c34-3604e6b384a2",
+    "platform": "glovo",
+    "stopped_at": "2026-10-14T08:13:39.162Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": null,
+    "duration_minutes": null,
+    "estimated_loss_amount": 0
+  },
+  {
+    "id": "stop_1791964891044_icufa",
+    "restaurant_id": "7990f9b6-9fa0-46d4-9ec5-219d10458ecc",
+    "platform": "glovo",
+    "stopped_at": "2026-10-14T08:01:31.044Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": null,
+    "duration_minutes": null,
+    "estimated_loss_amount": 0
+  },
+  {
+    "id": "stop_1791907901019_ur5ko",
+    "restaurant_id": "55e49e60-2395-4b5b-ad24-6c9248e80234",
+    "platform": "glovo",
+    "stopped_at": "2026-10-13T16:11:41.019Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": null,
+    "duration_minutes": null,
+    "estimated_loss_amount": 0
+  },
+  {
+    "id": "stop_1791907548938_wvto6",
+    "restaurant_id": "8691a9d3-9197-4602-94fd-7bd7e042ca23",
+    "platform": "glovo",
+    "stopped_at": "2026-10-13T16:05:48.938Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": null,
+    "duration_minutes": null,
+    "estimated_loss_amount": 0
+  },
+  {
+    "id": "stop_1791907515733_z6rjs",
+    "restaurant_id": "ff89718b-d1d7-4b54-b67e-4bc50b5ea80f",
+    "platform": "glovo",
+    "stopped_at": "2026-10-13T16:05:15.733Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": null,
+    "duration_minutes": null,
+    "estimated_loss_amount": 0
+  },
+  {
+    "id": "stop_1791903688996_6vr0b",
+    "restaurant_id": "f27c7fba-ecdf-4f44-a752-195d5caf9561",
+    "platform": "bolt",
+    "stopped_at": "2026-10-13T15:01:28.996Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 0,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-13T16:01:20.833Z",
+    "duration_minutes": 60,
+    "estimated_loss_amount": 99.77,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 60,
+      "duration_hours": 1,
+      "platform": "bolt",
+      "stopped_at": "2026-10-13T15:01:28.996Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791903672196_uebl1",
+    "restaurant_id": "14adb9aa-a9aa-4b71-9846-41f367f98c24",
+    "platform": "bolt",
+    "stopped_at": "2026-10-13T15:01:12.196Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 0,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-13T16:01:03.576Z",
+    "duration_minutes": 60,
+    "estimated_loss_amount": 99.76,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 60,
+      "duration_hours": 1,
+      "platform": "bolt",
+      "stopped_at": "2026-10-13T15:01:12.196Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791903655619_crva0",
+    "restaurant_id": "6c692a12-c55c-45b4-8278-f960ec406e91",
+    "platform": "bolt",
+    "stopped_at": "2026-10-13T15:00:55.619Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 0,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-13T16:00:46.486Z",
+    "duration_minutes": 60,
+    "estimated_loss_amount": 99.75,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 60,
+      "duration_hours": 1,
+      "platform": "bolt",
+      "stopped_at": "2026-10-13T15:00:55.619Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791903637461_djduw",
+    "restaurant_id": "46e6b5a3-8537-46e6-8f5a-6eff4db84979",
+    "platform": "bolt",
+    "stopped_at": "2026-10-13T15:00:37.461Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 0,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-13T16:00:28.859Z",
+    "duration_minutes": 60,
+    "estimated_loss_amount": 99.76,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 60,
+      "duration_hours": 1,
+      "platform": "bolt",
+      "stopped_at": "2026-10-13T15:00:37.461Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791903620075_2w6n2",
+    "restaurant_id": "1c2b8519-107d-4f6a-a644-22ec53f54b60",
+    "platform": "bolt",
+    "stopped_at": "2026-10-13T15:00:20.075Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 0,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-13T16:00:12.517Z",
+    "duration_minutes": 60,
+    "estimated_loss_amount": 99.79,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 60,
+      "duration_hours": 1,
+      "platform": "bolt",
+      "stopped_at": "2026-10-13T15:00:20.075Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791900440749_l581m",
+    "restaurant_id": "d22a3ec7-f23b-4711-a069-45d42197c7e5",
+    "platform": "glovo",
+    "stopped_at": "2026-10-13T14:07:20.749Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": null,
+    "duration_minutes": null,
+    "estimated_loss_amount": 0
+  },
+  {
+    "id": "stop_1791900404720_nzx7y",
+    "restaurant_id": "67aec385-594f-4e25-bd29-d67552b95ca4",
+    "platform": "glovo",
+    "stopped_at": "2026-10-13T14:06:44.720Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": null,
+    "duration_minutes": null,
+    "estimated_loss_amount": 0
+  },
+  {
+    "id": "stop_1791900237878_wm648",
+    "restaurant_id": "bdacab4f-9150-495e-ba53-9ce470ce4da7",
+    "platform": "glovo",
+    "stopped_at": "2026-10-13T14:03:57.878Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": null,
+    "duration_minutes": null,
+    "estimated_loss_amount": 0
+  },
+  {
+    "id": "stop_1791900096963_i0zu9",
+    "restaurant_id": "7990f9b6-9fa0-46d4-9ec5-219d10458ecc",
+    "platform": "glovo",
+    "stopped_at": "2026-10-13T14:01:36.963Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-13T16:01:27.741Z",
+    "duration_minutes": 120,
+    "estimated_loss_amount": 199.74,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 120,
+      "duration_hours": 2,
+      "platform": "glovo",
+      "stopped_at": "2026-10-13T14:01:36.963Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791889409525_4plyf",
+    "restaurant_id": "07734cfe-cde6-42ab-8887-6d00882ed970",
+    "platform": "glovo",
+    "stopped_at": "2026-10-13T11:03:29.525Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 0,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-13T14:13:33.947Z",
+    "duration_minutes": 190,
+    "estimated_loss_amount": 316.79,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 190,
+      "duration_hours": 3.17,
+      "platform": "glovo",
+      "stopped_at": "2026-10-13T11:03:29.525Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791889316277_86yga",
+    "restaurant_id": "98e778db-8630-4d49-982a-b225a72cd3d6",
+    "platform": "glovo",
+    "stopped_at": "2026-10-13T11:01:56.277Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 0,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-13T14:13:15.393Z",
+    "duration_minutes": 191,
+    "estimated_loss_amount": 318.86,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 191,
+      "duration_hours": 3.19,
+      "platform": "glovo",
+      "stopped_at": "2026-10-13T11:01:56.277Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791887412697_rq00b",
+    "restaurant_id": "65b29088-bd75-4ed0-86b5-5fadc79cf19e",
+    "platform": "glovo",
+    "stopped_at": "2026-10-13T10:30:12.697Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 0,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-13T14:11:34.368Z",
+    "duration_minutes": 221,
+    "estimated_loss_amount": 368.94,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 221,
+      "duration_hours": 3.69,
+      "platform": "glovo",
+      "stopped_at": "2026-10-13T10:30:12.697Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791886875312_lymnd",
+    "restaurant_id": "dfc3d38a-6141-4cef-9e27-c09dfde10818",
+    "platform": "glovo",
+    "stopped_at": "2026-10-13T10:21:15.312Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 0,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-13T14:11:17.957Z",
+    "duration_minutes": 230,
+    "estimated_loss_amount": 383.41,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 230,
+      "duration_hours": 3.83,
+      "platform": "glovo",
+      "stopped_at": "2026-10-13T10:21:15.312Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791886422607_e6710",
+    "restaurant_id": "c6587b6a-62bf-4202-a29b-dfe44467a4a0",
+    "platform": "wolt",
+    "stopped_at": "2026-10-13T10:13:42.607Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 0,
+    "reason": "Unknown",
+    "resumed_at": null,
+    "duration_minutes": null,
+    "estimated_loss_amount": 0
+  },
+  {
+    "id": "stop_1791885918703_5xij9",
+    "restaurant_id": "ff89718b-d1d7-4b54-b67e-4bc50b5ea80f",
+    "platform": "glovo",
+    "stopped_at": "2026-10-13T10:05:18.703Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-13T14:05:30.395Z",
+    "duration_minutes": 240,
+    "estimated_loss_amount": 400.32,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 240,
+      "duration_hours": 4,
+      "platform": "glovo",
+      "stopped_at": "2026-10-13T10:05:18.703Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791727658010_azm5k",
+    "restaurant_id": "d22a3ec7-f23b-4711-a069-45d42197c7e5",
+    "platform": "glovo",
+    "stopped_at": "2026-10-11T14:07:38.010Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-13T10:07:13.008Z",
+    "duration_minutes": 2640,
+    "estimated_loss_amount": 4399.31,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 2640,
+      "duration_hours": 43.99,
+      "platform": "glovo",
+      "stopped_at": "2026-10-11T14:07:38.010Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791727383224_0j3nb",
+    "restaurant_id": "5de3d519-c566-4e04-9129-770dcb72b5fa",
+    "platform": "glovo",
+    "stopped_at": "2026-10-11T14:03:03.224Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": null,
+    "duration_minutes": null,
+    "estimated_loss_amount": 0
+  },
+  {
+    "id": "stop_1791727297518_wp7bg",
+    "restaurant_id": "7990f9b6-9fa0-46d4-9ec5-219d10458ecc",
+    "platform": "glovo",
+    "stopped_at": "2026-10-11T14:01:37.518Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-13T10:01:31.270Z",
+    "duration_minutes": 2640,
+    "estimated_loss_amount": 4399.83,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 2640,
+      "duration_hours": 44,
+      "platform": "glovo",
+      "stopped_at": "2026-10-11T14:01:37.518Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791727262149_ep67r",
+    "restaurant_id": "14adb9aa-a9aa-4b71-9846-41f367f98c24",
+    "platform": "glovo",
+    "stopped_at": "2026-10-11T14:01:02.149Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": null,
+    "duration_minutes": null,
+    "estimated_loss_amount": 0
+  },
+  {
+    "id": "stop_1791705802269_v228d",
+    "restaurant_id": "c31eb332-e506-4461-af39-bcff1e3664c7",
+    "platform": "wolt",
+    "stopped_at": "2026-10-11T08:03:22.269Z",
+    "stop_type": "partial",
+    "affected_product_count": 1,
+    "total_product_count": 0,
+    "reason": "Restaurant closed",
+    "resumed_at": "2026-10-11T14:03:47.043Z",
+    "duration_minutes": 360,
+    "estimated_loss_amount": 600.69,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 360,
+      "duration_hours": 6.01,
+      "platform": "wolt",
+      "stopped_at": "2026-10-11T08:03:22.269Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791648974093_shnub",
+    "restaurant_id": "8b02140e-a340-41ca-9a83-b4950016ee15",
+    "platform": "glovo",
+    "stopped_at": "2026-10-10T16:16:14.093Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-13T16:13:31.894Z",
+    "duration_minutes": 4317,
+    "estimated_loss_amount": 7195.49,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 4317,
+      "duration_hours": 71.95,
+      "platform": "glovo",
+      "stopped_at": "2026-10-10T16:16:14.093Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791648954445_xzagd",
+    "restaurant_id": "c72bd8f7-b064-4093-8c34-3604e6b384a2",
+    "platform": "glovo",
+    "stopped_at": "2026-10-10T16:15:54.445Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-13T16:13:18.111Z",
+    "duration_minutes": 4317,
+    "estimated_loss_amount": 7195.66,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 4317,
+      "duration_hours": 71.96,
+      "platform": "glovo",
+      "stopped_at": "2026-10-10T16:15:54.445Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791648500762_siswc",
+    "restaurant_id": "d22a3ec7-f23b-4711-a069-45d42197c7e5",
+    "platform": "glovo",
+    "stopped_at": "2026-10-10T16:08:20.762Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-11T08:07:05.881Z",
+    "duration_minutes": 959,
+    "estimated_loss_amount": 1597.92,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 959,
+      "duration_hours": 15.98,
+      "platform": "glovo",
+      "stopped_at": "2026-10-10T16:08:20.762Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791645523064_f1dvy",
+    "restaurant_id": "5de3d519-c566-4e04-9129-770dcb72b5fa",
+    "platform": "glovo",
+    "stopped_at": "2026-10-10T15:18:43.064Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-11T08:02:41.923Z",
+    "duration_minutes": 1004,
+    "estimated_loss_amount": 1673.3,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 1004,
+      "duration_hours": 16.73,
+      "platform": "glovo",
+      "stopped_at": "2026-10-10T15:18:43.064Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791645331553_yxnjx",
+    "restaurant_id": "f27c7fba-ecdf-4f44-a752-195d5caf9561",
+    "platform": "glovo",
+    "stopped_at": "2026-10-10T15:15:31.553Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 0,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-10T16:01:24.403Z",
+    "duration_minutes": 46,
+    "estimated_loss_amount": 76.47,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 46,
+      "duration_hours": 0.76,
+      "platform": "glovo",
+      "stopped_at": "2026-10-10T15:15:31.553Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791641216965_q3jk3",
+    "restaurant_id": "d22a3ec7-f23b-4711-a069-45d42197c7e5",
+    "platform": "glovo",
+    "stopped_at": "2026-10-10T14:06:56.965Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-10T15:24:14.311Z",
+    "duration_minutes": 77,
+    "estimated_loss_amount": 128.82,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 77,
+      "duration_hours": 1.29,
+      "platform": "glovo",
+      "stopped_at": "2026-10-10T14:06:56.965Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791641184860_fqf6f",
+    "restaurant_id": "67aec385-594f-4e25-bd29-d67552b95ca4",
+    "platform": "glovo",
+    "stopped_at": "2026-10-10T14:06:24.860Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-13T08:06:33.768Z",
+    "duration_minutes": 3960,
+    "estimated_loss_amount": 6600.25,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 3960,
+      "duration_hours": 66,
+      "platform": "glovo",
+      "stopped_at": "2026-10-10T14:06:24.860Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
+    "id": "stop_1791641106257_t2vyb",
+    "restaurant_id": "ff89718b-d1d7-4b54-b67e-4bc50b5ea80f",
+    "platform": "glovo",
+    "stopped_at": "2026-10-10T14:05:06.257Z",
+    "stop_type": "full",
+    "affected_product_count": 0,
+    "total_product_count": 22,
+    "reason": "Unknown",
+    "resumed_at": "2026-10-13T08:05:19.126Z",
+    "duration_minutes": 3960,
+    "estimated_loss_amount": 6600.36,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 3960,
+      "duration_hours": 66,
+      "platform": "glovo",
+      "stopped_at": "2026-10-10T14:05:06.257Z",
+      "resumed_at": "ongoing"
+    }
+  },
+  {
     "id": "stop_1791475498731_kprie",
     "restaurant_id": "ff89718b-d1d7-4b54-b67e-4bc50b5ea80f",
     "platform": "glovo",
@@ -8,9 +626,17 @@
     "affected_product_count": 0,
     "total_product_count": 22,
     "reason": "Unknown",
-    "resumed_at": null,
-    "duration_minutes": null,
-    "estimated_loss_amount": 0
+    "resumed_at": "2026-10-10T10:04:57.620Z",
+    "duration_minutes": 2520,
+    "estimated_loss_amount": 4199.97,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 2520,
+      "duration_hours": 42,
+      "platform": "glovo",
+      "stopped_at": "2026-10-08T16:04:58.731Z",
+      "resumed_at": "ongoing"
+    }
   },
   {
     "id": "stop_1791475408194_mf5qw",
@@ -21,9 +647,17 @@
     "affected_product_count": 0,
     "total_product_count": 22,
     "reason": "Unknown",
-    "resumed_at": null,
-    "duration_minutes": null,
-    "estimated_loss_amount": 0
+    "resumed_at": "2026-10-13T10:03:37.607Z",
+    "duration_minutes": 6840,
+    "estimated_loss_amount": 11400.26,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 6840,
+      "duration_hours": 114,
+      "platform": "glovo",
+      "stopped_at": "2026-10-08T16:03:28.194Z",
+      "resumed_at": "ongoing"
+    }
   },
   {
     "id": "stop_1791471781220_2mcvt",
@@ -34,9 +668,17 @@
     "affected_product_count": 0,
     "total_product_count": 22,
     "reason": "Unknown",
-    "resumed_at": null,
-    "duration_minutes": null,
-    "estimated_loss_amount": 0
+    "resumed_at": "2026-10-10T14:02:50.013Z",
+    "duration_minutes": 2820,
+    "estimated_loss_amount": 4699.69,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 2820,
+      "duration_hours": 47,
+      "platform": "glovo",
+      "stopped_at": "2026-10-08T15:03:01.220Z",
+      "resumed_at": "ongoing"
+    }
   },
   {
     "id": "stop_1791468436891_8fi7w",
@@ -47,9 +689,17 @@
     "affected_product_count": 0,
     "total_product_count": 22,
     "reason": "Unknown",
-    "resumed_at": null,
-    "duration_minutes": null,
-    "estimated_loss_amount": 0
+    "resumed_at": "2026-10-10T10:06:38.764Z",
+    "duration_minutes": 2639,
+    "estimated_loss_amount": 4398.94,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 2639,
+      "duration_hours": 43.99,
+      "platform": "glovo",
+      "stopped_at": "2026-10-08T14:07:16.891Z",
+      "resumed_at": "ongoing"
+    }
   },
   {
     "id": "stop_1791454596764_zn64o",
@@ -325,9 +975,17 @@
     "affected_product_count": 0,
     "total_product_count": 22,
     "reason": "Unknown",
-    "resumed_at": null,
-    "duration_minutes": null,
-    "estimated_loss_amount": 0
+    "resumed_at": "2026-10-10T15:32:16.499Z",
+    "duration_minutes": 6000,
+    "estimated_loss_amount": 10000.7,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 6000,
+      "duration_hours": 100.01,
+      "platform": "glovo",
+      "stopped_at": "2026-10-06T11:31:51.432Z",
+      "resumed_at": "ongoing"
+    }
   },
   {
     "id": "stop_1791286287313_zph3y",
@@ -338,9 +996,17 @@
     "affected_product_count": 0,
     "total_product_count": 22,
     "reason": "Unknown",
-    "resumed_at": null,
-    "duration_minutes": null,
-    "estimated_loss_amount": 0
+    "resumed_at": "2026-10-10T15:32:00.203Z",
+    "duration_minutes": 6001,
+    "estimated_loss_amount": 10000.91,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 6001,
+      "duration_hours": 100.01,
+      "platform": "glovo",
+      "stopped_at": "2026-10-06T11:31:27.313Z",
+      "resumed_at": "ongoing"
+    }
   },
   {
     "id": "stop_1791286159201_1h0n5",
@@ -364,9 +1030,17 @@
     "affected_product_count": 0,
     "total_product_count": 22,
     "reason": "Unknown",
-    "resumed_at": null,
-    "duration_minutes": null,
-    "estimated_loss_amount": 0
+    "resumed_at": "2026-10-13T15:11:52.660Z",
+    "duration_minutes": 10303,
+    "estimated_loss_amount": 17171.74,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 10303,
+      "duration_hours": 171.72,
+      "platform": "glovo",
+      "stopped_at": "2026-10-06T11:28:49.856Z",
+      "resumed_at": "ongoing"
+    }
   },
   {
     "id": "stop_1791286070941_ft969",
@@ -550,9 +1224,17 @@
     "affected_product_count": 0,
     "total_product_count": 22,
     "reason": "Unknown",
-    "resumed_at": null,
-    "duration_minutes": null,
-    "estimated_loss_amount": 0
+    "resumed_at": "2026-10-10T10:06:10.145Z",
+    "duration_minutes": 5753,
+    "estimated_loss_amount": 9588.78,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 5753,
+      "duration_hours": 95.89,
+      "platform": "glovo",
+      "stopped_at": "2026-10-06T10:12:53.964Z",
+      "resumed_at": "ongoing"
+    }
   },
   {
     "id": "stop_1791281505189_vlh1a",
@@ -563,9 +1245,17 @@
     "affected_product_count": 0,
     "total_product_count": 22,
     "reason": "Unknown",
-    "resumed_at": null,
-    "duration_minutes": null,
-    "estimated_loss_amount": 0
+    "resumed_at": "2026-10-13T14:05:59.417Z",
+    "duration_minutes": 10314,
+    "estimated_loss_amount": 17190.4,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 10314,
+      "duration_hours": 171.9,
+      "platform": "glovo",
+      "stopped_at": "2026-10-06T10:11:45.189Z",
+      "resumed_at": "ongoing"
+    }
   },
   {
     "id": "stop_1791281461059_1snu5",
@@ -639,9 +1329,17 @@
     "affected_product_count": 0,
     "total_product_count": 22,
     "reason": "Unknown",
-    "resumed_at": null,
-    "duration_minutes": null,
-    "estimated_loss_amount": 0
+    "resumed_at": "2026-10-11T08:01:22.256Z",
+    "duration_minutes": 7078,
+    "estimated_loss_amount": 11797.2,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 7078,
+      "duration_hours": 117.97,
+      "platform": "glovo",
+      "stopped_at": "2026-10-06T10:03:03.083Z",
+      "resumed_at": "ongoing"
+    }
   },
   {
     "id": "stop_1791273654091_qhyma",
@@ -652,9 +1350,17 @@
     "affected_product_count": 0,
     "total_product_count": 22,
     "reason": "Unknown",
-    "resumed_at": null,
-    "duration_minutes": null,
-    "estimated_loss_amount": 0
+    "resumed_at": "2026-10-11T08:00:52.785Z",
+    "duration_minutes": 7200,
+    "estimated_loss_amount": 11999.96,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 7200,
+      "duration_hours": 120,
+      "platform": "glovo",
+      "stopped_at": "2026-10-06T08:00:54.091Z",
+      "resumed_at": "ongoing"
+    }
   },
   {
     "id": "stop_1791216713188_atqzg",

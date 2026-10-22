@@ -1,26 +1,32 @@
 import React, { useState } from 'react'
 import { X, Copy, Check, Utensils } from 'lucide-react'
 import { useTheme } from '../lib/ThemeContext'
+import { useLanguage } from '../lib/LanguageContext'
 import BrandAvatar, { cleanRestaurantName } from './BrandAvatar'
+import { formatDisplayOrderNumber } from '../lib/orderUtils'
 
 export default function OrderDetailsModal({ order, isOpen, onClose }) {
   const { isDark } = useTheme()
+  const { t, language } = useLanguage()
   const [copied, setCopied] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState(null)
 
   if (!isOpen || !order) return null
 
-  const orderNum = order.order_number || (order.order_id?.startsWith('kiosk_') ? order.order_id.replace('kiosk_', '') : order.order_id) || 'N/A'
+  const localeCode = language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-US' : 'ro-RO'
+  const currencyLabel = language === 'ru' ? 'лей' : language === 'en' ? 'RON' : 'lei'
+
+  const orderNum = formatDisplayOrderNumber(order.order_number, order.order_id, order.channel || order.platform) || 'N/A'
   const brandName = order.brand_name || order.brand || order.restaurant_name || 'smashme'
   const cleanBrand = cleanRestaurantName(brandName).toLowerCase().replace(/\s+/g, '')
   const channel = order.channel || order.platform || 'kiosk'
-  const orderType = order.order_type || (channel === 'kiosk' ? 'La masă' : 'Livrare')
-  const paymentMethod = (order.payment_method || (channel === 'kiosk' ? 'CASH' : 'CARD')).toUpperCase()
-  const paymentSubtype = order.payment_subtype || (paymentMethod === 'CASH' ? 'La Casă' : '')
+  const orderType = order.order_type || (channel === 'kiosk' ? 'Smart Kiosk' : channel === 'casierie' ? 'La Casă (POS)' : 'Livrare')
+  const paymentMethod = (order.payment_method || (channel === 'kiosk' ? 'CASH' : channel === 'casierie' ? 'POS / CASH' : 'CARD')).toUpperCase()
+  const paymentSubtype = order.payment_subtype || (paymentMethod === 'CASH' ? 'La Casă' : channel === 'casierie' ? 'Casier' : '')
   const iikoId = order.iiko_order_id || order.order_id || '—'
 
   const placedDate = order.placed_at ? new Date(order.placed_at) : new Date()
-  const formattedDate = placedDate.toLocaleString('ro-RO', {
+  const formattedDate = placedDate.toLocaleString(localeCode, {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -52,7 +58,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
           {/* HEADER */}
           <div className="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
             <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
-              Comandă #{orderNum}
+              {t('webhooks.order_title', 'Comandă #')}{orderNum}
             </h3>
             <button
               onClick={onClose}
@@ -82,13 +88,13 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
             {/* ORDER META INFO */}
             <div className="grid grid-cols-2 gap-y-2 text-xs font-medium text-slate-600 dark:text-slate-300">
               <div>
-                Canal: <strong className="text-slate-900 dark:text-white font-extrabold">{channel}</strong>
+                {t('webhooks.channel_lbl', 'Canal:')} <strong className="text-slate-900 dark:text-white font-extrabold">{channel}</strong>
               </div>
               <div>
-                Tip Comandă: <strong className="text-slate-900 dark:text-white font-extrabold">{orderType}</strong>
+                {t('webhooks.order_type_lbl', 'Tip Comandă:')} <strong className="text-slate-900 dark:text-white font-extrabold">{orderType}</strong>
               </div>
               <div className="flex items-center gap-1.5">
-                <span>Plată:</span>
+                <span>{t('webhooks.payment_lbl', 'Plată:')}</span>
                 <strong className="text-slate-900 dark:text-white font-extrabold">{paymentMethod}</strong>
                 {paymentSubtype && (
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
@@ -97,7 +103,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                 )}
               </div>
               <div>
-                Data/Ora: <strong className="text-slate-900 dark:text-white font-extrabold">{formattedDate}</strong>
+                {t('webhooks.datetime_lbl', 'Data/Ora:')} <strong className="text-slate-900 dark:text-white font-extrabold">{formattedDate}</strong>
               </div>
             </div>
 
@@ -105,7 +111,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
             <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-0.5">
-                  ID COMANDĂ IIKO
+                  {t('webhooks.iiko_order_id_lbl', 'ID COMANDĂ IIKO')}
                 </span>
                 <p className="text-xs sm:text-sm font-sans font-bold text-slate-900 dark:text-white truncate select-all">
                   {iikoId}
@@ -114,7 +120,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
               <button
                 onClick={handleCopyIiko}
                 className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer shrink-0"
-                title="Copiază ID iiko"
+                title={t('webhooks.copy_iiko_id', 'Copiază ID iiko')}
               >
                 {copied ? <Check size={16} className="text-emerald-600" /> : <Copy size={16} />}
               </button>
@@ -124,7 +130,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
             {/* SECȚIUNE PRODUSE */}
             <div>
               <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2.5">
-                PRODUSE ({items.length})
+                {t('webhooks.products_lbl', 'PRODUSE')} ({items.length})
               </div>
 
               <div className="space-y-2">
@@ -181,7 +187,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                           {qty}x
                         </span>
                         <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">
-                          {price} lei
+                          {price} {currencyLabel}
                         </span>
                       </div>
                     </div>
@@ -193,10 +199,10 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
             {/* TOTAL FOOTER */}
             <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <span className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                TOTAL
+                {t('webhooks.total_lbl', 'TOTAL')}
               </span>
               <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                {parseFloat(order.total_amount || 0).toFixed(2)} lei
+                {parseFloat(order.total_amount || 0).toLocaleString(localeCode, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currencyLabel}
               </span>
             </div>
 
@@ -215,7 +221,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
             {/* PRODUCT HEADER */}
             <div className="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
               <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                {selectedProduct.name || selectedProduct.product_name || 'Detalii Produs'}
+                {selectedProduct.name || selectedProduct.product_name || t('webhooks.product_details', 'Detalii Produs')}
               </h3>
               <button
                 onClick={() => setSelectedProduct(null)}
@@ -244,7 +250,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                   ) : null}
                   <div className={`w-full aspect-square rounded-2xl bg-slate-100 dark:bg-slate-800 flex-col items-center justify-center text-slate-400 border border-slate-200 dark:border-slate-700 gap-2.5 ${selectedProduct.image || selectedProduct.imageUrl || selectedProduct.imageLinks?.[0] ? 'hidden' : 'flex'}`}>
                     <Utensils size={48} className="opacity-40" />
-                    <span className="text-xs font-semibold text-slate-400">Fără imagine în iiko</span>
+                    <span className="text-xs font-semibold text-slate-400">{t('webhooks.no_image', 'Fără imagine în iiko')}</span>
                   </div>
                 </div>
 
@@ -263,7 +269,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                   {selectedProduct.ingredients && (
                     <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80">
                       <h5 className="font-extrabold text-slate-900 dark:text-white mb-1.5 uppercase text-[11px] tracking-wider">
-                        Ingrediente & Alergeni:
+                        {t('webhooks.ingredients_allergens', 'Ingrediente & Alergeni:')}
                       </h5>
                       <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-xs">
                         {selectedProduct.ingredients}
@@ -274,7 +280,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                   {selectedProduct.modifiers && selectedProduct.modifiers.length > 0 && (
                     <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80">
                       <h5 className="font-extrabold text-slate-900 dark:text-white mb-1.5 uppercase text-[11px] tracking-wider">
-                        Modificatori selectați:
+                        {t('webhooks.selected_modifiers', 'Modificatori selectați:')}
                       </h5>
                       <div className="flex flex-wrap gap-1.5">
                         {selectedProduct.modifiers.map((m, i) => (
@@ -289,7 +295,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                   {selectedProduct.comment && (
                     <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60">
                       <h5 className="font-extrabold text-amber-900 dark:text-amber-200 mb-1 uppercase text-[11px] tracking-wider">
-                        Instrucțiuni preparare:
+                        {t('webhooks.prep_instructions', 'Instrucțiuni preparare:')}
                       </h5>
                       <p className="text-amber-800 dark:text-amber-300 font-medium text-xs">
                         {selectedProduct.comment}
@@ -304,13 +310,13 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
             {/* PRODUCT FOOTER */}
             <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
               <span className="text-xs font-bold text-slate-500">
-                Preț porție: <strong className="text-slate-900 dark:text-white font-black">{parseFloat(selectedProduct.price || selectedProduct.unitPrice || 0).toFixed(2)} lei</strong>
+                {t('webhooks.portion_price', 'Preț porție:')} <strong className="text-slate-900 dark:text-white font-black">{parseFloat(selectedProduct.price || selectedProduct.unitPrice || 0).toFixed(2)} {currencyLabel}</strong>
               </span>
               <button
                 onClick={() => setSelectedProduct(null)}
                 className="px-5 py-2 rounded-xl text-xs font-bold bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100 transition-colors cursor-pointer"
               >
-                Închide
+                {t('webhooks.close_btn', 'Închide')}
               </button>
             </div>
           </div>

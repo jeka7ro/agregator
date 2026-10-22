@@ -39,8 +39,19 @@ export function getBrandInfo(restaurantOrName) {
     }
   }
 
-  // 2. Love Sushi
-  if (lower.includes('love sushi') || (lower.includes('love') && lower.includes('sushi'))) {
+  // 2. Roll Master (replaces Sushi Master, RM) - MUST BE CHECKED BEFORE GENERIC SUSHI / LOVE
+  if (lower.includes('roll master') || lower.includes('sushi master') || lower.includes('roll') || lower.includes('master') || lower.includes('rm ') || lower.startsWith('rm')) {
+    return {
+      name: 'Roll Master',
+      logo: dbLogo || rollMasterLogo,
+      fallbackLogo: rollMasterLogo,
+      short: 'RM',
+      bgClass: 'bg-zinc-900 border-zinc-700/60 text-zinc-200'
+    }
+  }
+
+  // 3. Love Sushi (only if explicitly Love Sushi, WLS, or love without roll/master)
+  if (lower.includes('love sushi') || lower.includes('wls') || (lower.includes('love') && !lower.includes('roll') && !lower.includes('master'))) {
     return {
       name: 'Love Sushi',
       logo: dbLogo || loveSushiLogo,
@@ -50,7 +61,7 @@ export function getBrandInfo(restaurantOrName) {
     }
   }
 
-  // 3. Smash Me
+  // 4. Smash Me
   if (lower.includes('smash')) {
     return {
       name: 'Smash Me',
@@ -61,7 +72,7 @@ export function getBrandInfo(restaurantOrName) {
     }
   }
 
-  // 4. Crunch
+  // 5. Crunch
   if (lower.includes('crunch')) {
     return {
       name: 'Crunch',
@@ -72,25 +83,14 @@ export function getBrandInfo(restaurantOrName) {
     }
   }
 
-  // 5. Roll Master (replaces Sushi Master, RM)
-  if (lower.includes('roll') || lower.includes('master') || lower.includes('rm ') || lower.startsWith('rm') || lower.includes('sushi master')) {
+  // Default fallback for any remaining sushi keyword -> Roll Master!
+  if (lower.includes('sushi')) {
     return {
       name: 'Roll Master',
       logo: dbLogo || rollMasterLogo,
       fallbackLogo: rollMasterLogo,
       short: 'RM',
       bgClass: 'bg-zinc-900 border-zinc-700/60 text-zinc-200'
-    }
-  }
-
-  // Default fallback to Love Sushi if sushi keyword, or Roll Master
-  if (lower.includes('sushi')) {
-    return {
-      name: 'Love Sushi',
-      logo: dbLogo || loveSushiLogo,
-      fallbackLogo: loveSushiLogo,
-      short: 'LS',
-      bgClass: 'bg-pink-950/60 border-pink-800/50 text-pink-400'
     }
   }
 

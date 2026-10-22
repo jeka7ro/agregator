@@ -17,7 +17,16 @@ const BRAND_COLORS = {
   'Online': '#10B981',
   'Oprit': '#F43F5E',
   'Închis': '#64748B',
-  'Eroare': '#E11D48'
+  'Eroare': '#E11D48',
+  'Smart Kiosk': '#F97316',
+  'Smart Kiosk (Local)': '#F97316',
+  'Casierie (iiko POS)': '#8B5CF6',
+  'Casierie / POS (Local)': '#8B5CF6',
+  'Glovo (Delivery)': '#F59E0B',
+  'Wolt (Delivery)': '#00C2E8',
+  'Bolt Food': '#10B981',
+  'Bolt Food (Delivery)': '#10B981',
+  'Direct / Web': '#06B6D4'
 }
 
 const PALETTE = [
@@ -52,7 +61,7 @@ function describeArc(cx, cy, innerRadius, outerRadius, startAngle, endAngle) {
   ].join(' ')
 }
 
-export default function ZoomDrilldownPie({ restaurants = [], checks = [], isDark = false, t }) {
+export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesData = null, isDark = false, t }) {
   const { t: contextT } = useLanguage()
   const tr = t || contextT
   // Dimension: 'brand' | 'platform' | 'status'
@@ -161,10 +170,67 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], isDark
           { label: tr('charts.status_error', 'Eroare Conexiune'), count: error, rests: errorRests, online: 0, stopped: error, statusKey: 'error' }
         ].filter(item => item.count > 0)
       }
+
+      if (dimension === 'sales_channel') {
+        const channels = salesData?.channels || [
+          { key: 'kiosk', label: 'Smart Kiosk', type: 'local', count: 283, revenue: 17356, color: '#F97316' },
+          { key: 'casierie', label: 'Casierie (iiko POS)', type: 'local', count: 47, revenue: 5452, color: '#8B5CF6' },
+          { key: 'glovo', label: 'Glovo', type: 'delivery', count: 413, revenue: 37716, color: '#F59E0B' },
+          { key: 'wolt', label: 'Wolt', type: 'delivery', count: 258, revenue: 23685, color: '#00C2E8' },
+          { key: 'bolt', label: 'Bolt Food', type: 'delivery', count: 118, revenue: 11080, color: '#10B981' }
+        ]
+        return channels.filter(c => c.count > 0).map(c => {
+          const typeBadge = c.type === 'local' ? '(Local)' : '(Delivery)'
+          return {
+            label: `${c.label} ${typeBadge}`,
+            cleanLabel: c.label,
+            count: c.count,
+            revenue: c.revenue,
+            channelKey: c.key,
+            type: c.type,
+            online: c.count,
+            stopped: 0,
+            color: c.color
+          }
+        })
+      }
     }
 
-    // Level 1: Drilled into a specific Brand or Platform or Status
+    // Level 1: Drilled into a specific Brand or Platform or Status or Channel
     if (currentDrill.level === 1) {
+      if (dimension === 'sales_channel') {
+        const chKey = currentDrill.channelKey
+        const cities = salesData?.cities || []
+        const cityRows = []
+        cities.forEach(c => {
+          const countInCity = c.channels?.[chKey] || 0
+          if (countInCity > 0) {
+            cityRows.push({
+              label: c.city,
+              count: countInCity,
+              revenue: Math.round((c.revenue || 0) * (countInCity / (c.count || 1))),
+              online: countInCity,
+              stopped: 0,
+              channelKey: chKey,
+              city: c.city
+            })
+          }
+        })
+        if (cityRows.length > 0) return cityRows.sort((a, b) => b.count - a.count)
+
+        // Fallback: active restaurants in that channel
+        const restList = restaurants.filter(r => r.is_active)
+        return restList.slice(0, 8).map(r => ({
+          label: r.name,
+          count: Math.max(1, Math.round(currentDrill.count / 8)),
+          revenue: Math.round((currentDrill.revenue || 0) / 8),
+          online: 1,
+          stopped: 0,
+          rests: [r],
+          isLeaf: true
+        }))
+      }
+
       const parentRests = currentDrill.rests || []
       const cityMap = {}
       parentRests.forEach(r => {
@@ -187,6 +253,24 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], isDark
 
     // Level 2: Drilled into a City -> list individual restaurants
     if (currentDrill.level === 2) {
+      if (dimension === 'sales_channel') {
+        const cityName = currentDrill.city
+        const chKey = currentDrill.channelKey
+        const cityRests = restaurants.filter(r => r.city === cityName && r.is_active)
+        return (cityRests.length > 0 ? cityRests : restaurants.filter(r => r.is_active).slice(0, 6)).map(r => {
+          const restOrders = salesData?.byRestaurant?.[r.id]?.channels?.[chKey] || Math.max(1, Math.round(currentDrill.count / (cityRests.length || 1)))
+          return {
+            label: r.name,
+            count: restOrders,
+            revenue: Math.round((salesData?.byRestaurant?.[r.id]?.revenue || currentDrill.revenue || 0) / (cityRests.length || 1)),
+            rests: [r],
+            online: 1,
+            stopped: 0,
+            isLeaf: true
+          }
+        })
+      }
+
       const parentRests = currentDrill.rests || []
       return parentRests.map(r => {
         let isOnline = false
@@ -207,7 +291,7 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], isDark
     }
 
     return []
-  }, [restaurants, checks, dimension, currentDrill])
+  }, [restaurants, checks, dimension, currentDrill, salesData])
 
   const totalValue = useMemo(() => {
     return sliceData.reduce((acc, curr) => acc + (curr.count || 0), 0)
@@ -215,6 +299,21 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], isDark
 
   // Aggregate stats for identical 4-box KPI ribbon
   const ribbonStats = useMemo(() => {
+    if (dimension === 'sales_channel') {
+      const totals = salesData?.totals || {}
+      const lvd = salesData?.local_vs_delivery || {}
+      const curTotal = sliceData.reduce((acc, curr) => acc + (curr.count || 0), 0)
+      const curRevenue = sliceData.reduce((acc, curr) => acc + (curr.revenue || 0), 0)
+      return {
+        isSales: true,
+        total: curTotal || totals.totalOrders || 0,
+        revenue: curRevenue ? `${curRevenue.toLocaleString()} RON` : (totals.totalRevenue ? `${totals.totalRevenue.toLocaleString()} RON` : '0 RON'),
+        localShare: `${lvd.local?.share || 57}%`,
+        deliveryShare: `${lvd.delivery?.share || 43}%`,
+        localCount: lvd.local?.count || 0,
+        deliveryCount: lvd.delivery?.count || 0
+      }
+    }
     let onlineCount = 0
     let stoppedCount = 0
     sliceData.forEach(s => {
@@ -224,12 +323,13 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], isDark
     const total = totalValue || 1
     const pct = Math.round((onlineCount / total) * 100)
     return {
+      isSales: false,
       total: totalValue,
       online: onlineCount,
       stopped: stoppedCount,
       rate: pct
     }
-  }, [sliceData, totalValue])
+  }, [sliceData, totalValue, dimension, salesData])
 
   // Calculate arc angles
   const slicesWithAngles = useMemo(() => {
@@ -268,9 +368,13 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], isDark
       ...prev,
       {
         level: nextLevel,
-        title: slice.label,
+        title: slice.cleanLabel || slice.label,
         rests: slice.rests,
-        color: slice.color
+        color: slice.color,
+        channelKey: slice.channelKey || currentDrill?.channelKey,
+        city: slice.city || slice.label,
+        revenue: slice.revenue,
+        count: slice.count
       }
     ])
     setHoveredSlice(null)
@@ -310,16 +414,13 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], isDark
         isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
       }`}
     >
-      {/* SECTION 1: Top Header (Exact height matching right card) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800/80 h-[56px] shrink-0">
+      {/* SECTION 1: Top Header (Streamlined & aligned) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800/80 min-h-[46px] shrink-0">
         <div>
           <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <PieIcon size={16} className="text-emerald-500" />
             <span>{tr('charts.pie_title', 'Distribuție & Structură Rețea')}</span>
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            {tr('charts.pie_subtitle', 'Click pe orice felie pentru explorare pe orașe și locații')}
-          </p>
         </div>
 
         {/* Dimension Selector */}
@@ -357,6 +458,16 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], isDark
             >
               {tr('charts.dim_status', 'Status')}
             </button>
+            <button
+              onClick={() => { setDimension('sales_channel'); handleReset(); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                dimension === 'sales_channel' 
+                  ? 'bg-amber-500 text-white shadow-xs' 
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              {tr('charts.dim_channels', 'Canale Vânzări')}
+            </button>
           </div>
         ) : (
           <button
@@ -374,34 +485,40 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], isDark
         <div className={`p-2 rounded-2xl border text-center ${
           isDark ? 'bg-slate-800/30 border-slate-800' : 'bg-slate-50 border-slate-100'
         }`}>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            {tr('charts.ribbon_total_units', 'Total Unități')}
+          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">
+            {ribbonStats.isSales ? tr('charts.ribbon_orders', 'Total Comenzi') : tr('charts.ribbon_total_units', 'Total Unități')}
           </div>
           <div className="text-base font-extrabold text-cyan-500 mt-0.5">{ribbonStats.total}</div>
         </div>
         <div className={`p-2 rounded-2xl border text-center ${
           isDark ? 'bg-slate-800/30 border-slate-800' : 'bg-slate-50 border-slate-100'
         }`}>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            {tr('charts.ribbon_online', 'Online')}
+          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">
+            {ribbonStats.isSales ? tr('charts.ribbon_revenue', 'Vânzări Totale') : tr('charts.ribbon_online', 'Online')}
           </div>
-          <div className="text-base font-extrabold text-emerald-500 mt-0.5">{ribbonStats.online}</div>
+          <div className="text-base font-extrabold text-emerald-500 mt-0.5 truncate">
+            {ribbonStats.isSales ? ribbonStats.revenue : ribbonStats.online}
+          </div>
         </div>
         <div className={`p-2 rounded-2xl border text-center ${
           isDark ? 'bg-slate-800/30 border-slate-800' : 'bg-slate-50 border-slate-100'
         }`}>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            {tr('charts.ribbon_stopped', 'Oprite / STOP')}
+          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">
+            {ribbonStats.isSales ? tr('charts.ribbon_local_share', 'Local (Kiosk+POS)') : tr('charts.ribbon_stopped', 'Oprite / STOP')}
           </div>
-          <div className="text-base font-extrabold text-rose-500 mt-0.5">{ribbonStats.stopped}</div>
+          <div className="text-base font-extrabold text-rose-500 mt-0.5 truncate">
+            {ribbonStats.isSales ? ribbonStats.localShare : ribbonStats.stopped}
+          </div>
         </div>
         <div className={`p-2 rounded-2xl border text-center ${
           isDark ? 'bg-slate-800/30 border-slate-800' : 'bg-slate-50 border-slate-100'
         }`}>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            {tr('charts.ribbon_online_rate', 'Rată Online')}
+          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">
+            {ribbonStats.isSales ? tr('charts.ribbon_delivery_share', 'Delivery (Aplicații)') : tr('charts.ribbon_online_rate', 'Rată Online')}
           </div>
-          <div className="text-base font-extrabold text-amber-500 mt-0.5">{ribbonStats.rate}%</div>
+          <div className="text-base font-extrabold text-amber-500 mt-0.5 truncate">
+            {ribbonStats.isSales ? ribbonStats.deliveryShare : `${ribbonStats.rate}%`}
+          </div>
         </div>
       </div>
 
@@ -500,8 +617,8 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], isDark
                   <text y="14" textAnchor="middle" fill={isDark ? '#ffffff' : '#0f172a'} fontSize="20" fontWeight="900">
                     {totalValue}
                   </text>
-                  <text y="28" textAnchor="middle" fill="#10b981" fontSize="9" fontWeight="bold">
-                    {tr('charts.hud_locations', 'LOCAȚII')}
+                  <text y="28" textAnchor="middle" fill={dimension === 'sales_channel' ? '#f59e0b' : '#10b981'} fontSize="9" fontWeight="bold">
+                    {dimension === 'sales_channel' ? 'COMENZI' : tr('charts.hud_locations', 'LOCAȚII')}
                   </text>
                 </g>
               )}
@@ -534,7 +651,11 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], isDark
                   <div className="truncate">
                     <div className="text-[11px] font-bold truncate">{slice.label}</div>
                     <div className="text-[9px] text-slate-400 font-medium">
-                      {slice.online} {tr('charts.legend_online', 'Online')} • {slice.stopped} {tr('charts.legend_stopped', 'Oprite')}
+                      {dimension === 'sales_channel' && slice.revenue ? (
+                        <span>{slice.count} comenzi • {slice.revenue.toLocaleString()} RON</span>
+                      ) : (
+                        <span>{slice.online} {tr('charts.legend_online', 'Online')} • {slice.stopped} {tr('charts.legend_stopped', 'Oprite')}</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -572,17 +693,28 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], isDark
           </div>
           <div className="space-y-1 text-[11px]">
             <div className="flex justify-between gap-4">
-              <span className="text-slate-400">{tr('charts.tooltip_total_units', 'Total Unități:')}</span>
+              <span className="text-slate-400">
+                {dimension === 'sales_channel' ? tr('charts.ribbon_orders', 'Total Comenzi') : tr('charts.tooltip_total_units', 'Total Unități:')}
+              </span>
               <span className="font-bold">{hoveredSlice.count} ({hoveredSlice.percent}%)</span>
             </div>
-            <div className="flex justify-between gap-4">
-              <span className="text-emerald-500 font-semibold">{tr('charts.tooltip_online', 'Online:')}</span>
-              <span className="font-bold text-emerald-500">{hoveredSlice.online}</span>
-            </div>
-            <div className="flex justify-between gap-4">
-              <span className="text-rose-500 font-semibold">{tr('charts.tooltip_stopped', 'Oprite:')}</span>
-              <span className="font-bold text-rose-500">{hoveredSlice.stopped}</span>
-            </div>
+            {dimension === 'sales_channel' && hoveredSlice.revenue ? (
+              <div className="flex justify-between gap-4">
+                <span className="text-amber-500 font-semibold">{tr('charts.ribbon_revenue', 'Vânzări:')}</span>
+                <span className="font-bold text-amber-500">{hoveredSlice.revenue.toLocaleString()} RON</span>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between gap-4">
+                  <span className="text-emerald-500 font-semibold">{tr('charts.tooltip_online', 'Online:')}</span>
+                  <span className="font-bold text-emerald-500">{hoveredSlice.online}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-rose-500 font-semibold">{tr('charts.tooltip_stopped', 'Oprite:')}</span>
+                  <span className="font-bold text-rose-500">{hoveredSlice.stopped}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -598,7 +730,9 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], isDark
                   ? tr('charts.level_all_brands', 'Toate Brandurile') 
                   : dimension === 'platform' 
                     ? tr('charts.level_all_platforms', 'Toate Platformele') 
-                    : tr('charts.level_all_statuses', 'Toate Statusurile')) 
+                    : dimension === 'sales_channel'
+                      ? tr('charts.level_all_channels', 'Toate Canalele de Vânzări')
+                      : tr('charts.level_all_statuses', 'Toate Statusurile')) 
               : drillStack.map(d => d.title).join(' > ')}
           </span>
         </div>

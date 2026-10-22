@@ -13,7 +13,8 @@ import {
   Store, 
   Activity,
   Radio,
-  ExternalLink
+  ExternalLink,
+  CheckCircle2
 } from 'lucide-react'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
@@ -21,6 +22,7 @@ import PlatformLogo from './PlatformLogo'
 import BrandAvatar, { cleanRestaurantName } from './BrandAvatar'
 import OrderDetailsModal from './OrderDetailsModal'
 import { getApiUrl } from '../lib/api'
+import { formatDisplayOrderNumber } from '../lib/orderUtils'
 
 export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTriggered }) {
   const { isDark } = useTheme()
@@ -84,6 +86,21 @@ export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTrig
   const woltCount = orders.filter(o => (o.platform || '').toLowerCase().includes('wolt')).length
   const boltCount = orders.filter(o => (o.platform || '').toLowerCase().includes('bolt')).length
   const kioskCount = orders.filter(o => (o.platform || '').toLowerCase().includes('kiosk')).length
+  const casierieCount = orders.filter(o => {
+    const p = (o.platform || '').toLowerCase()
+    return p.includes('casierie') || p.includes('pos') || p === 'restaurant' || p === 'in-store'
+  }).length
+  const totalCount = orders.length || 1
+  const glovoPct = Math.round((glovoCount / totalCount) * 100)
+  const woltPct = Math.round((woltCount / totalCount) * 100)
+  const boltPct = Math.round((boltCount / totalCount) * 100)
+  const kioskPct = Math.round((kioskCount / totalCount) * 100)
+  const casieriePct = Math.max(0, 100 - (glovoPct + woltPct + boltPct + kioskPct))
+  const deliveryTotal = glovoCount + woltCount + boltCount
+  const deliveryPct = Math.round((deliveryTotal / totalCount) * 100)
+  const localTotal = kioskCount + casierieCount
+  const localPct = Math.max(0, 100 - deliveryPct)
+  const avgTicket = orders.length > 0 ? (totalRevenue / orders.length).toFixed(2) : '0.00'
 
   // Filter orders
   const filteredOrders = orders.filter(o => {
@@ -92,15 +109,18 @@ export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTrig
     if (selectedPlatform === 'wolt' && !p.includes('wolt')) return false
     if (selectedPlatform === 'bolt' && !p.includes('bolt')) return false
     if (selectedPlatform === 'kiosk' && !p.includes('kiosk')) return false
+    if (selectedPlatform === 'casierie' && (!p.includes('casierie') && !p.includes('pos') && p !== 'restaurant' && p !== 'in-store')) return false
     if (selectedPlatform === 'restaurant' && (p.includes('glovo') || p.includes('wolt') || p.includes('bolt') || p.includes('kiosk'))) return false
 
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
+      const q = searchQuery.toLowerCase().replace(/^#/, '')
       const matchRest = (o.restaurant_name || '').toLowerCase().includes(q)
       const matchCity = (o.restaurant_city || '').toLowerCase().includes(q)
+      const ordNum = formatDisplayOrderNumber(o.order_number, o.order_id, o.platform).toLowerCase()
+      const matchNum = ordNum.includes(q)
       const matchId = (o.order_id || '').toLowerCase().includes(q)
       const matchItems = (o.items || []).some(it => (it.product_name || '').toLowerCase().includes(q))
-      if (!matchRest && !matchCity && !matchId && !matchItems) return false
+      if (!matchRest && !matchCity && !matchNum && !matchId && !matchItems) return false
     }
     return true
   })
@@ -183,109 +203,190 @@ export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTrig
           {/* TAB 1: COMENZI & VÂNZĂRI LIVE */}
           {activeTab === 'orders' && (
             <div className="space-y-5 animate-in fade-in duration-200">
-              {/* Top Banner KPI */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+              {/* Top Banner KPI Strip */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className={`p-4 rounded-2xl border transition-all ${isDark ? 'bg-slate-800/60 border-slate-700/80 shadow-xs' : 'bg-white border-slate-200/90 shadow-2xs'}`}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                       {t('webhooks.orders_today', 'Comenzi Astăzi')}
                     </span>
-                    <ShoppingBag size={18} className="text-emerald-600 dark:text-emerald-400" />
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                      <ShoppingBag size={16} />
+                    </div>
                   </div>
-                  <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
-                    {orders.length}
+                  <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                    {orders.length} <span className="text-xs font-bold text-slate-400">comenzi</span>
                   </div>
-                  <div className="text-xs text-emerald-700 dark:text-emerald-400 font-bold flex items-center gap-1 mt-1">
-                    <Activity size={12} className="animate-pulse" />
-                    <span>Transmise via iiko</span>
+                  <div className="text-xs text-emerald-700 dark:text-emerald-400 font-bold flex items-center gap-1.5 mt-2">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span>Bon mediu: <strong>{avgTicket} RON</strong></span>
                   </div>
                 </div>
 
-                <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                <div className={`p-4 rounded-2xl border transition-all ${isDark ? 'bg-slate-800/60 border-slate-700/80 shadow-xs' : 'bg-white border-slate-200/90 shadow-2xs'}`}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                       {t('webhooks.revenue_today', 'Total Vânzări')}
                     </span>
-                    <TrendingUp size={18} className="text-emerald-600 dark:text-emerald-400" />
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                      <TrendingUp size={16} />
+                    </div>
                   </div>
-                  <div className="text-2xl sm:text-3xl font-black text-emerald-700 dark:text-emerald-400">
+                  <div className="text-2xl sm:text-3xl font-black text-emerald-700 dark:text-emerald-400 tracking-tight">
                     {totalRevenue.toLocaleString(localeCode, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs font-bold">RON</span>
                   </div>
-                  <div className="text-xs text-slate-600 dark:text-slate-400 font-medium mt-1">
-                    Valoare totală comenzi
+                  <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-2 flex items-center gap-1.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-500"></span>
+                    <span>Delivery: <strong>{deliveryPct}%</strong></span>
+                    <span className="text-slate-300 dark:text-slate-600">•</span>
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                    <span>Local: <strong>{localPct}%</strong></span>
                   </div>
                 </div>
 
-                <div className={`p-4 rounded-2xl border col-span-2 sm:col-span-2 ${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block mb-2">
-                    Distribuție Platforme
-                  </span>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    <div className="flex items-center gap-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/30">
-                      <PlatformLogo platform="glovo" size={18} />
-                      <div>
-                        <div className="text-sm font-black text-amber-600 dark:text-amber-400">{glovoCount}</div>
-                        <div className="text-xs text-slate-700 dark:text-slate-300 font-bold">Glovo</div>
-                      </div>
+                <div className={`p-4 rounded-2xl border transition-all ${isDark ? 'bg-slate-800/60 border-slate-700/80 shadow-xs' : 'bg-white border-slate-200/90 shadow-2xs'}`}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      {t('webhooks.channel_lbl', 'Canale Active')}
+                    </span>
+                    <div className="w-8 h-8 rounded-xl bg-cyan-500/10 dark:bg-cyan-500/20 flex items-center justify-center text-cyan-600 dark:text-cyan-400">
+                      <Layers size={16} />
                     </div>
-                    <div className="flex items-center gap-2 p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
-                      <PlatformLogo platform="wolt" size={18} />
-                      <div>
-                        <div className="text-sm font-black text-cyan-600 dark:text-cyan-400">{woltCount}</div>
-                        <div className="text-xs text-slate-700 dark:text-slate-300 font-bold">Wolt</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                      <PlatformLogo platform="bolt" size={18} />
-                      <div>
-                        <div className="text-sm font-black text-emerald-600 dark:text-emerald-400">{boltCount}</div>
-                        <div className="text-xs text-slate-700 dark:text-slate-300 font-bold">Bolt Food</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 p-2 rounded-xl bg-purple-500/10 border border-purple-500/30">
-                      <PlatformLogo platform="kiosk" size={18} />
-                      <div>
-                        <div className="text-sm font-black text-purple-600 dark:text-purple-400">{kioskCount}</div>
-                        <div className="text-xs text-slate-700 dark:text-slate-300 font-bold">Smart Kiosk</div>
-                      </div>
-                    </div>
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                    5 Canale <span className="text-xs font-bold text-slate-400">active</span>
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-2 flex items-center gap-1">
+                    <CheckCircle2 size={12} className="text-emerald-500" />
+                    <span>iiko Cloud & Kiosk Direct Sincronizate</span>
                   </div>
                 </div>
               </div>
 
-              {/* Controls bar: Filter & Search & Refresh */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-                  {['all', 'glovo', 'wolt', 'bolt', 'kiosk'].map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => setSelectedPlatform(p)}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-bold capitalize transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                        selectedPlatform === p
-                          ? 'bg-emerald-600 text-white shadow-xs font-black'
-                          : isDark
-                          ? 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
-                      }`}
-                    >
-                      {p !== 'all' && <PlatformLogo platform={p} size={14} />}
-                      <span>{p === 'all' ? t('webhooks.filter_all', 'Toate Platformele') : p === 'bolt' ? 'Bolt Food' : p === 'kiosk' ? 'Smart Kiosk' : p}</span>
-                    </button>
-                  ))}
+              {/* Distribuție Canale Vânzare & Filtrare Interactivă */}
+              <div className={`p-4 rounded-2xl border transition-all ${isDark ? 'bg-slate-800/40 border-slate-700/80' : 'bg-slate-50/90 border-slate-200/90 shadow-2xs'}`}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
+                  <div className="flex items-center gap-2">
+                    <Activity size={14} className="text-emerald-500" />
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                      {t('webhooks.distribution_title', 'Distribuție Platforme & Local')}
+                    </span>
+                  </div>
+                  <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    <span>Delivery: <strong className="text-slate-900 dark:text-white">{deliveryTotal}</strong> com ({deliveryPct}%) • Local: <strong className="text-slate-900 dark:text-white">{localTotal}</strong> com ({localPct}%)</span>
+                  </div>
+                </div>
+
+                {/* Segmented Proportional Progress Bar */}
+                <div className="w-full h-2 rounded-full overflow-hidden flex bg-slate-200 dark:bg-slate-700 shadow-2xs">
+                  {glovoPct > 0 && <div style={{ width: `${glovoPct}%` }} className="bg-amber-500 h-full transition-all" title={`Glovo: ${glovoCount} (${glovoPct}%)`} />}
+                  {woltPct > 0 && <div style={{ width: `${woltPct}%` }} className="bg-cyan-500 h-full transition-all" title={`Wolt: ${woltCount} (${woltPct}%)`} />}
+                  {boltPct > 0 && <div style={{ width: `${boltPct}%` }} className="bg-emerald-500 h-full transition-all" title={`Bolt Food: ${boltCount} (${boltPct}%)`} />}
+                  {kioskPct > 0 && <div style={{ width: `${kioskPct}%` }} className="bg-purple-500 h-full transition-all" title={`Smart Kiosk: ${kioskCount} (${kioskPct}%)`} />}
+                  {casieriePct > 0 && <div style={{ width: `${casieriePct}%` }} className="bg-blue-500 h-full transition-all" title={`Casierie: ${casierieCount} (${casieriePct}%)`} />}
+                </div>
+
+                {/* Interactive Channel Cards / Filter Pills */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mt-3.5">
+                  {[
+                    { id: 'all', label: t('webhooks.filter_all_short', 'Toate'), count: orders.length, pct: '100%', color: 'emerald' },
+                    { id: 'glovo', label: 'Glovo', count: glovoCount, pct: `${glovoPct}%`, color: 'amber', logo: 'glovo' },
+                    { id: 'wolt', label: 'Wolt', count: woltCount, pct: `${woltPct}%`, color: 'cyan', logo: 'wolt' },
+                    { id: 'bolt', label: 'Bolt Food', count: boltCount, pct: `${boltPct}%`, color: 'emerald', logo: 'bolt' },
+                    { id: 'kiosk', label: t('webhooks.filter_kiosk', 'Smart Kiosk'), count: kioskCount, pct: `${kioskPct}%`, color: 'purple', logo: 'kiosk' },
+                    { id: 'casierie', label: t('webhooks.filter_casierie', 'Casierie (POS)'), count: casierieCount, pct: `${casieriePct}%`, color: 'blue', logo: 'casierie' }
+                  ].map((ch) => {
+                    const isSelected = selectedPlatform === ch.id
+                    return (
+                      <button
+                        key={ch.id}
+                        onClick={() => setSelectedPlatform(ch.id)}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                          isSelected
+                            ? isDark
+                              ? 'bg-slate-800 border-emerald-500 ring-2 ring-emerald-500/30 shadow-md'
+                              : 'bg-white border-emerald-500 ring-2 ring-emerald-500/30 shadow-sm'
+                            : isDark
+                            ? 'bg-slate-900/60 border-slate-700/60 hover:bg-slate-800/80 hover:border-slate-600 text-slate-300'
+                            : 'bg-white/80 border-slate-200/90 hover:bg-white hover:border-slate-300 text-slate-700 shadow-2xs'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {ch.logo ? (
+                              <PlatformLogo platform={ch.logo} size={15} />
+                            ) : (
+                              <Layers size={13} className="text-emerald-500" />
+                            )}
+                            <span className="text-[11px] font-bold truncate">
+                              {ch.label}
+                            </span>
+                          </div>
+                          {isSelected && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                          )}
+                        </div>
+                        <div className="flex items-baseline justify-between gap-1 mt-0.5">
+                          <span className={`text-base font-black ${
+                            isSelected 
+                              ? 'text-emerald-600 dark:text-emerald-400' 
+                              : 'text-slate-900 dark:text-white'
+                          }`}>
+                            {ch.count}
+                          </span>
+                          <span className="text-[10px] font-semibold text-slate-400">
+                            {ch.pct}
+                          </span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Sub-bar: Search, Active Filter indicator & Refresh */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {selectedPlatform !== 'all' && (
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold">
+                      <span>Filtru activ: <strong className="capitalize">{selectedPlatform === 'kiosk' ? 'Smart Kiosk' : selectedPlatform === 'casierie' ? 'Casierie' : selectedPlatform}</strong></span>
+                      <button 
+                        onClick={() => setSelectedPlatform('all')}
+                        className="hover:text-red-500 transition-colors ml-1 font-black cursor-pointer"
+                        title="Resetează filtru"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    Afișare: <strong>{filteredOrders.length}</strong> din <strong>{orders.length}</strong> comenzi
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <div className={`relative flex items-center rounded-xl border px-3 py-1.5 ${
-                    isDark ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                    isDark ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900 shadow-2xs'
                   }`}>
-                    <Search size={14} className="text-slate-500 mr-2 shrink-0" />
+                    <Search size={14} className="text-slate-400 mr-2 shrink-0" />
                     <input 
                       type="text"
-                      placeholder="Caută restaurant, produs..."
+                      placeholder={t('webhooks.search_placeholder', 'Caută restaurant, produs, #com...')}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="bg-transparent text-xs font-medium outline-hidden w-36 sm:w-48 placeholder:text-slate-400 text-slate-900 dark:text-white"
+                      className="bg-transparent text-xs font-medium outline-hidden w-40 sm:w-56 placeholder:text-slate-400 text-slate-900 dark:text-white"
                     />
+                    {searchQuery && (
+                      <button 
+                        onClick={() => setSearchQuery('')}
+                        className="text-slate-400 hover:text-slate-600 text-xs ml-1 cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
 
                   <button
@@ -311,7 +412,7 @@ export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTrig
                       const formattedTime = placedDate ? placedDate.toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'
                       const itemsPreview = (ord.items || []).filter(i => !i._order_meta).map(i => `${i.amount || i.quantity || 1}x ${i.name || i.product_name}`).join(', ')
                       const brandName = ord.brand_name || ord.brand || ord.restaurant_name || ''
-                      const orderNum = ord.order_number || (ord.order_id?.startsWith('kiosk_') ? ord.order_id.replace('kiosk_', '') : ord.order_id)
+                      const orderNum = formatDisplayOrderNumber(ord.order_number, ord.order_id, ord.platform)
 
                       return (
                         <div 
