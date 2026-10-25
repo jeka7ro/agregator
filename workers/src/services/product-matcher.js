@@ -86,6 +86,111 @@ const SYRVE_SEEDS = [
     image: 'https://storage.cdneu.syrve.com/nomenclature_images/7601594/62a91ae7-16fd-46f5-a3b5-449022aef0c8.jpg',
     description: 'Milkshake cremos din înghețată artizanală de vanilie de Madagascar și lapte proaspăt.',
     ingredients: 'Lapte 3.5%, înghețată vanilie bourbon, frișcă naturală'
+  },
+  // Roll Master / Sushi Master Official Syrve Seeds
+  {
+    name: 'SushiMaster Big in Japan',
+    synonyms: ['big in japan', 'rollmaster big in japan', 'sushimaster big in japan', 'japan'],
+    brand: 'Roll Master',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/6feb48c5-2886-4da5-b10d-47097fd98821.png',
+    description: 'Set emblematic cu somon, ton, creveți tempura și avocado.',
+    ingredients: null
+  },
+  {
+    name: 'SushiMaster Big Party Set',
+    synonyms: ['big party set', 'top rolls selection set', 'selection set', 'rolls selection', 'big party', 'grand gurmand', 'master choice'],
+    brand: 'Roll Master',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/4660855e-dbb6-43f8-bf73-86dd8e1f3705.png',
+    description: 'Platou festiv cu selecție variată de maki, nigiri și uramaki.',
+    ingredients: null
+  },
+  {
+    name: 'SushiMaster Royal Party Set',
+    synonyms: ['royal party', 'royal party set', 'rollmaster royal party'],
+    brand: 'Roll Master',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/35c937ce-f358-4d63-b637-e0a840462b20.png',
+    description: 'Selecție regală de sushi premium cu somon proaspăt și icre tobiko.',
+    ingredients: null
+  },
+  {
+    name: 'Sushimaster Fusion Set',
+    synonyms: ['fusion', 'love fusion', 'tempura&fusion', 'tempura fusion', 'fusion set'],
+    brand: 'Love Sushi',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/6e17ce44-cc0a-4b76-b9fe-38516258526a.png',
+    description: 'Combinație fusion modernă de arome crocante și sosuri dulci-picante.',
+    ingredients: null
+  },
+  {
+    name: 'We Love Phila Set',
+    synonyms: ['phila set', 'love phila set', 'phila love new edition', 'love new edition', 'new edition'],
+    brand: 'Love Sushi',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/20a34ba4-dbcf-415a-a57d-69ad6e18686c.png',
+    description: 'Celebra rețetă Philadelphia reinterpretată cu cremă bogată de brânză.',
+    ingredients: null
+  },
+  {
+    name: 'We Love Classic',
+    synonyms: ['classic', 'love classic', 'classic set', 'we love classic'],
+    brand: 'Love Sushi',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/26a416fc-5be2-436b-9c83-b8f09b0bb65c.png',
+    description: 'Maki și uramaki tradiționale japoneze.',
+    ingredients: null
+  },
+  {
+    name: 'Shanghai',
+    synonyms: ['shanghai', 'rollmaster shanghai'],
+    brand: 'Roll Master',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/35fa2e92-078f-4c20-a824-6bc9178626eb.png',
+    description: 'Roll cu pui crocant, sos dulce-acrișor și susan prăjit.',
+    ingredients: null
+  },
+  {
+    name: 'SushiMaster Phi♥LOVE♥delphia',
+    synonyms: ['phi♥love♥delphia', 'philovedelphia', 'love philadelphia', 'philove'],
+    brand: 'Love Sushi',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/4dcb55c2-3226-40ee-a2fa-2da7bda91eee.png',
+    description: 'Set special creat din dragoste pentru iubitorii de Philadelphia.',
+    ingredients: null
+  },
+  {
+    name: 'Creveti Tempura',
+    synonyms: ['tempura', 'creveti tempura', 'shrimp tempura', 'vegan tempura'],
+    brand: 'Roll Master',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/af811ef8-3df1-4eca-b25c-abc1ec8e4916.png',
+    description: 'Creveți crocanți în aluat japonez tempura.',
+    ingredients: null
+  },
+  {
+    name: 'Burger Somon',
+    synonyms: ['burger somon', 'sushi burger somon'],
+    brand: 'Roll Master',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/2ad07ee9-9df0-4dc6-8898-e73c2db6bf2e.jpg',
+    description: 'Burger inedit din orez de sushi, somon proaspăt și sos cremos.',
+    ingredients: null
+  },
+  {
+    name: 'Burger Creveti',
+    synonyms: ['burger creveti', 'sushi burger creveti'],
+    brand: 'Roll Master',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/0533a7d5-400f-4d6f-a332-ec83e1e3bca5.jpg',
+    description: 'Burger crocant de orez cu creveți tempura și avocado.',
+    ingredients: null
+  },
+  {
+    name: 'Wok orez cu pui in sos Teriyaki',
+    synonyms: ['wok orez pui sos teriyaki', 'orez pui sos teriyaki', 'wok orez', 'wok udon'],
+    brand: 'Poki Woki',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/e0d7070d-43d4-4195-bf79-a4488e2a9909.png',
+    description: 'Orez prăjit la wok cu piept de pui fraged, legume proaspete și sos Teriyaki.',
+    ingredients: null
+  },
+  {
+    name: 'Poke Bowl Salmon',
+    synonyms: ['poke bowl', 'poke somon', 'poke orez', 'poke ton'],
+    brand: 'Poki Woki',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/2d9ca6de-83c8-460b-be44-150dcbe9748a.png',
+    description: 'Bol hawaiian nutritiv cu somon proaspăt marinat, edamame, avocado și orez.',
+    ingredients: null
   }
 ]
 
@@ -96,10 +201,13 @@ function normalizeName(name) {
   if (!name) return ''
   return name
     .toLowerCase()
+    .replace(/^(?:p_|pw_|rm_|sm_|ik_|ls_|[a-z0-9]{1,3}_)\s*/i, '')
     .replace(/\(.*?\)/g, '')   // remove (modifiers)
     .replace(/\[.*?\]/g, '')   // remove [comments]
     .replace(/\b\d+\s*(gr|g|ml|kg|l)\b/gi, '') // remove quantities like 150 gr
+    .replace(/\b(rollmaster|sushimaster|we love|love sushi|roll master|sushi master|smash me|poki woki|crunch)\b/gi, '')
     .replace(/[^a-z0-9]/g, '') // alphanumeric only
+    .trim()
 }
 
 /**
@@ -143,7 +251,7 @@ export function matchProductImage(rawName, brandHint = '') {
   }
 
   const cleanRaw = normalizeName(rawName)
-  const rawLower = rawName.toLowerCase()
+  const rawLower = rawName.toLowerCase().replace(/^(?:p_|pw_|rm_|sm_|ik_|ls_|[a-z0-9]{1,3}_)\s*/i, '').trim()
 
   // 1. Direct synonym match
   for (const entry of catalogCache) {
@@ -163,17 +271,45 @@ export function matchProductImage(rawName, brandHint = '') {
   })
   if (sub) return sub
 
-  // 4. Keyword token match
-  const rawWords = rawLower.split(/\s+/).filter(w => w.length > 3)
+  // 4. Token similarity match
+  const rawWords = rawLower
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !['cu', 'in', 'sos', 'de', 'si'].includes(w))
+
   if (rawWords.length > 0) {
-    const tokenMatch = catalogCache.find(e => {
-      const eLower = e.name.toLowerCase()
-      return rawWords.some(w => eLower.includes(w))
-    })
-    if (tokenMatch) return tokenMatch
+    let bestScore = 0
+    let bestMatch = null
+    for (const entry of catalogCache) {
+      const eLower = entry.name.toLowerCase()
+      const matches = rawWords.filter(w => eLower.includes(w))
+      const score = matches.length / rawWords.length
+      if (score > bestScore && score >= 0.4) {
+        bestScore = score
+        bestMatch = entry
+      }
+    }
+    if (bestMatch) return bestMatch
   }
 
-  return null
+  // 5. Category-based fallback using official Syrve seeds
+  if (rawLower.includes('set') || rawLower.includes('roll') || rawLower.includes('sushi')) {
+    return catalogCache.find(e => e.name.includes('Big Party Set')) || SYRVE_SEEDS[11]
+  }
+  if (rawLower.includes('burger') || rawLower.includes('smash')) {
+    return catalogCache.find(e => e.name.includes('Smashed ME Burger Dublu')) || SYRVE_SEEDS[3]
+  }
+  if (rawLower.includes('wok') || rawLower.includes('orez') || rawLower.includes('udon') || rawLower.includes('noodle')) {
+    return catalogCache.find(e => e.name.includes('Wok orez')) || SYRVE_SEEDS[21]
+  }
+  if (rawLower.includes('poke')) {
+    return catalogCache.find(e => e.name.includes('Poke Bowl')) || SYRVE_SEEDS[22]
+  }
+  if (rawLower.includes('cartofi') || rawLower.includes('fries')) {
+    return catalogCache.find(e => e.name.includes('Cartofi Prajiti Classic')) || SYRVE_SEEDS[4]
+  }
+
+  return SYRVE_SEEDS[11] // Default to signature sushi set photo
 }
 
 /**

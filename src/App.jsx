@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import Alerts from './pages/Alerts'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
+import Dispatch from './pages/Dispatch'
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
       <Routes>
         <Route element={<MainLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dispatch" element={<Dispatch />} />
           <Route path="/monitoring" element={<Monitoring />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/alerts" element={<Alerts />} />

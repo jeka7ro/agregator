@@ -21,8 +21,9 @@ export default function LanguageToggle() {
         return (
           <button
             key={l.code}
+            id={`lang-btn-${l.code}`}
             onClick={() => setLanguage(l.code)}
-            className={`px-2.5 h-7 rounded-full text-xs font-bold transition-all ${
+            className={`px-2.5 h-7 rounded-full text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
               isActive
                 ? 'bg-emerald-600 text-white shadow-xs'
                 : isDark 

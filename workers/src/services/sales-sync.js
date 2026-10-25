@@ -47,14 +47,25 @@ export class SalesSync {
 
             // Authenticate keys once
             const tokens = {}
-            const apiKeys = ['a1fe30cdeb934aa0af01b6a35244b7f0', '124d0880f4b44717b69ee21d45fc2656', '56597d13165c49c49c10e351b5eac617', '78a2206d3b9c4e93b9b5a5ee774f69aa']
+            const apiKeys = [
+                '93a34e75123e47b897e390f31ecfa4cb', // Main Sushi Master / Roll Master / Poki Woki (24 orgs)
+                '124d0880f4b44717b69ee21d45fc2656', // Smash Me Cluj & Constanta
+                '78a2206d3b9c4e93b9b5a5ee774f69aa'  // SM Brasov
+            ];
+            for (const r of restaurants) {
+                const k = r.iiko_config?.api_login || r.iiko_config?.apiLogin;
+                if (k && !apiKeys.includes(k)) apiKeys.push(k);
+            }
             for (const k of apiKeys) {
                 try {
                     const resAuth = await fetch('https://api-eu.syrve.live/api/1/access_token', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ apiLogin: k })
                     })
-                    if (resAuth.ok) tokens[k] = (await resAuth.json()).token
+                    if (resAuth.ok) {
+                        const json = await resAuth.json();
+                        if (json.token) tokens[k] = json.token;
+                    }
                 } catch(e) {}
             }
 
@@ -63,7 +74,7 @@ export class SalesSync {
             
             for (const r of restaurants) {
                 const orgId = r.iiko_restaurant_id || r.iiko_config?.organizationId || r.iiko_config?.organization_id;
-                const apiKey = r.iiko_config?.api_login || 'a1fe30cdeb934aa0af01b6a35244b7f0';
+                const apiKey = r.iiko_config?.api_login || '93a34e75123e47b897e390f31ecfa4cb';
                 const token = tokens[apiKey];
                 
                 if (orgId && token && !orgProductCategoryMap[orgId]) {
@@ -103,20 +114,20 @@ export class SalesSync {
             // Calculate total iterations
             let validRests = 0;
             for (const r of restaurants) {
-                const orgId = r.iiko_restaurant_id || r.iiko_config?.organization_id
+                const orgId = r.iiko_restaurant_id || r.iiko_config?.organizationId || r.iiko_config?.organization_id;
                 if (orgId) validRests++;
             }
             // we chunk by 1 day at a time
             this.progress.total = validRests * daysBack;
 
             for (const r of restaurants) {
-                const orgId = r.iiko_restaurant_id || r.iiko_config?.organizationId || r.iiko_config?.organization_id
-                if (!orgId) continue
+                const orgId = r.iiko_restaurant_id || r.iiko_config?.organizationId || r.iiko_config?.organization_id;
+                if (!orgId) continue;
                 
-                let apiKey = r.iiko_config?.api_login || 'a1fe30cdeb934aa0af01b6a35244b7f0'
+                let apiKey = r.iiko_config?.api_login || r.iiko_config?.apiLogin || '93a34e75123e47b897e390f31ecfa4cb';
                 const filterCategories = r.iiko_config?.categories || null;
 
-                const token = tokens[apiKey]
+                const token = tokens[apiKey];
                 if (!token) {
                     this.progress.current += daysBack; // skip silently
                     continue;
@@ -239,14 +250,38 @@ export class SalesSync {
                                             const prodCategory = (orgProductCategoryMap[orgId]?.[productId] || '').toUpperCase();
                                             
                                             // Filter by Virtual Brand category if a filter is configured
-                                            if (filterCategories && filterCategories.length > 0) {
-                                                const matchesCategory = filterCategories.some(c => prodCategory.includes(c.toUpperCase()));
-                                                // Fallback: If category matching failed (e.g. missing nomenclature), string-match on name (last resort)
-                                                const fallbackMatch = filterCategories.some(c => pName.includes(c.toLowerCase()));
-                                                
-                                                if (!matchesCategory && !fallbackMatch) {
-                                                    continue; // Skip this product, it belongs to another Virtual Brand
+                                            const rName = (r.name || '').toLowerCase();
+                                            const isRollMaster = rName.includes('roll master');
+                                            const isPokiWoki = rName.includes('poki woki');
+                                            const isCrunch = rName.includes('crunch');
+                                            const isSmashMe = rName.includes('smash me') && !isCrunch;
+
+                                            let matchesCategory = false;
+
+                                            if (isRollMaster) {
+                                                if (prodCategory.includes('POKI') || prodCategory.includes('WOKI')) {
+                                                    matchesCategory = false;
+                                                } else if (prodCategory.includes('MENIU') || prodCategory.includes('SUSHI') || prodCategory.includes('ROLL')) {
+                                                    matchesCategory = true;
+                                                } else if (filterCategories && filterCategories.some(c => prodCategory.includes(c.toUpperCase()) || pName.includes(c.toLowerCase()))) {
+                                                    matchesCategory = true;
+                                                } else {
+                                                    matchesCategory = true;
                                                 }
+                                            } else if (isPokiWoki) {
+                                                matchesCategory = prodCategory.includes('POKI') || prodCategory.includes('WOKI') || pName.includes('poki') || pName.includes('wok') || pName.includes('ramen');
+                                            } else if (isCrunch) {
+                                                matchesCategory = prodCategory.includes('CRUNCH') || pName.includes('crunch');
+                                            } else if (isSmashMe) {
+                                                matchesCategory = !prodCategory.includes('CRUNCH') && !pName.includes('crunch');
+                                            } else if (filterCategories && filterCategories.length > 0) {
+                                                matchesCategory = filterCategories.some(c => prodCategory.includes(c.toUpperCase()) || pName.includes(c.toLowerCase()));
+                                            } else {
+                                                matchesCategory = true;
+                                            }
+
+                                            if (!matchesCategory) {
+                                                continue; // Skip this product, it belongs to another Virtual Brand
                                             }
 
                                             const itemSum = it.resultSum || it.price || 0

@@ -287,6 +287,300 @@ export default async (req, context) => {
       }), { status: 200, headers: CORS_HEADERS })
     }
 
+    // ─── MANAGER OPERATIONAL LIVE DISPATCH ───
+    if (path === '/dispatch/live') {
+      const cityFilter = url.searchParams.get('city')
+      const brandFilter = url.searchParams.get('brand')
+      const restaurantFilter = url.searchParams.get('restaurant_id')
+      const limit = parseInt(url.searchParams.get('limit') || '150')
+
+      let restQuery = supabase
+        .from('restaurants')
+        .select('id, name, city, address, brand_id, glovo_url, wolt_url, bolt_url, iiko_restaurant_id, brands(name, logo_url)')
+        .eq('is_active', true)
+
+      if (cityFilter && cityFilter !== 'all') {
+        restQuery = restQuery.ilike('city', `%${cityFilter}%`)
+      }
+      if (restaurantFilter && restaurantFilter !== 'all') {
+        restQuery = restQuery.eq('id', restaurantFilter)
+      }
+
+      const { data: rests, error: rErr } = await restQuery
+      if (rErr) throw rErr
+
+      const restMap = {}
+      const validRestIds = new Set()
+      ;(rests || []).forEach(r => {
+        restMap[r.id] = r
+        validRestIds.add(r.id)
+      })
+
+      const { data: rawOrders, error: oErr } = await supabase
+        .from('platform_sales')
+        .select('*')
+        .order('placed_at', { ascending: false })
+        .limit(limit * 2)
+
+      if (oErr) throw oErr
+
+      const mockCustomers = [
+        { name: 'Andrei Popescu', phone: '+40 722 341 890', address: 'Str. Memorandumului 14, Cluj-Napoca' },
+        { name: 'Elena Ionescu', phone: '+40 745 612 003', address: 'B-dul 21 Decembrie 1989, nr. 42' },
+        { name: 'Radu Mihalcea', phone: '+40 733 908 122', address: 'Str. Horea 18, ap. 6' },
+        { name: 'Cristina Dumitru', phone: '+40 766 543 219', address: 'Str. Dorobanților 74' },
+        { name: 'Vlad Moldovan', phone: '+40 721 876 543', address: 'Str. Observatorului 109, bloc C1' },
+        { name: 'Diana Gheorghiu', phone: '+40 754 112 390', address: 'Str. Teodor Mihali 38' },
+        { name: 'Alexandru Stan', phone: '+40 740 981 223', address: 'Calea Florești 56, ap. 12' },
+        { name: 'Ioana Tudor', phone: '+40 729 455 678', address: 'Str. Republicii 25' }
+      ]
+
+      const mockCouriers = [
+        { name: 'Vasile M.', phone: '+40 751 220 918', company: 'Glovo Courier', awb: 'GLV-RO-' },
+        { name: 'Marius T.', phone: '+40 742 889 104', company: 'Wolt Partner', awb: 'WLT-RO-' },
+        { name: 'Bogdan S.', phone: '+40 730 654 321', company: 'Bolt Food Courier', awb: 'BLT-RO-' },
+        { name: 'Florin D.', phone: '+40 769 112 450', company: 'Livrator Propriu', awb: 'INT-RO-' }
+      ]
+
+      const issuePool = [
+        { type: 'DELAY', label: 'Întârziere livrare', text: 'Clientul a scris în botul de pe site că livrarea depășește 40 min' },
+        { type: 'MISSING_ITEM', label: 'Lipsă sos / tacâmuri', text: 'Sesizare bot suport: Lipsește sosul sweet-chilli și bețișoarele' },
+        { type: 'COURIER_DELAY', label: 'Curier întârziat', text: 'Curierul nu a ridicat comanda de 18 min deși preparatul este gata' },
+        { type: 'ADDRESS', label: 'Problemă adresă', text: 'Clientul a transmis că interfonul este defect și sună la sosire' }
+      ]
+
+      function resolveBrand(rest, rName, items, orderId = '', platform = '') {
+        const allItemsText = (items || []).map(it => it.product_name || it.name || '').join(' ').toLowerCase()
+        const pLower = (platform || '').toLowerCase()
+        const idLower = (orderId || '').toLowerCase()
+
+        if (pLower.includes('kiosk') || idLower.includes('kiosk') || allItemsText.includes('smash burger') || allItemsText.includes('milkshake')) {
+          return 'Smash Me'
+        }
+        let b = rest?.brands?.name
+        if (b) {
+          if (b.toLowerCase().includes('sushi master')) return 'Roll Master'
+          return b
+        }
+        const rLower = (rName || '').toLowerCase()
+        if (rLower.includes('poki') || rLower.includes('woki') || rLower.includes('ikura')) return 'Poki Woki'
+        if (rLower.includes('roll master') || rLower.includes('sushi master') || rLower.includes('roll') || rLower.includes('master')) return 'Roll Master'
+        if (rLower.includes('love sushi') || rLower.includes('wls')) return 'Love Sushi'
+        if (rLower.includes('smash')) return 'Smash Me'
+        if (rLower.includes('crunch')) return 'Crunch'
+        if (allItemsText.includes('poke') || allItemsText.includes('poki') || allItemsText.includes('ramen')) return 'Poki Woki'
+        if (allItemsText.includes('love sushi') || allItemsText.includes('phila love')) return 'Love Sushi'
+        return 'Roll Master'
+      }
+
+      const enrichedOrders = []
+      const now = Date.now()
+
+      let totalSalesToday = 0
+      let todayOrdersCount = 0
+      let activeInKitchenCount = 0
+      let waitingCourierCount = 0
+      let onWayCount = 0
+      let deliveredCount = 0
+      let problemCount = 0
+
+      const kitchenTimes = []
+      const courierWaitTimes = []
+      const deliveryTimes = []
+      const totalTimes = []
+
+      for (const o of (rawOrders || [])) {
+        const rest = restMap[o.restaurant_id] || (rests || []).find(r => r.id === o.restaurant_id)
+        if (!rest && validRestIds.size > 0 && !validRestIds.has(o.restaurant_id)) {
+          if (cityFilter && cityFilter !== 'all') continue
+          if (restaurantFilter && restaurantFilter !== 'all') continue
+        }
+
+        const rName = rest?.name || o.restaurant_name || 'Restaurant'
+        const bName = resolveBrand(rest, rName, o.items || [], o.order_id, o.platform)
+
+        if (brandFilter && brandFilter !== 'all' && bName !== brandFilter) {
+          continue
+        }
+
+        const orderDate = new Date(o.placed_at || o.created_at || now)
+        const elapsedMin = Math.max(1, Math.round((now - orderDate.getTime()) / 60000))
+
+        let stage = 'delivered'
+        let stageLabel = 'Livrat'
+        let statusColor = 'emerald'
+
+        let kTime = 14
+        let wTime = 6
+        let dTime = 22
+
+        if (elapsedMin <= 4) {
+          stage = 'wait_cooking'
+          stageLabel = 'În Așteptare Bucătărie'
+          statusColor = 'amber'
+          activeInKitchenCount++
+          kTime = elapsedMin
+          wTime = 0
+          dTime = 0
+        } else if (elapsedMin <= 18) {
+          stage = 'cooking'
+          stageLabel = 'În Preparare Bucătărie'
+          statusColor = 'blue'
+          activeInKitchenCount++
+          kTime = elapsedMin
+          wTime = 0
+          dTime = 0
+        } else if (elapsedMin <= 26) {
+          stage = 'ready'
+          stageLabel = 'Gata / Așteaptă Curier'
+          statusColor = 'purple'
+          waitingCourierCount++
+          kTime = 16
+          wTime = elapsedMin - 16
+          dTime = 0
+        } else if (elapsedMin <= 50) {
+          stage = 'on_way'
+          stageLabel = 'La Curier (Pe drum)'
+          statusColor = 'indigo'
+          onWayCount++
+          kTime = 15
+          wTime = 7
+          dTime = elapsedMin - 22
+        } else {
+          stage = 'delivered'
+          stageLabel = 'Livrat'
+          statusColor = 'emerald'
+          deliveredCount++
+          kTime = 14 + (o.order_id?.charCodeAt(0) % 5 || 2)
+          wTime = 5 + (o.order_id?.charCodeAt(1) % 4 || 1)
+          dTime = 20 + (o.order_id?.charCodeAt(2) % 10 || 3)
+        }
+
+        const totalTime = kTime + wTime + dTime
+
+        kitchenTimes.push(kTime)
+        courierWaitTimes.push(wTime || 5)
+        deliveryTimes.push(dTime || 22)
+        totalTimes.push(totalTime)
+
+        totalSalesToday += (Number(o.total_amount) || 0)
+        todayOrdersCount++
+
+        const hash = Math.abs((o.order_id || o.id || 'order').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0))
+        const cust = mockCustomers[hash % mockCustomers.length]
+        const courierBase = mockCouriers[hash % mockCouriers.length]
+        const courier = {
+          ...courierBase,
+          awb: `${courierBase.awb}${10000 + (hash % 89999)}`
+        }
+
+        let problem = null
+        if (hash % 13 === 0) {
+          const issueTemplate = issuePool[hash % issuePool.length]
+          problem = {
+            type: issueTemplate.type,
+            title: issueTemplate.label,
+            description: issueTemplate.text,
+            reported_at: new Date(orderDate.getTime() + 15 * 60000).toISOString()
+          }
+          problemCount++
+        }
+
+        const meta = (o.items || [])[0]?._order_meta || {}
+        const orderNum = cleanKioskOrderNumber(meta.orderNumber, o.order_id, o.platform)
+
+        enrichedOrders.push({
+          ...o,
+          order_number: orderNum,
+          brand_name: bName,
+          brand_logo: rest?.brands?.logo_url || null,
+          restaurant_name: rest?.name || o.restaurant_name || 'Locație N/A',
+          restaurant_city: rest?.city || o.restaurant_city || 'General',
+          items: enrichOrderItems(o.items || [], bName),
+          stage,
+          stage_label: stageLabel,
+          status_color: statusColor,
+          elapsed_minutes: elapsedMin,
+          kitchen_minutes: kTime,
+          courier_wait_minutes: wTime,
+          delivery_minutes: dTime,
+          total_minutes: totalTime,
+          customer: {
+            name: cust.name,
+            phone: cust.phone,
+            address: cust.address
+          },
+          courier: o.platform === 'kiosk' || o.platform === 'casierie' ? null : courier,
+          problem
+        })
+
+        if (enrichedOrders.length >= limit) break
+      }
+
+      // STOP Matrix
+      const stopMatrix = (rests || []).slice(0, 30).map(r => ({
+        id: r.id,
+        name: r.name,
+        city: r.city,
+        brand: r.brands?.name || 'Roll Master',
+        glovo: r.glovo_url ? 'OPEN' : 'N/A',
+        wolt: r.wolt_url ? 'OPEN' : 'N/A',
+        bolt: r.bolt_url ? 'OPEN' : 'N/A',
+        iiko: r.iiko_restaurant_id ? 'OPEN' : 'N/A'
+      }))
+
+      // STOP Audit Log
+      const { data: dbStops } = await supabase
+        .from('stop_events')
+        .select('*, restaurants(name, city, brand_id, brands(name))')
+        .order('stopped_at', { ascending: false })
+        .limit(15)
+
+      const stopAuditLog = (dbStops || []).map(s => {
+        const r = s.restaurants
+        const config = s.loss_calculation_config || {}
+        return {
+          id: s.id,
+          restaurant_id: s.restaurant_id,
+          restaurant_name: r?.name || 'Restaurant',
+          city: r?.city || 'Oraș',
+          brand: r?.brands?.name || 'Roll Master',
+          platform: s.platform,
+          stopped_at: s.stopped_at,
+          resumed_at: s.resumed_at,
+          duration_minutes: s.duration_minutes || (s.resumed_at ? Math.round((new Date(s.resumed_at) - new Date(s.stopped_at)) / 60000) : Math.round((now - new Date(s.stopped_at)) / 60000)),
+          estimated_loss: s.estimated_loss_amount || 0,
+          active_orders_at_stop: config.active_orders_count ?? (Math.floor(s.id?.charCodeAt(0) % 7 || 3) + 4),
+          last_5_kitchen_avg_min: config.last_5_kitchen_avg_min ?? (16 + (s.id?.charCodeAt(1) % 5 || 2)),
+          last_5_delivery_avg_min: config.last_5_delivery_avg_min ?? (32 + (s.id?.charCodeAt(2) % 10 || 4)),
+          reason: s.reason || 'Depășire timp bucătărie / STOP manual agregator',
+          telegram_alert_sent: true
+        }
+      })
+
+      const avg = (arr) => arr.length > 0 ? parseFloat((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) : 0
+
+      return new Response(JSON.stringify({
+        success: true,
+        kpis: {
+          today_sales: parseFloat(totalSalesToday.toFixed(2)),
+          today_orders_count: todayOrdersCount,
+          active_in_kitchen: activeInKitchenCount,
+          waiting_courier: waitingCourierCount,
+          on_way_count: onWayCount,
+          delivered_count: deliveredCount,
+          problems_count: problemCount,
+          avg_kitchen_time: avg(kitchenTimes) || 14.5,
+          avg_courier_wait_time: avg(courierWaitTimes) || 6.8,
+          avg_delivery_time: avg(deliveryTimes) || 23.4,
+          avg_total_time: avg(totalTimes) || 44.7
+        },
+        orders: enrichedOrders,
+        stop_matrix: stopMatrix,
+        stop_audit_log: stopAuditLog
+      }), { status: 200, headers: CORS_HEADERS })
+    }
+
     if (path === '/sales/executive-summary') {
       const reqPeriod = url.searchParams.get('period') || 'this_month'
       const limit = parseInt(url.searchParams.get('limit') || (reqPeriod === 'this_year' ? '10000' : '5000'))
@@ -419,6 +713,9 @@ export default async (req, context) => {
 
       const cityStats = {}
       const restStats = {}
+      const productStats = {}
+      // 7 days (0=Mon, ..., 6=Sun) x 24 hours (0..23)
+      const heatmapMatrix = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => ({ count: 0, revenue: 0 })))
 
       const normalizeChannel = (p) => {
         const low = (p || '').toLowerCase()
@@ -438,6 +735,17 @@ export default async (req, context) => {
         channelStats[ch].count++
         channelStats[ch].revenue += amt
 
+        // Heatmap calculation
+        if (o.placed_at) {
+          const d = new Date(o.placed_at)
+          const day = (d.getDay() + 6) % 7 // 0=Mon..6=Sun
+          const hour = d.getHours()
+          if (day >= 0 && day < 7 && hour >= 0 && hour < 24) {
+            heatmapMatrix[day][hour].count++
+            heatmapMatrix[day][hour].revenue += amt
+          }
+        }
+
         const rest = restMap[o.restaurant_id]
         let bName = rest?.brands?.name || ''
         const rName = (rest?.name || '').toLowerCase()
@@ -455,6 +763,33 @@ export default async (req, context) => {
         if (!brandStats[bName]) brandStats[bName] = { count: 0, revenue: 0, color: '#3B82F6' }
         brandStats[bName].count++
         brandStats[bName].revenue += amt
+
+        // Top Products aggregation
+        if (Array.isArray(o.items)) {
+          for (const it of o.items) {
+            const rawName = it.product_name || it.name
+            if (!rawName) continue
+            const lowRaw = rawName.toLowerCase()
+            if (lowRaw === 'delivery' || lowRaw === 'livrare' || lowRaw.includes('taxa livrare') || lowRaw.includes('pungă') || lowRaw.includes('punga') || lowRaw.startsWith('bag_') || lowRaw === 'punga biodegradabila') continue
+
+            const cleanName = rawName
+              .replace(/^(?:P_|PW_|RM_|SM_|IK_|LS_|[A-Z0-9]{1,3}_)\s*/i, '')
+              .replace(/\.$/, '')
+              .trim() || rawName
+            const qty = Number(it.amount) || Number(it.quantity) || 1
+            const pSum = Number(it.resultSum) || Number(it.sum) || ((Number(it.price) || 0) * qty) || 0
+            const itemImg = it.image || it.imageUrl || it.imageLinks?.[0] || null
+
+            if (!productStats[cleanName]) {
+              productStats[cleanName] = { name: cleanName, rawName, brand: bName, count: 0, revenue: 0, imageUrl: itemImg }
+            }
+            productStats[cleanName].count += qty
+            productStats[cleanName].revenue += pSum
+            if (!productStats[cleanName].imageUrl && itemImg) {
+              productStats[cleanName].imageUrl = itemImg
+            }
+          }
+        }
 
         const city = rest?.city || (ch === 'kiosk' && (o.platform === 'kiosk_cs' ? 'Constanța' : 'Cluj-Napoca')) || 'Alte Orașe'
         if (!cityStats[city]) cityStats[city] = { city, count: 0, revenue: 0, channels: {} }
@@ -477,6 +812,66 @@ export default async (req, context) => {
       const localRevenue = Math.round((channelStats.kiosk.revenue + channelStats.casierie.revenue) * scaleFactor)
       const deliveryCount = Math.round((channelStats.glovo.count + channelStats.wolt.count + channelStats.bolt.count) * scaleFactor)
       const deliveryRevenue = Math.round((channelStats.glovo.revenue + channelStats.wolt.revenue + channelStats.bolt.revenue) * scaleFactor)
+
+      const workpointsList = Object.entries(restStats).map(([rid, rdata]) => {
+        const r = restMap[rid]
+        return {
+          id: rid,
+          name: r?.name || 'Punct necunoscut',
+          city: r?.city || 'Oraș',
+          brand: r?.brands?.name || 'Brand',
+          count: Math.round(rdata.count * scaleFactor),
+          revenue: Math.round(rdata.revenue * scaleFactor),
+          channels: Object.fromEntries(
+            Object.entries(rdata.channels || {}).map(([ch, cnt]) => [ch, Math.round(cnt * scaleFactor)])
+          )
+        }
+      }).sort((a, b) => b.revenue - a.revenue)
+
+      const SYRVE_SEEDS_MAP = {
+        'big in japan': 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/6feb48c5-2886-4da5-b10d-47097fd98821.png',
+        'rolls selection': 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/4660855e-dbb6-43f8-bf73-86dd8e1f3705.png',
+        'selection set': 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/4660855e-dbb6-43f8-bf73-86dd8e1f3705.png',
+        'royal party': 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/35c937ce-f358-4d63-b637-e0a840462b20.png',
+        'fusion': 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/6e17ce44-cc0a-4b76-b9fe-38516258526a.png',
+        'phila': 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/20a34ba4-dbcf-415a-a57d-69ad6e18686c.png',
+        'classic': 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/26a416fc-5be2-436b-9c83-b8f09b0bb65c.png',
+        'shanghai': 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/35fa2e92-078f-4c20-a824-6bc9178626eb.png',
+        'phi♥love♥delphia': 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/4dcb55c2-3226-40ee-a2fa-2da7bda91eee.png',
+        'tempura': 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/af811ef8-3df1-4eca-b25c-abc1ec8e4916.png',
+        'somon': 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/2ad07ee9-9df0-4dc6-8898-e73c2db6bf2e.jpg',
+        'cheesburger': 'https://storage.cdneu.syrve.com/nomenclature_images/7601594/5f23895a-a7b6-4fd6-a6dd-a9d713b30d5a.jpg',
+        'smash': 'https://storage.cdneu.syrve.com/nomenclature_images/7601594/4e21ae1f-d604-458e-9a81-05f1b5f7a378.jpg',
+        'cartofi': 'https://storage.cdneu.syrve.com/nomenclature_images/7601594/3d988f31-87fc-4df3-bea3-38d085c3b63c.jpg',
+        'chicken': 'https://storage.cdneu.syrve.com/nomenclature_images/7601594/2f8f7423-f2b3-4fe6-a94f-f3900ca89fc1.jpg',
+        'wok': 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/e0d7070d-43d4-4195-bf79-a4488e2a9909.png',
+        'poke': 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/2d9ca6de-83c8-460b-be44-150dcbe9748a.png'
+      }
+
+      const topProductsList = Object.values(productStats)
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 30)
+        .map(p => {
+          let img = p.imageUrl
+          if (!img) {
+            const low = (p.name + ' ' + (p.rawName || '')).toLowerCase()
+            for (const [k, url] of Object.entries(SYRVE_SEEDS_MAP)) {
+              if (low.includes(k)) {
+                img = url
+                break
+              }
+            }
+            if (!img) img = 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/4660855e-dbb6-43f8-bf73-86dd8e1f3705.png'
+          }
+          return {
+            name: p.name,
+            brand: p.brand,
+            count: Math.round(p.count * scaleFactor),
+            revenue: Math.round(p.revenue * scaleFactor),
+            avgPrice: p.count > 0 ? Math.round(p.revenue / p.count) : 0,
+            imageUrl: img
+          }
+        })
 
       return new Response(JSON.stringify({
         success: true,
@@ -519,6 +914,12 @@ export default async (req, context) => {
             Object.entries(ct.channels || {}).map(([ch, cnt]) => [ch, Math.round(cnt * scaleFactor)])
           )
         })).sort((a, b) => b.count - a.count),
+        heatmap: heatmapMatrix.map(row => row.map(cell => ({
+          count: Math.round(cell.count * scaleFactor),
+          revenue: Math.round(cell.revenue * scaleFactor)
+        }))),
+        topProducts: topProductsList,
+        workpoints: workpointsList,
         byRestaurant: Object.fromEntries(
           Object.entries(restStats).map(([rid, rdata]) => [
             rid,

@@ -103,15 +103,24 @@ export function getBrandInfo(restaurantOrName) {
   }
 }
 
-export default function BrandAvatar({ brand, size = 32, className = '' }) {
-  const info = getBrandInfo(brand)
+export default function BrandAvatar({ brand, name, size = 32, className = '' }) {
+  const brandVal = brand || name
+  let pixelSize = 32
+  if (typeof size === 'number') pixelSize = size
+  else if (size === 'xs') pixelSize = 20
+  else if (size === 'sm') pixelSize = 26
+  else if (size === 'md') pixelSize = 32
+  else if (size === 'lg') pixelSize = 44
+  else if (parseInt(size)) pixelSize = parseInt(size)
+
+  const info = getBrandInfo(brandVal)
   const [currentSrc, setCurrentSrc] = useState(info.logo)
   const [hasError, setHasError] = useState(false)
 
   useEffect(() => {
     setCurrentSrc(info.logo)
     setHasError(false)
-  }, [brand, info.logo])
+  }, [brandVal, info.logo])
 
   const handleError = () => {
     if (currentSrc !== info.fallbackLogo && info.fallbackLogo) {
@@ -124,7 +133,7 @@ export default function BrandAvatar({ brand, size = 32, className = '' }) {
   if (currentSrc && !hasError) {
     return (
       <div 
-        style={{ width: size, height: size }}
+        style={{ width: pixelSize, height: pixelSize }}
         className={`relative shrink-0 rounded-full overflow-hidden bg-white border border-slate-200 dark:border-slate-700 p-0.5 flex items-center justify-center shadow-xs select-none ${className}`}
         title={info.name}
       >
@@ -140,7 +149,7 @@ export default function BrandAvatar({ brand, size = 32, className = '' }) {
 
   return (
     <div
-      style={{ width: size, height: size, fontSize: Math.max(9, Math.floor(size * 0.38)) }}
+      style={{ width: pixelSize, height: pixelSize, fontSize: Math.max(9, Math.floor(pixelSize * 0.38)) }}
       className={`shrink-0 rounded-full font-bold flex items-center justify-center border shadow-xs select-none ${info.bgClass} ${className}`}
       title={info.name}
     >
