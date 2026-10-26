@@ -15,11 +15,14 @@ export function LanguageProvider({ children }) {
     document.documentElement.lang = language
   }, [language])
 
-  const t = (path, params = {}) => {
+  const t = (path, params = {}, optionalParams = {}) => {
     let fallbackText = null
     let interpolationParams = {}
     if (typeof params === 'string') {
       fallbackText = params
+      if (optionalParams && typeof optionalParams === 'object') {
+        interpolationParams = optionalParams
+      }
     } else if (params && typeof params === 'object') {
       interpolationParams = params
     }
@@ -51,7 +54,7 @@ export function LanguageProvider({ children }) {
     // Variable interpolation {count}, {platform}, etc.
     let result = current
     for (const [pKey, pVal] of Object.entries(interpolationParams)) {
-      result = result.replace(new RegExp(`\\{${pKey}\\}`, 'g'), String(pVal))
+      result = result.replace(new RegExp(`\\{${pKey}\\}`, 'gi'), String(pVal))
     }
     return result
   }

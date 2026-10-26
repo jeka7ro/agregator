@@ -44,8 +44,39 @@ export default function Settings() {
 
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedBrand, setSelectedBrand] = useState('all')
+  const [selectedBrand, setSelectedBrand] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('brand')
+      if (p) return p
+    } catch (_) {}
+    return 'all'
+  })
   const [showOnlyActive, setShowOnlyActive] = useState(false)
+
+  const handleBrandChange = (brand) => {
+    setSelectedBrand(brand)
+    setCurrentPage(1)
+    try {
+      const url = new URL(window.location.href)
+      if (brand && brand !== 'all') {
+        url.searchParams.set('brand', brand)
+      } else {
+        url.searchParams.delete('brand')
+      }
+      window.history.replaceState({}, '', url.toString())
+    } catch (_) {}
+  }
+
+  useEffect(() => {
+    const onPopState = () => {
+      try {
+        const p = new URLSearchParams(window.location.search).get('brand')
+        setSelectedBrand(p || 'all')
+      } catch (_) {}
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -566,7 +597,7 @@ export default function Settings() {
             <SlidersHorizontal className="w-4 h-4 text-slate-400" />
             <select
               value={selectedBrand}
-              onChange={(e) => setSelectedBrand(e.target.value)}
+              onChange={(e) => handleBrandChange(e.target.value)}
               className={`h-10 px-4 rounded-full text-xs font-bold border outline-none cursor-pointer shadow-sm ${
                 isDark 
                   ? 'bg-slate-800 border-slate-700 text-slate-200' 

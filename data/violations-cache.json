@@ -1,5 +1,1105 @@
 [
   {
+    "id": "viol_1793012417282_lr2vx",
+    "restaurant_id": "1c2b8519-107d-4f6a-a644-22ec53f54b60",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "CONSTANTA (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "CONSTANTA (Poki Woki)",
+      "city": "CONSTANTA",
+      "platform": "wolt",
+      "restaurant_id": "1c2b8519-107d-4f6a-a644-22ec53f54b60"
+    },
+    "detected_at": "2026-10-26T11:00:17.282Z"
+  },
+  {
+    "id": "viol_1793006075296_udaui",
+    "restaurant_id": "8b02140e-a340-41ca-9a83-b4950016ee15",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BUC CORA (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BUC CORA (Roll Master)",
+      "city": "BUC CORA",
+      "platform": "wolt",
+      "restaurant_id": "8b02140e-a340-41ca-9a83-b4950016ee15"
+    },
+    "detected_at": "2026-10-26T09:14:35.296Z"
+  },
+  {
+    "id": "viol_1793006068564_0keys",
+    "restaurant_id": "8b02140e-a340-41ca-9a83-b4950016ee15",
+    "check_id": "2d434023-79b7-47a7-a4fe-875320c47c00",
+    "platform": "glovo",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BUC CORA (Roll Master) apare unavailable pe GLOVO în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BUC CORA (Roll Master)",
+      "city": "BUC CORA",
+      "platform": "glovo",
+      "restaurant_id": "8b02140e-a340-41ca-9a83-b4950016ee15"
+    },
+    "detected_at": "2026-10-26T09:14:28.564Z"
+  },
+  {
+    "id": "viol_1793006060049_daj8k",
+    "restaurant_id": "55e49e60-2395-4b5b-ad24-6c9248e80234",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "Smash Me Constanta (Smash Me) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "Smash Me Constanta (Smash Me)",
+      "city": "CONSTANTA",
+      "platform": "wolt",
+      "restaurant_id": "55e49e60-2395-4b5b-ad24-6c9248e80234"
+    },
+    "detected_at": "2026-10-26T09:14:20.049Z"
+  },
+  {
+    "id": "viol_1793006053161_9qc5n",
+    "restaurant_id": "55e49e60-2395-4b5b-ad24-6c9248e80234",
+    "check_id": "dccd719c-9a14-4ea0-88a1-cb1d1d38513e",
+    "platform": "glovo",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "Smash Me Constanta (Smash Me) apare unavailable pe GLOVO în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "Smash Me Constanta (Smash Me)",
+      "city": "CONSTANTA",
+      "platform": "glovo",
+      "restaurant_id": "55e49e60-2395-4b5b-ad24-6c9248e80234"
+    },
+    "detected_at": "2026-10-26T09:14:13.161Z"
+  },
+  {
+    "id": "viol_1793006044305_sa8yt",
+    "restaurant_id": "c72bd8f7-b064-4093-8c34-3604e6b384a2",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BUC CORA (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BUC CORA (Poki Woki)",
+      "city": "BUC CORA",
+      "platform": "wolt",
+      "restaurant_id": "c72bd8f7-b064-4093-8c34-3604e6b384a2"
+    },
+    "detected_at": "2026-10-26T09:14:04.305Z"
+  },
+  {
+    "id": "viol_1793006037756_dpup1",
+    "restaurant_id": "c72bd8f7-b064-4093-8c34-3604e6b384a2",
+    "check_id": "5b19ef4c-7626-4cf1-8c6b-1100af59bd4c",
+    "platform": "glovo",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BUC CORA (Poki Woki) apare unavailable pe GLOVO în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BUC CORA (Poki Woki)",
+      "city": "BUC CORA",
+      "platform": "glovo",
+      "restaurant_id": "c72bd8f7-b064-4093-8c34-3604e6b384a2"
+    },
+    "detected_at": "2026-10-26T09:13:57.756Z"
+  },
+  {
+    "id": "viol_1793006029021_7xg0b",
+    "restaurant_id": "098d725e-5667-49e2-8e22-cff5db135584",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "Smash Me Cluj (Smash Me) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "Smash Me Cluj (Smash Me)",
+      "city": "CLUJ",
+      "platform": "wolt",
+      "restaurant_id": "098d725e-5667-49e2-8e22-cff5db135584"
+    },
+    "detected_at": "2026-10-26T09:13:49.021Z"
+  },
+  {
+    "id": "viol_1793006012233_wts8z",
+    "restaurant_id": "07734cfe-cde6-42ab-8887-6d00882ed970",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "SUCEAVA (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "SUCEAVA (Poki Woki)",
+      "city": "SUCEAVA",
+      "platform": "wolt",
+      "restaurant_id": "07734cfe-cde6-42ab-8887-6d00882ed970"
+    },
+    "detected_at": "2026-10-26T09:13:32.233Z"
+  },
+  {
+    "id": "viol_1793005993892_n5mg5",
+    "restaurant_id": "98e778db-8630-4d49-982a-b225a72cd3d6",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "PIATRA NEAMT (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "PIATRA NEAMT (Poki Woki)",
+      "city": "PIATRA NEAMT",
+      "platform": "wolt",
+      "restaurant_id": "98e778db-8630-4d49-982a-b225a72cd3d6"
+    },
+    "detected_at": "2026-10-26T09:13:13.892Z"
+  },
+  {
+    "id": "viol_1793005977988_qkfic",
+    "restaurant_id": "3ebb63ac-0036-4ad3-ae86-91be5541ab19",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "TARGU MURES (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "TARGU MURES (Poki Woki)",
+      "city": "TARGU MURES",
+      "platform": "wolt",
+      "restaurant_id": "3ebb63ac-0036-4ad3-ae86-91be5541ab19"
+    },
+    "detected_at": "2026-10-26T09:12:57.988Z"
+  },
+  {
+    "id": "viol_1793005960983_8a3dz",
+    "restaurant_id": "279e862d-9036-4843-9bcc-69580afe97e0",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "Smash Me Constanta (Crunch) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "Smash Me Constanta (Crunch)",
+      "city": "CONSTANTA",
+      "platform": "wolt",
+      "restaurant_id": "279e862d-9036-4843-9bcc-69580afe97e0"
+    },
+    "detected_at": "2026-10-26T09:12:40.983Z"
+  },
+  {
+    "id": "viol_1793005954395_xkg4z",
+    "restaurant_id": "279e862d-9036-4843-9bcc-69580afe97e0",
+    "check_id": "84810f39-e839-4ed2-bab9-2cdec027ca5d",
+    "platform": "glovo",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "Smash Me Constanta (Crunch) apare unavailable pe GLOVO în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "Smash Me Constanta (Crunch)",
+      "city": "CONSTANTA",
+      "platform": "glovo",
+      "restaurant_id": "279e862d-9036-4843-9bcc-69580afe97e0"
+    },
+    "detected_at": "2026-10-26T09:12:34.395Z"
+  },
+  {
+    "id": "viol_1793005945101_1735n",
+    "restaurant_id": "93adc853-0aa8-4659-8156-8e4ebe1a04ee",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "Smash Me Cluj (Crunch) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "Smash Me Cluj (Crunch)",
+      "city": "CLUJ",
+      "platform": "wolt",
+      "restaurant_id": "93adc853-0aa8-4659-8156-8e4ebe1a04ee"
+    },
+    "detected_at": "2026-10-26T09:12:25.101Z"
+  },
+  {
+    "id": "viol_1793005928502_akh7h",
+    "restaurant_id": "9d3e94fb-113c-4178-9779-ea8424588f2d",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "ORADEA (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "ORADEA (Poki Woki)",
+      "city": "ORADEA",
+      "platform": "wolt",
+      "restaurant_id": "9d3e94fb-113c-4178-9779-ea8424588f2d"
+    },
+    "detected_at": "2026-10-26T09:12:08.502Z"
+  },
+  {
+    "id": "viol_1793005911013_mu350",
+    "restaurant_id": "65b29088-bd75-4ed0-86b5-5fadc79cf19e",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "PIATRA NEAMT (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "PIATRA NEAMT (Roll Master)",
+      "city": "PIATRA NEAMT",
+      "platform": "wolt",
+      "restaurant_id": "65b29088-bd75-4ed0-86b5-5fadc79cf19e"
+    },
+    "detected_at": "2026-10-26T09:11:51.013Z"
+  },
+  {
+    "id": "viol_1793005892608_tdufs",
+    "restaurant_id": "dfc3d38a-6141-4cef-9e27-c09dfde10818",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "ORADEA (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "ORADEA (Roll Master)",
+      "city": "ORADEA",
+      "platform": "wolt",
+      "restaurant_id": "dfc3d38a-6141-4cef-9e27-c09dfde10818"
+    },
+    "detected_at": "2026-10-26T09:11:32.608Z"
+  },
+  {
+    "id": "viol_1793005875922_0zn7k",
+    "restaurant_id": "c6587b6a-62bf-4202-a29b-dfe44467a4a0",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BOTOSANI (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BOTOSANI (Roll Master)",
+      "city": "BOTOSANI",
+      "platform": "wolt",
+      "restaurant_id": "c6587b6a-62bf-4202-a29b-dfe44467a4a0"
+    },
+    "detected_at": "2026-10-26T09:11:15.922Z"
+  },
+  {
+    "id": "viol_1793005859233_culij",
+    "restaurant_id": "4ccbadbe-e543-4b46-bb97-493b12373f91",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BOTOSANI (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BOTOSANI (Poki Woki)",
+      "city": "BOTOSANI",
+      "platform": "wolt",
+      "restaurant_id": "4ccbadbe-e543-4b46-bb97-493b12373f91"
+    },
+    "detected_at": "2026-10-26T09:10:59.233Z"
+  },
+  {
+    "id": "viol_1793005842105_em6xr",
+    "restaurant_id": "81539556-80ec-4fa5-9401-4fc6e0b30bdb",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BRAILA (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BRAILA (Roll Master)",
+      "city": "BRAILA",
+      "platform": "wolt",
+      "restaurant_id": "81539556-80ec-4fa5-9401-4fc6e0b30bdb"
+    },
+    "detected_at": "2026-10-26T09:10:42.105Z"
+  },
+  {
+    "id": "viol_1793005826022_1b8un",
+    "restaurant_id": "1f75ded4-f726-45c1-a1f3-eca4f9116e08",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BRASOV (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BRASOV (Roll Master)",
+      "city": "BRASOV",
+      "platform": "wolt",
+      "restaurant_id": "1f75ded4-f726-45c1-a1f3-eca4f9116e08"
+    },
+    "detected_at": "2026-10-26T09:10:26.022Z"
+  },
+  {
+    "id": "viol_1793005809854_036ms",
+    "restaurant_id": "19464d1f-b271-43c5-a0d1-06b1a7282bd5",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BRAILA (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BRAILA (Poki Woki)",
+      "city": "BRAILA",
+      "platform": "wolt",
+      "restaurant_id": "19464d1f-b271-43c5-a0d1-06b1a7282bd5"
+    },
+    "detected_at": "2026-10-26T09:10:09.854Z"
+  },
+  {
+    "id": "viol_1793005794050_gpowf",
+    "restaurant_id": "038c6b5c-f730-43d9-954f-7d672c5363b1",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "GALATI (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "GALATI (Poki Woki)",
+      "city": "GALATI",
+      "platform": "wolt",
+      "restaurant_id": "038c6b5c-f730-43d9-954f-7d672c5363b1"
+    },
+    "detected_at": "2026-10-26T09:09:54.050Z"
+  },
+  {
+    "id": "viol_1793005778103_vwchk",
+    "restaurant_id": "6d18f13f-736d-44fd-87c7-928c875dff3d",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "CRAIOVA (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "CRAIOVA (Roll Master)",
+      "city": "CRAIOVA",
+      "platform": "wolt",
+      "restaurant_id": "6d18f13f-736d-44fd-87c7-928c875dff3d"
+    },
+    "detected_at": "2026-10-26T09:09:38.103Z"
+  },
+  {
+    "id": "viol_1793005761105_dqzt3",
+    "restaurant_id": "adaa67f8-deac-4e50-8cc3-13f62b8e1d1b",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "SUCEAVA (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "SUCEAVA (Roll Master)",
+      "city": "SUCEAVA",
+      "platform": "wolt",
+      "restaurant_id": "adaa67f8-deac-4e50-8cc3-13f62b8e1d1b"
+    },
+    "detected_at": "2026-10-26T09:09:21.105Z"
+  },
+  {
+    "id": "viol_1793005744319_i7bbb",
+    "restaurant_id": "2fb07d2d-5065-43d4-9edf-51fe400f917d",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "CLUJ (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "CLUJ (Poki Woki)",
+      "city": "CLUJ",
+      "platform": "wolt",
+      "restaurant_id": "2fb07d2d-5065-43d4-9edf-51fe400f917d"
+    },
+    "detected_at": "2026-10-26T09:09:04.319Z"
+  },
+  {
+    "id": "viol_1793005727541_4fi4g",
+    "restaurant_id": "f40e312b-5fca-4178-9f27-dbfe2837c721",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BRASOV (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BRASOV (Poki Woki)",
+      "city": "BRASOV",
+      "platform": "wolt",
+      "restaurant_id": "f40e312b-5fca-4178-9f27-dbfe2837c721"
+    },
+    "detected_at": "2026-10-26T09:08:47.541Z"
+  },
+  {
+    "id": "viol_1793005710939_sa2sl",
+    "restaurant_id": "c1392719-078e-4737-9774-ba7137a0c054",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "CRAIOVA (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "CRAIOVA (Poki Woki)",
+      "city": "CRAIOVA",
+      "platform": "wolt",
+      "restaurant_id": "c1392719-078e-4737-9774-ba7137a0c054"
+    },
+    "detected_at": "2026-10-26T09:08:30.939Z"
+  },
+  {
+    "id": "viol_1793005692110_la2xl",
+    "restaurant_id": "bc13fc1f-2dd8-4b68-9acb-6b1652c49dda",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "GALATI (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "GALATI (Roll Master)",
+      "city": "GALATI",
+      "platform": "wolt",
+      "restaurant_id": "bc13fc1f-2dd8-4b68-9acb-6b1652c49dda"
+    },
+    "detected_at": "2026-10-26T09:08:12.110Z"
+  },
+  {
+    "id": "viol_1793005675818_i78zx",
+    "restaurant_id": "758d0120-d3b4-4c5c-9baf-f6dcc52c615e",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "CLUJ (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "CLUJ (Roll Master)",
+      "city": "CLUJ",
+      "platform": "wolt",
+      "restaurant_id": "758d0120-d3b4-4c5c-9baf-f6dcc52c615e"
+    },
+    "detected_at": "2026-10-26T09:07:55.818Z"
+  },
+  {
+    "id": "viol_1793005659757_03plh",
+    "restaurant_id": "d22a3ec7-f23b-4711-a069-45d42197c7e5",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BALOTESTI (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BALOTESTI (Roll Master)",
+      "city": "BALOTESTI",
+      "platform": "wolt",
+      "restaurant_id": "d22a3ec7-f23b-4711-a069-45d42197c7e5"
+    },
+    "detected_at": "2026-10-26T09:07:39.757Z"
+  },
+  {
+    "id": "viol_1793005652835_mrdf3",
+    "restaurant_id": "d22a3ec7-f23b-4711-a069-45d42197c7e5",
+    "check_id": "95040ea6-c883-42b9-9dff-969cd5c83657",
+    "platform": "glovo",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BALOTESTI (Roll Master) apare unavailable pe GLOVO în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BALOTESTI (Roll Master)",
+      "city": "BALOTESTI",
+      "platform": "glovo",
+      "restaurant_id": "d22a3ec7-f23b-4711-a069-45d42197c7e5"
+    },
+    "detected_at": "2026-10-26T09:07:32.835Z"
+  },
+  {
+    "id": "viol_1793005644202_4bam7",
+    "restaurant_id": "fd6651a5-0fdb-405f-84e6-a5e84a6d3eab",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "ORADEA (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "ORADEA (Roll Master)",
+      "city": "ORADEA",
+      "platform": "wolt",
+      "restaurant_id": "fd6651a5-0fdb-405f-84e6-a5e84a6d3eab"
+    },
+    "detected_at": "2026-10-26T09:07:24.202Z"
+  },
+  {
+    "id": "viol_1793005627545_vwqo1",
+    "restaurant_id": "67aec385-594f-4e25-bd29-d67552b95ca4",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BALOTESTI (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BALOTESTI (Poki Woki)",
+      "city": "BALOTESTI",
+      "platform": "wolt",
+      "restaurant_id": "67aec385-594f-4e25-bd29-d67552b95ca4"
+    },
+    "detected_at": "2026-10-26T09:07:07.545Z"
+  },
+  {
+    "id": "viol_1793005620178_yoqfn",
+    "restaurant_id": "67aec385-594f-4e25-bd29-d67552b95ca4",
+    "check_id": "4e6040a0-daa0-423f-b3cc-710005fbd514",
+    "platform": "glovo",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BALOTESTI (Poki Woki) apare unavailable pe GLOVO în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BALOTESTI (Poki Woki)",
+      "city": "BALOTESTI",
+      "platform": "glovo",
+      "restaurant_id": "67aec385-594f-4e25-bd29-d67552b95ca4"
+    },
+    "detected_at": "2026-10-26T09:07:00.178Z"
+  },
+  {
+    "id": "viol_1793005611329_79tf9",
+    "restaurant_id": "e3a2c0c3-654d-4c52-8d6e-1dfa2ba9ab36",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "IASI#1 (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "IASI#1 (Roll Master)",
+      "city": "IASI#1",
+      "platform": "wolt",
+      "restaurant_id": "e3a2c0c3-654d-4c52-8d6e-1dfa2ba9ab36"
+    },
+    "detected_at": "2026-10-26T09:06:51.329Z"
+  },
+  {
+    "id": "viol_1793005594399_e9jpf",
+    "restaurant_id": "d4c4f7d2-58fa-4a53-9445-8186aa2679c3",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "IASI#1 (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "IASI#1 (Poki Woki)",
+      "city": "IASI#1",
+      "platform": "wolt",
+      "restaurant_id": "d4c4f7d2-58fa-4a53-9445-8186aa2679c3"
+    },
+    "detected_at": "2026-10-26T09:06:34.399Z"
+  },
+  {
+    "id": "viol_1793005578276_1csrb",
+    "restaurant_id": "8691a9d3-9197-4602-94fd-7bd7e042ca23",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BUC CEAIKOVSKI (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BUC CEAIKOVSKI (Roll Master)",
+      "city": "BUC CEAIKOVSKI",
+      "platform": "wolt",
+      "restaurant_id": "8691a9d3-9197-4602-94fd-7bd7e042ca23"
+    },
+    "detected_at": "2026-10-26T09:06:18.276Z"
+  },
+  {
+    "id": "viol_1793005571305_tuy2j",
+    "restaurant_id": "8691a9d3-9197-4602-94fd-7bd7e042ca23",
+    "check_id": "f2d0eca8-043a-40a5-a2cb-c45d3aa5db19",
+    "platform": "glovo",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BUC CEAIKOVSKI (Roll Master) apare unavailable pe GLOVO în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BUC CEAIKOVSKI (Roll Master)",
+      "city": "BUC CEAIKOVSKI",
+      "platform": "glovo",
+      "restaurant_id": "8691a9d3-9197-4602-94fd-7bd7e042ca23"
+    },
+    "detected_at": "2026-10-26T09:06:11.305Z"
+  },
+  {
+    "id": "viol_1793005562462_llyxp",
+    "restaurant_id": "fb9b4059-35c7-4387-b927-7513c807140e",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "ORADEA (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "ORADEA (Poki Woki)",
+      "city": "ORADEA",
+      "platform": "wolt",
+      "restaurant_id": "fb9b4059-35c7-4387-b927-7513c807140e"
+    },
+    "detected_at": "2026-10-26T09:06:02.462Z"
+  },
+  {
+    "id": "viol_1793005545555_o3ks2",
+    "restaurant_id": "ff89718b-d1d7-4b54-b67e-4bc50b5ea80f",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BUC CEAIKOVSKI (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BUC CEAIKOVSKI (Poki Woki)",
+      "city": "BUC CEAIKOVSKI",
+      "platform": "wolt",
+      "restaurant_id": "ff89718b-d1d7-4b54-b67e-4bc50b5ea80f"
+    },
+    "detected_at": "2026-10-26T09:05:45.555Z"
+  },
+  {
+    "id": "viol_1793005538201_3cwi7",
+    "restaurant_id": "ff89718b-d1d7-4b54-b67e-4bc50b5ea80f",
+    "check_id": "31be884b-0d2a-4c13-89af-90e5c344661f",
+    "platform": "glovo",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BUC CEAIKOVSKI (Poki Woki) apare unavailable pe GLOVO în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BUC CEAIKOVSKI (Poki Woki)",
+      "city": "BUC CEAIKOVSKI",
+      "platform": "glovo",
+      "restaurant_id": "ff89718b-d1d7-4b54-b67e-4bc50b5ea80f"
+    },
+    "detected_at": "2026-10-26T09:05:38.201Z"
+  },
+  {
+    "id": "viol_1793005528828_lm403",
+    "restaurant_id": "ae9a969c-e80f-4cbe-ac5c-7069c97e222a",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "TIMISOARA (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "TIMISOARA (Roll Master)",
+      "city": "TIMISOARA",
+      "platform": "wolt",
+      "restaurant_id": "ae9a969c-e80f-4cbe-ac5c-7069c97e222a"
+    },
+    "detected_at": "2026-10-26T09:05:28.828Z"
+  },
+  {
+    "id": "viol_1793005511707_1ko39",
+    "restaurant_id": "69a72aab-1549-4672-be7e-61cedad02c4e",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "PITESTI (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "PITESTI (Roll Master)",
+      "city": "PITESTI",
+      "platform": "wolt",
+      "restaurant_id": "69a72aab-1549-4672-be7e-61cedad02c4e"
+    },
+    "detected_at": "2026-10-26T09:05:11.707Z"
+  },
+  {
+    "id": "viol_1793005495113_p4tjc",
+    "restaurant_id": "921e753d-d23f-4e17-ad06-c1a5726a20ef",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "PITESTI (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "PITESTI (Poki Woki)",
+      "city": "PITESTI",
+      "platform": "wolt",
+      "restaurant_id": "921e753d-d23f-4e17-ad06-c1a5726a20ef"
+    },
+    "detected_at": "2026-10-26T09:04:55.113Z"
+  },
+  {
+    "id": "viol_1793005478544_yst7p",
+    "restaurant_id": "95aedaf8-fc3e-4999-addf-992367d0735d",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "TIMISOARA (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "TIMISOARA (Poki Woki)",
+      "city": "TIMISOARA",
+      "platform": "wolt",
+      "restaurant_id": "95aedaf8-fc3e-4999-addf-992367d0735d"
+    },
+    "detected_at": "2026-10-26T09:04:38.544Z"
+  },
+  {
+    "id": "viol_1793005461298_rjs4i",
+    "restaurant_id": "fa546232-e9f3-490c-8c57-425f91742efc",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BACAU (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BACAU (Poki Woki)",
+      "city": "BACAU",
+      "platform": "wolt",
+      "restaurant_id": "fa546232-e9f3-490c-8c57-425f91742efc"
+    },
+    "detected_at": "2026-10-26T09:04:21.298Z"
+  },
+  {
+    "id": "viol_1793005444585_46wbm",
+    "restaurant_id": "bdacab4f-9150-495e-ba53-9ce470ce4da7",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BUC TITAN (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BUC TITAN (Poki Woki)",
+      "city": "BUC TITAN",
+      "platform": "wolt",
+      "restaurant_id": "bdacab4f-9150-495e-ba53-9ce470ce4da7"
+    },
+    "detected_at": "2026-10-26T09:04:04.585Z"
+  },
+  {
+    "id": "viol_1793005438170_hhw22",
+    "restaurant_id": "bdacab4f-9150-495e-ba53-9ce470ce4da7",
+    "check_id": "6ae4e2cc-81e1-4804-b2fb-ffc8c1faacf0",
+    "platform": "glovo",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BUC TITAN (Poki Woki) apare unavailable pe GLOVO în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BUC TITAN (Poki Woki)",
+      "city": "BUC TITAN",
+      "platform": "glovo",
+      "restaurant_id": "bdacab4f-9150-495e-ba53-9ce470ce4da7"
+    },
+    "detected_at": "2026-10-26T09:03:58.170Z"
+  },
+  {
+    "id": "viol_1793005412451_xowji",
+    "restaurant_id": "18154536-07e1-47bd-9cbf-af01830aecee",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "TARGU MURES (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "TARGU MURES (Roll Master)",
+      "city": "TARGU MURES",
+      "platform": "wolt",
+      "restaurant_id": "18154536-07e1-47bd-9cbf-af01830aecee"
+    },
+    "detected_at": "2026-10-26T09:03:32.451Z"
+  },
+  {
+    "id": "viol_1793005395905_zg7f1",
+    "restaurant_id": "5de3d519-c566-4e04-9129-770dcb72b5fa",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BUC TITAN (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BUC TITAN (Roll Master)",
+      "city": "BUC TITAN",
+      "platform": "wolt",
+      "restaurant_id": "5de3d519-c566-4e04-9129-770dcb72b5fa"
+    },
+    "detected_at": "2026-10-26T09:03:15.905Z"
+  },
+  {
+    "id": "viol_1793005388888_wayi4",
+    "restaurant_id": "5de3d519-c566-4e04-9129-770dcb72b5fa",
+    "check_id": "b1a18f8b-c96c-4344-a18b-e46599930e71",
+    "platform": "glovo",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BUC TITAN (Roll Master) apare unavailable pe GLOVO în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BUC TITAN (Roll Master)",
+      "city": "BUC TITAN",
+      "platform": "glovo",
+      "restaurant_id": "5de3d519-c566-4e04-9129-770dcb72b5fa"
+    },
+    "detected_at": "2026-10-26T09:03:08.888Z"
+  },
+  {
+    "id": "viol_1793005377781_uaqo4",
+    "restaurant_id": "9df5b824-8e4e-4ac2-b54f-1459417ed9b7",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BACAU (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BACAU (Roll Master)",
+      "city": "BACAU",
+      "platform": "wolt",
+      "restaurant_id": "9df5b824-8e4e-4ac2-b54f-1459417ed9b7"
+    },
+    "detected_at": "2026-10-26T09:02:57.781Z"
+  },
+  {
+    "id": "viol_1793005360968_rgnl8",
+    "restaurant_id": "430213a0-efef-49bc-89b7-902328a163e3",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "TULCEA (Roll Master) apare closed pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "closed",
+      "restaurant_name": "TULCEA (Roll Master)",
+      "city": "TULCEA",
+      "platform": "wolt",
+      "restaurant_id": "430213a0-efef-49bc-89b7-902328a163e3"
+    },
+    "detected_at": "2026-10-26T09:02:40.968Z"
+  },
+  {
+    "id": "viol_1793005341651_sa8b0",
+    "restaurant_id": "dad5dddb-88f0-49c3-a12c-c51c8ce659b8",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "SIBIU (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "SIBIU (Roll Master)",
+      "city": "SM SIBIU",
+      "platform": "wolt",
+      "restaurant_id": "dad5dddb-88f0-49c3-a12c-c51c8ce659b8"
+    },
+    "detected_at": "2026-10-26T09:02:21.651Z"
+  },
+  {
+    "id": "viol_1793005321171_ewcv6",
+    "restaurant_id": "10049ce8-3358-425f-9dc6-543ca4a40f7c",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "IASI#2 (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "IASI#2 (Roll Master)",
+      "city": "IASI#2",
+      "platform": "wolt",
+      "restaurant_id": "10049ce8-3358-425f-9dc6-543ca4a40f7c"
+    },
+    "detected_at": "2026-10-26T09:02:01.171Z"
+  },
+  {
+    "id": "viol_1793005299884_5b0na",
+    "restaurant_id": "7990f9b6-9fa0-46d4-9ec5-219d10458ecc",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BUC UNIRII (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BUC UNIRII (Roll Master)",
+      "city": "BUC UNIRII",
+      "platform": "wolt",
+      "restaurant_id": "7990f9b6-9fa0-46d4-9ec5-219d10458ecc"
+    },
+    "detected_at": "2026-10-26T09:01:39.884Z"
+  },
+  {
+    "id": "viol_1793005292377_hsddp",
+    "restaurant_id": "7990f9b6-9fa0-46d4-9ec5-219d10458ecc",
+    "check_id": "8201b3ec-a1a2-49d2-998c-13e9e4335408",
+    "platform": "glovo",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BUC UNIRII (Roll Master) apare unavailable pe GLOVO în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BUC UNIRII (Roll Master)",
+      "city": "BUC UNIRII",
+      "platform": "glovo",
+      "restaurant_id": "7990f9b6-9fa0-46d4-9ec5-219d10458ecc"
+    },
+    "detected_at": "2026-10-26T09:01:32.377Z"
+  },
+  {
+    "id": "viol_1793005283562_sdh3j",
+    "restaurant_id": "f27c7fba-ecdf-4f44-a752-195d5caf9561",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "IASI#2 (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "IASI#2 (Poki Woki)",
+      "city": "IASI#2",
+      "platform": "wolt",
+      "restaurant_id": "f27c7fba-ecdf-4f44-a752-195d5caf9561"
+    },
+    "detected_at": "2026-10-26T09:01:23.562Z"
+  },
+  {
+    "id": "viol_1793005266736_aj0e6",
+    "restaurant_id": "14adb9aa-a9aa-4b71-9846-41f367f98c24",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BUC UNIRII (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BUC UNIRII (Poki Woki)",
+      "city": "BUC UNIRII",
+      "platform": "wolt",
+      "restaurant_id": "14adb9aa-a9aa-4b71-9846-41f367f98c24"
+    },
+    "detected_at": "2026-10-26T09:01:06.736Z"
+  },
+  {
+    "id": "viol_1793005259423_o4lk6",
+    "restaurant_id": "14adb9aa-a9aa-4b71-9846-41f367f98c24",
+    "check_id": "7a09dbd6-234c-481e-9871-6b5844bcee81",
+    "platform": "glovo",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "BUC UNIRII (Poki Woki) apare unavailable pe GLOVO în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "BUC UNIRII (Poki Woki)",
+      "city": "BUC UNIRII",
+      "platform": "glovo",
+      "restaurant_id": "14adb9aa-a9aa-4b71-9846-41f367f98c24"
+    },
+    "detected_at": "2026-10-26T09:00:59.423Z"
+  },
+  {
+    "id": "viol_1793005250275_jg2ah",
+    "restaurant_id": "6c692a12-c55c-45b4-8278-f960ec406e91",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "SIBIU (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "SIBIU (Poki Woki)",
+      "city": "SM SIBIU",
+      "platform": "wolt",
+      "restaurant_id": "6c692a12-c55c-45b4-8278-f960ec406e91"
+    },
+    "detected_at": "2026-10-26T09:00:50.275Z"
+  },
+  {
+    "id": "viol_1793005233494_fiv8x",
+    "restaurant_id": "46e6b5a3-8537-46e6-8f5a-6eff4db84979",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "CONSTANTA (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "CONSTANTA (Roll Master)",
+      "city": "CONSTANTA",
+      "platform": "wolt",
+      "restaurant_id": "46e6b5a3-8537-46e6-8f5a-6eff4db84979"
+    },
+    "detected_at": "2026-10-26T09:00:33.494Z"
+  },
+  {
+    "id": "viol_1793005216943_odq8o",
+    "restaurant_id": "1c2b8519-107d-4f6a-a644-22ec53f54b60",
+    "platform": "wolt",
+    "violation_type": "unauthorized_stop",
+    "severity": "critical",
+    "message": "CONSTANTA (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
+    "details": {
+      "expected_status": "available",
+      "actual_status": "unavailable",
+      "restaurant_name": "CONSTANTA (Poki Woki)",
+      "city": "CONSTANTA",
+      "platform": "wolt",
+      "restaurant_id": "1c2b8519-107d-4f6a-a644-22ec53f54b60"
+    },
+    "detected_at": "2026-10-26T09:00:16.943Z"
+  },
+  {
     "id": "viol_1792925518292_30wp5",
     "restaurant_id": "8b02140e-a340-41ca-9a83-b4950016ee15",
     "platform": "wolt",
@@ -7486,1105 +8586,5 @@
       "restaurant_id": "fa546232-e9f3-490c-8c57-425f91742efc"
     },
     "detected_at": "2026-10-23T14:04:20.501Z"
-  },
-  {
-    "id": "viol_1792764242043_8p2fz",
-    "restaurant_id": "bdacab4f-9150-495e-ba53-9ce470ce4da7",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BUC TITAN (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BUC TITAN (Poki Woki)",
-      "city": "BUC TITAN",
-      "platform": "wolt",
-      "restaurant_id": "bdacab4f-9150-495e-ba53-9ce470ce4da7"
-    },
-    "detected_at": "2026-10-23T14:04:02.043Z"
-  },
-  {
-    "id": "viol_1792764234345_5175h",
-    "restaurant_id": "bdacab4f-9150-495e-ba53-9ce470ce4da7",
-    "check_id": "be5e8be7-9c38-4be7-8ece-388c84e296ed",
-    "platform": "glovo",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BUC TITAN (Poki Woki) apare unavailable pe GLOVO în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BUC TITAN (Poki Woki)",
-      "city": "BUC TITAN",
-      "platform": "glovo",
-      "restaurant_id": "bdacab4f-9150-495e-ba53-9ce470ce4da7"
-    },
-    "detected_at": "2026-10-23T14:03:54.345Z"
-  },
-  {
-    "id": "viol_1792764206295_fzuz8",
-    "restaurant_id": "18154536-07e1-47bd-9cbf-af01830aecee",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "TARGU MURES (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "TARGU MURES (Roll Master)",
-      "city": "TARGU MURES",
-      "platform": "wolt",
-      "restaurant_id": "18154536-07e1-47bd-9cbf-af01830aecee"
-    },
-    "detected_at": "2026-10-23T14:03:26.295Z"
-  },
-  {
-    "id": "viol_1792764188146_lur5i",
-    "restaurant_id": "5de3d519-c566-4e04-9129-770dcb72b5fa",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BUC TITAN (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BUC TITAN (Roll Master)",
-      "city": "BUC TITAN",
-      "platform": "wolt",
-      "restaurant_id": "5de3d519-c566-4e04-9129-770dcb72b5fa"
-    },
-    "detected_at": "2026-10-23T14:03:08.146Z"
-  },
-  {
-    "id": "viol_1792764180852_2q0vi",
-    "restaurant_id": "5de3d519-c566-4e04-9129-770dcb72b5fa",
-    "check_id": "b637530b-0ca9-40fe-9bed-9b400b309e1e",
-    "platform": "glovo",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BUC TITAN (Roll Master) apare unavailable pe GLOVO în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BUC TITAN (Roll Master)",
-      "city": "BUC TITAN",
-      "platform": "glovo",
-      "restaurant_id": "5de3d519-c566-4e04-9129-770dcb72b5fa"
-    },
-    "detected_at": "2026-10-23T14:03:00.852Z"
-  },
-  {
-    "id": "viol_1792764171596_d4itw",
-    "restaurant_id": "9df5b824-8e4e-4ac2-b54f-1459417ed9b7",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BACAU (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BACAU (Roll Master)",
-      "city": "BACAU",
-      "platform": "wolt",
-      "restaurant_id": "9df5b824-8e4e-4ac2-b54f-1459417ed9b7"
-    },
-    "detected_at": "2026-10-23T14:02:51.596Z"
-  },
-  {
-    "id": "viol_1792764153048_a14iq",
-    "restaurant_id": "430213a0-efef-49bc-89b7-902328a163e3",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "TULCEA (Roll Master) apare closed pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "closed",
-      "restaurant_name": "TULCEA (Roll Master)",
-      "city": "TULCEA",
-      "platform": "wolt",
-      "restaurant_id": "430213a0-efef-49bc-89b7-902328a163e3"
-    },
-    "detected_at": "2026-10-23T14:02:33.048Z"
-  },
-  {
-    "id": "viol_1792764135528_9c9wn",
-    "restaurant_id": "dad5dddb-88f0-49c3-a12c-c51c8ce659b8",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "SIBIU (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "SIBIU (Roll Master)",
-      "city": "SM SIBIU",
-      "platform": "wolt",
-      "restaurant_id": "dad5dddb-88f0-49c3-a12c-c51c8ce659b8"
-    },
-    "detected_at": "2026-10-23T14:02:15.528Z"
-  },
-  {
-    "id": "viol_1792764118651_e3xft",
-    "restaurant_id": "10049ce8-3358-425f-9dc6-543ca4a40f7c",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "IASI#2 (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "IASI#2 (Roll Master)",
-      "city": "IASI#2",
-      "platform": "wolt",
-      "restaurant_id": "10049ce8-3358-425f-9dc6-543ca4a40f7c"
-    },
-    "detected_at": "2026-10-23T14:01:58.651Z"
-  },
-  {
-    "id": "viol_1792764100928_2qmex",
-    "restaurant_id": "7990f9b6-9fa0-46d4-9ec5-219d10458ecc",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BUC UNIRII (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BUC UNIRII (Roll Master)",
-      "city": "BUC UNIRII",
-      "platform": "wolt",
-      "restaurant_id": "7990f9b6-9fa0-46d4-9ec5-219d10458ecc"
-    },
-    "detected_at": "2026-10-23T14:01:40.928Z"
-  },
-  {
-    "id": "viol_1792764094067_abhnn",
-    "restaurant_id": "7990f9b6-9fa0-46d4-9ec5-219d10458ecc",
-    "check_id": "3e45f3c4-a8ff-48ce-91d6-34387ee87272",
-    "platform": "glovo",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BUC UNIRII (Roll Master) apare unavailable pe GLOVO în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BUC UNIRII (Roll Master)",
-      "city": "BUC UNIRII",
-      "platform": "glovo",
-      "restaurant_id": "7990f9b6-9fa0-46d4-9ec5-219d10458ecc"
-    },
-    "detected_at": "2026-10-23T14:01:34.067Z"
-  },
-  {
-    "id": "viol_1792764084040_syu9g",
-    "restaurant_id": "f27c7fba-ecdf-4f44-a752-195d5caf9561",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "IASI#2 (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "IASI#2 (Poki Woki)",
-      "city": "IASI#2",
-      "platform": "wolt",
-      "restaurant_id": "f27c7fba-ecdf-4f44-a752-195d5caf9561"
-    },
-    "detected_at": "2026-10-23T14:01:24.040Z"
-  },
-  {
-    "id": "viol_1792764067507_1qy27",
-    "restaurant_id": "14adb9aa-a9aa-4b71-9846-41f367f98c24",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BUC UNIRII (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BUC UNIRII (Poki Woki)",
-      "city": "BUC UNIRII",
-      "platform": "wolt",
-      "restaurant_id": "14adb9aa-a9aa-4b71-9846-41f367f98c24"
-    },
-    "detected_at": "2026-10-23T14:01:07.507Z"
-  },
-  {
-    "id": "viol_1792764060173_kwh4s",
-    "restaurant_id": "14adb9aa-a9aa-4b71-9846-41f367f98c24",
-    "check_id": "f7135205-a87b-4d96-9f0f-b204e6cdd9ce",
-    "platform": "glovo",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BUC UNIRII (Poki Woki) apare unavailable pe GLOVO în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BUC UNIRII (Poki Woki)",
-      "city": "BUC UNIRII",
-      "platform": "glovo",
-      "restaurant_id": "14adb9aa-a9aa-4b71-9846-41f367f98c24"
-    },
-    "detected_at": "2026-10-23T14:01:00.173Z"
-  },
-  {
-    "id": "viol_1792764050485_5yk57",
-    "restaurant_id": "6c692a12-c55c-45b4-8278-f960ec406e91",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "SIBIU (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "SIBIU (Poki Woki)",
-      "city": "SM SIBIU",
-      "platform": "wolt",
-      "restaurant_id": "6c692a12-c55c-45b4-8278-f960ec406e91"
-    },
-    "detected_at": "2026-10-23T14:00:50.485Z"
-  },
-  {
-    "id": "viol_1792764031708_b9l6b",
-    "restaurant_id": "46e6b5a3-8537-46e6-8f5a-6eff4db84979",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "CONSTANTA (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "CONSTANTA (Roll Master)",
-      "city": "CONSTANTA",
-      "platform": "wolt",
-      "restaurant_id": "46e6b5a3-8537-46e6-8f5a-6eff4db84979"
-    },
-    "detected_at": "2026-10-23T14:00:31.708Z"
-  },
-  {
-    "id": "viol_1792764015139_sjg5j",
-    "restaurant_id": "1c2b8519-107d-4f6a-a644-22ec53f54b60",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "CONSTANTA (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "CONSTANTA (Poki Woki)",
-      "city": "CONSTANTA",
-      "platform": "wolt",
-      "restaurant_id": "1c2b8519-107d-4f6a-a644-22ec53f54b60"
-    },
-    "detected_at": "2026-10-23T14:00:15.139Z"
-  },
-  {
-    "id": "viol_1792750478726_m5t59",
-    "restaurant_id": "8b02140e-a340-41ca-9a83-b4950016ee15",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BUC CORA (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BUC CORA (Roll Master)",
-      "city": "BUC CORA",
-      "platform": "wolt",
-      "restaurant_id": "8b02140e-a340-41ca-9a83-b4950016ee15"
-    },
-    "detected_at": "2026-10-23T10:14:38.726Z"
-  },
-  {
-    "id": "viol_1792750471363_pdxjc",
-    "restaurant_id": "8b02140e-a340-41ca-9a83-b4950016ee15",
-    "check_id": "d6f9b6b7-07ae-4556-95b3-20880b82e2cd",
-    "platform": "glovo",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BUC CORA (Roll Master) apare unavailable pe GLOVO în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BUC CORA (Roll Master)",
-      "city": "BUC CORA",
-      "platform": "glovo",
-      "restaurant_id": "8b02140e-a340-41ca-9a83-b4950016ee15"
-    },
-    "detected_at": "2026-10-23T10:14:31.363Z"
-  },
-  {
-    "id": "viol_1792750461203_an2jw",
-    "restaurant_id": "55e49e60-2395-4b5b-ad24-6c9248e80234",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "Smash Me Constanta (Smash Me) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "Smash Me Constanta (Smash Me)",
-      "city": "CONSTANTA",
-      "platform": "wolt",
-      "restaurant_id": "55e49e60-2395-4b5b-ad24-6c9248e80234"
-    },
-    "detected_at": "2026-10-23T10:14:21.203Z"
-  },
-  {
-    "id": "viol_1792750452953_gllov",
-    "restaurant_id": "55e49e60-2395-4b5b-ad24-6c9248e80234",
-    "check_id": "67512c11-ea30-4770-bdee-fd1fd345a223",
-    "platform": "glovo",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "Smash Me Constanta (Smash Me) apare unavailable pe GLOVO în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "Smash Me Constanta (Smash Me)",
-      "city": "CONSTANTA",
-      "platform": "glovo",
-      "restaurant_id": "55e49e60-2395-4b5b-ad24-6c9248e80234"
-    },
-    "detected_at": "2026-10-23T10:14:12.953Z"
-  },
-  {
-    "id": "viol_1792750443282_ndgqq",
-    "restaurant_id": "c72bd8f7-b064-4093-8c34-3604e6b384a2",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BUC CORA (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BUC CORA (Poki Woki)",
-      "city": "BUC CORA",
-      "platform": "wolt",
-      "restaurant_id": "c72bd8f7-b064-4093-8c34-3604e6b384a2"
-    },
-    "detected_at": "2026-10-23T10:14:03.282Z"
-  },
-  {
-    "id": "viol_1792750436466_5gc00",
-    "restaurant_id": "c72bd8f7-b064-4093-8c34-3604e6b384a2",
-    "check_id": "cf6d7144-db7e-459b-a0ca-475efc0a7411",
-    "platform": "glovo",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BUC CORA (Poki Woki) apare unavailable pe GLOVO în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BUC CORA (Poki Woki)",
-      "city": "BUC CORA",
-      "platform": "glovo",
-      "restaurant_id": "c72bd8f7-b064-4093-8c34-3604e6b384a2"
-    },
-    "detected_at": "2026-10-23T10:13:56.466Z"
-  },
-  {
-    "id": "viol_1792750427293_heqr4",
-    "restaurant_id": "098d725e-5667-49e2-8e22-cff5db135584",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "Smash Me Cluj (Smash Me) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "Smash Me Cluj (Smash Me)",
-      "city": "CLUJ",
-      "platform": "wolt",
-      "restaurant_id": "098d725e-5667-49e2-8e22-cff5db135584"
-    },
-    "detected_at": "2026-10-23T10:13:47.293Z"
-  },
-  {
-    "id": "viol_1792750411127_x5e0y",
-    "restaurant_id": "07734cfe-cde6-42ab-8887-6d00882ed970",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "SUCEAVA (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "SUCEAVA (Poki Woki)",
-      "city": "SUCEAVA",
-      "platform": "wolt",
-      "restaurant_id": "07734cfe-cde6-42ab-8887-6d00882ed970"
-    },
-    "detected_at": "2026-10-23T10:13:31.127Z"
-  },
-  {
-    "id": "viol_1792750394206_papxb",
-    "restaurant_id": "98e778db-8630-4d49-982a-b225a72cd3d6",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "PIATRA NEAMT (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "PIATRA NEAMT (Poki Woki)",
-      "city": "PIATRA NEAMT",
-      "platform": "wolt",
-      "restaurant_id": "98e778db-8630-4d49-982a-b225a72cd3d6"
-    },
-    "detected_at": "2026-10-23T10:13:14.206Z"
-  },
-  {
-    "id": "viol_1792750377387_iy7rq",
-    "restaurant_id": "3ebb63ac-0036-4ad3-ae86-91be5541ab19",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "TARGU MURES (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "TARGU MURES (Poki Woki)",
-      "city": "TARGU MURES",
-      "platform": "wolt",
-      "restaurant_id": "3ebb63ac-0036-4ad3-ae86-91be5541ab19"
-    },
-    "detected_at": "2026-10-23T10:12:57.387Z"
-  },
-  {
-    "id": "viol_1792750360336_7kw6r",
-    "restaurant_id": "279e862d-9036-4843-9bcc-69580afe97e0",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "Smash Me Constanta (Crunch) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "Smash Me Constanta (Crunch)",
-      "city": "CONSTANTA",
-      "platform": "wolt",
-      "restaurant_id": "279e862d-9036-4843-9bcc-69580afe97e0"
-    },
-    "detected_at": "2026-10-23T10:12:40.336Z"
-  },
-  {
-    "id": "viol_1792750353628_m8uzx",
-    "restaurant_id": "279e862d-9036-4843-9bcc-69580afe97e0",
-    "check_id": "0cd52acd-4a1f-4b70-b08e-0c92386eb6cb",
-    "platform": "glovo",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "Smash Me Constanta (Crunch) apare unavailable pe GLOVO în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "Smash Me Constanta (Crunch)",
-      "city": "CONSTANTA",
-      "platform": "glovo",
-      "restaurant_id": "279e862d-9036-4843-9bcc-69580afe97e0"
-    },
-    "detected_at": "2026-10-23T10:12:33.628Z"
-  },
-  {
-    "id": "viol_1792750343856_bwmbf",
-    "restaurant_id": "93adc853-0aa8-4659-8156-8e4ebe1a04ee",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "Smash Me Cluj (Crunch) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "Smash Me Cluj (Crunch)",
-      "city": "CLUJ",
-      "platform": "wolt",
-      "restaurant_id": "93adc853-0aa8-4659-8156-8e4ebe1a04ee"
-    },
-    "detected_at": "2026-10-23T10:12:23.856Z"
-  },
-  {
-    "id": "viol_1792750326976_5uobg",
-    "restaurant_id": "9d3e94fb-113c-4178-9779-ea8424588f2d",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "ORADEA (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "ORADEA (Poki Woki)",
-      "city": "ORADEA",
-      "platform": "wolt",
-      "restaurant_id": "9d3e94fb-113c-4178-9779-ea8424588f2d"
-    },
-    "detected_at": "2026-10-23T10:12:06.976Z"
-  },
-  {
-    "id": "viol_1792750309314_n3ljx",
-    "restaurant_id": "65b29088-bd75-4ed0-86b5-5fadc79cf19e",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "PIATRA NEAMT (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "PIATRA NEAMT (Roll Master)",
-      "city": "PIATRA NEAMT",
-      "platform": "wolt",
-      "restaurant_id": "65b29088-bd75-4ed0-86b5-5fadc79cf19e"
-    },
-    "detected_at": "2026-10-23T10:11:49.314Z"
-  },
-  {
-    "id": "viol_1792750292373_yy7wz",
-    "restaurant_id": "dfc3d38a-6141-4cef-9e27-c09dfde10818",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "ORADEA (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "ORADEA (Roll Master)",
-      "city": "ORADEA",
-      "platform": "wolt",
-      "restaurant_id": "dfc3d38a-6141-4cef-9e27-c09dfde10818"
-    },
-    "detected_at": "2026-10-23T10:11:32.373Z"
-  },
-  {
-    "id": "viol_1792750275509_jlbwg",
-    "restaurant_id": "c6587b6a-62bf-4202-a29b-dfe44467a4a0",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BOTOSANI (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BOTOSANI (Roll Master)",
-      "city": "BOTOSANI",
-      "platform": "wolt",
-      "restaurant_id": "c6587b6a-62bf-4202-a29b-dfe44467a4a0"
-    },
-    "detected_at": "2026-10-23T10:11:15.509Z"
-  },
-  {
-    "id": "viol_1792750259336_71tld",
-    "restaurant_id": "4ccbadbe-e543-4b46-bb97-493b12373f91",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BOTOSANI (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BOTOSANI (Poki Woki)",
-      "city": "BOTOSANI",
-      "platform": "wolt",
-      "restaurant_id": "4ccbadbe-e543-4b46-bb97-493b12373f91"
-    },
-    "detected_at": "2026-10-23T10:10:59.336Z"
-  },
-  {
-    "id": "viol_1792750242694_2wbmh",
-    "restaurant_id": "81539556-80ec-4fa5-9401-4fc6e0b30bdb",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BRAILA (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BRAILA (Roll Master)",
-      "city": "BRAILA",
-      "platform": "wolt",
-      "restaurant_id": "81539556-80ec-4fa5-9401-4fc6e0b30bdb"
-    },
-    "detected_at": "2026-10-23T10:10:42.694Z"
-  },
-  {
-    "id": "viol_1792750226054_ti6sg",
-    "restaurant_id": "1f75ded4-f726-45c1-a1f3-eca4f9116e08",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BRASOV (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BRASOV (Roll Master)",
-      "city": "BRASOV",
-      "platform": "wolt",
-      "restaurant_id": "1f75ded4-f726-45c1-a1f3-eca4f9116e08"
-    },
-    "detected_at": "2026-10-23T10:10:26.054Z"
-  },
-  {
-    "id": "viol_1792750208948_5el49",
-    "restaurant_id": "19464d1f-b271-43c5-a0d1-06b1a7282bd5",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BRAILA (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BRAILA (Poki Woki)",
-      "city": "BRAILA",
-      "platform": "wolt",
-      "restaurant_id": "19464d1f-b271-43c5-a0d1-06b1a7282bd5"
-    },
-    "detected_at": "2026-10-23T10:10:08.948Z"
-  },
-  {
-    "id": "viol_1792750191980_vt2ll",
-    "restaurant_id": "038c6b5c-f730-43d9-954f-7d672c5363b1",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "GALATI (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "GALATI (Poki Woki)",
-      "city": "GALATI",
-      "platform": "wolt",
-      "restaurant_id": "038c6b5c-f730-43d9-954f-7d672c5363b1"
-    },
-    "detected_at": "2026-10-23T10:09:51.980Z"
-  },
-  {
-    "id": "viol_1792750174702_fx97v",
-    "restaurant_id": "6d18f13f-736d-44fd-87c7-928c875dff3d",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "CRAIOVA (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "CRAIOVA (Roll Master)",
-      "city": "CRAIOVA",
-      "platform": "wolt",
-      "restaurant_id": "6d18f13f-736d-44fd-87c7-928c875dff3d"
-    },
-    "detected_at": "2026-10-23T10:09:34.702Z"
-  },
-  {
-    "id": "viol_1792750157408_rrd89",
-    "restaurant_id": "adaa67f8-deac-4e50-8cc3-13f62b8e1d1b",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "SUCEAVA (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "SUCEAVA (Roll Master)",
-      "city": "SUCEAVA",
-      "platform": "wolt",
-      "restaurant_id": "adaa67f8-deac-4e50-8cc3-13f62b8e1d1b"
-    },
-    "detected_at": "2026-10-23T10:09:17.408Z"
-  },
-  {
-    "id": "viol_1792750137286_b7w0o",
-    "restaurant_id": "2fb07d2d-5065-43d4-9edf-51fe400f917d",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "CLUJ (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "CLUJ (Poki Woki)",
-      "city": "CLUJ",
-      "platform": "wolt",
-      "restaurant_id": "2fb07d2d-5065-43d4-9edf-51fe400f917d"
-    },
-    "detected_at": "2026-10-23T10:08:57.286Z"
-  },
-  {
-    "id": "viol_1792750120571_7kf2c",
-    "restaurant_id": "f40e312b-5fca-4178-9f27-dbfe2837c721",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BRASOV (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BRASOV (Poki Woki)",
-      "city": "BRASOV",
-      "platform": "wolt",
-      "restaurant_id": "f40e312b-5fca-4178-9f27-dbfe2837c721"
-    },
-    "detected_at": "2026-10-23T10:08:40.571Z"
-  },
-  {
-    "id": "viol_1792750103846_1kcqj",
-    "restaurant_id": "c1392719-078e-4737-9774-ba7137a0c054",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "CRAIOVA (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "CRAIOVA (Poki Woki)",
-      "city": "CRAIOVA",
-      "platform": "wolt",
-      "restaurant_id": "c1392719-078e-4737-9774-ba7137a0c054"
-    },
-    "detected_at": "2026-10-23T10:08:23.846Z"
-  },
-  {
-    "id": "viol_1792750086550_i63el",
-    "restaurant_id": "bc13fc1f-2dd8-4b68-9acb-6b1652c49dda",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "GALATI (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "GALATI (Roll Master)",
-      "city": "GALATI",
-      "platform": "wolt",
-      "restaurant_id": "bc13fc1f-2dd8-4b68-9acb-6b1652c49dda"
-    },
-    "detected_at": "2026-10-23T10:08:06.550Z"
-  },
-  {
-    "id": "viol_1792750069246_fb0vw",
-    "restaurant_id": "758d0120-d3b4-4c5c-9baf-f6dcc52c615e",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "CLUJ (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "CLUJ (Roll Master)",
-      "city": "CLUJ",
-      "platform": "wolt",
-      "restaurant_id": "758d0120-d3b4-4c5c-9baf-f6dcc52c615e"
-    },
-    "detected_at": "2026-10-23T10:07:49.246Z"
-  },
-  {
-    "id": "viol_1792750052686_l9ljh",
-    "restaurant_id": "d22a3ec7-f23b-4711-a069-45d42197c7e5",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BALOTESTI (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BALOTESTI (Roll Master)",
-      "city": "BALOTESTI",
-      "platform": "wolt",
-      "restaurant_id": "d22a3ec7-f23b-4711-a069-45d42197c7e5"
-    },
-    "detected_at": "2026-10-23T10:07:32.686Z"
-  },
-  {
-    "id": "viol_1792750045958_lo0p2",
-    "restaurant_id": "d22a3ec7-f23b-4711-a069-45d42197c7e5",
-    "check_id": "dc1ac1e7-4676-4054-9535-460e942a0395",
-    "platform": "glovo",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BALOTESTI (Roll Master) apare unavailable pe GLOVO în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BALOTESTI (Roll Master)",
-      "city": "BALOTESTI",
-      "platform": "glovo",
-      "restaurant_id": "d22a3ec7-f23b-4711-a069-45d42197c7e5"
-    },
-    "detected_at": "2026-10-23T10:07:25.958Z"
-  },
-  {
-    "id": "viol_1792750036104_pyj6z",
-    "restaurant_id": "fd6651a5-0fdb-405f-84e6-a5e84a6d3eab",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "ORADEA (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "ORADEA (Roll Master)",
-      "city": "ORADEA",
-      "platform": "wolt",
-      "restaurant_id": "fd6651a5-0fdb-405f-84e6-a5e84a6d3eab"
-    },
-    "detected_at": "2026-10-23T10:07:16.104Z"
-  },
-  {
-    "id": "viol_1792750019133_pewdq",
-    "restaurant_id": "67aec385-594f-4e25-bd29-d67552b95ca4",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BALOTESTI (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BALOTESTI (Poki Woki)",
-      "city": "BALOTESTI",
-      "platform": "wolt",
-      "restaurant_id": "67aec385-594f-4e25-bd29-d67552b95ca4"
-    },
-    "detected_at": "2026-10-23T10:06:59.133Z"
-  },
-  {
-    "id": "viol_1792750012071_3utbi",
-    "restaurant_id": "67aec385-594f-4e25-bd29-d67552b95ca4",
-    "check_id": "9781ea04-7e18-439d-9db7-b148aeeffedb",
-    "platform": "glovo",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BALOTESTI (Poki Woki) apare unavailable pe GLOVO în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BALOTESTI (Poki Woki)",
-      "city": "BALOTESTI",
-      "platform": "glovo",
-      "restaurant_id": "67aec385-594f-4e25-bd29-d67552b95ca4"
-    },
-    "detected_at": "2026-10-23T10:06:52.071Z"
-  },
-  {
-    "id": "viol_1792750003172_ec2f9",
-    "restaurant_id": "e3a2c0c3-654d-4c52-8d6e-1dfa2ba9ab36",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "IASI#1 (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "IASI#1 (Roll Master)",
-      "city": "IASI#1",
-      "platform": "wolt",
-      "restaurant_id": "e3a2c0c3-654d-4c52-8d6e-1dfa2ba9ab36"
-    },
-    "detected_at": "2026-10-23T10:06:43.172Z"
-  },
-  {
-    "id": "viol_1792749986724_iapvp",
-    "restaurant_id": "d4c4f7d2-58fa-4a53-9445-8186aa2679c3",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "IASI#1 (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "IASI#1 (Poki Woki)",
-      "city": "IASI#1",
-      "platform": "wolt",
-      "restaurant_id": "d4c4f7d2-58fa-4a53-9445-8186aa2679c3"
-    },
-    "detected_at": "2026-10-23T10:06:26.724Z"
-  },
-  {
-    "id": "viol_1792749969746_pr9dn",
-    "restaurant_id": "8691a9d3-9197-4602-94fd-7bd7e042ca23",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BUC CEAIKOVSKI (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BUC CEAIKOVSKI (Roll Master)",
-      "city": "BUC CEAIKOVSKI",
-      "platform": "wolt",
-      "restaurant_id": "8691a9d3-9197-4602-94fd-7bd7e042ca23"
-    },
-    "detected_at": "2026-10-23T10:06:09.746Z"
-  },
-  {
-    "id": "viol_1792749962420_symj9",
-    "restaurant_id": "8691a9d3-9197-4602-94fd-7bd7e042ca23",
-    "check_id": "ccef50d4-ccfc-4101-b889-380d8d680e90",
-    "platform": "glovo",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BUC CEAIKOVSKI (Roll Master) apare unavailable pe GLOVO în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BUC CEAIKOVSKI (Roll Master)",
-      "city": "BUC CEAIKOVSKI",
-      "platform": "glovo",
-      "restaurant_id": "8691a9d3-9197-4602-94fd-7bd7e042ca23"
-    },
-    "detected_at": "2026-10-23T10:06:02.420Z"
-  },
-  {
-    "id": "viol_1792749953926_5tmbf",
-    "restaurant_id": "fb9b4059-35c7-4387-b927-7513c807140e",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "ORADEA (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "ORADEA (Poki Woki)",
-      "city": "ORADEA",
-      "platform": "wolt",
-      "restaurant_id": "fb9b4059-35c7-4387-b927-7513c807140e"
-    },
-    "detected_at": "2026-10-23T10:05:53.926Z"
-  },
-  {
-    "id": "viol_1792749936905_yqnzm",
-    "restaurant_id": "ff89718b-d1d7-4b54-b67e-4bc50b5ea80f",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BUC CEAIKOVSKI (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BUC CEAIKOVSKI (Poki Woki)",
-      "city": "BUC CEAIKOVSKI",
-      "platform": "wolt",
-      "restaurant_id": "ff89718b-d1d7-4b54-b67e-4bc50b5ea80f"
-    },
-    "detected_at": "2026-10-23T10:05:36.905Z"
-  },
-  {
-    "id": "viol_1792749929786_kbg2g",
-    "restaurant_id": "ff89718b-d1d7-4b54-b67e-4bc50b5ea80f",
-    "check_id": "3b01d0a9-b3ea-4c4c-af3a-06700c1bfbbb",
-    "platform": "glovo",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BUC CEAIKOVSKI (Poki Woki) apare unavailable pe GLOVO în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BUC CEAIKOVSKI (Poki Woki)",
-      "city": "BUC CEAIKOVSKI",
-      "platform": "glovo",
-      "restaurant_id": "ff89718b-d1d7-4b54-b67e-4bc50b5ea80f"
-    },
-    "detected_at": "2026-10-23T10:05:29.786Z"
-  },
-  {
-    "id": "viol_1792749919955_yb8ed",
-    "restaurant_id": "ae9a969c-e80f-4cbe-ac5c-7069c97e222a",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "TIMISOARA (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "TIMISOARA (Roll Master)",
-      "city": "TIMISOARA",
-      "platform": "wolt",
-      "restaurant_id": "ae9a969c-e80f-4cbe-ac5c-7069c97e222a"
-    },
-    "detected_at": "2026-10-23T10:05:19.955Z"
-  },
-  {
-    "id": "viol_1792749902216_f5wdf",
-    "restaurant_id": "69a72aab-1549-4672-be7e-61cedad02c4e",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "PITESTI (Roll Master) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "PITESTI (Roll Master)",
-      "city": "PITESTI",
-      "platform": "wolt",
-      "restaurant_id": "69a72aab-1549-4672-be7e-61cedad02c4e"
-    },
-    "detected_at": "2026-10-23T10:05:02.216Z"
-  },
-  {
-    "id": "viol_1792749885199_yopo5",
-    "restaurant_id": "921e753d-d23f-4e17-ad06-c1a5726a20ef",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "PITESTI (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "PITESTI (Poki Woki)",
-      "city": "PITESTI",
-      "platform": "wolt",
-      "restaurant_id": "921e753d-d23f-4e17-ad06-c1a5726a20ef"
-    },
-    "detected_at": "2026-10-23T10:04:45.199Z"
-  },
-  {
-    "id": "viol_1792749868757_0txx8",
-    "restaurant_id": "95aedaf8-fc3e-4999-addf-992367d0735d",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "TIMISOARA (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "TIMISOARA (Poki Woki)",
-      "city": "TIMISOARA",
-      "platform": "wolt",
-      "restaurant_id": "95aedaf8-fc3e-4999-addf-992367d0735d"
-    },
-    "detected_at": "2026-10-23T10:04:28.757Z"
-  },
-  {
-    "id": "viol_1792749851574_aezgj",
-    "restaurant_id": "fa546232-e9f3-490c-8c57-425f91742efc",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BACAU (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BACAU (Poki Woki)",
-      "city": "BACAU",
-      "platform": "wolt",
-      "restaurant_id": "fa546232-e9f3-490c-8c57-425f91742efc"
-    },
-    "detected_at": "2026-10-23T10:04:11.574Z"
-  },
-  {
-    "id": "viol_1792749834904_ozing",
-    "restaurant_id": "bdacab4f-9150-495e-ba53-9ce470ce4da7",
-    "platform": "wolt",
-    "violation_type": "unauthorized_stop",
-    "severity": "critical",
-    "message": "BUC TITAN (Poki Woki) apare unavailable pe WOLT în timpul programului de lucru",
-    "details": {
-      "expected_status": "available",
-      "actual_status": "unavailable",
-      "restaurant_name": "BUC TITAN (Poki Woki)",
-      "city": "BUC TITAN",
-      "platform": "wolt",
-      "restaurant_id": "bdacab4f-9150-495e-ba53-9ce470ce4da7"
-    },
-    "detected_at": "2026-10-23T10:03:54.904Z"
   }
 ]

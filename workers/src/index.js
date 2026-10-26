@@ -100,34 +100,42 @@ async function manageStopEvent(restaurant, platform, isAvailable, checkResult) {
             // New stop detected → create stop event
             const stopType = checkResult?.raw_data?.product_stops?.stopped > 0 ? 'partial' : 'full'
             const newStopRecord = {
-                id: 'stop_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
                 restaurant_id: restaurant.id,
                 platform,
                 stopped_at: new Date().toISOString(),
                 stop_type: stopType,
                 affected_product_count: checkResult?.raw_data?.product_stops?.stopped || 0,
                 total_product_count: checkResult?.raw_data?.product_stops?.total || 0,
-                reason: checkResult?.final_status === 'closed' ? 'Restaurant closed' : 'Unknown',
+                reason: checkResult?.final_status === 'closed' ? 'Restaurant închis de agregator' : 'Magazin indisponibil (STOP)',
                 resumed_at: null,
                 duration_minutes: null,
                 estimated_loss_amount: 0
             }
 
-            // Always save to local cache
             try {
-                saveStopEventsCache([newStopRecord, ...localStops].slice(0, 500))
-            } catch (_) {}
-
-            try {
-                const { data: newStop } = await supabase
+                const { data: newStop, error: stopInsertErr } = await supabase
                     .from('stop_events')
                     .insert(newStopRecord)
                     .select()
                     .single()
-                if (newStop) return { action: 'started', stopEvent: newStop }
-            } catch (_) {}
+                if (stopInsertErr) {
+                    console.error('[Worker] Error inserting stop event:', stopInsertErr.message)
+                }
+                if (newStop) {
+                    try {
+                        saveStopEventsCache([newStop, ...localStops].slice(0, 500))
+                    } catch (_) {}
+                    return { action: 'started', stopEvent: newStop }
+                }
+            } catch (err) {
+                console.error('[Worker] Exception inserting stop event:', err.message)
+            }
 
-            return { action: 'started', stopEvent: newStopRecord }
+            const fallbackStop = { ...newStopRecord, id: 'local_' + Date.now() }
+            try {
+                saveStopEventsCache([fallbackStop, ...localStops].slice(0, 500))
+            } catch (_) {}
+            return { action: 'started', stopEvent: fallbackStop }
 
         } else if (isAvailable && activeStop) {
             // Restaurant back online → close stop event

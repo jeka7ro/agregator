@@ -68,12 +68,14 @@ export default function PlatformLogo({ platform, size = 20, className = '' }) {
     return (
       <div 
         style={{ width: size, height: size }}
-        className={`inline-flex items-center justify-center rounded-full bg-purple-600 text-white font-black shrink-0 overflow-hidden shadow-xs select-none ${className}`}
+        className={`inline-flex items-center justify-center rounded-full bg-purple-600 text-white shrink-0 overflow-hidden shadow-xs select-none ${className}`}
         title="Smart Kiosk"
       >
-        <span style={{ fontSize: Math.max(7, size * 0.42), letterSpacing: '-0.3px' }} className="font-extrabold leading-none uppercase">
-          SK
-        </span>
+        <svg viewBox="0 0 24 24" className="w-[58%] h-[58%]" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect width="20" height="14" x="2" y="3" rx="2" />
+          <line x1="8" x2="16" y1="21" y2="21" />
+          <line x1="12" x2="12" y1="17" y2="21" />
+        </svg>
       </div>
     )
   }
@@ -83,12 +85,32 @@ export default function PlatformLogo({ platform, size = 20, className = '' }) {
     return (
       <div 
         style={{ width: size, height: size }}
-        className={`inline-flex items-center justify-center rounded-full bg-blue-600 text-white font-black shrink-0 overflow-hidden shadow-xs select-none ${className}`}
+        className={`inline-flex items-center justify-center rounded-full bg-blue-600 text-white shrink-0 overflow-hidden shadow-xs select-none ${className}`}
         title="Casierie (POS)"
       >
-        <span style={{ fontSize: Math.max(6.5, size * 0.38), letterSpacing: '-0.2px' }} className="font-extrabold leading-none uppercase">
-          POS
-        </span>
+        <svg viewBox="0 0 24 24" className="w-[58%] h-[58%]" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+          <path d="M14 8H8" />
+          <path d="M16 12H8" />
+          <path d="M13 16H8" />
+        </svg>
+      </div>
+    )
+  }
+
+  // 7. Own Delivery / Site Propriu
+  if (p === 'own' || p === 'own_delivery' || p === 'site' || p === 'propriu') {
+    return (
+      <div 
+        style={{ width: size, height: size }}
+        className={`inline-flex items-center justify-center rounded-full bg-indigo-600 text-white shrink-0 overflow-hidden shadow-xs select-none ${className}`}
+        title="Livrare Proprie"
+      >
+        <svg viewBox="0 0 24 24" className="w-[60%] h-[60%]" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+          <path d="M2 12h20" />
+        </svg>
       </div>
     )
   }

@@ -211,11 +211,13 @@ export class SalesSync {
                                 const orderTypeName = (o.order.orderType?.name || '').toLowerCase()
                                 const operatorName = (o.order.operator?.name || '').toLowerCase()
                                 const conceptionName = (o.order.conception?.name || '').toLowerCase()
+                                const customerName = (o.order.customer?.name || '').toLowerCase()
 
                                 const isKiosk = rawSource.includes('kiosk') ||
                                     orderTypeName.includes('kiosk') ||
                                     operatorName.includes('kiosk') ||
                                     conceptionName.includes('kiosk') ||
+                                    customerName.includes('kiosk') ||
                                     (o.order.externalNumber && String(o.order.externalNumber).toLowerCase().startsWith('kiosk'))
 
                                 let platform = 'casierie'
@@ -271,9 +273,9 @@ export class SalesSync {
                                             } else if (isPokiWoki) {
                                                 matchesCategory = prodCategory.includes('POKI') || prodCategory.includes('WOKI') || pName.includes('poki') || pName.includes('wok') || pName.includes('ramen');
                                             } else if (isCrunch) {
-                                                matchesCategory = prodCategory.includes('CRUNCH') || pName.includes('crunch');
+                                                matchesCategory = prodCategory.includes('CRUNCH') || pName.includes('wings') || pName.includes('tenders') || (pName.includes('crunch') && !pName.includes('oklahoma'));
                                             } else if (isSmashMe) {
-                                                matchesCategory = !prodCategory.includes('CRUNCH') && !pName.includes('crunch');
+                                                matchesCategory = !pName.includes('wings') && !pName.includes('tenders') && (!prodCategory.includes('CRUNCH') || pName.includes('oklahoma')) && (!pName.includes('crunch') || pName.includes('oklahoma'));
                                             } else if (filterCategories && filterCategories.length > 0) {
                                                 matchesCategory = filterCategories.some(c => prodCategory.includes(c.toUpperCase()) || pName.includes(c.toLowerCase()));
                                             } else {
@@ -293,7 +295,16 @@ export class SalesSync {
                                                 amount: it.amount,
                                                 resultSum: it.resultSum,
                                                 sum: itemSum,
-                                                quantity: it.amount || 1
+                                                quantity: it.amount || 1,
+                                                _order_meta: items.length === 0 ? {
+                                                    orderNumber: o.order.number ? String(o.order.number) : (o.order.externalNumber || null),
+                                                    customerName: o.order.customer?.name || null,
+                                                    customerPhone: o.order.customer?.phone || o.order.phone || null,
+                                                    kioskId: customerName.includes('cj-1') ? 'Kiosk Cluj 1' : customerName.includes('cj-2') ? 'Kiosk Cluj 2' : customerName.includes('ct') ? 'Kiosk Constanța' : (isKiosk ? 'Smart Kiosk' : null),
+                                                    orderType: isKiosk ? 'Smart Kiosk' : (platform === 'casierie' ? 'Casierie (POS)' : 'Livrare'),
+                                                    status: o.order.status || 'delivered',
+                                                    stage: o.order.status || 'delivered'
+                                                } : undefined
                                             })
                                         }
                                     }
@@ -350,6 +361,230 @@ export class SalesSync {
             setTimeout(() => {
                 this.progress.isSyncing = false;
             }, 3000);
+        }
+    }
+
+    async syncLiveKiosksToday() {
+        try {
+            const apiKey = '124d0880f4b44717b69ee21d45fc2656';
+            const resAuth = await fetch('https://api-eu.syrve.live/api/1/access_token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ apiLogin: apiKey })
+            });
+            if (!resAuth.ok) return { success: false, error: 'Auth failed' };
+            const { token } = await resAuth.json();
+            if (!token) return { success: false, error: 'No token' };
+
+            const { data: rests } = await supabase
+                .from('restaurants')
+                .select('id, name, city, is_active, brand_id, iiko_restaurant_id, iiko_config, brands(name)')
+                .in('id', [
+                    '098d725e-5667-49e2-8e22-cff5db135584', // Smash Me Cluj (Smash Me)
+                    '93adc853-0aa8-4659-8156-8e4ebe1a04ee', // Smash Me Cluj (Crunch)
+                    '55e49e60-2395-4b5b-ad24-6c9248e80234', // Smash Me Constanta (Smash Me)
+                    '279e862d-9036-4843-9bcc-69580afe97e0'  // Smash Me Constanta (Crunch)
+                ]);
+
+            if (!rests || rests.length === 0) return { success: false, error: 'No restaurants' };
+
+            const now = new Date();
+            const roDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' });
+            const startToday = `${roDateStr} 00:00:00.000`;
+            const endToday = `${roDateStr} 23:59:59.999`;
+
+            const resDeliv = await fetch('https://api-eu.syrve.live/api/1/deliveries/by_delivery_date_and_status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    organizationIds: [
+                        '9c63cff6-1d66-442d-a98d-2302656e3943', // Cluj
+                        '8308e796-8780-4d18-ae66-4e430178c778'  // Constanta
+                    ],
+                    deliveryDateFrom: startToday,
+                    deliveryDateTo: endToday
+                })
+            });
+
+            if (!resDeliv.ok) return { success: false, error: 'Failed to fetch deliveries' };
+            const delivData = await resDeliv.json();
+            const orgOrdersArray = delivData.ordersByOrganizations || [];
+
+            const dbRows = [];
+
+            for (const r of rests) {
+                const orgId = r.iiko_restaurant_id || r.iiko_config?.organizationId;
+                const orgOrders = orgOrdersArray.find(o => o.organizationId === orgId);
+                if (!orgOrders) continue;
+
+                const rName = (r.name || '').toLowerCase();
+                const isCrunch = rName.includes('crunch');
+                const isSmashMe = rName.includes('smash me') && !isCrunch;
+
+                for (const o of (orgOrders.orders || [])) {
+                    const ord = o.order;
+                    if (!ord) continue;
+
+                    const rawSource = (ord.sourceKey || '').toLowerCase();
+                    const orderTypeName = (ord.orderType?.name || '').toLowerCase();
+                    const customerName = (ord.customer?.name || '').toLowerCase();
+                    const isKiosk = rawSource.includes('kiosk') || orderTypeName.includes('kiosk') || customerName.includes('kiosk');
+
+                    let platform = 'casierie';
+                    if (rawSource.includes('glovo')) platform = 'glovo';
+                    else if (rawSource.includes('wolt')) platform = 'wolt';
+                    else if (rawSource.includes('bolt')) platform = 'bolt';
+                    else if (isKiosk) platform = 'kiosk';
+
+                    let placed_at = ord.whenClosed || ord.whenCreated || o.timestamp || new Date().toISOString();
+                    if (typeof placed_at === 'string' && placed_at.includes(' ') && !placed_at.includes('T')) {
+                        placed_at = placed_at.replace(' ', 'T') + 'Z';
+                    }
+
+                    const baseId = o.id || ord.id || `ord_${ord.number}`;
+                    const uniqueOrderId = `${baseId}_${r.id}`;
+
+                    const items = [];
+                    let orderSum = 0;
+
+                    // Kiosk hardware belongs 100% to the Smash Me primary brand for this city.
+                    // Do NOT split/duplicate kiosk orders under Crunch!
+                    if (isKiosk && isCrunch) {
+                        continue;
+                    }
+
+                    const commentStr = (ord.comment || '').trim();
+                    let kioskTicket = null;
+                    const ticketMatch = commentStr.match(/Comanda\s+#([A-Za-z0-9\-_]+)/i);
+                    if (ticketMatch) {
+                        kioskTicket = ticketMatch[1];
+                    }
+                    const humanOrderNumber = kioskTicket || (ord.number ? String(ord.number) : (ord.externalNumber || null));
+
+                    let kioskId = null;
+                    const cUpper = commentStr.toUpperCase();
+                    if (customerName.includes('cj-1') || cUpper.includes('CJ-1') || cUpper.includes('CJ1A')) {
+                        kioskId = 'Kiosk Cluj 1';
+                    } else if (customerName.includes('cj-2') || cUpper.includes('CJ-2') || cUpper.includes('CJ2A')) {
+                        kioskId = 'Kiosk Cluj 2';
+                    } else if (customerName.includes('ct') || cUpper.includes('SMARTKIOSK CT') || cUpper.includes('CT-A')) {
+                        kioskId = 'Kiosk Constanța';
+                    } else if (isKiosk) {
+                        kioskId = 'Smart Kiosk';
+                    }
+
+                    const diningOption = cUpper.includes('LA MASĂ') || cUpper.includes('LA MASA') ? 'La Masă' : cUpper.includes('LA PACHET') ? 'La Pachet' : (isKiosk ? 'La Masă' : null);
+
+                    const hasCardPayment = (ord.payments || []).some(p => {
+                        const k = (p.paymentType?.kind || '').toLowerCase();
+                        const n = (p.paymentType?.name || '').toLowerCase();
+                        return k === 'card' || n.includes('card');
+                    });
+                    const hasCashPayment = (ord.payments || []).some(p => {
+                        const k = (p.paymentType?.kind || '').toLowerCase();
+                        const n = (p.paymentType?.name || '').toLowerCase();
+                        return k === 'cash' || n.includes('cash') || n.includes('numerar');
+                    });
+
+                    let isCard = false;
+                    let isCash = false;
+                    let paymentMethod = 'Card';
+
+                    if (cUpper.includes('NEPLĂTIT (CASH)') || cUpper.includes('NEPLATIT (CASH)') || hasCashPayment) {
+                        isCash = true;
+                        paymentMethod = 'Cash';
+                    } else if (cUpper.includes('PLĂTIT') || cUpper.includes('PLATIT') || hasCardPayment) {
+                        isCard = true;
+                        paymentMethod = 'Card';
+                    } else if (isKiosk) {
+                        isCard = true;
+                        paymentMethod = 'Card';
+                    }
+
+                    for (const it of (ord.items || [])) {
+                        const pName = (it.product?.name || '').toLowerCase();
+                        let matchesCategory = false;
+                        if (isKiosk) {
+                            // All products ordered on the kiosk belong to this kiosk ticket
+                            matchesCategory = true;
+                        } else if (isCrunch) {
+                            matchesCategory = pName.includes('wings') || pName.includes('tenders') || (pName.includes('crunch') && !pName.includes('oklahoma'));
+                        } else if (isSmashMe) {
+                            matchesCategory = !pName.includes('wings') && !pName.includes('tenders') && (!pName.includes('crunch') || pName.includes('oklahoma'));
+                        }
+
+                        if (matchesCategory) {
+                            let itemSum = it.resultSum || it.price || 0;
+                            if (Array.isArray(it.modifiers)) {
+                                for (const m of it.modifiers) {
+                                    itemSum += (m.resultSum || m.price || 0);
+                                }
+                            }
+                            itemSum = Math.round(itemSum * 100) / 100;
+                            orderSum += itemSum;
+                            items.push({
+                                product_name: it.product?.name,
+                                price: it.price,
+                                amount: it.amount,
+                                quantity: it.amount || 1,
+                                sum: itemSum,
+                                _order_meta: items.length === 0 ? {
+                                    orderNumber: humanOrderNumber,
+                                    customerName: ord.customer?.name || null,
+                                    customerPhone: ord.customer?.phone || ord.phone || null,
+                                    kioskId,
+                                    diningOption,
+                                    paymentMethod,
+                                    isCard,
+                                    isCash,
+                                    orderType: isKiosk ? (diningOption || 'Smart Kiosk') : (platform === 'casierie' ? 'Casierie (POS)' : 'Livrare'),
+                                    status: ord.status || 'delivered',
+                                    stage: ord.status || 'delivered',
+                                    comment: ord.comment || null
+                                } : undefined
+                            });
+                        }
+                    }
+
+                    if (isKiosk && ord.sum) {
+                        orderSum = Math.round(ord.sum * 100) / 100;
+                    } else if (ord.items && ord.items.length === items.length && ord.sum) {
+                        orderSum = Math.round(ord.sum * 100) / 100;
+                    } else {
+                        orderSum = Math.round(orderSum * 100) / 100;
+                    }
+
+                    if (items.length > 0) {
+                        dbRows.push({
+                            restaurant_id: r.id,
+                            order_id: uniqueOrderId,
+                            platform,
+                            total_amount: orderSum,
+                            placed_at,
+                            items
+                        });
+                    }
+                }
+            }
+
+            if (dbRows.length > 0) {
+                const uniqueMap = new Map();
+                for (const row of dbRows) {
+                    uniqueMap.set(row.order_id, row);
+                }
+                const uniqueRows = Array.from(uniqueMap.values());
+                const { error: insErr } = await supabase.from('platform_sales').upsert(uniqueRows, { onConflict: 'order_id' });
+                if (insErr) {
+                    console.error('[SalesSync] Fast Kiosk sync error:', insErr.message);
+                } else {
+                    console.log(`[SalesSync] Fast Kiosk sync: ${uniqueRows.length} orders updated for Cluj & Constanta.`);
+                }
+                return { success: true, count: uniqueRows.length };
+            }
+            return { success: true, count: 0 };
+        } catch (e) {
+            console.error('[SalesSync] Fast Kiosk sync exception:', e.message);
+            return { success: false, error: e.message };
         }
     }
 }

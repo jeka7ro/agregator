@@ -198,17 +198,90 @@ export default function Reports() {
   const [activeTab, setActiveTab] = useState('analytics')
 
   // Period Selector for Analytics
-  const [period, setPeriod] = useState('this_week')
+  const [period, setPeriod] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('period')
+      if (p) return p
+    } catch (_) {}
+    return 'this_week'
+  })
   const [analyticsData, setAnalyticsData] = useState(null)
   const [loadingAnalytics, setLoadingAnalytics] = useState(true)
 
   // Cross-Filter States
-  const [filterCity, setFilterCity] = useState(null)
-  const [filterBrand, setFilterBrand] = useState(null)
-  const [filterChannel, setFilterChannel] = useState(null)
+  const [filterCity, setFilterCity] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('city')
+      if (p && p !== 'all') return p
+    } catch (_) {}
+    return null
+  })
+  const [filterBrand, setFilterBrand] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('brand')
+      if (p && p !== 'all') return p
+    } catch (_) {}
+    return null
+  })
+  const [filterChannel, setFilterChannel] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('channel')
+      if (p && p !== 'all') return p
+    } catch (_) {}
+    return null
+  })
   const [filterWorkpoint, setFilterWorkpoint] = useState(null)
   const [filterSlot, setFilterSlot] = useState(null) // { day, hour }
   const [hoveredHeatCell, setHoveredHeatCell] = useState(null)
+
+  const updateUrlFilter = (key, value) => {
+    try {
+      const url = new URL(window.location.href)
+      if (value && value !== 'all') {
+        url.searchParams.set(key, value)
+      } else {
+        url.searchParams.delete(key)
+      }
+      window.history.replaceState({}, '', url.toString())
+    } catch (_) {}
+  }
+
+  const handleSetBrand = (b) => {
+    setFilterBrand(b)
+    updateUrlFilter('brand', b)
+  }
+
+  const handleSetCity = (c) => {
+    setFilterCity(c)
+    updateUrlFilter('city', c)
+  }
+
+  const handleSetChannel = (ch) => {
+    setFilterChannel(ch)
+    updateUrlFilter('channel', ch)
+  }
+
+  const handleSetPeriod = (p) => {
+    setPeriod(p)
+    updateUrlFilter('period', p)
+  }
+
+  useEffect(() => {
+    const onPopState = () => {
+      try {
+        const pPeriod = new URLSearchParams(window.location.search).get('period')
+        if (pPeriod) setPeriod(pPeriod)
+        const pCity = new URLSearchParams(window.location.search).get('city')
+        setFilterCity(pCity && pCity !== 'all' ? pCity : null)
+        const pBrand = new URLSearchParams(window.location.search).get('brand')
+        setFilterBrand(pBrand && pBrand !== 'all' ? pBrand : null)
+        const pChannel = new URLSearchParams(window.location.search).get('channel')
+        setFilterChannel(pChannel && pChannel !== 'all' ? pChannel : null)
+      } catch (_) {}
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
 
   // Search in workpoints
   const [searchWorkpoint, setSearchWorkpoint] = useState('')
@@ -365,6 +438,13 @@ export default function Reports() {
     setFilterChannel(null)
     setFilterWorkpoint(null)
     setFilterSlot(null)
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('city')
+      url.searchParams.delete('brand')
+      url.searchParams.delete('channel')
+      window.history.replaceState({}, '', url.toString())
+    } catch (_) {}
   }
 
   // Export CSV for Audit Logs
@@ -421,7 +501,7 @@ export default function Reports() {
   }
 
   return (
-    <div className="flex flex-col h-full w-full space-y-6 max-w-[1600px] mx-auto pb-12">
+    <div className="flex flex-col h-full w-full space-y-6 pb-12">
       
       {/* Top Header & Master Switchers */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-2 border-b border-slate-200/80 dark:border-slate-800">
@@ -501,7 +581,7 @@ export default function Reports() {
               ].map(p => (
                 <button
                   key={p.key}
-                  onClick={() => setPeriod(p.key)}
+                  onClick={() => handleSetPeriod(p.key)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
                     period === p.key
                       ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
@@ -534,19 +614,19 @@ export default function Reports() {
               {filterCity && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold bg-indigo-600 text-white whitespace-nowrap">
                   {t('reports.filter_city_label', 'Oraș')}: {filterCity}
-                  <button onClick={() => setFilterCity(null)} className="hover:opacity-75"><X size={12} /></button>
+                  <button onClick={() => handleSetCity(null)} className="hover:opacity-75"><X size={12} /></button>
                 </span>
               )}
               {filterBrand && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold bg-emerald-600 text-white whitespace-nowrap">
                   {t('reports.filter_brand_label', 'Brand')}: {filterBrand}
-                  <button onClick={() => setFilterBrand(null)} className="hover:opacity-75"><X size={12} /></button>
+                  <button onClick={() => handleSetBrand(null)} className="hover:opacity-75"><X size={12} /></button>
                 </span>
               )}
               {filterChannel && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold bg-amber-500 text-white whitespace-nowrap">
                   {t('reports.filter_channel_label', 'Canal')}: {filterChannel.toUpperCase()}
-                  <button onClick={() => setFilterChannel(null)} className="hover:opacity-75"><X size={12} /></button>
+                  <button onClick={() => handleSetChannel(null)} className="hover:opacity-75"><X size={12} /></button>
                 </span>
               )}
               {filterSlot && (
@@ -780,7 +860,7 @@ export default function Reports() {
                         {t('reports.donut_channels', 'Distribuție Canale & Kiosk-uri')}
                       </span>
                       {filterChannel && (
-                        <button onClick={() => setFilterChannel(null)} className="text-xs font-bold text-rose-500 hover:underline shrink-0 whitespace-nowrap">
+                        <button onClick={() => handleSetChannel(null)} className="text-xs font-bold text-rose-500 hover:underline shrink-0 whitespace-nowrap">
                           {t('reports.clear_filters', 'Reset')}
                         </button>
                       )}
@@ -796,7 +876,7 @@ export default function Reports() {
                       color: ch.color || '#3B82F6'
                     }))}
                     activeKey={filterChannel}
-                    onSelect={(k) => setFilterChannel(k)}
+                    onSelect={(k) => handleSetChannel(k)}
                     centerTitle={t('reports.donut_center_orders', 'Total Comenzi')}
                     centerValue={(analyticsData?.totals?.totalOrders || 0).toLocaleString(localeCode)}
                     isDark={isDark}
@@ -812,7 +892,7 @@ export default function Reports() {
                         {t('reports.donut_brands', 'Distribuție Branduri')}
                       </span>
                       {filterBrand && (
-                        <button onClick={() => setFilterBrand(null)} className="text-xs font-bold text-rose-500 hover:underline shrink-0 whitespace-nowrap">
+                        <button onClick={() => handleSetBrand(null)} className="text-xs font-bold text-rose-500 hover:underline shrink-0 whitespace-nowrap">
                           {t('reports.clear_filters', 'Reset')}
                         </button>
                       )}
@@ -828,7 +908,7 @@ export default function Reports() {
                       color: b.color || '#10B981'
                     }))}
                     activeKey={filterBrand}
-                    onSelect={(k) => setFilterBrand(k)}
+                    onSelect={(k) => handleSetBrand(k)}
                     centerTitle={t('reports.donut_center_sales', 'Total Vânzări')}
                     centerValue={`${Math.round((analyticsData?.totals?.totalRevenue || 0) / 1000)}k RON`}
                     isDark={isDark}
@@ -844,7 +924,7 @@ export default function Reports() {
                         {t('reports.bar_cities', 'Top Orașe & Hub-uri')}
                       </span>
                       {filterCity && (
-                        <button onClick={() => setFilterCity(null)} className="text-xs font-bold text-rose-500 hover:underline shrink-0 whitespace-nowrap">
+                        <button onClick={() => handleSetCity(null)} className="text-xs font-bold text-rose-500 hover:underline shrink-0 whitespace-nowrap">
                           {t('reports.clear_filters', 'Reset')}
                         </button>
                       )}
@@ -861,7 +941,7 @@ export default function Reports() {
                       return (
                         <button
                           key={ct.city}
-                          onClick={() => setFilterCity(isSelected ? null : ct.city)}
+                          onClick={() => handleSetCity(isSelected ? null : ct.city)}
                           className={`w-full text-left p-2.5 rounded-2xl transition-all border ${
                             isSelected 
                               ? 'bg-rose-50/80 dark:bg-rose-950/40 border-rose-300 dark:border-rose-700 shadow-xs'

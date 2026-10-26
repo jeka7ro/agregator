@@ -3,7 +3,7 @@ import { useLiveChecks } from '../hooks/useLiveChecks'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
 import { AlertOctagon, TrendingDown, Clock, ExternalLink, Loader2, AlertCircle, CheckCircle2, X, Check } from 'lucide-react'
-import BrandAvatar, { cleanRestaurantName } from '../components/BrandAvatar'
+import BrandAvatar, { cleanRestaurantName, getBrandInfo } from '../components/BrandAvatar'
 import PlatformLogo from '../components/PlatformLogo'
 import { getApiUrl } from '../lib/api'
 
@@ -13,6 +13,34 @@ export default function Alerts() {
   const { isDark } = useTheme()
   const { t, language } = useLanguage()
   const { restaurants, checks, loading } = useLiveChecks()
+
+  const [filterBrand, setFilterBrand] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('brand')
+      if (p && p !== 'all') return p
+    } catch (_) {}
+    return 'all'
+  })
+  const [filterCity, setFilterCity] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('city')
+      if (p && p !== 'all') return p
+    } catch (_) {}
+    return 'all'
+  })
+
+  useEffect(() => {
+    const onPopState = () => {
+      try {
+        const pBrand = new URLSearchParams(window.location.search).get('brand')
+        setFilterBrand(pBrand || 'all')
+        const pCity = new URLSearchParams(window.location.search).get('city')
+        setFilterCity(pCity || 'all')
+      } catch (_) {}
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
 
   const [activeTab, setActiveTab] = useState('active') // 'active' | 'resolved'
   const [resolvedIncidentIds, setResolvedIncidentIds] = useState(() => {
@@ -56,6 +84,14 @@ export default function Alerts() {
       if (st === 'error' || st === 'closed' || st === 'unavailable') {
         const r = restaurants.find(res => res.id === c.restaurant_id)
         if (r && r.is_active) {
+          if (filterBrand !== 'all') {
+            const bInfo = getBrandInfo(r)
+            if (bInfo.name.toLowerCase() !== filterBrand.toLowerCase()) return
+          }
+          if (filterCity !== 'all') {
+            if (!r.city || !r.city.toLowerCase().includes(filterCity.toLowerCase())) return
+          }
+
           const checkTime = c.checked_at ? new Date(c.checked_at).getTime() : Date.now()
           const downtimeMins = Math.max(15, Math.round((Date.now() - checkTime) / 60000))
           const rate = Number(r.revenue_per_hour) || HOURLY_LOSS_RATE
@@ -90,7 +126,7 @@ export default function Alerts() {
     rawActiveAlerts.sort((a, b) => b.estimatedLoss - a.estimatedLoss)
 
     return { activeAlerts: rawActiveAlerts, totalEstimatedLoss, totalDowntimeMinutes }
-  }, [restaurants, checks, resolvedIncidentIds, t])
+  }, [restaurants, checks, resolvedIncidentIds, filterBrand, filterCity, t])
 
   // Handle resolve incident
   const handleConfirmResolve = async (e) => {
@@ -157,10 +193,35 @@ export default function Alerts() {
     <div className="flex flex-col h-full w-full space-y-6">
       
       {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-          {t('alerts.title')}
-        </h2>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+            {t('alerts.title')}
+          </h2>
+        </div>
+        {(filterBrand !== 'all' || filterCity !== 'all') && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-500">
+              {filterBrand !== 'all' ? filterBrand : ''} {filterCity !== 'all' ? `(${filterCity})` : ''}
+            </span>
+            <button
+              onClick={() => {
+                setFilterBrand('all')
+                setFilterCity('all')
+                try {
+                  const url = new URL(window.location.href)
+                  url.searchParams.delete('brand')
+                  url.searchParams.delete('city')
+                  window.history.replaceState({}, '', url.toString())
+                } catch (_) {}
+              }}
+              className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center gap-1 transition-all"
+            >
+              <X size={12} />
+              <span>{t('common.all_brands', 'Toate')}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* KPI Cards */}

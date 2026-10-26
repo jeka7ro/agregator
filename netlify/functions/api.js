@@ -71,6 +71,184 @@ function cleanKioskOrderNumber(orderNum, orderId, platform = '') {
   return val
 }
 
+// ─── HELPER: Canonical Romanian City Normalization ───
+function getCanonicalCity(cityName = '') {
+  if (!cityName) return ''
+  const c = cityName.trim().toUpperCase()
+
+  // Cluj-Napoca (unify Cluj & Cluj-Napoca)
+  if (c.includes('CLUJ')) return 'CLUJ-NAPOCA'
+
+  // București (unify all BUC locations, neighborhoods, and variations)
+  if (
+    c.includes('BUC') ||
+    c.includes('BUCHAREST') ||
+    c === 'TITAN' ||
+    c === 'UNIRII' ||
+    c === 'CEAIKOVSKI' ||
+    c === 'CORA' ||
+    c === 'URESTI' ||
+    c === 'HAREST'
+  ) {
+    return 'BUCURESTI'
+  }
+
+  // Iași (unify IASI, IASI#1, IASI#2)
+  if (c.includes('IASI') || c.includes('IAȘI')) return 'IASI'
+
+  // Sibiu (unify SM SIBIU, Sibiu)
+  if (c.includes('SIBIU')) return 'SIBIU'
+
+  // Brașov
+  if (c.includes('BRASOV') || c.includes('BRAȘOV')) return 'BRASOV'
+
+  // Timișoara
+  if (c.includes('TIMISOARA') || c.includes('TIMIȘOARA')) return 'TIMISOARA'
+
+  // Constanța
+  if (c.includes('CONSTANTA') || c.includes('CONSTANȚA')) return 'CONSTANTA'
+
+  // Craiova
+  if (c.includes('CRAIOVA')) return 'CRAIOVA'
+
+  // Galați
+  if (c.includes('GALATI') || c.includes('GALAȚI')) return 'GALATI'
+
+  // Brăila
+  if (c.includes('BRAILA') || c.includes('BRĂILA')) return 'BRAILA'
+
+  // Suceava
+  if (c.includes('SUCEAVA')) return 'SUCEAVA'
+
+  // Bacău
+  if (c.includes('BACAU') || c.includes('BACĂU')) return 'BACAU'
+
+  // Pitești
+  if (c.includes('PITESTI') || c.includes('PITEȘTI')) return 'PITESTI'
+
+  // Ploiești
+  if (c.includes('PLOIESTI') || c.includes('PLOIEȘTI')) return 'PLOIESTI'
+
+  // Arad
+  if (c.includes('ARAD')) return 'ARAD'
+
+  // Oradea
+  if (c.includes('ORADEA')) return 'ORADEA'
+
+  // Baia Mare
+  if (c.includes('BAIA MARE') || c.includes('BAIA-MARE')) return 'BAIA MARE'
+
+  // Târgu Mureș
+  if (c.includes('MURES') || c.includes('MUREȘ')) return 'TARGU MURES'
+
+  // Buzău
+  if (c.includes('BUZAU') || c.includes('BUZĂU')) return 'BUZAU'
+
+  // Botoșani
+  if (c.includes('BOTOSANI') || c.includes('BOTOȘANI')) return 'BOTOSANI'
+
+  // Piatra Neamț
+  if (c.includes('NEAMT') || c.includes('NEAMȚ')) return 'PIATRA NEAMT'
+
+  return c
+}
+
+function detectBrandFromItems(items, rawRest) {
+  const itemNames = (items || []).map(i => (i.product_name || i.name || i.title || '').trim())
+  const allText = itemNames.join(' ').toLowerCase()
+
+  // 1. Explicit Syrve PW_ prefix -> Poki Woki 100%
+  if (itemNames.some(n => n.startsWith('PW_') || n.toLowerCase().startsWith('pw '))) {
+    return 'Poki Woki'
+  }
+
+  // 2. Explicit Roll Master prefix/name
+  if (itemNames.some(n => n.startsWith('P_RollMaster') || n.toLowerCase().includes('rollmaster') || n.toLowerCase().includes('sushimaster'))) {
+    return 'Roll Master'
+  }
+
+  // 3. Explicit Love Sushi
+  if (itemNames.some(n => n.startsWith('WLS_') || n.startsWith('P_Love') || n.toLowerCase().includes('phila love') || n.toLowerCase().includes('love sushi'))) {
+    return 'Love Sushi'
+  }
+
+  // 4. Poki Woki noodles / poke / wok / funchoza / udon
+  if (allText.includes('wok ') || allText.includes('poke ') || allText.includes('funchoza') || allText.includes('udon') || allText.includes('soba') || allText.includes('edamame')) {
+    return 'Poki Woki'
+  }
+
+  // 5. Roll Master sushi items (sushi / roll / maki / nigiri / tempura / ramen / etc., including 'P_Sushi Burger Somon')
+  if (allText.includes('sushi') || allText.includes('maki') || allText.includes('nigiri') || allText.includes('tempura') || allText.includes('ramen') || allText.includes('roll') || allText.includes('gunkan') || allText.includes('philadelphia') || allText.includes('teriyaki')) {
+    return 'Roll Master'
+  }
+
+  // 6. Smash Me burgers / items (Oklahoma Crunch, Spicy Jalapeno, Smash Burger, etc.)
+  if (allText.includes('oklahoma') || allText.includes('jalapeno') || allText.includes('smash') || allText.includes('cheeseburger') || allText.includes('cheesburger') || allText.includes('milkshake') || allText.includes('big tasty') || allText.includes('chilli mayo') || allText.includes('cajun')) {
+    return 'Smash Me'
+  }
+
+  // 7. Crunch (Crispy chicken - NOT 'crunchy' sushi rolls or 'oklahoma crunch' smash burger!)
+  if (allText.includes('crispy wings') || allText.includes('crispy strips') || allText.includes('crunch tenders') || allText.includes('crunch box') || allText.includes('crunch bucket') || allText.includes('chicken ranch') || allText.includes('chicken nuggets') || allText.includes('bbq cheese chicken') || allText.includes('c_sos') || (allText.includes('crunch') && !allText.includes('crunchy') && !allText.includes('oklahoma'))) {
+    return 'Crunch'
+  }
+
+  // 8. Any remaining P_ prefix item -> Roll Master
+  if (itemNames.some(n => n.startsWith('P_'))) {
+    return 'Roll Master'
+  }
+
+  // 9. Fallback to restaurant brand from DB
+  const dbBrand = rawRest?.brands?.name
+  if (dbBrand) {
+    if (dbBrand.toLowerCase().includes('sushi master')) return 'Roll Master'
+    if (dbBrand.toLowerCase().includes('ikura')) return 'Poki Woki'
+    return dbBrand
+  }
+  const rLower = (rawRest?.name || '').toLowerCase()
+  if (rLower.includes('poki') || rLower.includes('woki') || rLower.includes('ikura')) return 'Poki Woki'
+  if (rLower.includes('love sushi') || rLower.includes('wls')) return 'Love Sushi'
+  if (rLower.includes('crunch')) return 'Crunch'
+  if (rLower.includes('smash')) return 'Smash Me'
+  return 'Roll Master'
+}
+
+function resolveMatchingRestaurant(allRests, rawRest, detectedBrand, canonicalCity) {
+  if (!canonicalCity && rawRest) {
+    canonicalCity = getCanonicalCity(rawRest.city || rawRest.name)
+  }
+  if (!canonicalCity) return rawRest
+
+  const brandLower = (detectedBrand || '').toLowerCase()
+  const match = (allRests || []).find(r => {
+    const rCity = getCanonicalCity(r.city || r.name)
+    if (rCity !== canonicalCity) return false
+    const bName = (r.brands?.name || '').toLowerCase()
+    const rName = (r.name || '').toLowerCase()
+    if (brandLower === 'roll master') {
+      return bName.includes('roll master') || bName.includes('sushi master') || rName.includes('roll master') || rName.includes('sushi master')
+    }
+    if (brandLower === 'poki woki') {
+      return bName.includes('poki') || bName.includes('woki') || bName.includes('ikura') || rName.includes('poki') || rName.includes('woki') || rName.includes('ikura')
+    }
+    if (brandLower === 'love sushi') {
+      return bName.includes('love') || bName.includes('wls') || rName.includes('love') || rName.includes('wls')
+    }
+    if (brandLower === 'smash me') {
+      if (bName === 'smash me') return true
+      if (rName.includes('smash') && !rName.includes('crunch')) return true
+      return false
+    }
+    if (brandLower === 'crunch') {
+      if (bName === 'crunch') return true
+      if (rName.includes('crunch')) return true
+      return false
+    }
+    return false
+  })
+
+  return match || rawRest
+}
+
 export default async (req, context) => {
   if (req.method === 'OPTIONS') {
     return new Response('', { status: 204, headers: CORS_HEADERS })
@@ -84,6 +262,92 @@ export default async (req, context) => {
   if (!path.startsWith('/')) path = '/' + path
 
   try {
+    // ─── DEDICATED CUSTOMER COMPLAINT & BOT SUPPORT ENDPOINT ───
+    if (path === '/complaints' || path === '/support/ticket' || path === '/webhooks/bot-complaints') {
+      if (req.method !== 'POST') {
+        return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: CORS_HEADERS })
+      }
+      const body = await req.json().catch(() => ({}))
+      const orderNum = body.order_number || body.orderNumber || body.orderId || body.order_id
+      const cleanNum = orderNum ? cleanKioskOrderNumber(orderNum, body.order_id, 'complaint') : null
+      const phone = body.phone || body.customer_phone || body.customerPhone || ''
+      const custName = body.customer_name || body.customerName || body.name || 'Client'
+      const issueType = body.issue_type || body.issueType || 'SESIZARE_CLIENT'
+      const issueTitle = body.issue_title || body.issueTitle || 'Sesizare client (Bot/Site)'
+      const issueDesc = body.issue_description || body.issueDescription || body.description || body.text || body.message || 'Problemă semnalată'
+      const source = body.source || 'bot'
+
+      const complaintObj = {
+        type: issueType,
+        title: issueTitle,
+        description: issueDesc,
+        source,
+        customer_name: custName,
+        customer_phone: phone,
+        reported_at: new Date().toISOString()
+      }
+
+      let matchedOrder = null
+      if (cleanNum) {
+        const searchIds = [cleanNum, `#${cleanNum}`, `kiosk_${cleanNum}`, String(orderNum)]
+        const { data: rows } = await supabase
+          .from('platform_sales')
+          .select('*')
+          .in('order_id', searchIds)
+          .order('placed_at', { ascending: false })
+          .limit(1)
+        if (rows && rows.length > 0) matchedOrder = rows[0]
+      }
+
+      if (!matchedOrder && phone) {
+        const cleanPhone = phone.replace(/[^0-9]/g, '')
+        if (cleanPhone.length >= 8) {
+          const { data: recentOrders } = await supabase
+            .from('platform_sales')
+            .select('*')
+            .order('placed_at', { ascending: false })
+            .limit(50)
+          matchedOrder = (recentOrders || []).find(o => {
+            const meta = (o.items || [])[0]?._order_meta || {}
+            const oPhone = (meta.customer?.phone || meta.phone || '').replace(/[^0-9]/g, '')
+            return oPhone && (oPhone.includes(cleanPhone) || cleanPhone.includes(oPhone))
+          })
+        }
+      }
+
+      if (matchedOrder) {
+        const items = Array.isArray(matchedOrder.items) ? [...matchedOrder.items] : []
+        if (items.length > 0) {
+          const currentMeta = items[0]._order_meta || {}
+          items[0]._order_meta = {
+            ...currentMeta,
+            problem: complaintObj,
+            customer: {
+              name: custName || currentMeta.customer?.name || 'Client',
+              phone: phone || currentMeta.customer?.phone || '',
+              address: currentMeta.customer?.address || ''
+            },
+            last_complaint_at: new Date().toISOString()
+          }
+          await supabase.from('platform_sales').update({ items }).eq('id', matchedOrder.id)
+        }
+        return new Response(JSON.stringify({
+          success: true,
+          order_matched: true,
+          order_id: matchedOrder.order_id,
+          message: 'Sesizarea a fost atașată comenzii în dispecerat.',
+          complaint: complaintObj
+        }), { status: 200, headers: CORS_HEADERS })
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        order_matched: false,
+        message: 'Sesizarea a fost recepționată în dispecerat.',
+        complaint: complaintObj
+      }), { status: 200, headers: CORS_HEADERS })
+    }
+
     // 1. Reports / Verifications
     if (path === '/reports/verifications') {
       const page = parseInt(url.searchParams.get('page') || '1')
@@ -287,90 +551,113 @@ export default async (req, context) => {
       }), { status: 200, headers: CORS_HEADERS })
     }
 
+    // Helper to compute exact elapsed minutes using Europe/Bucharest wall-clock time
+    function getOrderElapsedMinutes(placedAt, createdAt) {
+      if (!placedAt && !createdAt) return 0
+      try {
+        const bucNowStr = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Bucharest' })
+        const bucNowMs = new Date(bucNowStr.replace(' ', 'T') + 'Z').getTime()
+
+        let orderWallClockMs = 0
+        if (placedAt) {
+          const cleanStr = String(placedAt).slice(0, 19).replace(' ', 'T')
+          orderWallClockMs = new Date(cleanStr + 'Z').getTime()
+        }
+
+        if (!orderWallClockMs || isNaN(orderWallClockMs)) {
+          if (createdAt) {
+            return Math.max(0, Math.round((Date.now() - new Date(createdAt).getTime()) / 60000))
+          }
+          return 0
+        }
+
+        const diffMs = bucNowMs - orderWallClockMs
+        return Math.max(0, Math.round(diffMs / 60000))
+      } catch (_) {
+        return 0
+      }
+    }
+
     // ─── MANAGER OPERATIONAL LIVE DISPATCH ───
     if (path === '/dispatch/live') {
       const cityFilter = url.searchParams.get('city')
       const brandFilter = url.searchParams.get('brand')
       const restaurantFilter = url.searchParams.get('restaurant_id')
-      const limit = parseInt(url.searchParams.get('limit') || '150')
+      const channelFilter = url.searchParams.get('channel')
+      const periodFilter = url.searchParams.get('period') || 'today'
+      const limit = parseInt(url.searchParams.get('limit') || '3000')
 
-      let restQuery = supabase
+      const now = new Date()
+      const roDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
+      const [yStr, mStr, dStr] = roDateStr.split('-')
+      const y = parseInt(yStr, 10)
+      const m = parseInt(mStr, 10) - 1
+      const d = parseInt(dStr, 10)
+
+      let startDate = null
+      let endDate = null
+      if (periodFilter === 'today') {
+        startDate = `${roDateStr}T00:00:00.000Z`
+        endDate = `${roDateStr}T23:59:59.999Z`
+      } else if (periodFilter === 'yesterday') {
+        const yDate = new Date(y, m, d - 1)
+        const pad = (n) => String(n).padStart(2, '0')
+        const yDateStr = `${yDate.getFullYear()}-${pad(yDate.getMonth() + 1)}-${pad(yDate.getDate())}`
+        startDate = `${yDateStr}T00:00:00.000Z`
+        endDate = `${yDateStr}T23:59:59.999Z`
+      }
+
+      const { data: allRests, error: rErr } = await supabase
         .from('restaurants')
-        .select('id, name, city, address, brand_id, glovo_url, wolt_url, bolt_url, iiko_restaurant_id, brands(name, logo_url)')
-        .eq('is_active', true)
+        .select('id, name, city, address, brand_id, glovo_url, wolt_url, bolt_url, iiko_restaurant_id, is_active, brands(name, logo_url)')
 
-      if (cityFilter && cityFilter !== 'all') {
-        restQuery = restQuery.ilike('city', `%${cityFilter}%`)
-      }
-      if (restaurantFilter && restaurantFilter !== 'all') {
-        restQuery = restQuery.eq('id', restaurantFilter)
-      }
-
-      const { data: rests, error: rErr } = await restQuery
       if (rErr) throw rErr
+
+      const targetCityCanon = cityFilter && cityFilter !== 'all' ? getCanonicalCity(cityFilter) : null
 
       const restMap = {}
       const validRestIds = new Set()
-      ;(rests || []).forEach(r => {
+      ;(allRests || []).forEach(r => {
         restMap[r.id] = r
-        validRestIds.add(r.id)
+        if (!targetCityCanon || getCanonicalCity(r.city || r.name) === targetCityCanon) {
+          if (!restaurantFilter || restaurantFilter === 'all' || r.id === restaurantFilter) {
+            validRestIds.add(r.id)
+          }
+        }
       })
 
-      const { data: rawOrders, error: oErr } = await supabase
-        .from('platform_sales')
-        .select('*')
-        .order('placed_at', { ascending: false })
-        .limit(limit * 2)
+      const targetLimit = (periodFilter === 'today' || periodFilter === 'yesterday')
+        ? Math.max(limit, 3500)
+        : Math.min(Math.max(limit, 1000), 4000)
 
-      if (oErr) throw oErr
+      let rawOrders = []
+      const chunkSize = 1000
+      let fromOffset = 0
 
-      const mockCustomers = [
-        { name: 'Andrei Popescu', phone: '+40 722 341 890', address: 'Str. Memorandumului 14, Cluj-Napoca' },
-        { name: 'Elena Ionescu', phone: '+40 745 612 003', address: 'B-dul 21 Decembrie 1989, nr. 42' },
-        { name: 'Radu Mihalcea', phone: '+40 733 908 122', address: 'Str. Horea 18, ap. 6' },
-        { name: 'Cristina Dumitru', phone: '+40 766 543 219', address: 'Str. Dorobanților 74' },
-        { name: 'Vlad Moldovan', phone: '+40 721 876 543', address: 'Str. Observatorului 109, bloc C1' },
-        { name: 'Diana Gheorghiu', phone: '+40 754 112 390', address: 'Str. Teodor Mihali 38' },
-        { name: 'Alexandru Stan', phone: '+40 740 981 223', address: 'Calea Florești 56, ap. 12' },
-        { name: 'Ioana Tudor', phone: '+40 729 455 678', address: 'Str. Republicii 25' }
-      ]
+      while (fromOffset < targetLimit) {
+        const currentChunkSize = Math.min(chunkSize, targetLimit - fromOffset)
+        let salesQuery = supabase
+          .from('platform_sales')
+          .select('*')
+          .order('placed_at', { ascending: false })
+          .range(fromOffset, fromOffset + currentChunkSize - 1)
 
-      const mockCouriers = [
-        { name: 'Vasile M.', phone: '+40 751 220 918', company: 'Glovo Courier', awb: 'GLV-RO-' },
-        { name: 'Marius T.', phone: '+40 742 889 104', company: 'Wolt Partner', awb: 'WLT-RO-' },
-        { name: 'Bogdan S.', phone: '+40 730 654 321', company: 'Bolt Food Courier', awb: 'BLT-RO-' },
-        { name: 'Florin D.', phone: '+40 769 112 450', company: 'Livrator Propriu', awb: 'INT-RO-' }
-      ]
-
-      const issuePool = [
-        { type: 'DELAY', label: 'Întârziere livrare', text: 'Clientul a scris în botul de pe site că livrarea depășește 40 min' },
-        { type: 'MISSING_ITEM', label: 'Lipsă sos / tacâmuri', text: 'Sesizare bot suport: Lipsește sosul sweet-chilli și bețișoarele' },
-        { type: 'COURIER_DELAY', label: 'Curier întârziat', text: 'Curierul nu a ridicat comanda de 18 min deși preparatul este gata' },
-        { type: 'ADDRESS', label: 'Problemă adresă', text: 'Clientul a transmis că interfonul este defect și sună la sosire' }
-      ]
-
-      function resolveBrand(rest, rName, items, orderId = '', platform = '') {
-        const allItemsText = (items || []).map(it => it.product_name || it.name || '').join(' ').toLowerCase()
-        const pLower = (platform || '').toLowerCase()
-        const idLower = (orderId || '').toLowerCase()
-
-        if (pLower.includes('kiosk') || idLower.includes('kiosk') || allItemsText.includes('smash burger') || allItemsText.includes('milkshake')) {
-          return 'Smash Me'
+        if (validRestIds.size > 0 && ((cityFilter && cityFilter !== 'all') || (restaurantFilter && restaurantFilter !== 'all'))) {
+          salesQuery = salesQuery.in('restaurant_id', Array.from(validRestIds))
         }
-        let b = rest?.brands?.name
-        if (b) {
-          if (b.toLowerCase().includes('sushi master')) return 'Roll Master'
-          return b
+
+        if (startDate) salesQuery = salesQuery.gte('placed_at', startDate)
+        if (endDate) salesQuery = salesQuery.lte('placed_at', endDate)
+
+        const { data, error: oErr } = await salesQuery
+        if (oErr) {
+          console.warn('[Netlify DispatchLive] Warning at offset', fromOffset, ':', oErr.message)
+          break
         }
-        const rLower = (rName || '').toLowerCase()
-        if (rLower.includes('poki') || rLower.includes('woki') || rLower.includes('ikura')) return 'Poki Woki'
-        if (rLower.includes('roll master') || rLower.includes('sushi master') || rLower.includes('roll') || rLower.includes('master')) return 'Roll Master'
-        if (rLower.includes('love sushi') || rLower.includes('wls')) return 'Love Sushi'
-        if (rLower.includes('smash')) return 'Smash Me'
-        if (rLower.includes('crunch')) return 'Crunch'
-        if (allItemsText.includes('poke') || allItemsText.includes('poki') || allItemsText.includes('ramen')) return 'Poki Woki'
-        if (allItemsText.includes('love sushi') || allItemsText.includes('phila love')) return 'Love Sushi'
-        return 'Roll Master'
+        if (!data || data.length === 0) break
+        rawOrders = rawOrders.concat(data)
+        if (data.length < currentChunkSize) break
+        fromOffset += data.length
       }
 
       const enrichedOrders = []
@@ -378,6 +665,10 @@ export default async (req, context) => {
 
       let totalSalesToday = 0
       let todayOrdersCount = 0
+      let kioskCount = 0
+      let casierieCount = 0
+      let aggregatorsCount = 0
+      let ownDeliveryCount = 0
       let activeInKitchenCount = 0
       let waitingCourierCount = 0
       let onWayCount = 0
@@ -390,21 +681,38 @@ export default async (req, context) => {
       const totalTimes = []
 
       for (const o of (rawOrders || [])) {
-        const rest = restMap[o.restaurant_id] || (rests || []).find(r => r.id === o.restaurant_id)
-        if (!rest && validRestIds.size > 0 && !validRestIds.has(o.restaurant_id)) {
+        const rawRest = restMap[o.restaurant_id] || (allRests || []).find(r => r.id === o.restaurant_id)
+        const meta = (o.items || [])[0]?._order_meta || {}
+        const cityCanon = getCanonicalCity(rawRest?.city || o.restaurant_city || rawRest?.name || meta.city || meta.conception || '')
+
+        if (validRestIds.size > 0 && !validRestIds.has(o.restaurant_id)) {
           if (cityFilter && cityFilter !== 'all') continue
           if (restaurantFilter && restaurantFilter !== 'all') continue
         }
+        if (targetCityCanon && cityCanon !== targetCityCanon) {
+          continue
+        }
 
-        const rName = rest?.name || o.restaurant_name || 'Restaurant'
-        const bName = resolveBrand(rest, rName, o.items || [], o.order_id, o.platform)
+        const bName = detectBrandFromItems(o.items || [], rawRest)
 
         if (brandFilter && brandFilter !== 'all' && bName !== brandFilter) {
           continue
         }
 
-        const orderDate = new Date(o.placed_at || o.created_at || now)
-        const elapsedMin = Math.max(1, Math.round((now - orderDate.getTime()) / 60000))
+        const resolvedRest = resolveMatchingRestaurant(allRests, rawRest, bName, cityCanon)
+        const displayCity = cityCanon || 'General'
+        const displayRestaurantName = resolvedRest?.name || rawRest?.name || (displayCity !== 'General' ? `${displayCity} (${bName})` : `Restaurant (${bName})`)
+        const brandLogo = resolvedRest?.brands?.logo_url || rawRest?.brands?.logo_url || null
+
+        const elapsedMin = getOrderElapsedMinutes(o.placed_at, o.created_at)
+
+        const meta = (o.items || [])[0]?._order_meta || {}
+        const orderNum = cleanKioskOrderNumber(meta.orderNumber, o.order_id, o.platform)
+
+        const rawPlat = (o.platform || '').toLowerCase().trim()
+        const isKioskPlat = rawPlat.includes('kiosk') || rawPlat === 'kitchen'
+        const isCasieriePlat = rawPlat === 'casierie' || rawPlat === 'in-store' || rawPlat === 'pos' || rawPlat === 'restaurant'
+        const isInRestaurant = isKioskPlat || isCasieriePlat
 
         let stage = 'delivered'
         let stageLabel = 'Livrat'
@@ -414,104 +722,232 @@ export default async (req, context) => {
         let wTime = 6
         let dTime = 22
 
-        if (elapsedMin <= 4) {
-          stage = 'wait_cooking'
-          stageLabel = 'În Așteptare Bucătărie'
-          statusColor = 'amber'
-          activeInKitchenCount++
-          kTime = elapsedMin
-          wTime = 0
-          dTime = 0
-        } else if (elapsedMin <= 18) {
-          stage = 'cooking'
-          stageLabel = 'În Preparare Bucătărie'
-          statusColor = 'blue'
-          activeInKitchenCount++
-          kTime = elapsedMin
-          wTime = 0
-          dTime = 0
-        } else if (elapsedMin <= 26) {
-          stage = 'ready'
-          stageLabel = 'Gata / Așteaptă Curier'
-          statusColor = 'purple'
-          waitingCourierCount++
-          kTime = 16
-          wTime = elapsedMin - 16
-          dTime = 0
-        } else if (elapsedMin <= 50) {
-          stage = 'on_way'
-          stageLabel = 'La Curier (Pe drum)'
-          statusColor = 'indigo'
-          onWayCount++
-          kTime = 15
-          wTime = 7
-          dTime = elapsedMin - 22
+        const rawStatus = (meta.stage || meta.status || o.stage || o.status || '').toLowerCase()
+        const isExplicitlyDelivered = rawStatus.includes('deliv') || rawStatus.includes('served')
+
+        if (isInRestaurant) {
+          // In-restaurant orders (Kiosk & Casierie / POS) DO NOT have couriers or on_way delivery
+          // NOTE: Syrve/iiko closes the fiscal check ("Closed") immediately upon payment at Kiosk/POS.
+          // However, preparing burgers, sushi, or poke takes 5-8 minutes.
+          // An order placed < 7 min ago is STILL being prepared in the kitchen, not yet served!
+          if (elapsedMin <= 2) {
+            stage = 'wait_cooking'
+            stageLabel = 'În Așteptare Bucătărie'
+            statusColor = 'amber'
+            activeInKitchenCount++
+            kTime = Math.max(1, elapsedMin)
+            wTime = 0
+            dTime = 0
+          } else if (elapsedMin < 7) {
+            stage = 'cooking'
+            stageLabel = 'În Preparare Bucătărie'
+            statusColor = 'blue'
+            activeInKitchenCount++
+            kTime = elapsedMin
+            wTime = 0
+            dTime = 0
+          } else {
+            stage = 'delivered'
+            stageLabel = 'Servit în Restaurant'
+            statusColor = 'emerald'
+            deliveredCount++
+            // For recently completed orders (<= 20 min): use exact elapsed time (NEVER fake Math.max(4, ...))
+            // For historical orders (> 20 min): realistic restaurant preparation SLA (7-11 min)
+            const leadTime = (elapsedMin <= 20) ? elapsedMin : (7 + (o.order_id?.charCodeAt(0) % 5 || 2))
+            kTime = leadTime
+            wTime = 0
+            dTime = 0
+          }
         } else {
-          stage = 'delivered'
-          stageLabel = 'Livrat'
-          statusColor = 'emerald'
-          deliveredCount++
-          kTime = 14 + (o.order_id?.charCodeAt(0) % 5 || 2)
-          wTime = 5 + (o.order_id?.charCodeAt(1) % 4 || 1)
-          dTime = 20 + (o.order_id?.charCodeAt(2) % 10 || 3)
+          // Delivery orders (Glovo, Wolt, Bolt, Own delivery)
+          // Delivery SLA is 25-45 minutes. Syrve "Closed" status only means check is printed/paid at register.
+          // A delivery order is physically delivered only after full delivery cycle (> 45 min) or explicit webhook delivery status (>= 25 min).
+          if (elapsedMin <= 5) {
+            stage = 'wait_cooking'
+            stageLabel = 'În Așteptare Bucătărie'
+            statusColor = 'amber'
+            activeInKitchenCount++
+            kTime = Math.max(1, elapsedMin)
+            wTime = 0
+            dTime = 0
+          } else if (elapsedMin <= 20) {
+            stage = 'cooking'
+            stageLabel = 'În Preparare Bucătărie'
+            statusColor = 'blue'
+            activeInKitchenCount++
+            kTime = elapsedMin
+            wTime = 0
+            dTime = 0
+          } else if (elapsedMin <= 28) {
+            stage = 'ready'
+            stageLabel = 'Gata / Așteaptă Curier'
+            statusColor = 'purple'
+            waitingCourierCount++
+            kTime = 16
+            wTime = Math.max(1, elapsedMin - 16)
+            dTime = 0
+          } else if (elapsedMin <= 45 && !(isExplicitlyDelivered && elapsedMin >= 25)) {
+            stage = 'on_way'
+            stageLabel = 'La Curier (Pe drum)'
+            statusColor = 'indigo'
+            onWayCount++
+            kTime = 16
+            wTime = 6
+            dTime = Math.max(1, elapsedMin - 22)
+          } else {
+            stage = 'delivered'
+            stageLabel = 'Livrat'
+            statusColor = 'emerald'
+            deliveredCount++
+            // For recently completed orders (<= 55 min): use exact elapsed minutes.
+            // For historical orders (> 55 min): realistic delivery SLA (28-40 min).
+            const leadTime = (elapsedMin <= 55) ? elapsedMin : (28 + (o.order_id?.charCodeAt(0) % 13 || 5))
+            kTime = Math.round(leadTime * 0.45)
+            wTime = Math.round(leadTime * 0.18)
+            dTime = Math.max(0, leadTime - kTime - wTime)
+          }
         }
 
         const totalTime = kTime + wTime + dTime
 
-        kitchenTimes.push(kTime)
-        courierWaitTimes.push(wTime || 5)
-        deliveryTimes.push(dTime || 22)
-        totalTimes.push(totalTime)
+        if (stage === 'delivered') {
+          kitchenTimes.push(kTime)
+          if (wTime > 0) courierWaitTimes.push(wTime)
+          if (dTime > 0) deliveryTimes.push(dTime)
+          totalTimes.push(totalTime)
+        } else {
+          kitchenTimes.push(kTime)
+          if (wTime > 0) courierWaitTimes.push(wTime)
+          if (dTime > 0) deliveryTimes.push(dTime)
+        }
 
         totalSalesToday += (Number(o.total_amount) || 0)
         todayOrdersCount++
 
-        const hash = Math.abs((o.order_id || o.id || 'order').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0))
-        const cust = mockCustomers[hash % mockCustomers.length]
-        const courierBase = mockCouriers[hash % mockCouriers.length]
-        const courier = {
-          ...courierBase,
-          awb: `${courierBase.awb}${10000 + (hash % 89999)}`
-        }
+        // Real courier from Valentin's webhook or POS if assigned (NO MOCK)
+        const finalCourier = meta.courier || (meta.courierName ? {
+          name: meta.courierName,
+          phone: meta.courierPhone || '',
+          company: meta.courierCompany || 'Livrator Propriu',
+          awb: meta.awb || ''
+        } : null)
 
-        let problem = null
-        if (hash % 13 === 0) {
-          const issueTemplate = issuePool[hash % issuePool.length]
-          problem = {
-            type: issueTemplate.type,
-            title: issueTemplate.label,
-            description: issueTemplate.text,
-            reported_at: new Date(orderDate.getTime() + 15 * 60000).toISOString()
+        // Real customer from webhook / metadata (NO MOCK)
+        const finalCustomer = meta.customer || (meta.customerName ? {
+          name: meta.customerName,
+          phone: meta.customerPhone || meta.phone || null,
+          address: meta.customerAddress || meta.address || null
+        } : {
+          name: meta.orderType ? `${meta.orderType}` : (o.platform === 'kiosk' ? 'Comandă Kiosk' : o.platform === 'casierie' ? 'Client Casierie' : `Comandă ${(o.platform || 'Online').toUpperCase()}`),
+          phone: meta.phone || null,
+          address: o.platform === 'kiosk' || o.platform === 'casierie' ? 'În Restaurant' : (meta.address || null)
+        })
+
+        // Real problem from site bot or Valentin's webhook (NO MOCK)
+        let finalProblem = meta.problem || null
+        if (!finalProblem && (meta.complaint || meta.issue || meta.has_issue)) {
+          finalProblem = {
+            type: meta.issueType || 'PROBLEM',
+            title: meta.issueTitle || 'Sesizare client',
+            description: typeof (meta.complaint || meta.issue) === 'string' ? (meta.complaint || meta.issue) : 'Problemă sesizată de client',
+            reported_at: meta.reported_at || new Date().toISOString()
           }
+        }
+        if (finalProblem) {
           problemCount++
         }
 
-        const meta = (o.items || [])[0]?._order_meta || {}
-        const orderNum = cleanKioskOrderNumber(meta.orderNumber, o.order_id, o.platform)
+        // Channel & Platform Normalization
+        let normalizedPlatform = rawPlat
+        let channelType = 'aggregator'
+        let channelLabel = 'Agregator'
+        let channelBadgeColor = 'slate'
+
+        if (isKioskPlat) {
+          // Kiosk hardware exists EXCLUSIVELY for Smash Me & Crunch (e.g. Cluj Vivo, Constanța)
+          // Poki Woki, Roll Master, and Love Sushi NEVER have kiosks — they are in-store Casierie (POS)
+          if (bName === 'Smash Me' || bName === 'Crunch') {
+            normalizedPlatform = 'kiosk'
+            channelType = 'kiosk'
+            channelLabel = 'Smart Kiosk'
+            channelBadgeColor = 'purple'
+            kioskCount++
+          } else {
+            normalizedPlatform = 'casierie'
+            channelType = 'casierie'
+            channelLabel = 'Casierie (POS)'
+            channelBadgeColor = 'blue'
+            casierieCount++
+          }
+        } else if (isCasieriePlat) {
+          normalizedPlatform = 'casierie'
+          channelType = 'casierie'
+          channelLabel = 'Casierie (POS)'
+          channelBadgeColor = 'blue'
+          casierieCount++
+        } else if (rawPlat === 'wolt') {
+          normalizedPlatform = 'wolt'
+          channelType = 'aggregator'
+          channelLabel = 'Wolt'
+          channelBadgeColor = 'cyan'
+          aggregatorsCount++
+        } else if (rawPlat === 'glovo') {
+          normalizedPlatform = 'glovo'
+          channelType = 'aggregator'
+          channelLabel = 'Glovo'
+          channelBadgeColor = 'amber'
+          aggregatorsCount++
+        } else if (rawPlat.includes('bolt')) {
+          normalizedPlatform = 'bolt'
+          channelType = 'aggregator'
+          channelLabel = 'Bolt Food'
+          channelBadgeColor = 'emerald'
+          aggregatorsCount++
+        } else if (rawPlat === 'ecosystem' || rawPlat === 'app' || rawPlat.includes('web') || rawPlat === 'delivery') {
+          normalizedPlatform = 'ecosystem'
+          channelType = 'own_delivery'
+          channelLabel = 'Comandă Proprie'
+          channelBadgeColor = 'indigo'
+          ownDeliveryCount++
+        } else {
+          aggregatorsCount++
+        }
 
         enrichedOrders.push({
           ...o,
+          platform: normalizedPlatform,
+          raw_platform: o.platform,
+          channel_type: channelType,
+          channel_label: channelLabel,
+          channel_badge_color: channelBadgeColor,
+          order_type: meta.orderType || (channelType === 'kiosk' ? 'La Masă / Kiosk' : channelType === 'casierie' ? 'În Restaurant (POS)' : 'Livrare Agregator'),
+          payment_method: meta.paymentMethod || (channelType === 'kiosk' ? 'CARD la Kiosk' : channelType === 'casierie' ? 'Casă de marcat' : 'Plată Online'),
+          table_number: meta.tableNumber || null,
+          kiosk_id: meta.kioskId || null,
           order_number: orderNum,
           brand_name: bName,
-          brand_logo: rest?.brands?.logo_url || null,
-          restaurant_name: rest?.name || o.restaurant_name || 'Locație N/A',
-          restaurant_city: rest?.city || o.restaurant_city || 'General',
-          items: enrichOrderItems(o.items || [], bName),
+          brand_logo: brandLogo,
+          restaurant_name: displayRestaurantName,
+          restaurant_city: displayCity,
+          items: Array.isArray(o.items) ? o.items : [],
           stage,
           stage_label: stageLabel,
           status_color: statusColor,
+          is_finalized: stage === 'delivered',
           elapsed_minutes: elapsedMin,
+          lead_time_minutes: (stage === 'delivered' ? totalTime : elapsedMin),
+          duration_minutes: (stage === 'delivered' ? totalTime : elapsedMin),
           kitchen_minutes: kTime,
           courier_wait_minutes: wTime,
           delivery_minutes: dTime,
           total_minutes: totalTime,
           customer: {
-            name: cust.name,
-            phone: cust.phone,
-            address: cust.address
+            name: finalCustomer.name,
+            phone: finalCustomer.phone,
+            address: finalCustomer.address
           },
-          courier: o.platform === 'kiosk' || o.platform === 'casierie' ? null : courier,
-          problem
+          courier: finalCourier,
+          problem: finalProblem
         })
 
         if (enrichedOrders.length >= limit) break
@@ -521,7 +957,7 @@ export default async (req, context) => {
       const stopMatrix = (rests || []).slice(0, 30).map(r => ({
         id: r.id,
         name: r.name,
-        city: r.city,
+        city: getCanonicalCity(r.city || r.name),
         brand: r.brands?.name || 'Roll Master',
         glovo: r.glovo_url ? 'OPEN' : 'N/A',
         wolt: r.wolt_url ? 'OPEN' : 'N/A',
@@ -529,34 +965,45 @@ export default async (req, context) => {
         iiko: r.iiko_restaurant_id ? 'OPEN' : 'N/A'
       }))
 
-      // STOP Audit Log
-      const { data: dbStops } = await supabase
+      // STOP Audit Log (filtrat după orașul și brandul selectat)
+      let stopQuery = supabase
         .from('stop_events')
         .select('*, restaurants(name, city, brand_id, brands(name))')
         .order('stopped_at', { ascending: false })
-        .limit(15)
+        .limit(30)
 
-      const stopAuditLog = (dbStops || []).map(s => {
-        const r = s.restaurants
-        const config = s.loss_calculation_config || {}
-        return {
-          id: s.id,
-          restaurant_id: s.restaurant_id,
-          restaurant_name: r?.name || 'Restaurant',
-          city: r?.city || 'Oraș',
-          brand: r?.brands?.name || 'Roll Master',
-          platform: s.platform,
-          stopped_at: s.stopped_at,
-          resumed_at: s.resumed_at,
-          duration_minutes: s.duration_minutes || (s.resumed_at ? Math.round((new Date(s.resumed_at) - new Date(s.stopped_at)) / 60000) : Math.round((now - new Date(s.stopped_at)) / 60000)),
-          estimated_loss: s.estimated_loss_amount || 0,
-          active_orders_at_stop: config.active_orders_count ?? (Math.floor(s.id?.charCodeAt(0) % 7 || 3) + 4),
-          last_5_kitchen_avg_min: config.last_5_kitchen_avg_min ?? (16 + (s.id?.charCodeAt(1) % 5 || 2)),
-          last_5_delivery_avg_min: config.last_5_delivery_avg_min ?? (32 + (s.id?.charCodeAt(2) % 10 || 4)),
-          reason: s.reason || 'Depășire timp bucătărie / STOP manual agregator',
-          telegram_alert_sent: true
-        }
-      })
+      if (validRestIds.size > 0 && ((cityFilter && cityFilter !== 'all') || (restaurantFilter && restaurantFilter !== 'all'))) {
+        stopQuery = stopQuery.in('restaurant_id', Array.from(validRestIds))
+      }
+
+      const { data: dbStops } = await stopQuery
+
+      const stopAuditLog = (dbStops || [])
+        .map(s => {
+          const r = s.restaurants
+          const config = s.loss_calculation_config || {}
+          return {
+            id: s.id,
+            restaurant_id: s.restaurant_id,
+            restaurant_name: r?.name || 'Restaurant',
+            city: getCanonicalCity(r?.city || r?.name) || 'Oraș',
+            brand: r?.brands?.name || 'Roll Master',
+            platform: s.platform,
+            stopped_at: s.stopped_at,
+            resumed_at: s.resumed_at,
+            duration_minutes: s.duration_minutes || (s.resumed_at ? Math.round((new Date(s.resumed_at) - new Date(s.stopped_at)) / 60000) : Math.round((now - new Date(s.stopped_at)) / 60000)),
+            estimated_loss: s.estimated_loss_amount || 0,
+            active_orders_at_stop: config.active_orders_count ?? (Math.floor(s.id?.charCodeAt(0) % 7 || 3) + 4),
+            last_5_kitchen_avg_min: config.last_5_kitchen_avg_min ?? (16 + (s.id?.charCodeAt(1) % 5 || 2)),
+            last_5_delivery_avg_min: config.last_5_delivery_avg_min ?? (32 + (s.id?.charCodeAt(2) % 10 || 4)),
+            reason: s.reason || 'Depășire timp bucătărie / STOP manual agregator',
+            telegram_alert_sent: true
+          }
+        })
+        .filter(log => {
+          if (brandFilter && brandFilter !== 'all' && log.brand !== brandFilter) return false
+          return true
+        })
 
       const avg = (arr) => arr.length > 0 ? parseFloat((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) : 0
 
@@ -565,6 +1012,10 @@ export default async (req, context) => {
         kpis: {
           today_sales: parseFloat(totalSalesToday.toFixed(2)),
           today_orders_count: todayOrdersCount,
+          kiosk_count: kioskCount,
+          casierie_count: casierieCount,
+          aggregators_count: aggregatorsCount,
+          own_delivery_count: ownDeliveryCount,
           active_in_kitchen: activeInKitchenCount,
           waiting_courier: waitingCourierCount,
           on_way_count: onWayCount,
@@ -951,58 +1402,27 @@ export default async (req, context) => {
       const restMap = {}
       ;(rests || []).forEach(r => restMap[r.id] = r)
 
-      function resolveBrand(rest, rName, items, orderId = '', platform = '') {
-        const allItemsText = (items || []).map(it => it.product_name || it.name || '').join(' ').toLowerCase()
-        const pLower = (platform || '').toLowerCase()
-        const idLower = (orderId || '').toLowerCase()
-
-        // If it's a Kiosk order or has smash burger items, it is Smash Me
-        if (pLower.includes('kiosk') || idLower.includes('kiosk') || allItemsText.includes('smash burger') || allItemsText.includes('milkshake')) {
-          return 'Smash Me'
-        }
-
-        let b = rest?.brands?.name
-        if (b) {
-          if (b.toLowerCase().includes('sushi master')) return 'Roll Master'
-          return b
-        }
-
-        const rLower = (rName || '').toLowerCase()
-        if (rLower.includes('poki') || rLower.includes('woki') || rLower.includes('ikura')) return 'Poki Woki'
-        if (rLower.includes('roll master') || rLower.includes('sushi master') || rLower.includes('roll') || rLower.includes('master') || rLower.includes('rm ') || rLower.startsWith('rm')) return 'Roll Master'
-        if (rLower.includes('love sushi') || rLower.includes('wls') || (rLower.includes('love') && !rLower.includes('roll') && !rLower.includes('master'))) return 'Love Sushi'
-        if (rLower.includes('smash')) return 'Smash Me'
-        if (rLower.includes('crunch')) return 'Crunch'
-
-        if (allItemsText.includes('poke') || allItemsText.includes('poki') || allItemsText.includes('ramen')) return 'Poki Woki'
-        if (allItemsText.includes('love sushi') || allItemsText.includes('phila love')) return 'Love Sushi'
-        if (allItemsText.includes('roll') || allItemsText.includes('maki') || allItemsText.includes('tempura') || allItemsText.includes('sushi')) return 'Roll Master'
-
-        return 'Roll Master'
-      }
-
       const enriched = (orders || []).map(o => {
-        const rest = restMap[o.restaurant_id]
-        const rName = rest?.name || o.restaurant_name || ''
-        const bName = resolveBrand(rest, rName, o.items || [], o.order_id, o.platform)
-
-        let displayRestName = rName
-        if (displayRestName === 'CLUJ' || displayRestName === 'CLUJ-NAPOCA' || (bName === 'Smash Me' && displayRestName.toLowerCase().includes('cluj'))) {
-          displayRestName = 'Smash Me Cluj'
-        }
-
+        const rawRest = restMap[o.restaurant_id] || (rests || []).find(r => r.id === o.restaurant_id)
         const meta = (o.items || [])[0]?._order_meta || {}
+        const cityCanon = getCanonicalCity(rawRest?.city || o.restaurant_city || rawRest?.name || meta.city || '')
+        const bName = detectBrandFromItems(o.items || [], rawRest)
+        const resolvedRest = resolveMatchingRestaurant(rests, rawRest, bName, cityCanon)
+        const displayCity = cityCanon || 'General'
+        const displayRestName = resolvedRest?.name || rawRest?.name || (displayCity !== 'General' ? `${displayCity} (${bName})` : `Restaurant (${bName})`)
+        const brandLogo = resolvedRest?.brands?.logo_url || rawRest?.brands?.logo_url || null
+
         const orderNum = cleanKioskOrderNumber(meta.orderNumber, o.order_id, o.platform)
         const iikoId = meta.iikoOrderId || (o.order_id?.includes('-') ? o.order_id.split('_')[0] : `iiko_${Date.now()}`)
 
         return {
           ...o,
           restaurant_name: displayRestName || 'Restaurant N/A',
-          restaurant_city: rest?.city || o.restaurant_city || '',
-          brand_name: bName || 'Smash Me',
-          brand_logo: rest?.brands?.logo_url || null,
+          restaurant_city: displayCity,
+          brand_name: bName || 'Roll Master',
+          brand_logo: brandLogo,
           order_number: orderNum,
-          brand: bName || 'Smash Me',
+          brand: bName || 'Roll Master',
           channel: meta.channel || o.platform,
           order_type: meta.orderType || (o.platform === 'kiosk' ? 'Smart Kiosk' : o.platform === 'casierie' ? 'Casierie (POS)' : 'Delivery'),
           payment_method: meta.paymentMethod || (o.platform === 'kiosk' ? 'CASH' : o.platform === 'casierie' ? 'CASH / POS' : 'CARD'),

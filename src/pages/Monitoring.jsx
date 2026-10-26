@@ -36,7 +36,49 @@ export default function Monitoring() {
 
   const { restaurants, checks, loading, getLatestCheck, fetchData } = useLiveChecks()
 
-  const [activeBrand, setActiveBrand] = useState('all')
+  const [activeBrand, setActiveBrand] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('brand')
+      if (p) return p
+    } catch (_) {}
+    return 'all'
+  })
+
+  const [cityFilter, setCityFilter] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('city')
+      if (p && p !== 'all') return p
+    } catch (_) {}
+    return 'all'
+  })
+
+  const handleBrandChange = (brand) => {
+    setActiveBrand(brand)
+    setPage(1)
+    try {
+      const url = new URL(window.location.href)
+      if (brand && brand !== 'all') {
+        url.searchParams.set('brand', brand)
+      } else {
+        url.searchParams.delete('brand')
+      }
+      window.history.replaceState({}, '', url.toString())
+    } catch (_) {}
+  }
+
+  // Listen to popstate for browser forward/back buttons
+  useEffect(() => {
+    const onPopState = () => {
+      try {
+        const pBrand = new URLSearchParams(window.location.search).get('brand')
+        setActiveBrand(pBrand || 'all')
+        const pCity = new URLSearchParams(window.location.search).get('city')
+        setCityFilter(pCity || 'all')
+      } catch (_) {}
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
 
   // Paginare & Căutare State
   const [search, setSearch] = useState('')
@@ -97,6 +139,11 @@ export default function Monitoring() {
     displayedRestaurants = restaurants.filter(r => r.is_active)
   } else {
     displayedRestaurants = groupedByBrand[activeBrand] || []
+  }
+  if (cityFilter && cityFilter !== 'all') {
+    displayedRestaurants = displayedRestaurants.filter(r => 
+      r.city && r.city.toLowerCase().includes(cityFilter.toLowerCase())
+    )
   }
 
   // Filtrare pe baza căutării (Search)
@@ -328,7 +375,7 @@ export default function Monitoring() {
           return (
             <button 
               key={brand}
-              onClick={() => setActiveBrand(brand)}
+              onClick={() => handleBrandChange(brand)}
               className={`px-4 h-9 rounded-full text-xs font-bold transition-all flex items-center gap-2 shadow-xs ${
                 isActive 
                   ? 'bg-emerald-600 text-white shadow-sm'

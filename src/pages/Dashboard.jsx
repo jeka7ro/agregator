@@ -91,7 +91,38 @@ export default function Dashboard() {
   const { isDark } = useTheme()
   const { t, language } = useLanguage()
   const { restaurants, checks, loading, lastRefresh, fetchData } = useLiveChecks()
-  const [selectedPeriod, setSelectedPeriod] = useState('this_month')
+  const [selectedPeriod, setSelectedPeriod] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('period')
+      if (p && PERIOD_OPTIONS.some(o => o.key === p)) return p
+    } catch (_) {}
+    return 'this_month'
+  })
+
+  const handlePeriodChange = (periodKey) => {
+    setSelectedPeriod(periodKey)
+    try {
+      const url = new URL(window.location.href)
+      if (periodKey && periodKey !== 'this_month') {
+        url.searchParams.set('period', periodKey)
+      } else {
+        url.searchParams.delete('period')
+      }
+      window.history.replaceState({}, '', url.toString())
+    } catch (_) {}
+  }
+
+  useEffect(() => {
+    const onPopState = () => {
+      try {
+        const p = new URLSearchParams(window.location.search).get('period')
+        setSelectedPeriod(p && PERIOD_OPTIONS.some(o => o.key === p) ? p : 'this_month')
+      } catch (_) {}
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
   const { salesData, loading: salesLoading } = useExecutiveSales(selectedPeriod, 5000)
 
   const [isExporting, setIsExporting] = useState(false)
@@ -521,7 +552,7 @@ export default function Dashboard() {
                   <button
                     key={opt.key}
                     id={`period-btn-${opt.key}`}
-                    onClick={() => setSelectedPeriod(opt.key)}
+                    onClick={() => handlePeriodChange(opt.key)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                       isSelected
                         ? 'bg-emerald-600 text-white shadow-xs'
@@ -905,7 +936,7 @@ export default function Dashboard() {
             </div>
 
             <button
-              onClick={() => navigate('/monitoring')}
+              onClick={() => navigate('/monitoring' + (window.location.search || ''))}
               className="px-4 h-9 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap shrink-0"
             >
               <span>{t('dashboard.btn_open_monitoring', 'Deschide Monitorizarea Live Tehnică (208 verificări) →')}</span>
@@ -923,7 +954,7 @@ export default function Dashboard() {
                 </span>
               </div>
               <button
-                onClick={() => navigate('/monitoring')}
+                onClick={() => navigate('/monitoring' + (window.location.search || ''))}
                 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <span>{t('dashboard.btn_open_monitoring', 'Deschide Monitorizarea Live Tehnică (208 verificări) →')}</span>

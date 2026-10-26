@@ -8,12 +8,23 @@ import crunchLogo from '../assets/brands/crunch.webp'
 
 export function cleanRestaurantName(name) {
   if (!name) return ''
-  return name
+  let cleaned = name
     .replace(/ikura\s*sushi/gi, 'Poki Woki')
     .replace(/ikura/gi, 'Poki Woki')
     .replace(/sushi\s*master/gi, 'Roll Master')
     .replace(/\s+/g, ' ')
     .trim()
+
+  // Elimină brandul duplicat între paranteze dacă apare deja în nume (ex: "Smash Me Cluj (Smash Me)" -> "Smash Me Cluj")
+  const brands = ['Smash Me', 'Poki Woki', 'Roll Master', 'Love Sushi', 'Crunch']
+  brands.forEach(b => {
+    const regex = new RegExp(`\\s*\\(${b}\\)$`, 'i')
+    if (cleaned.toLowerCase().includes(b.toLowerCase()) && regex.test(cleaned)) {
+      cleaned = cleaned.replace(regex, '').trim()
+    }
+  })
+
+  return cleaned
 }
 
 export function getBrandInfo(restaurantOrName) {
@@ -22,11 +33,35 @@ export function getBrandInfo(restaurantOrName) {
     ? (restaurantOrName?.brands?.logo_url || restaurantOrName?.logo_url || null)
     : null
 
+  const explicitBrandName = typeof restaurantOrName === 'object'
+    ? (restaurantOrName?.brands?.name || '')
+    : ''
+
   const name = typeof restaurantOrName === 'string'
     ? restaurantOrName
     : (restaurantOrName?.brands?.name || restaurantOrName?.name || '')
 
   const lower = (name || '').toLowerCase()
+
+  // Prioritize explicit DB brand name if provided on restaurant object
+  if (explicitBrandName.toLowerCase() === 'crunch') {
+    return {
+      name: 'Crunch',
+      logo: dbLogo || crunchLogo,
+      fallbackLogo: crunchLogo,
+      short: 'CR',
+      bgClass: 'bg-purple-950/60 border-purple-800/50 text-purple-400'
+    }
+  }
+  if (explicitBrandName.toLowerCase() === 'smash me') {
+    return {
+      name: 'Smash Me',
+      logo: dbLogo || smashMeLogo,
+      fallbackLogo: smashMeLogo,
+      short: 'SM',
+      bgClass: 'bg-amber-950/60 border-amber-800/50 text-amber-400'
+    }
+  }
 
   // 1. Poki Woki (replaces Ikura)
   if (lower.includes('poki') || lower.includes('woki') || lower.includes('ikura')) {
@@ -61,25 +96,25 @@ export function getBrandInfo(restaurantOrName) {
     }
   }
 
-  // 4. Smash Me
-  if (lower.includes('smash')) {
-    return {
-      name: 'Smash Me',
-      logo: dbLogo || smashMeLogo,
-      fallbackLogo: smashMeLogo,
-      short: 'SM',
-      bgClass: 'bg-amber-950/60 border-amber-800/50 text-amber-400'
-    }
-  }
-
-  // 5. Crunch
-  if (lower.includes('crunch')) {
+  // 4. Crunch (Check before generic Smash Me because virtual restaurants like "Smash Me Cluj (Crunch)" are Crunch!)
+  if (lower.includes('(crunch)') || (lower.includes('crunch') && !lower.includes('crunchy') && !lower.includes('oklahoma') && !lower.includes('teriyaki'))) {
     return {
       name: 'Crunch',
       logo: dbLogo || crunchLogo,
       fallbackLogo: crunchLogo,
       short: 'CR',
       bgClass: 'bg-purple-950/60 border-purple-800/50 text-purple-400'
+    }
+  }
+
+  // 5. Smash Me
+  if (lower.includes('smash') || lower.includes('oklahoma') || lower.includes('jalapeno')) {
+    return {
+      name: 'Smash Me',
+      logo: dbLogo || smashMeLogo,
+      fallbackLogo: smashMeLogo,
+      short: 'SM',
+      bgClass: 'bg-amber-950/60 border-amber-800/50 text-amber-400'
     }
   }
 
