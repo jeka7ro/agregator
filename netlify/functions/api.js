@@ -661,7 +661,6 @@ export default async (req, context) => {
       }
 
       const enrichedOrders = []
-      const now = Date.now()
 
       let totalSalesToday = 0
       let todayOrdersCount = 0
@@ -706,7 +705,6 @@ export default async (req, context) => {
 
         const elapsedMin = getOrderElapsedMinutes(o.placed_at, o.created_at)
 
-        const meta = (o.items || [])[0]?._order_meta || {}
         const orderNum = cleanKioskOrderNumber(meta.orderNumber, o.order_id, o.platform)
 
         const rawPlat = (o.platform || '').toLowerCase().trim()
@@ -954,7 +952,7 @@ export default async (req, context) => {
       }
 
       // STOP Matrix
-      const stopMatrix = (rests || []).slice(0, 30).map(r => ({
+      const stopMatrix = (allRests || []).slice(0, 30).map(r => ({
         id: r.id,
         name: r.name,
         city: getCanonicalCity(r.city || r.name),
