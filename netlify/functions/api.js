@@ -12,6 +12,11 @@ const CORS_HEADERS = {
   'Content-Type': 'application/json'
 }
 
+// In-memory cache for live dispatch responses to ensure 0-millisecond response time
+// and prevent Supabase connection timeouts or transient blackout during live operations
+const liveDispatchCache = new Map()
+const LIVE_CACHE_TTL_MS = 10000 // 10s TTL
+
 function cleanKioskOrderNumber(orderNum, orderId, platform = '') {
   let val = orderNum !== undefined && orderNum !== null && orderNum !== '' ? String(orderNum).trim() : ''
 
@@ -587,6 +592,16 @@ export default async (req, context) => {
       const periodFilter = url.searchParams.get('period') || 'today'
       const limit = parseInt(url.searchParams.get('limit') || '3000')
 
+      // Verificare cache în memorie pentru răspuns instantaneu (<1ms) și protecție anti-congestie Supabase
+      const cacheKey = `${cityFilter || 'all'}_${brandFilter || 'all'}_${restaurantFilter || 'all'}_${channelFilter || 'all'}_${periodFilter || 'today'}`
+      const cached = liveDispatchCache.get(cacheKey)
+      if (cached && (Date.now() - cached.timestamp < LIVE_CACHE_TTL_MS)) {
+        return new Response(JSON.stringify(cached.data), {
+          status: 200,
+          headers: CORS_HEADERS
+        })
+      }
+
       const now = new Date()
       const roDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
       const [yStr, mStr, dStr] = roDateStr.split('-')
@@ -636,9 +651,10 @@ export default async (req, context) => {
 
       while (fromOffset < targetLimit) {
         const currentChunkSize = Math.min(chunkSize, targetLimit - fromOffset)
+        // Selectăm exclusiv coloanele necesare pentru a reduce drastic memoria și timpul de scanare Postgres
         let salesQuery = supabase
           .from('platform_sales')
-          .select('*')
+          .select('id, platform, restaurant_id, order_id, total_amount, placed_at, created_at, items')
           .order('placed_at', { ascending: false })
           .range(fromOffset, fromOffset + currentChunkSize - 1)
 
@@ -652,6 +668,17 @@ export default async (req, context) => {
         const { data, error: oErr } = await salesQuery
         if (oErr) {
           console.warn('[Netlify DispatchLive] Warning at offset', fromOffset, ':', oErr.message)
+          if (fromOffset === 0) {
+            // Dacă a crăpat primul chunk dar avem un cache recent (< 3 minute), îl servim pentru a evita ecranul gol!
+            if (cached && (Date.now() - cached.timestamp < 180000)) {
+              console.warn('[Netlify DispatchLive] Serving stale cache due to query error:', oErr.message)
+              return new Response(JSON.stringify(cached.data), {
+                status: 200,
+                headers: CORS_HEADERS
+              })
+            }
+            throw new Error(`Database query failed: ${oErr.message}`)
+          }
           break
         }
         if (!data || data.length === 0) break
@@ -1005,7 +1032,7 @@ export default async (req, context) => {
 
       const avg = (arr) => arr.length > 0 ? parseFloat((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) : 0
 
-      return new Response(JSON.stringify({
+      const responsePayload = {
         success: true,
         kpis: {
           today_sales: parseFloat(totalSalesToday.toFixed(2)),
@@ -1027,7 +1054,17 @@ export default async (req, context) => {
         orders: enrichedOrders,
         stop_matrix: stopMatrix,
         stop_audit_log: stopAuditLog
-      }), { status: 200, headers: CORS_HEADERS })
+      }
+
+      // Salvează în cache dacă avem date valide
+      if (enrichedOrders.length > 0) {
+        liveDispatchCache.set(cacheKey, {
+          timestamp: Date.now(),
+          data: responsePayload
+        })
+      }
+
+      return new Response(JSON.stringify(responsePayload), { status: 200, headers: CORS_HEADERS })
     }
 
     if (path === '/sales/executive-summary') {

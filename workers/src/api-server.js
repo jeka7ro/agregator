@@ -1550,6 +1550,9 @@ app.get('/api/dispatch/live', async (req, res) => {
                 const { data, error: oErr } = await salesQuery
                 if (oErr) {
                     console.warn('[DispatchLive] Order query warning at offset', fromOffset, ':', oErr.message)
+                    if (fromOffset === 0) {
+                        throw new Error(`Database query failed: ${oErr.message}`)
+                    }
                     break
                 }
 
@@ -1561,7 +1564,7 @@ app.get('/api/dispatch/live', async (req, res) => {
             }
         } catch (err) {
             console.error('[DispatchLive] Error fetching platform_sales:', err.message)
-            rawOrders = []
+            return res.status(500).json({ success: false, error: err.message })
         }
 
         const enrichedOrders = []
