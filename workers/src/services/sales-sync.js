@@ -231,13 +231,54 @@ export class SalesSync {
                                 
                                 let placed_at = null
                                 try {
-                                    let ds = o.order.whenClosed || o.order.whenCreated
-                                    if (ds) placed_at = new Date(ds.replace(' ', 'T')).toISOString()
+                                    let ds = o.order.whenCreated || o.order.whenClosed
+                                    if (ds) placed_at = new Date(ds.replace(' ', 'T') + 'Z').toISOString()
                                 } catch(e) {}
                                 if (!placed_at) placed_at = new Date().toISOString()
                                     
                                 const baseId = o.order.id || o.id
                                 const uniqueOrderId = baseId + '_' + r.id
+
+                                const rawCustName = [o.order.customer?.name, o.order.customer?.surname].filter(Boolean).join(' ').trim() || null
+                                const custComment = o.order.customer?.comment || ''
+                                const phoneFromComment = custComment.match(/Phone:\s*([^;]+)/i)?.[1]?.trim() || null
+                                const pickUpCode = custComment.match(/Pick Up Code:\s*([^;]+)/i)?.[1]?.trim() || null
+                                const extOrderId = custComment.match(/OrderId:\s*([^;]+)/i)?.[1]?.trim() || o.order.externalNumber || null
+                                const courierPhoneFromComment = custComment.match(/Courier Phone:\s*([^;]+)/i)?.[1]?.trim() || null
+                                const rawCourierFromComment = custComment.match(/Courier:\s*([^;]+)/i)?.[1]?.trim() || null
+                                const cleanCourierFromComment = (rawCourierFromComment && !rawCourierFromComment.includes('IikoMiddleware')) ? rawCourierFromComment : null
+
+                                const custPhone = o.order.phone || o.order.customer?.phone || phoneFromComment || null
+                                const custAddress = o.order.deliveryPoint?.comment || o.order.deliveryPoint?.address?.line1 || o.order.deliveryPoint?.address?.street?.name || null
+                                const rawCourierObj = o.order.courierInfo?.courier || null
+                                const courierName = rawCourierObj?.name || cleanCourierFromComment || null
+                                const courierPhone = rawCourierObj?.phone || courierPhoneFromComment || null
+
+                                const extractedCourier = courierName ? {
+                                    name: courierName,
+                                    phone: courierPhone || '',
+                                    company: platform === 'glovo' ? 'Glovo' : platform === 'wolt' ? 'Wolt' : platform === 'bolt' ? 'Bolt Food' : 'Livrator Propriu',
+                                    isManual: Boolean(o.order.courierInfo?.isCourierSelectedManually)
+                                } : null
+
+                                const extractedCustomer = (rawCustName || custPhone || custAddress) ? {
+                                    name: rawCustName || 'Client',
+                                    phone: custPhone,
+                                    address: custAddress,
+                                    pickUpCode,
+                                    externalOrderId: extOrderId
+                                } : null
+
+                                const extractedTimings = {
+                                    whenCreated: o.order.whenCreated || null,
+                                    whenConfirmed: o.order.whenConfirmed || null,
+                                    whenPrinted: o.order.whenPrinted || null,
+                                    whenCookingCompleted: o.order.whenCookingCompleted || null,
+                                    whenSended: o.order.whenSended || null,
+                                    whenDelivered: o.order.whenDelivered || null,
+                                    whenClosed: o.order.whenClosed || null,
+                                    completeBefore: o.order.completeBefore || null
+                                }
 
                                 const items = []
                                 let orderSum = 0
@@ -298,12 +339,23 @@ export class SalesSync {
                                                 quantity: it.amount || 1,
                                                 _order_meta: items.length === 0 ? {
                                                     orderNumber: o.order.number ? String(o.order.number) : (o.order.externalNumber || null),
-                                                    customerName: o.order.customer?.name || null,
-                                                    customerPhone: o.order.customer?.phone || o.order.phone || null,
+                                                    customer: extractedCustomer,
+                                                    customerName: rawCustName,
+                                                    customerPhone: custPhone,
+                                                    customerAddress: custAddress,
+                                                    courier: extractedCourier,
+                                                    courierName: courierName,
+                                                    courierPhone: courierPhone,
+                                                    pickUpCode,
+                                                    externalOrderId: extOrderId,
+                                                    operator: o.order.operator?.name || null,
+                                                    conception: o.order.conception?.name || null,
+                                                    comment: o.order.comment || null,
                                                     kioskId: customerName.includes('cj-1') ? 'Kiosk Cluj 1' : customerName.includes('cj-2') ? 'Kiosk Cluj 2' : customerName.includes('ct') ? 'Kiosk Constanța' : (isKiosk ? 'Smart Kiosk' : null),
-                                                    orderType: isKiosk ? 'Smart Kiosk' : (platform === 'casierie' ? 'Casierie (POS)' : 'Livrare'),
+                                                    orderType: o.order.orderType?.name || (isKiosk ? 'Smart Kiosk' : (platform === 'casierie' ? 'Casierie (POS)' : 'Livrare')),
                                                     status: o.order.status || 'delivered',
-                                                    stage: o.order.status || 'delivered'
+                                                    stage: o.order.status || 'delivered',
+                                                    timings: extractedTimings
                                                 } : undefined
                                             })
                                         }
@@ -436,10 +488,51 @@ export class SalesSync {
                     else if (rawSource.includes('bolt')) platform = 'bolt';
                     else if (isKiosk) platform = 'kiosk';
 
-                    let placed_at = ord.whenClosed || ord.whenCreated || o.timestamp || new Date().toISOString();
+                    let placed_at = ord.whenCreated || ord.whenClosed || o.timestamp || new Date().toISOString();
                     if (typeof placed_at === 'string' && placed_at.includes(' ') && !placed_at.includes('T')) {
                         placed_at = placed_at.replace(' ', 'T') + 'Z';
                     }
+
+                    const rawCustName = [ord.customer?.name, ord.customer?.surname].filter(Boolean).join(' ').trim() || null;
+                    const custComment = ord.customer?.comment || '';
+                    const phoneFromComment = custComment.match(/Phone:\s*([^;]+)/i)?.[1]?.trim() || null;
+                    const pickUpCode = custComment.match(/Pick Up Code:\s*([^;]+)/i)?.[1]?.trim() || null;
+                    const extOrderId = custComment.match(/OrderId:\s*([^;]+)/i)?.[1]?.trim() || ord.externalNumber || null;
+                    const courierPhoneFromComment = custComment.match(/Courier Phone:\s*([^;]+)/i)?.[1]?.trim() || null;
+                    const rawCourierFromComment = custComment.match(/Courier:\s*([^;]+)/i)?.[1]?.trim() || null;
+                    const cleanCourierFromComment = (rawCourierFromComment && !rawCourierFromComment.includes('IikoMiddleware')) ? rawCourierFromComment : null;
+
+                    const custPhone = ord.phone || ord.customer?.phone || phoneFromComment || null;
+                    const custAddress = ord.deliveryPoint?.comment || ord.deliveryPoint?.address?.line1 || ord.deliveryPoint?.address?.street?.name || null;
+                    const rawCourierObj = ord.courierInfo?.courier || null;
+                    const courierName = rawCourierObj?.name || cleanCourierFromComment || null;
+                    const courierPhone = rawCourierObj?.phone || courierPhoneFromComment || null;
+
+                    const extractedCourier = courierName ? {
+                        name: courierName,
+                        phone: courierPhone || '',
+                        company: platform === 'glovo' ? 'Glovo' : platform === 'wolt' ? 'Wolt' : platform === 'bolt' ? 'Bolt Food' : 'Livrator Propriu',
+                        isManual: Boolean(ord.courierInfo?.isCourierSelectedManually)
+                    } : null;
+
+                    const extractedCustomer = (rawCustName || custPhone || custAddress) ? {
+                        name: rawCustName || 'Client',
+                        phone: custPhone,
+                        address: custAddress,
+                        pickUpCode,
+                        externalOrderId: extOrderId
+                    } : null;
+
+                    const extractedTimings = {
+                        whenCreated: ord.whenCreated || null,
+                        whenConfirmed: ord.whenConfirmed || null,
+                        whenPrinted: ord.whenPrinted || null,
+                        whenCookingCompleted: ord.whenCookingCompleted || null,
+                        whenSended: ord.whenSended || null,
+                        whenDelivered: ord.whenDelivered || null,
+                        whenClosed: ord.whenClosed || null,
+                        completeBefore: ord.completeBefore || null
+                    };
 
                     const baseId = o.id || ord.id || `ord_${ord.number}`;
                     const uniqueOrderId = `${baseId}_${r.id}`;
@@ -530,8 +623,15 @@ export class SalesSync {
                                 sum: itemSum,
                                 _order_meta: items.length === 0 ? {
                                     orderNumber: humanOrderNumber,
-                                    customerName: ord.customer?.name || null,
-                                    customerPhone: ord.customer?.phone || ord.phone || null,
+                                    customer: extractedCustomer,
+                                    customerName: rawCustName,
+                                    customerPhone: custPhone,
+                                    customerAddress: custAddress,
+                                    courier: extractedCourier,
+                                    courierName: courierName,
+                                    courierPhone: courierPhone,
+                                    pickUpCode,
+                                    externalOrderId: extOrderId,
                                     kioskId,
                                     diningOption,
                                     paymentMethod,
@@ -540,7 +640,8 @@ export class SalesSync {
                                     orderType: isKiosk ? (diningOption || 'Smart Kiosk') : (platform === 'casierie' ? 'Casierie (POS)' : 'Livrare'),
                                     status: ord.status || 'delivered',
                                     stage: ord.status || 'delivered',
-                                    comment: ord.comment || null
+                                    comment: ord.comment || null,
+                                    timings: extractedTimings
                                 } : undefined
                             });
                         }
@@ -579,12 +680,169 @@ export class SalesSync {
                 } else {
                     console.log(`[SalesSync] Fast Kiosk sync: ${uniqueRows.length} orders updated for Cluj & Constanta.`);
                 }
-                return { success: true, count: uniqueRows.length };
             }
-            return { success: true, count: 0 };
+
+            // Enrich any recent today orders missing timings/customer/courier or still active in kitchen
+            await this.enrichRecentTodayOrders(startToday, endToday);
+
+            return { success: true, count: dbRows.length };
         } catch (e) {
             console.error('[SalesSync] Fast Kiosk sync exception:', e.message);
             return { success: false, error: e.message };
+        }
+    }
+
+    async enrichRecentTodayOrders(startToday, endToday) {
+        try {
+            const sinceIso = `${startToday.slice(0, 10)}T00:00:00.000Z`;
+            const { data: recentSales } = await supabase
+                .from('platform_sales')
+                .select('id, order_id, platform, restaurant_id, total_amount, placed_at, items')
+                .gte('placed_at', sinceIso)
+                .limit(1000);
+
+            const needsEnrich = (recentSales || []).filter(r => {
+                const meta = r.items?.[0]?._order_meta;
+                if (!meta) return false;
+                if (!meta.timings || !meta.timings.whenCreated) return true;
+                const st = (meta.status || meta.stage || '').toLowerCase();
+                if (st && st !== 'closed' && st !== 'delivered' && st !== 'cancelled') return true;
+                return false;
+            });
+
+            if (needsEnrich.length === 0) return;
+
+            const { data: allRests } = await supabase
+                .from('restaurants')
+                .select('id, name, iiko_restaurant_id, iiko_config')
+                .eq('is_active', true);
+
+            const restById = {};
+            for (const r of (allRests || [])) restById[r.id] = r;
+
+            const keyToOrgs = {};
+            for (const row of needsEnrich) {
+                const r = restById[row.restaurant_id];
+                if (!r) continue;
+                const orgId = r.iiko_restaurant_id || r.iiko_config?.organizationId;
+                const k = r.iiko_config?.api_login || '93a34e75123e47b897e390f31ecfa4cb';
+                if (orgId) {
+                    if (!keyToOrgs[k]) keyToOrgs[k] = [];
+                    if (!keyToOrgs[k].includes(orgId)) keyToOrgs[k].push(orgId);
+                }
+            }
+
+            const syrveOrderMap = new Map();
+            for (const [k, orgs] of Object.entries(keyToOrgs)) {
+                const resAuth = await fetch('https://api-eu.syrve.live/api/1/access_token', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ apiLogin: k })
+                });
+                if (!resAuth.ok) continue;
+                const { token } = await resAuth.json();
+                if (!token) continue;
+
+                const res = await fetch('https://api-eu.syrve.live/api/1/deliveries/by_delivery_date_and_status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({
+                        organizationIds: orgs,
+                        deliveryDateFrom: startToday,
+                        deliveryDateTo: endToday
+                    })
+                });
+                if (!res.ok) continue;
+                const data = await res.json();
+                for (const grp of (data.ordersByOrganizations || [])) {
+                    for (const item of (grp.orders || [])) {
+                        if (item.id && item.order) {
+                            syrveOrderMap.set(item.id, item.order);
+                        }
+                    }
+                }
+            }
+
+            const updates = [];
+            for (const row of needsEnrich) {
+                const baseId = (row.order_id || '').split('_')[0];
+                const so = syrveOrderMap.get(baseId);
+                if (!so || !Array.isArray(row.items) || row.items.length === 0) continue;
+
+                const newItems = [...row.items];
+                const meta = { ...(newItems[0]._order_meta || {}) };
+                const ds = so.whenCreated || so.whenClosed;
+                const fixedPlacedAt = ds ? new Date(ds.replace(' ', 'T') + 'Z').toISOString() : row.placed_at;
+
+                const rawCustName = [so.customer?.name, so.customer?.surname].filter(Boolean).join(' ').trim() || null;
+                const custComment = so.customer?.comment || '';
+                const phoneFromComment = custComment.match(/Phone:\s*([^;]+)/i)?.[1]?.trim() || null;
+                const pickUpCode = custComment.match(/Pick Up Code:\s*([^;]+)/i)?.[1]?.trim() || null;
+                const extOrderId = custComment.match(/OrderId:\s*([^;]+)/i)?.[1]?.trim() || so.externalNumber || null;
+                const courierPhoneFromComment = custComment.match(/Courier Phone:\s*([^;]+)/i)?.[1]?.trim() || null;
+                const rawCourierFromComment = custComment.match(/Courier:\s*([^;]+)/i)?.[1]?.trim() || null;
+                const cleanCourierFromComment = (rawCourierFromComment && !rawCourierFromComment.includes('IikoMiddleware')) ? rawCourierFromComment : null;
+
+                const custPhone = so.phone || so.customer?.phone || phoneFromComment || null;
+                const custAddress = so.deliveryPoint?.comment || so.deliveryPoint?.address?.line1 || so.deliveryPoint?.address?.street?.name || null;
+                const rawCourierObj = so.courierInfo?.courier || null;
+                const courierName = rawCourierObj?.name || cleanCourierFromComment || null;
+                const courierPhone = rawCourierObj?.phone || courierPhoneFromComment || null;
+
+                meta.status = so.status || meta.status || 'Closed';
+                meta.stage = so.status || meta.stage || 'Closed';
+                if (rawCustName || custPhone || custAddress) {
+                    meta.customer = {
+                        name: rawCustName || 'Client',
+                        phone: custPhone,
+                        address: custAddress,
+                        pickUpCode,
+                        externalOrderId: extOrderId
+                    };
+                    meta.customerName = rawCustName;
+                    meta.customerPhone = custPhone;
+                    meta.customerAddress = custAddress;
+                }
+                if (courierName) {
+                    meta.courier = {
+                        name: courierName,
+                        phone: courierPhone || '',
+                        company: row.platform === 'glovo' ? 'Glovo' : row.platform === 'wolt' ? 'Wolt' : row.platform === 'bolt' ? 'Bolt Food' : 'Livrator Propriu',
+                        isManual: Boolean(so.courierInfo?.isCourierSelectedManually)
+                    };
+                    meta.courierName = courierName;
+                    meta.courierPhone = courierPhone;
+                }
+                meta.pickUpCode = pickUpCode;
+                meta.externalOrderId = extOrderId;
+                meta.timings = {
+                    whenCreated: so.whenCreated || null,
+                    whenConfirmed: so.whenConfirmed || null,
+                    whenPrinted: so.whenPrinted || null,
+                    whenCookingCompleted: so.whenCookingCompleted || null,
+                    whenSended: so.whenSended || null,
+                    whenDelivered: so.whenDelivered || null,
+                    whenClosed: so.whenClosed || null,
+                    completeBefore: so.completeBefore || null
+                };
+
+                newItems[0] = { ...newItems[0], _order_meta: meta };
+                updates.push({
+                    id: row.id,
+                    order_id: row.order_id,
+                    platform: row.platform,
+                    restaurant_id: row.restaurant_id,
+                    total_amount: row.total_amount,
+                    placed_at: fixedPlacedAt,
+                    items: newItems
+                });
+            }
+
+            if (updates.length > 0) {
+                await supabase.from('platform_sales').upsert(updates, { onConflict: 'order_id' });
+                console.log(`[SalesSync] Auto-enriched ${updates.length} live orders with Syrve customer, courier & timings.`);
+            }
+        } catch (err) {
+            console.warn('[SalesSync] enrichRecentTodayOrders warning:', err.message);
         }
     }
 }

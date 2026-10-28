@@ -80,7 +80,22 @@ export default function Settings() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 20
+  const [itemsPerPage, setItemsPerPage] = useState(() => {
+    try {
+      const saved = localStorage.getItem('settings_items_per_page')
+      if (saved) return Number(saved)
+    } catch (_) {}
+    return 20
+  })
+
+  const handleItemsPerPageChange = (val) => {
+    const num = Number(val)
+    setItemsPerPage(num)
+    setCurrentPage(1)
+    try {
+      localStorage.setItem('settings_items_per_page', String(num))
+    } catch (_) {}
+  }
 
   // Edit Modal State
   const [editingRestaurant, setEditingRestaurant] = useState(null)
@@ -313,15 +328,16 @@ export default function Settings() {
   }, [restaurants, selectedBrand, showOnlyActive, searchTerm])
 
   // Pagination logic
-  const totalPages = Math.ceil(filteredRestaurants.length / itemsPerPage) || 1
+  const totalPages = itemsPerPage === 9999 ? 1 : (Math.ceil(filteredRestaurants.length / itemsPerPage) || 1)
   const paginatedRestaurants = useMemo(() => {
+    if (itemsPerPage === 9999) return filteredRestaurants
     const start = (currentPage - 1) * itemsPerPage
     return filteredRestaurants.slice(start, start + itemsPerPage)
-  }, [filteredRestaurants, currentPage])
+  }, [filteredRestaurants, currentPage, itemsPerPage])
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [selectedBrand, showOnlyActive, searchTerm])
+  }, [selectedBrand, showOnlyActive, searchTerm, itemsPerPage])
 
   if (loading && restaurants.length === 0) {
     return (
@@ -332,7 +348,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="flex flex-col h-full w-full space-y-6">
+    <div className="space-y-6 pb-12">
       
       {/* Toast Notification */}
       {toastMessage && (
@@ -408,10 +424,10 @@ export default function Settings() {
 
       {/* TELEGRAM CONFIG CARD (COLLAPSIBLE) */}
       {showTelegramCard && (
-        <div className={`p-5 rounded-3xl border shadow-sm transition-all animate-in fade-in slide-in-from-top-2 duration-200 ${
+        <div className={`p-6 rounded-3xl border shadow-sm transition-all animate-in fade-in slide-in-from-top-2 duration-200 ${
           isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
         }`}>
-          <div className="flex items-center justify-between mb-3 border-b pb-3 border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between mb-4 border-b pb-3 border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400 flex items-center justify-center font-bold">
                 <Send size={16} />
@@ -429,8 +445,8 @@ export default function Settings() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 items-end">
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
+            <div className="md:col-span-5">
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
                 {t('telegram.bot_token')}
               </label>
@@ -445,7 +461,7 @@ export default function Settings() {
               />
             </div>
 
-            <div>
+            <div className="md:col-span-3">
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
                 {t('telegram.chat_id')}
               </label>
@@ -460,8 +476,28 @@ export default function Settings() {
               />
             </div>
 
-            <div>
+            <div className="md:col-span-2">
               <button
+                type="button"
+                onClick={() => {
+                  localStorage.setItem('telegram_bot_token', botToken)
+                  localStorage.setItem('telegram_test_chat_id', testChatId)
+                  showToast('Setările Telegram au fost salvate local!', 'success')
+                }}
+                className={`w-full h-10 rounded-full text-xs font-bold border transition-colors flex items-center justify-center gap-1.5 shadow-xs ${
+                  isDark
+                    ? 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-200'
+                    : 'bg-slate-100 border-slate-200 hover:bg-slate-200 text-slate-700'
+                }`}
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Salvează</span>
+              </button>
+            </div>
+
+            <div className="md:col-span-2">
+              <button
+                type="button"
                 onClick={handleTestTelegram}
                 disabled={isTestingTelegram}
                 className="w-full h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50"
@@ -469,6 +505,28 @@ export default function Settings() {
                 <Loader2 className={`w-3.5 h-3.5 ${isTestingTelegram ? 'animate-spin' : 'hidden'}`} />
                 <span>{isTestingTelegram ? t('telegram.testing') : t('telegram.test_btn')}</span>
               </button>
+            </div>
+          </div>
+
+          {/* Quick Guide on how to setup Telegram Bot */}
+          <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 space-y-2">
+            <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+              <span>Ghid Rapid — Cum implementăm alertele pe Telegram:</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/80">
+                <span className="font-bold text-slate-800 dark:text-slate-200 block mb-1">1. Obține Bot Token:</span>
+                Deschide <strong className="text-blue-500 font-bold">@BotFather</strong> în Telegram, trimite <code className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200">/newbot</code> și copiază Token-ul primit în câmpul de mai sus.
+              </div>
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/80">
+                <span className="font-bold text-slate-800 dark:text-slate-200 block mb-1">2. Creează Grupul:</span>
+                Creează grupul Telegram pentru echipă/manageri, adaugă botul creat și fă-l <strong className="text-blue-500 font-bold">Administrator</strong> cu permisiunea de a trimite mesaje.
+              </div>
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/80">
+                <span className="font-bold text-slate-800 dark:text-slate-200 block mb-1">3. Află Chat ID & Setează:</span>
+                ID-urile de grup încep cu <code className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200">-100...</code>. În tabelul de mai jos, apasă pe creion (editare) la fiecare restaurant pentru a-i seta grupul dedicat.
+              </div>
             </div>
           </div>
         </div>
@@ -644,10 +702,10 @@ export default function Settings() {
       </div>
 
       {/* RESTAURANTS TABLE */}
-      <div className={`rounded-2xl shadow-sm border overflow-hidden flex flex-col flex-1 transition-colors ${
+      <div className={`rounded-2xl shadow-sm border overflow-hidden transition-colors ${
         isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
       }`}>
-        <div className="overflow-x-auto flex-1 custom-scrollbar">
+        <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead className={`border-b text-[11px] font-bold uppercase tracking-wider sticky top-0 z-10 ${
               isDark ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'
@@ -672,8 +730,9 @@ export default function Settings() {
                 </tr>
               ) : (
                 paginatedRestaurants.map((r, idx) => {
-                  const itemIndex = (currentPage - 1) * itemsPerPage + idx + 1
+                  const itemIndex = itemsPerPage === 9999 ? idx + 1 : ((currentPage - 1) * itemsPerPage + idx + 1)
                   const cleanedName = cleanRestaurantName(r.name)
+                  const brandInfo = getBrandInfo(r)
 
                   return (
                     <tr 
@@ -693,13 +752,25 @@ export default function Settings() {
                         {r.city}
                       </td>
 
-                      {/* Restaurant & Address (Doar logo + nume curatat + adresa, fara badge repetat) */}
+                      {/* Restaurant & Address with Brand Badge */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <BrandAvatar brand={r} size={32} className="rounded-full shrink-0 shadow-xs" />
                           <div className="min-w-0">
-                            <div className="font-bold text-sm text-slate-900 dark:text-white truncate">
-                              {cleanedName}
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                                {cleanedName}
+                              </span>
+                              <span 
+                                className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 border"
+                                style={{
+                                  backgroundColor: brandInfo.color ? `${brandInfo.color}15` : undefined,
+                                  color: brandInfo.color || undefined,
+                                  borderColor: brandInfo.color ? `${brandInfo.color}35` : undefined
+                                }}
+                              >
+                                {brandInfo.name}
+                              </span>
                             </div>
                             <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate max-w-[320px]">
                               {r.address || t('common.unconfigured_address', 'Adresă neconfigurată')}
@@ -828,22 +899,41 @@ export default function Settings() {
         </div>
 
         {/* PAGINATION FOOTER */}
-        <div className={`px-6 py-4 border-t flex items-center justify-between transition-colors ${
+        <div className={`px-6 py-4 border-t flex flex-wrap items-center justify-between gap-3 transition-colors ${
           isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
         }`}>
-          <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
-            {t('settings.displayed_count', { shown: filteredRestaurants.length, total: restaurants.length })}
+          <div className="flex items-center gap-3 text-xs font-medium text-slate-500 dark:text-slate-400">
+            <div className="flex items-center gap-2">
+              <span>{t('common.rows')}</span>
+              <select 
+                value={itemsPerPage} 
+                onChange={e => handleItemsPerPageChange(e.target.value)} 
+                className={`h-8 px-3 rounded-full border text-xs font-bold outline-none cursor-pointer ${
+                  isDark ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-700'
+                }`}
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={9999}>{t('common.all')}</option>
+              </select>
+            </div>
+            <div className={`w-px h-4 ${isDark ? 'bg-slate-800' : 'bg-slate-200'} hidden sm:block`}></div>
+            <div>
+              {t('settings.displayed_count', { shown: filteredRestaurants.length, total: restaurants.length })}
+            </div>
           </div>
 
           <div className="flex items-center gap-4">
             <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              {t('common.page')} <span className="font-bold text-slate-900 dark:text-white">{currentPage}</span> {t('common.of')} {totalPages}
+              {t('common.page')} <span className="font-bold text-slate-900 dark:text-white">{itemsPerPage === 9999 ? 1 : currentPage}</span> {t('common.of')} {totalPages}
             </div>
 
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
+                disabled={currentPage === 1 || itemsPerPage === 9999}
                 className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
                   isDark 
                     ? 'border-slate-700 hover:bg-slate-800 text-slate-300' 
@@ -855,7 +945,7 @@ export default function Settings() {
 
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
+                disabled={currentPage === totalPages || itemsPerPage === 9999}
                 className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
                   isDark 
                     ? 'border-slate-700 hover:bg-slate-800 text-slate-300' 

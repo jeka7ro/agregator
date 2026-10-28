@@ -266,11 +266,12 @@ export async function processAndNotify() {
 export async function notifyStopResolved(restaurantId, platform, durationSec, lossAmount, currency = 'RON') {
   const restaurant = await supabase
     .from('restaurants')
-    .select('name, city, telegram_group_id')
+    .select('name, city, working_hours')
     .eq('id', restaurantId)
     .single();
 
-  if (!restaurant.data || !restaurant.data.telegram_group_id) return;
+  const targetChatId = restaurant.data?.working_hours?.telegram_group_id || restaurant.data?.telegram_group_id;
+  if (!restaurant.data || !targetChatId) return;
 
   const minutes = Math.floor(durationSec / 60);
   const loss = lossAmount ? `${Math.round(lossAmount).toLocaleString('ro-RO')} ${currency}` : '—';
@@ -283,5 +284,5 @@ export async function notifyStopResolved(restaurantId, platform, durationSec, lo
     `💸 Pierdere totală: ${loss}`,
   ].join('\n');
 
-  await sendTelegramMessage(restaurant.data.telegram_group_id, message);
+  await sendTelegramMessage(targetChatId, message);
 }

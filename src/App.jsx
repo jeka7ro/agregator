@@ -6,6 +6,7 @@ import Alerts from './pages/Alerts'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import Dispatch from './pages/Dispatch'
+import Reputation from './pages/Reputation'
 import LogoShowcase from './pages/LogoShowcase'
 
 function RootRedirect() {
@@ -22,6 +23,7 @@ function App() {
           <Route path="/" element={<RootRedirect />} />
           <Route path="/dispatch" element={<Dispatch />} />
           <Route path="/monitoring" element={<Monitoring />} />
+          <Route path="/reputation" element={<Reputation />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/reports" element={<Reports />} />

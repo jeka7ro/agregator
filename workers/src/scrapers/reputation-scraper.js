@@ -5,6 +5,7 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth'
 puppeteer.use(StealthPlugin())
 import { GlovoPartnerScraper } from './glovo-partner-scraper.js'
 import { WoltPartnerScraper } from './wolt-partner-scraper.js'
+import { reviewsService } from '../services/reviews-service.js'
 
 export class ReputationScraper {
 
@@ -64,6 +65,15 @@ export class ReputationScraper {
             // Sort newest first
             freshReviews.sort((a, b) => new Date(b.reviewed_at) - new Date(a.reviewed_at))
 
+            // Ingest into unified ReviewsService (attaches to iiko orders + saves to cache)
+            await reviewsService.ingestReviews(freshReviews.map(r => ({
+                ...r,
+                location_id: loc.id,
+                restaurant_name: loc.name,
+                platform: loc.platform,
+                platform_url: loc.url || ''
+            })), 'portal_scraper')
+
             for (const review of freshReviews) {
                 // Determine Sentiment basic ML (Phase 1)
                 const sentiment = this.analyzeSentiment(review.rating, review.comment)
@@ -113,12 +123,12 @@ export class ReputationScraper {
         // Find the first active restaurant of this brand to borrow its telegram group
         const { data } = await supabase
             .from('restaurants')
-            .select('telegram_group_id')
+            .select('working_hours')
             .eq('brand_id', brand_id)
             .limit(1)
             .single()
         
-        return data?.telegram_group_id || null
+        return data?.working_hours?.telegram_group_id || null
     }
 
     analyzeSentiment(rating, text) {

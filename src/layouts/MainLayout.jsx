@@ -15,6 +15,7 @@ import {
   Sun, 
   FileText,
   Radio,
+  Star,
   PanelLeftClose,
   PanelLeftOpen
 } from 'lucide-react'
@@ -61,6 +62,7 @@ export default function MainLayout() {
     { name: t('nav.dashboard'), path: '/dashboard', icon: LayoutDashboard },
     { name: t('nav.dispatch'), path: '/dispatch', icon: Radio },
     { name: t('nav.monitoring'), path: '/monitoring', icon: Store },
+    { name: t('nav.reputation', 'Recenzii & Rating'), path: '/reputation', icon: Star },
     { name: t('nav.alerts'), path: '/alerts', icon: BellRing },
     { name: t('nav.reports'), path: '/reports', icon: FileText },
     { name: t('nav.settings'), path: '/settings', icon: Settings },

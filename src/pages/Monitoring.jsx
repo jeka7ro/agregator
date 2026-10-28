@@ -1,4 +1,6 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import * as XLSX from 'xlsx'
 import { 
   AlertCircle, 
   Search, 
@@ -15,7 +17,21 @@ import {
   XCircle,
   Clock,
   FileText,
-  Webhook
+  Webhook,
+  Star,
+  Upload,
+  Mail,
+  Bot,
+  Receipt,
+  ThumbsUp,
+  ThumbsDown,
+  MessageSquare,
+  TrendingUp,
+  TrendingDown,
+  ChefHat,
+  Bike,
+  Copy,
+  Check
 } from 'lucide-react'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
@@ -23,6 +39,7 @@ import { useLiveChecks } from '../hooks/useLiveChecks'
 import PlatformLogo from '../components/PlatformLogo'
 import BrandAvatar, { getBrandInfo, cleanRestaurantName } from '../components/BrandAvatar'
 import RestaurantDetailsModal from '../components/RestaurantDetailsModal'
+import OrderDetailsModal from '../components/OrderDetailsModal'
 import { getApiUrl } from '../lib/api'
 import WebhookIntegrationModal from '../components/WebhookIntegrationModal'
 
@@ -33,6 +50,7 @@ function AnimatedNumber({ value }) {
 export default function Monitoring() {
   const { isDark } = useTheme()
   const { t, language } = useLanguage()
+  const navigate = useNavigate()
 
   const { restaurants, checks, loading, getLatestCheck, fetchData } = useLiveChecks()
 
@@ -89,6 +107,194 @@ export default function Monitoring() {
   const [selectedCheckDetail, setSelectedCheckDetail] = useState(null)
   const [dossierRestaurant, setDossierRestaurant] = useState(null)
   const [showWebhookModal, setShowWebhookModal] = useState(false)
+  const [selectedOrderForModal, setSelectedOrderForModal] = useState(null)
+
+  // View Mode: 'status' (Status Locații & Ratinguri) | 'reviews' (Inbox Recenzii & Reputație)
+  const [activeMainView, setActiveMainView] = useState('status')
+  const [reviewsData, setReviewsData] = useState({ reviews: [], kpis: null, ratings_by_restaurant: {} })
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [reviewFilter, setReviewFilter] = useState('all') // 'all' | 'negative' | 'positive' | 'with_comment' | 'matched'
+  const [reviewPlatformFilter, setReviewPlatformFilter] = useState('all')
+  const [toastNotice, setToastNotice] = useState(null)
+  const fileInputRef = useRef(null)
+
+  // Email & Portal Scraper Modals
+  const [showEmailModal, setShowEmailModal] = useState(false)
+  const [emailSubject, setEmailSubject] = useState('')
+  const [emailBody, setEmailBody] = useState('')
+  const [emailParsing, setEmailParsing] = useState(false)
+  const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false)
+  const [isScrapingPortals, setIsScrapingPortals] = useState(false)
+  const [showScraperInfoModal, setShowScraperInfoModal] = useState(false)
+
+  const showToast = useCallback((type, text) => {
+    setToastNotice({ type, text })
+    setTimeout(() => setToastNotice(null), 5500)
+  }, [])
+
+  const fetchReviews = useCallback(async () => {
+    setReviewsLoading(true)
+    try {
+      const res = await fetch(getApiUrl('/api/reviews?limit=300'))
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success) {
+          setReviewsData({
+            reviews: data.reviews || [],
+            kpis: data.kpis || null,
+            ratings_by_restaurant: data.ratings_by_restaurant || {}
+          })
+        }
+      }
+    } catch (err) {
+      console.error('[Monitoring] fetchReviews error:', err)
+    } finally {
+      setReviewsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchReviews()
+  }, [fetchReviews])
+
+  // MECANISMUL 1: Import Manual din Excel / CSV (handleFileUpload cu XLSX)
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+
+    try {
+      const arrayBuffer = await file.arrayBuffer()
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' })
+      const sheetName = workbook.SheetNames[0]
+      const sheet = workbook.Sheets[sheetName]
+      const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: '' })
+
+      if (!rawRows || rawRows.length === 0) {
+        showToast('error', 'Fișierul Excel/CSV selectat nu conține rânduri valide.')
+        return
+      }
+
+      const findKey = (obj, candidates) => {
+        const keys = Object.keys(obj)
+        for (const cand of candidates) {
+          const found = keys.find(k => k.toLowerCase().trim().includes(cand))
+          if (found) return obj[found]
+        }
+        return ''
+      }
+
+      const parsedReviews = rawRows.map((row) => {
+        const rawRating = findKey(row, ['rating', 'score', 'nota', 'notă', 'stars', 'stele', 'evaluare', 'thumbs'])
+        let numRating = parseFloat(String(rawRating).replace(',', '.'))
+        if (isNaN(numRating)) {
+          const strVal = String(rawRating).toLowerCase()
+          numRating = (strVal.includes('neg') || strVal.includes('down') || strVal.includes('👎')) ? 2 : 5
+        }
+        const maxScale = numRating > 5 ? 10 : 5
+        const comment = String(findKey(row, ['comment', 'review', 'comentariu', 'feedback', 'text', 'mesaj', 'reason', 'motiv']) || '').trim()
+        const orderId = String(findKey(row, ['order_id', 'order id', 'order_code', 'order code', 'comanda', 'comandă', 'bon', 'order number', 'id']) || '').trim()
+        const platformRaw = String(findKey(row, ['platform', 'platforma', 'canal', 'source', 'app']) || '').toLowerCase()
+        const platform = platformRaw.includes('wolt') ? 'wolt' : platformRaw.includes('bolt') ? 'bolt' : (file.name.toLowerCase().includes('wolt') ? 'wolt' : file.name.toLowerCase().includes('bolt') ? 'bolt' : 'glovo')
+        const restName = String(findKey(row, ['restaurant', 'store', 'locatie', 'locație', 'venue', 'branch']) || '').trim()
+        const customerName = String(findKey(row, ['customer', 'client', 'author', 'user', 'nume']) || `Client ${platform.toUpperCase()}`).trim()
+        const reviewedAt = findKey(row, ['date', 'data', 'created_at', 'reviewed_at', 'time', 'timestamp']) || new Date().toISOString()
+
+        // Sentiment conform regulii (>= 8 pozitiv, <= 5 negativ pe scara 10; >= 4 pozitiv, <= 2 negativ pe scara 5)
+        const r10 = maxScale === 10 ? numRating : numRating * 2
+        let sentiment = 'neutral'
+        if (r10 >= 8) sentiment = 'positive'
+        else if (r10 <= 5) sentiment = 'negative'
+
+        return {
+          order_id: orderId,
+          platform,
+          rating: numRating,
+          max_scale: maxScale,
+          comment,
+          sentiment,
+          customer_name: customerName,
+          restaurant_name: restName,
+          reviewed_at: reviewedAt
+        }
+      })
+
+      const res = await fetch(getApiUrl('/api/reviews/import'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviews: parsedReviews, source: 'excel_import' })
+      })
+      const data = await res.json()
+      if (data.success) {
+        showToast('success', `Import Excel finalizat: ${data.inserted || parsedReviews.length} recenzii procesate (${data.matched || 0} legate automat de bonurile din Dispecerat).`)
+        fetchReviews()
+      } else {
+        showToast('error', data.error || 'Eroare la importul fișierului Excel.')
+      }
+    } catch (err) {
+      showToast('error', `Eroare la citirea fișierului Excel/CSV: ${err.message}`)
+    }
+  }
+
+  // MECANISMUL 2A: Parsare Email Recenzie (jeka7ro@gmail.com)
+  const handleParseEmail = async (e) => {
+    e.preventDefault()
+    if (!emailSubject.trim() && !emailBody.trim()) {
+      showToast('error', 'Introdu subiectul sau conținutul emailului de recenzie.')
+      return
+    }
+    setEmailParsing(true)
+    try {
+      const res = await fetch(getApiUrl('/api/reviews/parse-email'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject: emailSubject,
+          body: emailBody,
+          from: 'jeka7ro@gmail.com',
+          receivedAt: new Date().toISOString()
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        showToast('success', `Recenzie extrasă din email și salvată (${data.matched > 0 ? 'legată automat de comanda iiko!' : 'fără bon iiko asociat'}).`)
+        setEmailSubject('')
+        setEmailBody('')
+        setShowEmailModal(false)
+        fetchReviews()
+      } else {
+        showToast('error', data.error || 'Eroare la parsarea emailului.')
+      }
+    } catch (err) {
+      showToast('error', err.message)
+    } finally {
+      setEmailParsing(false)
+    }
+  }
+
+  // MECANISMUL 2B: Pornire Scrapere Puppeteer B2B (GlovoPartnerScraper & WoltPartnerScraper)
+  const handleTriggerPortalScrapers = async () => {
+    setIsScrapingPortals(true)
+    try {
+      const res = await fetch(getApiUrl('/api/reviews/scrape-portals'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      const data = await res.json()
+      if (data.success) {
+        showToast('success', data.message || 'Scanarea portalurilor Glovo Partner & Wolt Merchant a pornit în fundal.')
+      } else {
+        showToast('error', data.error || 'Eroare la pornirea scraperelor.')
+      }
+    } catch (err) {
+      showToast('error', err.message)
+    } finally {
+      setTimeout(() => {
+        setIsScrapingPortals(false)
+        fetchReviews()
+      }, 3000)
+    }
+  }
   
   // Sorting state
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -294,6 +500,64 @@ export default function Monitoring() {
     return () => clearInterval(interval)
   }, [isVerifying, fetchData])
 
+  // Filtered reviews for the Inbox Recenzii & Reputație tab (MUST be before early return!)
+  const filteredReviews = useMemo(() => {
+    let list = [...(reviewsData.reviews || [])]
+    if (activeBrand !== 'all') {
+      list = list.filter(rv => {
+        if (rv.brand_name && rv.brand_name === activeBrand) return true
+        const restObj = restaurants.find(r => r.id === (rv.restaurant_id || rv.location_id)) || { name: rv.restaurant_name }
+        return deduceBrandName(restObj) === activeBrand
+      })
+    }
+    if (reviewPlatformFilter !== 'all') {
+      list = list.filter(rv => (rv.platform || '').toLowerCase() === reviewPlatformFilter)
+    }
+    if (reviewFilter === 'negative') {
+      list = list.filter(rv => rv.sentiment === 'negative')
+    } else if (reviewFilter === 'positive') {
+      list = list.filter(rv => rv.sentiment === 'positive')
+    } else if (reviewFilter === 'with_comment') {
+      list = list.filter(rv => rv.comment && rv.comment.trim().length > 0 && !rv.comment.startsWith('Evaluare publică'))
+    } else if (reviewFilter === 'matched') {
+      list = list.filter(rv => !!rv.matched_order)
+    }
+    if (search.trim()) {
+      const s = search.toLowerCase()
+      list = list.filter(rv =>
+        (rv.restaurant_name && rv.restaurant_name.toLowerCase().includes(s)) ||
+        (rv.city && rv.city.toLowerCase().includes(s)) ||
+        (rv.comment && rv.comment.toLowerCase().includes(s)) ||
+        (rv.customer_name && rv.customer_name.toLowerCase().includes(s)) ||
+        (rv.order_id && String(rv.order_id).toLowerCase().includes(s)) ||
+        (rv.matched_order?.order_number && String(rv.matched_order.order_number).toLowerCase().includes(s))
+      )
+    }
+    return list
+  }, [reviewsData.reviews, activeBrand, reviewPlatformFilter, reviewFilter, search, restaurants])
+
+  const getRestaurantRating = (restaurantId, platform) => {
+    const check = getLatestCheck(restaurantId, platform)
+    if (check && check.rating !== undefined && check.rating !== null) {
+      return {
+        rating: Number(check.rating),
+        previous_rating: check.previous_rating !== undefined && check.previous_rating !== null ? Number(check.previous_rating) : null,
+        review_count: check.review_count || null,
+        change_direction: check.change_direction || 'same'
+      }
+    }
+    const rMap = reviewsData.ratings_by_restaurant?.[restaurantId]?.[platform]
+    if (rMap && rMap.rating !== undefined && rMap.rating !== null) {
+      return {
+        rating: Number(rMap.rating),
+        previous_rating: rMap.previous_rating !== undefined && rMap.previous_rating !== null ? Number(rMap.previous_rating) : null,
+        review_count: rMap.review_count || null,
+        change_direction: rMap.change_direction || 'same'
+      }
+    }
+    return null
+  }
+
   if (loading && restaurants.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-12 space-y-3">
@@ -308,7 +572,32 @@ export default function Monitoring() {
   const localeCode = language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-US' : 'ro-RO'
 
   return (
-    <div className="flex flex-col h-full w-full space-y-6">
+    <div className="flex flex-col h-full w-full space-y-5">
+      {/* Hidden Excel/CSV Input for Mecanismul 1 */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xlsx,.xls,.csv"
+        onChange={handleFileUpload}
+        className="hidden"
+      />
+
+      {/* Internal Toast Notification Banner (Fără alert/confirm/prompt nativ) */}
+      {toastNotice && (
+        <div className={`px-4 py-3 rounded-2xl border flex items-center justify-between gap-3 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200 ${
+          toastNotice.type === 'error'
+            ? 'bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/50 dark:border-rose-800 dark:text-rose-300'
+            : 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/50 dark:border-emerald-800 dark:text-emerald-300'
+        }`}>
+          <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold">
+            {toastNotice.type === 'error' ? <AlertTriangle size={16} className="shrink-0" /> : <CheckCircle2 size={16} className="shrink-0" />}
+            <span>{toastNotice.text}</span>
+          </div>
+          <button onClick={() => setToastNotice(null)} className="p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10">
+            <X size={14} />
+          </button>
+        </div>
+      )}
       
       {/* HEADER OPERAȚIONAL */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
@@ -402,7 +691,7 @@ export default function Monitoring() {
         })}
       </div>
 
-      {/* CARD TABEL */}
+      {/* CARD TABEL STATUS & RATINGURI LIVE */}
       <div className={`rounded-2xl shadow-sm border overflow-hidden flex flex-col flex-1 transition-colors ${
         isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
       }`}>
@@ -526,22 +815,51 @@ export default function Monitoring() {
                     const check = getLatestCheck(r.id, p);
                     const outside = !isWithinWorkingHours(r.working_hours);
                     const info = getStatusInfo(check?.final_status, outside);
+                    const ratingInfo = p !== 'iiko' ? getRestaurantRating(r.id, p) : null;
                     
                     return (
                       <td key={p} className="px-4 py-3.5 text-center align-middle whitespace-nowrap">
-                        <div 
-                          onClick={() => {
-                            if (check) setSelectedCheckDetail({ check, restaurant: r, platform: p, info });
-                          }}
-                          className={`inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all hover:scale-105 cursor-pointer ${info.badgeClass}`}
-                          title="Apasă pentru mai multe detalii"
-                        >
-                          <PlatformLogo platform={p} size={14} className="shrink-0" />
-                          <span className="whitespace-nowrap leading-none">{info.label}</span>
+                        <div className="inline-flex flex-col items-center gap-1">
+                          <div 
+                            onClick={() => {
+                              if (check) setSelectedCheckDetail({ check: { ...check, ...(ratingInfo || {}) }, restaurant: r, platform: p, info });
+                            }}
+                            className={`inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all hover:scale-105 cursor-pointer ${info.badgeClass}`}
+                            title="Apasă pentru mai multe detalii"
+                          >
+                            <PlatformLogo platform={p} size={14} className="shrink-0" />
+                            <span className="whitespace-nowrap leading-none">{info.label}</span>
+                          </div>
+
+                          {/* MECANISMUL 3: Rating General Live din rating_history */}
+                          {ratingInfo && ratingInfo.rating > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/reputation?platform=${p}&q=${encodeURIComponent(cleanRestaurantName(r.name))}`)}
+                              title={`Rating ${p.toUpperCase()}: ${ratingInfo.rating}${ratingInfo.review_count ? ` (${ratingInfo.review_count} recenzii)` : ''} • Click pentru recenziile locației`}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold border transition-colors cursor-pointer ${
+                                ratingInfo.change_direction === 'down'
+                                  ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+                                  : 'bg-amber-50/80 text-amber-700 border-amber-200/80 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800/60 hover:bg-amber-100/80'
+                              }`}
+                            >
+                              <Star size={10} className="fill-amber-400 text-amber-500 shrink-0" />
+                              <span>{ratingInfo.rating.toFixed(1)}</span>
+                              {ratingInfo.change_direction === 'up' && (
+                                <span className="text-emerald-600 dark:text-emerald-400">▲</span>
+                              )}
+                              {ratingInfo.change_direction === 'down' && (
+                                <span className="text-rose-600 dark:text-rose-400">▼</span>
+                              )}
+                              {ratingInfo.review_count > 0 && (
+                                <span className="text-[9px] opacity-65 font-semibold">({ratingInfo.review_count})</span>
+                              )}
+                            </button>
+                          )}
                         </div>
                         
                         {/* Avertismente Stop List */}
-                        <div className="flex flex-col gap-1 mt-1.5 items-center">
+                        <div className="flex flex-col gap-1 mt-1 items-center">
                           {check?.disabled_categories?.length > 0 && (
                             <span 
                               title={check.disabled_categories.join(', ')}
@@ -793,6 +1111,28 @@ export default function Monitoring() {
                   </div>
                 </div>
 
+                {/* Rating General din rating_history (dacă există) */}
+                {selectedCheckDetail.check.rating > 0 && (
+                  <div className={`p-4 rounded-2xl border flex items-center justify-between ${
+                    isDark ? 'bg-amber-950/20 border-amber-800/50' : 'bg-amber-50/70 border-amber-200'
+                  }`}>
+                    <div>
+                      <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 block">
+                        Rating General Public ({selectedCheckDetail.platform.toUpperCase()})
+                      </span>
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                        {selectedCheckDetail.check.review_count ? `${selectedCheckDetail.check.review_count} evaluări totale` : 'Extras automat din pagina publică'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-3 py-1 rounded-full bg-amber-500 text-white text-sm font-black flex items-center gap-1">
+                        <Star size={14} className="fill-white" />
+                        {Number(selectedCheckDetail.check.rating).toFixed(1)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Eroare (daca exista) */}
                 {selectedCheckDetail.check.ui_error_message && (
                   <div className="p-4 border rounded-2xl bg-rose-50 border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
@@ -882,6 +1222,194 @@ export default function Monitoring() {
         onClose={() => setShowWebhookModal(false)}
         onWebhookTriggered={() => fetchData(true)}
       />
+
+      {/* Modal Detalii Bon iiko (din Recenzii -> Dispecerat) */}
+      <OrderDetailsModal
+        order={selectedOrderForModal}
+        isOpen={!!selectedOrderForModal}
+        onClose={() => setSelectedOrderForModal(null)}
+      />
+
+      {/* MODAL MECANISMUL 2A: CONECTARE EMAIL (jeka7ro@gmail.com) & PARSARE RECENZIE DIN MAIL */}
+      {showEmailModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`rounded-2xl w-full max-w-xl shadow-2xl border overflow-hidden flex flex-col max-h-[90vh] ${
+            isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            <div className={`px-6 py-4 border-b flex items-center justify-between ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                  <Mail size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold">Conectare Email Recenzii (jeka7ro@gmail.com)</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Extrage automat Restaurantul, Platforma, Nota, Comentariul și leagă de Comanda iiko</p>
+                </div>
+              </div>
+              <button onClick={() => setShowEmailModal(false)} className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleParseEmail} className="p-6 overflow-y-auto space-y-4">
+              {/* Auto-Forwarding Webhook Info */}
+              <div className={`p-3.5 rounded-xl border text-xs space-y-1.5 ${
+                isDark ? 'bg-slate-800/50 border-slate-700/80 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+              }`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-extrabold uppercase tracking-wider text-[10px] text-emerald-600 dark:text-emerald-400">
+                    ● Cont Conectat: jeka7ro@gmail.com (Glovo / Wolt / Bolt / Google)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/api/webhooks/email-review`)
+                      setCopiedWebhookUrl(true)
+                      setTimeout(() => setCopiedWebhookUrl(false), 2000)
+                    }}
+                    className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    {copiedWebhookUrl ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
+                    <span>{copiedWebhookUrl ? 'Copiat!' : 'Copiază Webhook Mail'}</span>
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Poți redirecționa automat emailurile pe <code className="font-mono font-bold">/api/webhooks/email-review</code> sau lipi mai jos orice email de recenzie primit pentru asociere instantă cu bonul din iiko:
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold mb-1.5 text-slate-700 dark:text-slate-300">
+                  Subiect Email (ex: „New review on Glovo - Smash Me Constanța - Order #118248”)
+                </label>
+                <input
+                  type="text"
+                  value={emailSubject}
+                  onChange={e => setEmailSubject(e.target.value)}
+                  placeholder="Subiectul emailului primit pe jeka7ro@gmail.com..."
+                  className={`w-full px-3.5 h-10 rounded-xl border text-xs font-medium outline-none ${
+                    isDark ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold mb-1.5 text-slate-700 dark:text-slate-300">
+                  Conținutul / Textul Emailului de Recenzie
+                </label>
+                <textarea
+                  rows={5}
+                  value={emailBody}
+                  onChange={e => setEmailBody(e.target.value)}
+                  placeholder="Lipește aici corpul emailului (include ID-ul comenzii dacă apare în mail, nota 1-5⭐ sau 👍/👎 și comentariul clientului)..."
+                  className={`w-full p-3.5 rounded-xl border text-xs font-medium outline-none ${
+                    isDark ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
+                  }`}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEmailModal(false)}
+                  className={`px-4 h-10 rounded-full text-xs font-bold ${
+                    isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  Anulează
+                </button>
+                <button
+                  type="submit"
+                  disabled={emailParsing}
+                  className="px-5 h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {emailParsing ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                  <span>Extrage Recenzia & Leagă de Bonul iiko</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL MECANISMUL 2B: SCRAPERE PUPPETEER PORTALURI B2B (GLOVO PARTNER & WOLT MERCHANT) */}
+      {showScraperInfoModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`rounded-2xl w-full max-w-xl shadow-2xl border overflow-hidden flex flex-col max-h-[90vh] ${
+            isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            <div className={`px-6 py-4 border-b flex items-center justify-between ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                  <Bot size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold">Scrapere B2B — Glovo Partner & Wolt Merchant</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Extragere automată recenzii din contul master jeka7ro@gmail.com</p>
+                </div>
+              </div>
+              <button onClick={() => setShowScraperInfoModal(false)} className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-4 text-xs">
+              <div className={`p-4 rounded-xl border space-y-2 ${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                <div className="font-extrabold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                  <PlatformLogo platform="glovo" size={15} />
+                  <span>1. Glovo Partner (GlovoPartnerScraper)</span>
+                </div>
+                <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Încarcă sesiunea salvată din <code className="font-mono font-bold">glovo-cookies.json</code> pentru bypass 2FA/Cloudflare, accesează <code className="font-mono">portal.glovoapp.com/reviews/</code>, extrage recenziile din DOM și calculează sentimentul în română/engleză.
+                </p>
+                <div className="p-2 rounded-lg bg-slate-900 text-emerald-400 font-mono text-[11px]">
+                  node workers/src/scrapers/glv-init.js
+                </div>
+              </div>
+
+              <div className={`p-4 rounded-xl border space-y-2 ${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                <div className="font-extrabold text-sky-600 dark:text-sky-400 flex items-center gap-1.5">
+                  <PlatformLogo platform="wolt" size={15} />
+                  <span>2. Wolt Merchant (WoltPartnerScraper)</span>
+                </div>
+                <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Accesează <code className="font-mono">merchant.wolt.com/app/experience/search</code> cu <code className="font-mono font-bold">jeka7ro@gmail.com</code>, așteaptă confirmarea Magic Link pe email (2 minute) și extrage feedback-ul clienților.
+                </p>
+                <div className="p-2 rounded-lg bg-slate-900 text-emerald-400 font-mono text-[11px]">
+                  node workers/src/scrapers/run-reputation.js
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowScraperInfoModal(false)
+                    fileInputRef.current?.click()
+                  }}
+                  className="px-4 h-10 rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Upload size={14} />
+                  <span>Sau Importă Raport Excel/CSV</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isScrapingPortals}
+                  onClick={() => {
+                    handleTriggerPortalScrapers()
+                    setShowScraperInfoModal(false)
+                  }}
+                  className="px-5 h-10 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isScrapingPortals ? <Loader2 size={14} className="animate-spin" /> : <Bot size={14} />}
+                  <span>Pornește Scanarea Portalurilor Acum</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

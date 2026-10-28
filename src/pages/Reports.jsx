@@ -205,8 +205,20 @@ export default function Reports() {
     } catch (_) {}
     return 'this_week'
   })
-  const [analyticsData, setAnalyticsData] = useState(null)
-  const [loadingAnalytics, setLoadingAnalytics] = useState(true)
+  const [analyticsData, setAnalyticsData] = useState(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const initialPeriod = new URLSearchParams(window.location.search).get('period') || 'this_week'
+        const cached = sessionStorage.getItem(`reports_cache_${initialPeriod}`)
+        if (cached) {
+          const parsed = JSON.parse(cached)
+          if (parsed && parsed.success) return parsed
+        }
+      }
+    } catch (_) {}
+    return null
+  })
+  const [loadingAnalytics, setLoadingAnalytics] = useState(() => !analyticsData)
 
   // Cross-Filter States
   const [filterCity, setFilterCity] = useState(() => {
@@ -297,23 +309,46 @@ export default function Reports() {
 
   // Fetch Executive Analytics Data
   const fetchAnalytics = async () => {
-    setLoadingAnalytics(true)
+    if (!analyticsData) setLoadingAnalytics(true)
     try {
       const res = await fetch(getApiUrl(`/api/sales/executive-summary?period=${encodeURIComponent(period)}&limit=10000`))
       const json = await res.json()
       if (json.success) {
         setAnalyticsData(json)
+        try {
+          sessionStorage.setItem(`reports_cache_${period}`, JSON.stringify(json))
+        } catch (_) {}
       } else {
         throw new Error(json.error || 'Failed to fetch executive summary')
       }
     } catch (err) {
       console.error("Executive analytics fetch error:", err)
+      // Anti-Wipe: dacă există date în cache-ul sesiunii, le recuperăm
+      try {
+        const cached = sessionStorage.getItem(`reports_cache_${period}`)
+        if (cached) {
+          const parsed = JSON.parse(cached)
+          if (parsed && parsed.success) {
+            setAnalyticsData(parsed)
+          }
+        }
+      } catch (_) {}
     } finally {
       setLoadingAnalytics(false)
     }
   }
 
   useEffect(() => {
+    // La schimbarea perioadei, dacă avem cache pentru noua perioadă, îl afișăm instant
+    try {
+      const cached = sessionStorage.getItem(`reports_cache_${period}`)
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        if (parsed && parsed.success) {
+          setAnalyticsData(parsed)
+        }
+      }
+    } catch (_) {}
     fetchAnalytics()
   }, [period])
 

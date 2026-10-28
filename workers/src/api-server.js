@@ -21,6 +21,8 @@ import { discoverSingleRestaurant } from './utils/auto-discover.js'
 import { salesSync } from './services/sales-sync.js'
 import { saveLiveChecksCache, loadLiveChecksCache, loadStopEventsCache, loadViolationsCache } from './utils/cache.js'
 import { webhookService } from './services/webhook-service.js'
+import { reviewsService } from './services/reviews-service.js'
+import { ReputationScraper } from './scrapers/reputation-scraper.js'
 import { enrichOrderItems, matchProductImage } from './services/product-matcher.js'
 import './index.js' // Start all cron jobs in the background
 
@@ -306,8 +308,154 @@ export function resolveMatchingRestaurant(allRests, rawRest, detectedBrand, cano
 
 
 // ─── BYPASS Supabase RLS pentru UI ───
-app.get('/api/live-checks', (req, res) => {
-    res.json({ success: true, checks: global.liveChecks || [] })
+app.get('/api/live-checks', async (req, res) => {
+    try {
+        const ratingsMap = await reviewsService.getLatestRatingsMap()
+        const rawChecks = global.liveChecks || []
+        const enrichedChecks = rawChecks.map(c => {
+            const rKey = `${c.restaurant_id}_${(c.platform || '').toLowerCase()}`
+            const rInfo = ratingsMap.get(rKey)
+            return {
+                ...c,
+                rating: c.rating ?? rInfo?.rating ?? null,
+                previous_rating: rInfo?.previous_rating ?? null,
+                review_count: c.review_count ?? rInfo?.review_count ?? null,
+                change_direction: rInfo?.change_direction ?? null
+            }
+        })
+        res.json({ success: true, checks: enrichedChecks })
+    } catch (err) {
+        res.json({ success: true, checks: global.liveChecks || [] })
+    }
+})
+
+// ─── REVIEWS & REPUTATION INBOX API (Email, Excel/CSV, Portal Scrapers & Order Linking) ───
+app.get('/api/reviews', async (req, res) => {
+    try {
+        const { brand, city, platform, sentiment, search, limit } = req.query
+        const data = await reviewsService.getEnrichedReviews({
+            brand,
+            city,
+            platform,
+            sentiment,
+            search,
+            limit: parseInt(limit || '200', 10)
+        })
+        res.json({ success: true, ...data })
+    } catch (err) {
+        console.error('[API SERVER] GET /api/reviews error:', err)
+        res.status(500).json({ success: false, error: err.message })
+    }
+})
+
+app.post('/api/reviews/import', async (req, res) => {
+    try {
+        const { reviews = [], source = 'excel' } = req.body || {}
+        const result = await reviewsService.ingestReviews(reviews, source)
+        res.json({
+            success: true,
+            added: result.added,
+            matched_orders: result.matchedOrders,
+            reviews: result.reviews
+        })
+    } catch (err) {
+        console.error('[API SERVER] POST /api/reviews/import error:', err)
+        res.status(500).json({ success: false, error: err.message })
+    }
+})
+
+app.post('/api/reviews/parse-email', async (req, res) => {
+    try {
+        const { subject, body, from, received_at } = req.body || {}
+        const result = await reviewsService.parseAndIngestEmail({
+            subject,
+            body,
+            from,
+            receivedAt: received_at
+        })
+        res.json({
+            success: true,
+            added: result.added,
+            matched_orders: result.matchedOrders,
+            reviews: result.reviews
+        })
+    } catch (err) {
+        console.error('[API SERVER] POST /api/reviews/parse-email error:', err)
+        res.status(500).json({ success: false, error: err.message })
+    }
+})
+
+app.post('/api/webhooks/email-review', async (req, res) => {
+    try {
+        const payload = req.body || {}
+        const subject = payload.subject || payload.Subject || payload.headers?.subject || 'Recenzie Email'
+        const body = payload.text || payload.body || payload.plain || payload.html || JSON.stringify(payload)
+        const from = payload.from || payload.From || payload.sender || ''
+        const result = await reviewsService.parseAndIngestEmail({ subject, body, from })
+        res.json({
+            success: true,
+            added: result.added,
+            matched_orders: result.matchedOrders
+        })
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message })
+    }
+})
+
+app.post('/api/reviews/scrape-portals', async (req, res) => {
+    try {
+        const scraper = new ReputationScraper()
+        // Run async and return status
+        scraper.runAllScrapes().catch(e => console.warn('[ReputationScraper] Background error:', e.message))
+        res.json({
+            success: true,
+            message: 'Scanarea portalurilor Glovo Partner & Wolt Merchant a fost pornită în fundal (folosind sesiunea glovo-cookies.json).'
+        })
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message })
+    }
+})
+
+app.post('/api/reviews/translate', async (req, res) => {
+    try {
+        const { text, target_lang = 'ru', review_id = null } = req.body || {}
+        const translated = await reviewsService.translateTextOnline(text, target_lang)
+        if (review_id) {
+            const found = reviewsService.reviews.find(r => r.id === review_id)
+            if (found) {
+                found.comment_translations = {
+                    ...(found.comment_translations || reviewsService.buildDefaultTranslations(found.comment)),
+                    [target_lang]: translated
+                }
+                reviewsService._saveCache()
+            }
+        }
+        res.json({ success: true, translated, target_lang })
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message })
+    }
+})
+
+app.get('/api/reviews/email-config', (req, res) => {
+    res.json({ success: true, config: reviewsService.getEmailConfigPublic() })
+})
+
+app.post('/api/reviews/email-config', (req, res) => {
+    try {
+        const saved = reviewsService.saveEmailConfig(req.body || {})
+        res.json({ success: true, config: saved })
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message })
+    }
+})
+
+app.post('/api/reviews/email-sync', async (req, res) => {
+    try {
+        const result = await reviewsService.syncFromImap(req.body || {})
+        res.json(result)
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message })
+    }
 })
 
 // ─── OFFICIAL WEBHOOKS (WOLT & BOLT FOOD) ───
@@ -358,8 +506,10 @@ app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
                 .select('id, name, city, is_active, iiko_restaurant_id, iiko_config')
 
             let rawList = []
+            const NON_ORDER_EVENTS = new Set(['PersonalShift', 'StopListUpdate', 'TerminalGroupStopListUpdate'])
             if (Array.isArray(payload)) {
                 for (const item of payload) {
+                    if (item.eventType && NON_ORDER_EVENTS.has(item.eventType)) continue
                     const orderData = item.eventInfo?.order || item.order || {}
                     if (item.eventInfo || item.order) {
                         rawList.push({
@@ -374,7 +524,9 @@ app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
                     }
                 }
             } else if (payload && typeof payload === 'object') {
-                if (Array.isArray(payload.orders)) {
+                if (payload.eventType && NON_ORDER_EVENTS.has(payload.eventType)) {
+                    rawList = []
+                } else if (Array.isArray(payload.orders)) {
                     rawList = payload.orders.map(o => ({
                         ...(o.order || o),
                         organizationId: o.organizationId || payload.organizationId
@@ -395,6 +547,12 @@ app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
 
             const rowsToUpsert = []
             for (const o of rawList) {
+                // Skip non-order webhook events that have neither items nor sum/number
+                const rawItemsCheck = Array.isArray(o.items) ? o.items : []
+                const rawSumCheck = parseFloat(o.sum || o.total || o.total_amount || o.resultSum || 0)
+                if (rawItemsCheck.length === 0 && rawSumCheck === 0 && !o.number && !o.externalNumber) {
+                    continue
+                }
                 const orgId = o.organizationId || o.organization_id || o.orgId || o.org_id
                 const targetRestId = o.restaurant_id || o.restaurantId
 
@@ -472,7 +630,7 @@ app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
                 if (rawSource.includes('glovo')) platform = 'glovo'
                 else if (rawSource.includes('wolt')) platform = 'wolt'
                 else if (rawSource.includes('bolt')) platform = 'bolt'
-                else if (rawSource.includes('delivery')) platform = 'delivery'
+                else if (rawSource.includes('web') || rawSource === 'app' || rawSource.includes('delivery') || orderTypeName.includes('livrare')) platform = 'delivery'
                 else if (isKiosk && isSmashOrCrunch) platform = 'kiosk'
                 else platform = 'casierie'
 
@@ -504,12 +662,54 @@ app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
 
                 let placed_at = o.whenCreated || o.whenClosed || o.created_at || o.placed_at || o.eventTime
                 if (placed_at && typeof placed_at === 'string' && placed_at.includes(' ') && !placed_at.includes('T')) {
-                    placed_at = placed_at.replace(' ', 'T')
+                    placed_at = placed_at.replace(' ', 'T') + 'Z'
                 }
                 try {
                     placed_at = placed_at ? new Date(placed_at).toISOString() : new Date().toISOString()
                 } catch (_) {
                     placed_at = new Date().toISOString()
+                }
+
+                // Extract Customer & Courier info from Syrve/iiko order payload
+                const rawCustName = [o.customer?.name, o.customer?.surname].filter(Boolean).join(' ').trim() || o.customerName || null
+                const custComment = o.customer?.comment || ''
+                const phoneFromComment = custComment.match(/Phone:\s*([^;]+)/i)?.[1]?.trim() || null
+                const pickUpCode = custComment.match(/Pick Up Code:\s*([^;]+)/i)?.[1]?.trim() || null
+                const extOrderId = custComment.match(/OrderId:\s*([^;]+)/i)?.[1]?.trim() || o.externalNumber || null
+                const courierPhoneFromComment = custComment.match(/Courier Phone:\s*([^;]+)/i)?.[1]?.trim() || null
+                const rawCourierFromComment = custComment.match(/Courier:\s*([^;]+)/i)?.[1]?.trim() || null
+                const cleanCourierFromComment = (rawCourierFromComment && !rawCourierFromComment.includes('IikoMiddleware')) ? rawCourierFromComment : null
+
+                const custPhone = o.phone || o.customer?.phone || phoneFromComment || null
+                const custAddress = o.deliveryPoint?.comment || o.deliveryPoint?.address?.line1 || o.deliveryPoint?.address?.street?.name || null
+
+                const rawCourierObj = o.courierInfo?.courier || o.courier || null
+                const courierName = rawCourierObj?.name || o.courierName || cleanCourierFromComment || null
+                const courierPhone = rawCourierObj?.phone || o.courierPhone || courierPhoneFromComment || null
+                const extractedCourier = courierName ? {
+                    name: courierName,
+                    phone: courierPhone || '',
+                    company: platform === 'glovo' ? 'Glovo' : platform === 'wolt' ? 'Wolt' : platform === 'bolt' ? 'Bolt Food' : 'Livrator Propriu',
+                    isManual: Boolean(o.courierInfo?.isCourierSelectedManually)
+                } : null
+
+                const extractedCustomer = (rawCustName || custPhone || custAddress) ? {
+                    name: rawCustName || 'Client',
+                    phone: custPhone,
+                    address: custAddress,
+                    pickUpCode,
+                    externalOrderId: extOrderId
+                } : null
+
+                const extractedTimings = {
+                    whenCreated: o.whenCreated || null,
+                    whenConfirmed: o.whenConfirmed || null,
+                    whenPrinted: o.whenPrinted || null,
+                    whenCookingCompleted: o.whenCookingCompleted || null,
+                    whenSended: o.whenSended || null,
+                    whenDelivered: o.whenDelivered || null,
+                    whenClosed: o.whenClosed || null,
+                    completeBefore: o.completeBefore || null
                 }
 
                 const rawItems = Array.isArray(o.items) ? o.items : []
@@ -526,11 +726,24 @@ app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
                         _order_meta: idx === 0 ? {
                             orderNumber: o.number || o.externalNumber || baseId,
                             channel: platform,
-                            orderType: platform === 'kiosk' ? 'Smart Kiosk' : platform === 'casierie' ? 'Casierie (POS)' : 'Delivery',
+                            orderType: o.orderType?.name || (platform === 'kiosk' ? 'Smart Kiosk' : platform === 'casierie' ? 'Casierie (POS)' : 'Delivery'),
                             operator: o.operator?.name || null,
                             posId: o.posId || null,
                             terminalGroupId: o.terminalGroupId || null,
-                            conception: o.conception?.name || null
+                            conception: o.conception?.name || null,
+                            status: o.status || null,
+                            stage: o.status || null,
+                            comment: o.comment || null,
+                            pickUpCode,
+                            externalOrderId: extOrderId,
+                            customer: extractedCustomer,
+                            customerName: rawCustName,
+                            customerPhone: custPhone,
+                            customerAddress: custAddress,
+                            courier: extractedCourier,
+                            courierName: courierName,
+                            courierPhone: courierPhone,
+                            timings: extractedTimings
                         } : undefined
                     }
                 })
@@ -1331,13 +1544,17 @@ app.get('/api/webhooks/status', (req, res) => {
 app.get('/api/webhooks/orders', async (req, res) => {
     try {
         const limit = parseInt(req.query.limit || '100')
-        const { data: orders, error } = await supabase
+        const sinceDate = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+        const { data: rawOrders, error } = await supabase
             .from('platform_sales')
             .select('*')
-            .order('placed_at', { ascending: false })
-            .limit(limit)
+            .gte('placed_at', sinceDate)
+            .limit(Math.max(limit * 3, 500))
 
         if (error) throw error
+        const orders = (rawOrders || [])
+            .sort((a, b) => new Date(b.placed_at || b.created_at || 0) - new Date(a.placed_at || a.created_at || 0))
+            .slice(0, limit)
 
         const { data: rests } = await supabase.from('restaurants').select('id, name, city, brand_id, brands(name, logo_url)')
         const restMap = {}
@@ -1518,7 +1735,6 @@ app.get('/api/dispatch/live', async (req, res) => {
                 let salesQuery = supabase
                     .from('platform_sales')
                     .select('id, restaurant_id, order_id, platform, total_amount, placed_at, created_at, items')
-                    .order('placed_at', { ascending: false })
                     .range(fromOffset, fromOffset + currentChunkSize - 1)
 
                 // CRITICAL: Filter in SQL if city or restaurant is specified
@@ -1562,6 +1778,7 @@ app.get('/api/dispatch/live', async (req, res) => {
                 if (data.length < currentChunkSize) break // No more rows in database
                 fromOffset += data.length
             }
+            rawOrders.sort((a, b) => new Date(b.placed_at || b.created_at || 0) - new Date(a.placed_at || a.created_at || 0))
         } catch (err) {
             console.error('[DispatchLive] Error fetching platform_sales:', err.message)
             return res.status(500).json({ success: false, error: err.message })
@@ -1636,7 +1853,78 @@ app.get('/api/dispatch/live', async (req, res) => {
             const rawStatus = (meta.stage || meta.status || o.stage || o.status || '').toLowerCase()
             const isExplicitlyDelivered = rawStatus.includes('deliv') || rawStatus.includes('served')
 
-            if (isInRestaurant) {
+            const rawTimings = meta.timings || {}
+            const parseIikoTs = (str) => {
+                if (!str || typeof str !== 'string') return null
+                const norm = str.includes(' ') && !str.includes('T') ? str.replace(' ', 'T') : str
+                const d = new Date(norm)
+                return isNaN(d.getTime()) ? null : d
+            }
+            const extractHHMMSS = (str) => {
+                if (!str || typeof str !== 'string') return null
+                const m = str.match(/(\d{2}:\d{2}:\d{2})/)
+                return m ? m[1] : null
+            }
+            const extractHHMM = (str) => {
+                if (!str || typeof str !== 'string') return null
+                const m = str.match(/(\d{2}:\d{2})/)
+                return m ? m[1] : null
+            }
+
+            const tCreated = parseIikoTs(rawTimings.whenCreated)
+            const tCooked = parseIikoTs(rawTimings.whenCookingCompleted)
+            const tSended = parseIikoTs(rawTimings.whenSended)
+            const tDelivered = parseIikoTs(rawTimings.whenDelivered || rawTimings.whenClosed)
+            const hasRealIikoTimings = Boolean(tCreated && (tCooked || tSended || tDelivered || rawStatus))
+
+            const realCookMin = (tCreated && tCooked) ? Math.max(1, Math.round((tCooked - tCreated) / 60000)) : null
+            const realWaitMin = (tCooked && tSended) ? Math.max(0, Math.round((tSended - tCooked) / 60000)) : null
+            const realDelivMin = (tSended && tDelivered) ? Math.max(0, Math.round((tDelivered - tSended) / 60000)) : null
+            const realTotalMin = (tCreated && tDelivered) ? Math.max(1, Math.round((tDelivered - tCreated) / 60000)) : null
+
+            if (hasRealIikoTimings && !isKioskPlat) {
+                if (rawStatus === 'waitcooking' || rawStatus === 'unconfirmed' || rawStatus === 'readyforcooking') {
+                    stage = 'wait_cooking'
+                    stageLabel = 'În Așteptare Bucătărie'
+                    statusColor = 'amber'
+                    activeInKitchenCount++
+                    kTime = Math.max(1, elapsedMin)
+                    wTime = 0
+                    dTime = 0
+                } else if (rawStatus === 'cookingstarted') {
+                    stage = 'cooking'
+                    stageLabel = 'În Preparare Bucătărie'
+                    statusColor = 'blue'
+                    activeInKitchenCount++
+                    kTime = Math.max(1, elapsedMin)
+                    wTime = 0
+                    dTime = 0
+                } else if (rawStatus === 'cookingcompleted' || rawStatus === 'waiting') {
+                    stage = 'ready'
+                    stageLabel = 'Gata / Așteaptă Curier'
+                    statusColor = 'purple'
+                    waitingCourierCount++
+                    kTime = realCookMin || 15
+                    wTime = Math.max(1, elapsedMin - kTime)
+                    dTime = 0
+                } else if (rawStatus === 'onway') {
+                    stage = 'on_way'
+                    stageLabel = 'La Curier (Pe drum)'
+                    statusColor = 'indigo'
+                    onWayCount++
+                    kTime = realCookMin || 15
+                    wTime = realWaitMin !== null ? realWaitMin : 4
+                    dTime = Math.max(1, elapsedMin - kTime - wTime)
+                } else {
+                    stage = 'delivered'
+                    stageLabel = isInRestaurant ? 'Servit în Restaurant' : 'Livrat'
+                    statusColor = 'emerald'
+                    deliveredCount++
+                    kTime = realCookMin !== null ? realCookMin : (realTotalMin || 15)
+                    wTime = realWaitMin !== null ? realWaitMin : 0
+                    dTime = realDelivMin !== null ? realDelivMin : 0
+                }
+            } else if (isInRestaurant) {
                 // In-restaurant orders (Kiosk & Casierie / POS) DO NOT have couriers or on_way delivery
                 // NOTE: Syrve/iiko closes the fiscal check ("Closed") immediately upon payment at Kiosk/POS.
                 // However, preparing burgers, sushi, or poke takes 5-8 minutes.
@@ -1719,7 +2007,9 @@ app.get('/api/dispatch/live', async (req, res) => {
                 }
             }
 
-            const totalTime = kTime + wTime + dTime
+            const totalTime = (hasRealIikoTimings && stage === 'delivered' && realTotalMin !== null)
+                ? realTotalMin
+                : (kTime + wTime + dTime)
 
             if (stage === 'delivered') {
                 kitchenTimes.push(kTime)
@@ -1855,10 +2145,31 @@ app.get('/api/dispatch/live', async (req, res) => {
                 courier_wait_minutes: wTime,
                 delivery_minutes: dTime,
                 total_minutes: totalTime,
+                pick_up_code: meta.pickUpCode || finalCustomer.pickUpCode || null,
+                external_order_id: meta.externalOrderId || finalCustomer.externalOrderId || null,
+                timings: {
+                    when_created: rawTimings.whenCreated || null,
+                    when_confirmed: rawTimings.whenConfirmed || null,
+                    when_printed: rawTimings.whenPrinted || null,
+                    when_cooking_completed: rawTimings.whenCookingCompleted || null,
+                    when_sended: rawTimings.whenSended || null,
+                    when_delivered: rawTimings.whenDelivered || null,
+                    when_closed: rawTimings.whenClosed || null,
+                    complete_before: rawTimings.completeBefore || null,
+                    created_time: extractHHMMSS(rawTimings.whenCreated),
+                    cooking_completed_time: extractHHMMSS(rawTimings.whenCookingCompleted),
+                    sended_time: extractHHMMSS(rawTimings.whenSended),
+                    delivered_time: extractHHMMSS(rawTimings.whenDelivered || rawTimings.whenClosed),
+                    closed_time: extractHHMMSS(rawTimings.whenClosed),
+                    complete_before_time: extractHHMM(rawTimings.completeBefore),
+                    delivered_short_time: extractHHMM(rawTimings.whenDelivered || rawTimings.whenClosed)
+                },
                 customer: {
                     name: finalCustomer.name,
                     phone: finalCustomer.phone,
-                    address: finalCustomer.address
+                    address: finalCustomer.address,
+                    pickUpCode: meta.pickUpCode || finalCustomer.pickUpCode || null,
+                    externalOrderId: meta.externalOrderId || finalCustomer.externalOrderId || null
                 },
                 courier: finalCourier,
                 problem: finalProblem

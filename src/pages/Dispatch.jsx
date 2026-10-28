@@ -1580,11 +1580,17 @@ export default function Dispatch() {
                                 <span>{stageInfo.label}</span>
                               </span>
 
-                              {/* Finalizat: durată de la primire până la predare. În lucru: cronometru live */}
+                              {/* Finalizat: durată de la primire până la predare + ora livrării. În lucru: cronometru live */}
                               {stageInfo.isFinalized ? (
                                 <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5 flex items-center gap-1">
                                   <CheckCircle2 size={11} className="text-emerald-500 shrink-0" />
-                                  <span>{t('dispatch.completed_duration_prefix', 'Finalizat în:')} <b>{formatElapsed(leadTime)}</b></span>
+                                  <span>
+                                    {ord.timings?.delivered_short_time ? (
+                                      <>Livrat la <b>{ord.timings.delivered_short_time}</b> · ({formatElapsed(leadTime)})</>
+                                    ) : (
+                                      <>{t('dispatch.completed_duration_prefix', 'Finalizat în:')} <b>{formatElapsed(leadTime)}</b></>
+                                    )}
+                                  </span>
                                 </div>
                               ) : (
                                 <div className={`text-[10px] font-semibold mt-0.5 flex items-center gap-1 ${
@@ -2113,6 +2119,50 @@ export default function Dispatch() {
                   </div>
                 </div>
               </div>
+
+              {/* Cronologie Timpi iiko (Ore exacte din Syrve/iiko) */}
+              {(selectedOrder.timings?.created_time || selectedOrder.timings?.cooking_completed_time || selectedOrder.timings?.sended_time || selectedOrder.timings?.delivered_time) && (
+                <div className={`p-3.5 rounded-2xl border ${
+                  isDark ? 'bg-emerald-950/20 border-emerald-800/50' : 'bg-emerald-50/60 border-emerald-200/80'
+                }`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                      <Clock size={12} /> Cronologie Timpi iiko (Ore Exacte)
+                    </span>
+                    {selectedOrder.timings?.complete_before_time && (
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                        Termen promis (SLA): <b className="font-mono text-slate-800 dark:text-slate-200">{selectedOrder.timings.complete_before_time}</b>
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                    <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-white border-emerald-100'}`}>
+                      <div className="text-[10px] text-slate-400 font-semibold">1. Comandă Intrată</div>
+                      <div className="font-mono font-extrabold text-sm text-slate-900 dark:text-white mt-0.5">
+                        {selectedOrder.timings?.created_time || parseOrderDateTime(selectedOrder.placed_at).time || '—'}
+                      </div>
+                    </div>
+                    <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-white border-emerald-100'}`}>
+                      <div className="text-[10px] text-slate-400 font-semibold">2. Gata Bucătărie</div>
+                      <div className="font-mono font-extrabold text-sm text-blue-600 dark:text-blue-400 mt-0.5">
+                        {selectedOrder.timings?.cooking_completed_time || '—'}
+                      </div>
+                    </div>
+                    <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-white border-emerald-100'}`}>
+                      <div className="text-[10px] text-slate-400 font-semibold">3. Predată Curier</div>
+                      <div className="font-mono font-extrabold text-sm text-amber-600 dark:text-amber-400 mt-0.5">
+                        {selectedOrder.timings?.sended_time || '—'}
+                      </div>
+                    </div>
+                    <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-white border-emerald-100'}`}>
+                      <div className="text-[10px] text-slate-400 font-semibold">4. Livrată / Închisă</div>
+                      <div className="font-mono font-extrabold text-sm text-emerald-600 dark:text-emerald-400 mt-0.5">
+                        {selectedOrder.timings?.delivered_time || '—'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Banner Problemă dacă există */}
               {selectedOrder.problem && (

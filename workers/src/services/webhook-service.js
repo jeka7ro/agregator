@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url'
 import { supabase } from './supabase.js'
 import { saveLiveChecksCache, loadLiveChecksCache } from '../utils/cache.js'
 import { sendTelegramMessage } from '../notifications/telegram.js'
+import { reviewsService } from './reviews-service.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.resolve(__dirname, '..', '..', '..')
@@ -351,7 +352,26 @@ class WebhookService {
         } else if (eventType === 'order_review.notification') {
             this.stats.wolt.reviews++
             actionTaken = 'REVIEW_RECEIVED'
-            console.log(`[WOLT WEBHOOK] New review received for venue ${venueId}: Rating ${payload.review?.goods_review?.rating}/5`)
+            const woltRating = payload.review?.goods_review?.rating ?? payload.rating ?? 5
+            const woltComment = payload.review?.goods_review?.comment || payload.review?.comment || payload.comment || ''
+            const woltOrderId = payload.order_id || payload.order?.id || payload.order_number || null
+            console.log(`[WOLT WEBHOOK] New review received for venue ${venueId}: Rating ${woltRating}/5`)
+            try {
+                await reviewsService.ingestReviews([{
+                    order_id: woltOrderId,
+                    restaurant_id: restaurant?.id || null,
+                    restaurant_name: restaurant?.name || 'Wolt Venue',
+                    city: restaurant?.city || null,
+                    platform: 'wolt',
+                    rating: woltRating,
+                    max_rating: 5,
+                    comment: woltComment,
+                    source: 'webhook',
+                    reviewed_at: detectedAt
+                }], 'webhook')
+            } catch (revErr) {
+                console.warn('[WOLT WEBHOOK] Failed to save review:', revErr.message)
+            }
         } else {
             this.stats.wolt.other++
         }

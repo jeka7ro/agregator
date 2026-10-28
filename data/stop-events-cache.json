@@ -260,9 +260,17 @@
     "affected_product_count": 0,
     "total_product_count": 22,
     "reason": "Unknown",
-    "resumed_at": null,
-    "duration_minutes": null,
-    "estimated_loss_amount": 0
+    "resumed_at": "2026-10-27T09:13:56.068Z",
+    "duration_minutes": 2782,
+    "estimated_loss_amount": 4636.81,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 2782,
+      "duration_hours": 46.37,
+      "platform": "glovo",
+      "stopped_at": "2026-10-25T10:51:50.918+00:00",
+      "resumed_at": "ongoing"
+    }
   },
   {
     "id": "stop_1791965619162_zgt88",
@@ -273,9 +281,17 @@
     "affected_product_count": 0,
     "total_product_count": 22,
     "reason": "Unknown",
-    "resumed_at": null,
-    "duration_minutes": null,
-    "estimated_loss_amount": 0
+    "resumed_at": "2026-10-27T09:13:27.044Z",
+    "duration_minutes": 2782,
+    "estimated_loss_amount": 4636.98,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 2782,
+      "duration_hours": 46.37,
+      "platform": "glovo",
+      "stopped_at": "2026-10-25T10:51:15.916+00:00",
+      "resumed_at": "ongoing"
+    }
   },
   {
     "id": "stop_1791964891044_icufa",
@@ -299,9 +315,17 @@
     "affected_product_count": 0,
     "total_product_count": 22,
     "reason": "Unknown",
-    "resumed_at": null,
-    "duration_minutes": null,
-    "estimated_loss_amount": 0
+    "resumed_at": "2026-10-27T09:13:41.360Z",
+    "duration_minutes": 2782,
+    "estimated_loss_amount": 4636.91,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 2782,
+      "duration_hours": 46.37,
+      "platform": "glovo",
+      "stopped_at": "2026-10-25T10:51:32.601+00:00",
+      "resumed_at": "ongoing"
+    }
   },
   {
     "id": "stop_1791907548938_wvto6",
@@ -469,9 +493,17 @@
     "affected_product_count": 0,
     "total_product_count": 22,
     "reason": "Unknown",
-    "resumed_at": null,
-    "duration_minutes": null,
-    "estimated_loss_amount": 0
+    "resumed_at": "2026-10-27T09:03:33.869Z",
+    "duration_minutes": 2850,
+    "estimated_loss_amount": 4750.63,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 2850,
+      "duration_hours": 47.51,
+      "platform": "glovo",
+      "stopped_at": "2026-10-25T09:33:11.024+00:00",
+      "resumed_at": "ongoing"
+    }
   },
   {
     "id": "stop_1791900096963_i0zu9",
@@ -642,9 +674,17 @@
     "affected_product_count": 0,
     "total_product_count": 22,
     "reason": "Unknown",
-    "resumed_at": null,
-    "duration_minutes": null,
-    "estimated_loss_amount": 0
+    "resumed_at": "2026-10-27T11:02:42.138Z",
+    "duration_minutes": 2970,
+    "estimated_loss_amount": 4950.59,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 2970,
+      "duration_hours": 49.51,
+      "platform": "glovo",
+      "stopped_at": "2026-10-25T09:32:20.992+00:00",
+      "resumed_at": "ongoing"
+    }
   },
   {
     "id": "stop_1791727297518_wp7bg",
@@ -1269,9 +1309,17 @@
     "affected_product_count": 0,
     "total_product_count": 22,
     "reason": "Unknown",
-    "resumed_at": null,
-    "duration_minutes": null,
-    "estimated_loss_amount": 0
+    "resumed_at": "2026-10-27T09:12:07.129Z",
+    "duration_minutes": 2790,
+    "estimated_loss_amount": 4650.38,
+    "loss_calculation_config": {
+      "revenue_per_hour": 100,
+      "duration_minutes": 2790,
+      "duration_hours": 46.5,
+      "platform": "glovo",
+      "stopped_at": "2026-10-25T10:41:53.329+00:00",
+      "resumed_at": "ongoing"
+    }
   },
   {
     "id": "stop_1791286129856_wodkh",

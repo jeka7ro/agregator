@@ -22,6 +22,8 @@ export default defineConfig({
     __APP_BUILD_INFO__: JSON.stringify(getBuildInfo()),
   },
   server: {
+    port: 5174,
+    strictPort: true,
     watch: {
       ignored: [
         '**/data/**',

@@ -46,3 +46,6 @@ Thumbs.db
 
 # Local Netlify folder
 .netlify
+
+# Sensitive local email credentials
+data/email-review-config.json
