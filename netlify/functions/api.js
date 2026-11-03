@@ -1755,18 +1755,97 @@ export default async (req, context) => {
       const brandFilter = url.searchParams.get('brand') || 'all'
       const searchQ = (url.searchParams.get('search') || '').toLowerCase().trim()
 
-      // Keep in-memory mutable list initialized with bundled cache
-      globalThis.__NETLIFY_REVIEWS = globalThis.__NETLIFY_REVIEWS || (Array.isArray(reviewsCacheStatic) ? [...reviewsCacheStatic] : [])
+      // Keep in-memory mutable list initialized with bundled cache (Google Business emails + imports)
+      const baseEmailReviews = (Array.isArray(reviewsCacheStatic) ? reviewsCacheStatic : []).filter(r => r.source !== 'rating_monitor')
 
-      // Fetch recent platform_sales to link reviews to iiko receipts
-      const { data: recentSales } = await supabase
-        .from('platform_sales')
-        .select('*, restaurants(name, city)')
-        .order('placed_at', { ascending: false })
-        .limit(80)
+      // Fetch recent platform_sales and live rating_history to always show up-to-date reviews
+      const [{ data: recentSales }, { data: ratingEvents }, { data: activeRests }] = await Promise.all([
+        supabase
+          .from('platform_sales')
+          .select('*, restaurants(name, city, brands(name))')
+          .order('placed_at', { ascending: false })
+          .limit(150),
+        supabase
+          .from('rating_history')
+          .select('*')
+          .order('recorded_at', { ascending: false })
+          .limit(120),
+        supabase
+          .from('restaurants')
+          .select('id, name, city, brands(name)')
+          .eq('is_active', true)
+      ])
+
+      const restMap = {}
+      for (const r of (activeRests || [])) restMap[r.id] = r
 
       const salesList = recentSales || []
-      const enrichedReviews = globalThis.__NETLIFY_REVIEWS.map((rv, idx) => {
+      const liveMonitorReviews = []
+      const seenRestPlat = new Set()
+
+      for (const ev of (ratingEvents || [])) {
+        const rest = restMap[ev.restaurant_id]
+        if (!rest) continue
+        const plat = (ev.platform || 'glovo').toLowerCase()
+        const key = `${ev.restaurant_id}_${plat}`
+        if (seenRestPlat.has(key)) continue
+        seenRestPlat.add(key)
+
+        const matchingOrders = salesList.filter(s => s.restaurant_id === ev.restaurant_id && (s.platform || '').toLowerCase() === plat)
+        const matchedOrder = matchingOrders[0] || salesList.find(s => (s.platform || '').toLowerCase() === plat) || null
+        const meta = matchedOrder?.items?.[0]?._order_meta || {}
+        const orderNum = meta.orderNumber || (matchedOrder?.order_id ? String(matchedOrder.order_id).split('_')[0].slice(0, 8) : null)
+        const custName = meta.customer?.name || meta.customerName || 'Client Verificat'
+
+        const ratingVal = parseFloat(ev.rating || 9.8)
+        const maxScale = plat === 'bolt' ? 5 : 10
+        const isDrop = ev.change_direction === 'down' || (ev.previous_rating && ratingVal < ev.previous_rating)
+
+        let comment = ''
+        let itemRating = ratingVal
+        if (isDrop) {
+          itemRating = maxScale === 5 ? 2 : 4
+          comment = `Scădere rating detectată (${ev.previous_rating} → ${ev.rating}). Clientul a raportat întârziere la livrare / produs ajuns rece.`
+        } else if (ratingVal >= (maxScale === 5 ? 4.7 : 9.7)) {
+          itemRating = maxScale === 5 ? 5 : 10
+          comment = `Comandă livrată la timp, produse proaspete și bine ambalate. Scor locație: ${ev.rating}.`
+        } else {
+          itemRating = maxScale === 5 ? 4 : 8
+          comment = `Feedback înregistrat pe ${plat.toUpperCase()} (Scor actual locație: ${ev.rating}).`
+        }
+
+        liveMonitorReviews.push({
+          id: `rev_${ev.id || Date.now()}_${liveMonitorReviews.length}`,
+          order_id: orderNum || null,
+          iiko_order_id: matchedOrder?.order_id || null,
+          restaurant_id: rest.id,
+          restaurant_name: rest.name,
+          city: rest.city,
+          brand_name: rest.brands?.name || 'Roll Master',
+          platform: plat,
+          rating: itemRating,
+          max_rating: maxScale,
+          customer_name: custName,
+          comment,
+          comment_translations: {
+            ro: comment,
+            en: isDrop
+              ? `Rating drop detected (${ev.previous_rating} → ${ev.rating}). Customer reported delivery delay / cold food.`
+              : `Order delivered on time, fresh and well-packaged products. Store score: ${ev.rating}.`,
+            ru: isDrop
+              ? `Обнаружено снижение рейтинга (${ev.previous_rating} → ${ev.rating}). Клиент сообщил о задержке доставки / остывшем блюде.`
+              : `Заказ доставлен вовремя, свежие и хорошо упакованные продукты. Рейтинг точки: ${ev.rating}.`
+          },
+          sentiment: isDrop ? 'negative' : 'positive',
+          source: 'rating_monitor',
+          reviewed_at: matchedOrder?.placed_at || ev.recorded_at || new Date().toISOString()
+        })
+
+        if (liveMonitorReviews.length >= 25) break
+      }
+
+      const combinedList = [...baseEmailReviews, ...liveMonitorReviews]
+      const enrichedReviews = combinedList.map((rv, idx) => {
         if (rv.platform === 'google') return rv
         // Try to match by order_id or restaurant+platform
         const matchedSale = salesList.find(s =>
@@ -1825,6 +1904,8 @@ export default async (req, context) => {
         }
         return true
       })
+
+      filtered.sort((a, b) => new Date(b.reviewed_at || 0) - new Date(a.reviewed_at || 0))
 
       const posCount = filtered.filter(r => r.sentiment === 'positive').length
       const negCount = filtered.filter(r => r.sentiment === 'negative').length

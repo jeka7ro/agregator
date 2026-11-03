@@ -88,6 +88,17 @@ export class ReviewsService {
     }
 
     _startAutoEmailSync() {
+        // Trigger an initial sync 3 seconds after server boot, then every 5 minutes
+        setTimeout(async () => {
+            if (this.emailConfig.appPassword && this.emailConfig.appPassword.length >= 8) {
+                try {
+                    await this.syncFromImap()
+                } catch (e) {
+                    console.warn('[ReviewsService] Initial IMAP sync error:', e.message)
+                }
+            }
+        }, 3000)
+
         setInterval(async () => {
             if (this.emailConfig.appPassword && this.emailConfig.appPassword.length >= 8) {
                 try {
@@ -302,8 +313,8 @@ export class ReviewsService {
             }
 
             const hardTimer = setTimeout(() => {
-                finish({ success: false, error: 'Timeout la citirea IMAP din Gmail (15s). Încearcă din nou.' })
-            }, 15000)
+                finish({ success: false, error: 'Timeout la citirea IMAP din Gmail (25s). Încearcă din nou.' })
+            }, 25000)
 
             const socket = tls.connect(port || 993, host || 'imap.gmail.com', { servername: host || 'imap.gmail.com', rejectUnauthorized: false })
 
@@ -332,7 +343,7 @@ export class ReviewsService {
                 } else if (step === 'SELECT' && (buffer.includes('A2 OK') || buffer.includes('A2 NO'))) {
                     buffer = ''
                     step = 'SEARCH'
-                    socket.write(`A3 SEARCH X-GM-RAW "from:businessprofile-noreply@google.com OR subject:(a scris o recenzie) OR subject:(recenzii noi) OR from:glovoapp.com OR from:wolt.com"\r\n`)
+                    socket.write(`A3 SEARCH X-GM-RAW "from:businessprofile-noreply@google.com OR subject:(a scris o recenzie) OR subject:(recenzii noi) OR subject:(new review)"\r\n`)
                 } else if (step === 'SEARCH' && (buffer.includes('A3 OK') || buffer.includes('A3 NO') || buffer.includes('A3 BAD'))) {
                     const searchMatch = buffer.match(/\*\s+SEARCH\s+([0-9\s]+)/i)
                     const allIds = searchMatch ? searchMatch[1].trim().split(/\s+/).filter(Boolean) : []
@@ -341,9 +352,9 @@ export class ReviewsService {
                         try { socket.write(`A4 LOGOUT\r\n`) } catch (_) {}
                         return finish({ success: true, checked: 0, imported: 0, reviews: [] })
                     }
-                    const recentIds = allIds.slice(-20)
+                    const recentIds = allIds.slice(-30)
                     step = 'FETCH'
-                    socket.write(`A4 FETCH ${recentIds.join(',')} (BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID)] BODY.PEEK[1])\r\n`)
+                    socket.write(`A4 FETCH ${recentIds.join(',')} (BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID)] BODY.PEEK[1]<0.16384>)\r\n`)
                 } else if (step === 'FETCH' && (buffer.includes('A4 OK') || buffer.includes('A4 NO') || buffer.includes('A4 BAD'))) {
                     const rawFetch = buffer
                     buffer = ''
@@ -367,8 +378,8 @@ export class ReviewsService {
                         const msgId = msgIdMatch ? msgIdMatch[1].trim() : `${subject}_${dateMatch ? dateMatch[1].trim() : ''}`
                         const emailDateIso = dateMatch ? new Date(dateMatch[1].trim()).toISOString() : new Date().toISOString()
 
-                        // Extract BODY[1]
-                        const b1Raw = blk.split(/BODY\[1\]\s+\{\d+\}\r\n/i)[1]?.replace(/\)\s*(?:A4 OK[\s\S]*)?$/, '') || ''
+                        // Extract BODY[1] or BODY[1]<0>
+                        const b1Raw = blk.split(/BODY\[1\](?:<\d+>)?\s+\{\d+\}\r\n/i)[1]?.replace(/\)\s*(?:A4 OK[\s\S]*)?$/, '') || ''
                         let decodedText = ''
                         const compactB64 = b1Raw.replace(/\s+/g, '')
                         if (compactB64 && /^[A-Za-z0-9+/=]+$/.test(compactB64.slice(0, 120))) {
@@ -634,30 +645,35 @@ export class ReviewsService {
     }
 
     /**
-     * Seed initial reviews from real orders & rating_history if cache is empty
+     * Continuously sync latest platform rating_history checks & recent orders into reviews
      */
     async ensureSeeded(restaurants = []) {
-        if (this.reviews.length > 0) return
+        const now = Date.now()
+        if (this.lastSeedSync && (now - this.lastSeedSync < 60000) && this.reviews.length > 0) {
+            return
+        }
+        this.lastSeedSync = now
 
         try {
             const restMap = {}
             for (const r of restaurants) restMap[r.id] = r
 
-            const sinceIso = new Date(Date.now() - 48 * 3600 * 1000).toISOString()
+            const sinceIso = new Date(Date.now() - 72 * 3600 * 1000).toISOString()
             const { data: recentSales } = await supabase
                 .from('platform_sales')
                 .select('id, order_id, platform, restaurant_id, total_amount, placed_at, items')
                 .gte('placed_at', sinceIso)
-                .limit(400)
+                .order('placed_at', { ascending: false })
+                .limit(500)
 
             const seeded = []
 
-            // 1. Check if any orders in platform_sales already have comments/complaints or create linked review entries from real rating_history events
+            // 1. Check latest rating_history events from Supabase
             const { data: ratingEvents } = await supabase
                 .from('rating_history')
                 .select('*')
                 .order('recorded_at', { ascending: false })
-                .limit(150)
+                .limit(200)
 
             const salesByRestPlat = {}
             for (const s of (recentSales || [])) {
@@ -726,7 +742,10 @@ export class ReviewsService {
             }
 
             if (seeded.length > 0) {
-                this.reviews = seeded
+                // Keep all non-rating_monitor reviews (e.g. Google Business emails, Excel imports) and refresh rating_monitor reviews
+                const nonMonitor = this.reviews.filter(r => r.source !== 'rating_monitor')
+                this.reviews = [...nonMonitor, ...seeded]
+                this.reviews.sort((a, b) => new Date(b.reviewed_at || 0) - new Date(a.reviewed_at || 0))
                 this._saveCache()
             }
         } catch (err) {
