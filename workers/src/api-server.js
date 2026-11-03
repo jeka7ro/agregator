@@ -3946,21 +3946,26 @@ app.get('/api/competitive/export-csv', async (req, res) => {
     }
 })
 
-// ─── Daily Scheduler: auto-run all active competitive searches ───
+// ─── Daily Scheduler: auto-run all active competitive searches (doar în intervalul 10:00 - 22:00) ───
 let schedulerActive = true
-let schedulerHour = 7 // 07:00 default
+let schedulerHour = 10 // 10:30 default (niciodată între 22:00 și 10:00)
 let lastScheduledRun = null
 let nextScheduledRun = null
 
 function computeNextRun(hour) {
+    const safeHour = (hour >= 10 && hour < 22) ? hour : 10
     const now = new Date()
     const next = new Date()
-    next.setHours(hour, 0, 0, 0)
+    next.setHours(safeHour, 30, 0, 0)
     if (next <= now) next.setDate(next.getDate() + 1)
     return next
 }
 
 async function runAllActiveSearches() {
+    if (!isWithinActiveHours()) {
+        console.log('[SCHEDULER] Skipped competitive run (outside active window 10:00 - 22:00)')
+        return { ran: 0, errors: [] }
+    }
     console.log('[SCHEDULER] Starting daily competitive run...')
     lastScheduledRun = new Date().toISOString()
 
