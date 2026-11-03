@@ -669,16 +669,24 @@ export class SalesSync {
             }
 
             if (dbRows.length > 0) {
+                this._syncedKioskSignatures = this._syncedKioskSignatures || new Map();
                 const uniqueMap = new Map();
                 for (const row of dbRows) {
-                    uniqueMap.set(row.order_id, row);
+                    const m = row.items?.[0]?._order_meta || {};
+                    const sig = `${m.status}|${row.total_amount}|${m.timings?.whenClosed || ''}`;
+                    if (this._syncedKioskSignatures.get(row.order_id) !== sig) {
+                        uniqueMap.set(row.order_id, row);
+                        this._syncedKioskSignatures.set(row.order_id, sig);
+                    }
                 }
                 const uniqueRows = Array.from(uniqueMap.values());
-                const { error: insErr } = await supabase.from('platform_sales').upsert(uniqueRows, { onConflict: 'order_id' });
-                if (insErr) {
-                    console.error('[SalesSync] Fast Kiosk sync error:', insErr.message);
-                } else {
-                    console.log(`[SalesSync] Fast Kiosk sync: ${uniqueRows.length} orders updated for Cluj & Constanta.`);
+                if (uniqueRows.length > 0) {
+                    const { error: insErr } = await supabase.from('platform_sales').upsert(uniqueRows, { onConflict: 'order_id' });
+                    if (insErr) {
+                        console.error('[SalesSync] Fast Kiosk sync error:', insErr.message);
+                    } else {
+                        console.log(`[SalesSync] Fast Kiosk sync: ${uniqueRows.length} orders updated for Cluj & Constanta.`);
+                    }
                 }
             }
 
@@ -694,12 +702,13 @@ export class SalesSync {
 
     async enrichRecentTodayOrders(startToday, endToday) {
         try {
+            this._enrichedSignatures = this._enrichedSignatures || new Map();
             const sinceIso = `${startToday.slice(0, 10)}T00:00:00.000Z`;
             const { data: recentSales } = await supabase
                 .from('platform_sales')
                 .select('id, order_id, platform, restaurant_id, total_amount, placed_at, items')
                 .gte('placed_at', sinceIso)
-                .limit(1000);
+                .limit(450);
 
             const needsEnrich = (recentSales || []).filter(r => {
                 const meta = r.items?.[0]?._order_meta;
@@ -804,9 +813,10 @@ export class SalesSync {
                 }
                 if (courierName) {
                     meta.courier = {
+                        ...(meta.courier || {}),
                         name: courierName,
-                        phone: courierPhone || '',
-                        company: row.platform === 'glovo' ? 'Glovo' : row.platform === 'wolt' ? 'Wolt' : row.platform === 'bolt' ? 'Bolt Food' : 'Livrator Propriu',
+                        phone: courierPhone || meta.courier?.phone || '',
+                        company: meta.courier?.company || (row.platform === 'glovo' ? 'Glovo' : row.platform === 'wolt' ? 'Wolt' : row.platform === 'bolt' ? 'Bolt Food' : 'Livrator Propriu'),
                         isManual: Boolean(so.courierInfo?.isCourierSelectedManually)
                     };
                     meta.courierName = courierName;
@@ -815,15 +825,20 @@ export class SalesSync {
                 meta.pickUpCode = pickUpCode;
                 meta.externalOrderId = extOrderId;
                 meta.timings = {
-                    whenCreated: so.whenCreated || null,
-                    whenConfirmed: so.whenConfirmed || null,
-                    whenPrinted: so.whenPrinted || null,
-                    whenCookingCompleted: so.whenCookingCompleted || null,
-                    whenSended: so.whenSended || null,
-                    whenDelivered: so.whenDelivered || null,
-                    whenClosed: so.whenClosed || null,
-                    completeBefore: so.completeBefore || null
+                    ...(meta.timings || {}),
+                    whenCreated: so.whenCreated || meta.timings?.whenCreated || null,
+                    whenConfirmed: so.whenConfirmed || meta.timings?.whenConfirmed || null,
+                    whenPrinted: so.whenPrinted || meta.timings?.whenPrinted || null,
+                    whenCookingCompleted: so.whenCookingCompleted || meta.timings?.whenCookingCompleted || null,
+                    whenSended: so.whenSended || meta.timings?.whenSended || null,
+                    whenDelivered: so.whenDelivered || meta.timings?.whenDelivered || null,
+                    whenClosed: so.whenClosed || meta.timings?.whenClosed || null,
+                    completeBefore: so.completeBefore || meta.timings?.completeBefore || null
                 };
+
+                const enrichSig = `${meta.status}|${meta.timings.whenCookingCompleted || ''}|${meta.timings.whenSended || ''}|${meta.timings.whenDelivered || ''}|${meta.timings.whenClosed || ''}`;
+                if (this._enrichedSignatures.get(row.order_id) === enrichSig) continue;
+                this._enrichedSignatures.set(row.order_id, enrichSig);
 
                 newItems[0] = { ...newItems[0], _order_meta: meta };
                 updates.push({

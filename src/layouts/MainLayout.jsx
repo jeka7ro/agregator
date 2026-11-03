@@ -15,6 +15,7 @@ import {
   Sun, 
   FileText,
   Radio,
+  MapPin,
   Star,
   PanelLeftClose,
   PanelLeftOpen
@@ -61,6 +62,7 @@ export default function MainLayout() {
   const navItems = [
     { name: t('nav.dashboard'), path: '/dashboard', icon: LayoutDashboard },
     { name: t('nav.dispatch'), path: '/dispatch', icon: Radio },
+    { name: t('nav.couriers_map', 'Harta Curieri Live'), path: '/couriers-map', icon: MapPin },
     { name: t('nav.monitoring'), path: '/monitoring', icon: Store },
     { name: t('nav.reputation', 'Recenzii & Rating'), path: '/reputation', icon: Star },
     { name: t('nav.alerts'), path: '/alerts', icon: BellRing },

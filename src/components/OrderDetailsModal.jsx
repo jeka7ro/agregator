@@ -190,8 +190,35 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                 {courierInfo?.name && (
                   <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80">
                     <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">{lbl.courier}</span>
-                    <div className="font-bold text-emerald-600 dark:text-emerald-400">{courierInfo.name}</div>
+                    <div className="font-bold text-emerald-600 dark:text-emerald-400">
+                      {courierInfo.name} {courierInfo.company ? <span className="text-[10px] font-normal text-slate-400">({courierInfo.company})</span> : null}
+                    </div>
                     {courierInfo.phone && <div className="font-mono text-[11px] text-slate-500 mt-0.5">{courierInfo.phone}</div>}
+                    {(courierInfo.awb || courierInfo.orderId) && (
+                      <div className="font-mono text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                        AWB: {courierInfo.awb || courierInfo.orderId}
+                      </div>
+                    )}
+                    {courierInfo.status && (
+                      <div className="text-[11px] text-slate-500 mt-0.5">
+                        Status: <strong className="font-mono text-amber-600 dark:text-amber-400">{courierInfo.status}</strong>
+                      </div>
+                    )}
+                    {courierInfo.deliveryFee && (
+                      <div className="text-[11px] text-slate-500 mt-0.5">
+                        Taxă livrare: <strong>{courierInfo.deliveryFee} RON</strong>
+                      </div>
+                    )}
+                    {courierInfo.trackingUrl && (
+                      <a
+                        href={courierInfo.trackingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/20 text-[11px] font-bold transition-colors"
+                      >
+                        📍 Tracking Live Curier ↗
+                      </a>
+                    )}
                     {(meta.pickUpCode || customerInfo?.pickUpCode) && (
                       <div className="text-[11px] text-slate-500 mt-0.5">{lbl.pickupCode} <strong className="font-mono">{meta.pickUpCode || customerInfo?.pickUpCode}</strong></div>
                     )}

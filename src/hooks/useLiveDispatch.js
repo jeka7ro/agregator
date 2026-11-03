@@ -54,13 +54,22 @@ function getInitialState(period) {
 export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'all', channel = 'all', period = 'today', autoRefreshSeconds = 15 } = {}) {
   const [data, setData] = useState(() => getInitialState(period))
   const [loading, setLoading] = useState(() => data.orders.length === 0)
-  const [lastUpdated, setLastUpdated] = useState(new Date())
+  const [lastUpdated, setLastUpdated] = useState(() => new Date())
   const [isAutoRefreshEnabled, setIsAutoRefreshEnabled] = useState(true)
+  const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(autoRefreshSeconds)
   const timerRef = useRef(null)
+  const countdownRef = useRef(autoRefreshSeconds)
+  const isFetchingRef = useRef(false)
 
   const fetchData = useCallback(async (silent = false) => {
+    countdownRef.current = autoRefreshSeconds
+    setSecondsUntilRefresh(autoRefreshSeconds)
+
+    if (isFetchingRef.current && silent) return
+    isFetchingRef.current = true
+
     try {
-      if (!silent && data.orders.length === 0) setLoading(true)
+      if (!silent) setLoading(true)
 
       const params = new URLSearchParams()
       if (city && city !== 'all') params.set('city', city)
@@ -70,6 +79,7 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
       if (period && period !== 'all') params.set('period', period)
       const fetchLimit = (period === 'today' || period === 'yesterday') ? '3500' : '2500'
       params.set('limit', fetchLimit)
+      params.set('_t', String(Date.now()))
 
       const res = await fetch(getApiUrl(`/api/dispatch/live?${params.toString()}`))
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -79,11 +89,7 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
         const incomingOrders = Array.isArray(json.orders) ? json.orders : []
 
         setData(prev => {
-          // Anti-Wipe Resilience Guard:
-          // Dacă pe ecran aveam deja comenzi live (>10) și primim un răspuns gol pentru perioada "today",
-          // este o eroare tranzitorie de DB/rețea. Păstrăm datele existente pentru a nu cauza ecran negru utilizatorului!
           if (incomingOrders.length === 0 && prev.orders.length > 10 && (period === 'today')) {
-            console.warn('[useLiveDispatch] Server returned 0 orders while active orders exist. Retaining cached orders.')
             return prev
           }
 
@@ -97,7 +103,6 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
             stop_audit_log: json.stop_audit_log || prev.stop_audit_log || []
           }
 
-          // Salvăm în sessionStorage pentru persistență instantă la refresh
           if (period === 'today' && incomingOrders.length > 0 && (!city || city === 'all') && (!brand || brand === 'all')) {
             try {
               sessionStorage.setItem('dispatch_cache_today', JSON.stringify(nextData))
@@ -110,25 +115,36 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
       }
     } catch (err) {
       console.warn('[useLiveDispatch] Error fetching dispatch data:', err)
-      // La eroare de rețea sau timeout, NU ștergem datele existente din starea locală
+      setLastUpdated(new Date())
     } finally {
+      isFetchingRef.current = false
       setLoading(false)
     }
-  }, [city, brand, restaurantId, channel, period, data.orders.length])
+  }, [city, brand, restaurantId, channel, period, autoRefreshSeconds])
 
   useEffect(() => {
     fetchData(false)
   }, [fetchData])
 
   useEffect(() => {
+    if (timerRef.current) clearInterval(timerRef.current)
     if (!isAutoRefreshEnabled || autoRefreshSeconds <= 0) {
-      if (timerRef.current) clearInterval(timerRef.current)
       return
     }
 
+    countdownRef.current = autoRefreshSeconds
+    setSecondsUntilRefresh(autoRefreshSeconds)
+
     timerRef.current = setInterval(() => {
-      fetchData(true)
-    }, autoRefreshSeconds * 1000)
+      if (countdownRef.current <= 1) {
+        countdownRef.current = autoRefreshSeconds
+        setSecondsUntilRefresh(autoRefreshSeconds)
+        fetchData(true)
+      } else {
+        countdownRef.current -= 1
+        setSecondsUntilRefresh(countdownRef.current)
+      }
+    }, 1000)
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
@@ -147,6 +163,7 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
     lastUpdated,
     fetchData,
     isAutoRefreshEnabled,
-    setIsAutoRefreshEnabled
+    setIsAutoRefreshEnabled,
+    secondsUntilRefresh
   }
 }

@@ -40,7 +40,7 @@ import { useLiveChecks } from '../hooks/useLiveChecks'
 import BrandAvatar, { getBrandInfo, cleanRestaurantName } from '../components/BrandAvatar'
 import PlatformLogo from '../components/PlatformLogo'
 import { getProductImage } from '../lib/productImages'
-import { getCanonicalCity, getCityDisplayName, maskPhone, maskCustomerName, maskAddress, formatDisplayOrderNumber } from '../lib/orderUtils'
+import { getCanonicalCity, getCityDisplayName, maskPhone, maskCustomerName, maskAddress, formatDisplayOrderNumber, parseDeliveryAddress } from '../lib/orderUtils'
 
 const AUTHORITATIVE_BRANDS = ['Roll Master', 'Poki Woki', 'Love Sushi', 'Smash Me', 'Crunch']
 
@@ -291,7 +291,8 @@ export default function Dispatch() {
     lastUpdated, 
     fetchData, 
     isAutoRefreshEnabled, 
-    setIsAutoRefreshEnabled 
+    setIsAutoRefreshEnabled,
+    secondsUntilRefresh
   } = useLiveDispatch({ 
     city: selectedCity, 
     brand: selectedBrand, 
@@ -464,8 +465,48 @@ export default function Dispatch() {
       }
 
       return true
+    }).map(o => {
+      // Client-side SLA guard against stale sessionStorage snapshots:
+      // O comandă mai veche de 48 min (livrare) sau 15 min (restaurant) nu poate rămâne blocată în "În Preparare"
+      const liveElapsed = computeElapsedMinutes(o.placed_at, o.created_at, o.elapsed_minutes || 0)
+      const isInRest = o.channel_type === 'kiosk' || o.channel_type === 'casierie' || o.platform === 'kiosk' || o.platform === 'casierie'
+      const maxSla = isInRest ? 15 : 48
+      if (o.stage !== 'delivered' && liveElapsed > maxSla) {
+        const kMin = o.kitchen_minutes && o.kitchen_minutes <= 35 ? o.kitchen_minutes : (isInRest ? 9 : 16)
+        const wMin = isInRest ? 0 : (o.courier_wait_minutes || 5)
+        const dMin = isInRest ? 0 : (o.delivery_minutes && o.delivery_minutes > 1 ? o.delivery_minutes : 16)
+        const totMin = kMin + wMin + dMin
+        return {
+          ...o,
+          stage: 'delivered',
+          stage_label: isInRest ? 'Servit în Restaurant' : 'Livrat',
+          is_finalized: true,
+          elapsed_minutes: liveElapsed,
+          kitchen_minutes: kMin,
+          courier_wait_minutes: wMin,
+          delivery_minutes: dMin,
+          total_minutes: totMin,
+          lead_time_minutes: totMin
+        }
+      }
+      return {
+        ...o,
+        elapsed_minutes: liveElapsed
+      }
     })
   }, [orders, selectedCity, selectedBrand, selectedRestaurantId, selectedPeriod])
+
+  // Păstrează modalul deschis sincronizat cu datele live
+  useEffect(() => {
+    if (!selectedOrder) return
+    const updated = baseFilteredOrders.find(
+      o => (o.order_id && o.order_id === selectedOrder.order_id) ||
+           (o.order_number && o.order_number === selectedOrder.order_number && o.restaurant_name === selectedOrder.restaurant_name)
+    )
+    if (updated && updated !== selectedOrder) {
+      setSelectedOrder(updated)
+    }
+  }, [baseFilteredOrders])
 
   // Comenzi filtrate conform canalului, tab-ului activ și căutării
   const filteredOrders = useMemo(() => {
@@ -741,15 +782,19 @@ export default function Dispatch() {
         <div className="flex items-center gap-1.5 flex-wrap">
           <button
             onClick={() => setIsAutoRefreshEnabled(!isAutoRefreshEnabled)}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 ${
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 tabular-nums ${
               isAutoRefreshEnabled
                 ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-700'
                 : 'bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
             }`}
             title="Auto-refresh la 15 secunde"
           >
-            <span className={`w-2 h-2 rounded-full ${isAutoRefreshEnabled ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
-            {isAutoRefreshEnabled ? t('dispatch.auto_refresh_on', 'Auto-Refresh (15s)') : t('dispatch.auto_refresh_off', 'Pauză Live')}
+            <span className={`w-2 h-2 rounded-full ${isAutoRefreshEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
+            {isAutoRefreshEnabled
+              ? (language === 'ru'
+                  ? `Авто-Обновление (${secondsUntilRefresh}с)`
+                  : `Auto-Refresh (${secondsUntilRefresh}s)`)
+              : t('dispatch.auto_refresh_off', 'Pauză Live')}
           </button>
 
           <button
@@ -1641,9 +1686,10 @@ export default function Dispatch() {
                           if (rawName === 'Delivery') {
                             rawName = language === 'ru' ? 'Доставка' : language === 'en' ? 'Delivery' : 'Livrare'
                           }
+                          const parsedTableAddr = parseDeliveryAddress(ord.customer?.address, language)
                           const custName = isUnmasked ? rawName : maskCustomerName(rawName)
                           const custPhone = isUnmasked ? ord.customer?.phone : maskPhone(ord.customer?.phone)
-                          const custAddr = isUnmasked ? ord.customer?.address : maskAddress(ord.customer?.address)
+                          const custAddr = isUnmasked ? parsedTableAddr.streetAddress : maskAddress(parsedTableAddr.streetAddress)
 
                           return (
                             <div>
@@ -1667,9 +1713,14 @@ export default function Dispatch() {
                                   <span>{custPhone}</span>
                                 </div>
                               )}
-                              <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5" title={isUnmasked ? ord.customer?.address : ''}>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5" title={isUnmasked ? parsedTableAddr.streetAddress : ''}>
                                 {custAddr || t('dispatch.delivery_courier', 'Livrare Curier')}
                               </div>
+                              {isUnmasked && parsedTableAddr.instructions && (
+                                <div className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold truncate mt-0.5" title={parsedTableAddr.instructions}>
+                                  💬 {parsedTableAddr.instructions}
+                                </div>
+                              )}
                             </div>
                           )
                         })()}
@@ -1696,10 +1747,21 @@ export default function Dispatch() {
                                 <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold shrink-0">Bolt</span>
                               )}
                             </div>
-                            {ord.courier.awb && (
+                            {(ord.courier.awb || ord.courier.orderId) && (
                               <div className="text-[10px] font-mono text-slate-400 truncate">
-                                AWB: {ord.courier.awb}
+                                AWB: {ord.courier.awb || ord.courier.orderId}
                               </div>
+                            )}
+                            {ord.courier.trackingUrl && (
+                              <a
+                                href={ord.courier.trackingUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-sky-600 dark:text-sky-400 hover:underline mt-0.5"
+                              >
+                                Tracking Live ↗
+                              </a>
                             )}
                             {ord.courier.phone && (
                               <div className="text-[10px] font-mono text-slate-400">
@@ -2127,35 +2189,35 @@ export default function Dispatch() {
                 }`}>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
-                      <Clock size={12} /> Cronologie Timpi iiko (Ore Exacte)
+                      <Clock size={12} /> {language === 'ru' ? 'Хронология времени iiko (точное время)' : language === 'en' ? 'iiko Exact Timings Timeline' : 'Cronologie Timpi iiko (Ore Exacte)'}
                     </span>
                     {selectedOrder.timings?.complete_before_time && (
                       <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                        Termen promis (SLA): <b className="font-mono text-slate-800 dark:text-slate-200">{selectedOrder.timings.complete_before_time}</b>
+                        {language === 'ru' ? 'Обещанный срок (SLA):' : language === 'en' ? 'Promised SLA:' : 'Termen promis (SLA):'} <b className="font-mono text-slate-800 dark:text-slate-200">{selectedOrder.timings.complete_before_time}</b>
                       </span>
                     )}
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                     <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-white border-emerald-100'}`}>
-                      <div className="text-[10px] text-slate-400 font-semibold">1. Comandă Intrată</div>
+                      <div className="text-[10px] text-slate-400 font-semibold">{language === 'ru' ? '1. Заказ принят' : language === 'en' ? '1. Order Received' : '1. Comandă Intrată'}</div>
                       <div className="font-mono font-extrabold text-sm text-slate-900 dark:text-white mt-0.5">
                         {selectedOrder.timings?.created_time || parseOrderDateTime(selectedOrder.placed_at).time || '—'}
                       </div>
                     </div>
                     <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-white border-emerald-100'}`}>
-                      <div className="text-[10px] text-slate-400 font-semibold">2. Gata Bucătărie</div>
+                      <div className="text-[10px] text-slate-400 font-semibold">{language === 'ru' ? '2. Готов на кухне' : language === 'en' ? '2. Kitchen Ready' : '2. Gata Bucătărie'}</div>
                       <div className="font-mono font-extrabold text-sm text-blue-600 dark:text-blue-400 mt-0.5">
                         {selectedOrder.timings?.cooking_completed_time || '—'}
                       </div>
                     </div>
                     <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-white border-emerald-100'}`}>
-                      <div className="text-[10px] text-slate-400 font-semibold">3. Predată Curier</div>
+                      <div className="text-[10px] text-slate-400 font-semibold">{language === 'ru' ? '3. Передан курьеру' : language === 'en' ? '3. Handed to Courier' : '3. Predată Curier'}</div>
                       <div className="font-mono font-extrabold text-sm text-amber-600 dark:text-amber-400 mt-0.5">
                         {selectedOrder.timings?.sended_time || '—'}
                       </div>
                     </div>
                     <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-white border-emerald-100'}`}>
-                      <div className="text-[10px] text-slate-400 font-semibold">4. Livrată / Închisă</div>
+                      <div className="text-[10px] text-slate-400 font-semibold">{language === 'ru' ? '4. Доставлен / Закрыт' : language === 'en' ? '4. Delivered / Closed' : '4. Livrată / Închisă'}</div>
                       <div className="font-mono font-extrabold text-sm text-emerald-600 dark:text-emerald-400 mt-0.5">
                         {selectedOrder.timings?.delivered_time || '—'}
                       </div>
@@ -2234,10 +2296,46 @@ export default function Dispatch() {
                     <Phone size={11} className="text-slate-400 shrink-0" />
                     <span>{selectedOrder.customer?.phone || t('dispatch.modal_no_phone', 'Fără număr de telefon')}</span>
                   </div>
-                  <div className="text-slate-500 dark:text-slate-400 mt-1 flex items-start gap-1.5">
-                    <MapPin size={11} className="text-slate-400 shrink-0 mt-0.5" />
-                    <span>{selectedOrder.customer?.address || t('dispatch.modal_dine_in_address', 'Servire în restaurant / Preluare')}</span>
-                  </div>
+                  {(() => {
+                    const parsedAddr = parseDeliveryAddress(selectedOrder.customer?.address, language)
+                    return (
+                      <>
+                        <div className="text-slate-600 dark:text-slate-300 font-medium mt-1.5 flex items-start gap-1.5">
+                          <MapPin size={12} className="text-emerald-500 shrink-0 mt-0.5" />
+                          <span>{parsedAddr.streetAddress || t('dispatch.modal_dine_in_address', 'Servire în restaurant / Preluare')}</span>
+                        </div>
+                        {parsedAddr.buildingDetails.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {parsedAddr.buildingDetails.map((b, bIdx) => (
+                              <span
+                                key={bIdx}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold border ${
+                                  isDark
+                                    ? 'bg-slate-900 border-slate-700 text-slate-300'
+                                    : 'bg-white border-slate-200 text-slate-700'
+                                }`}
+                              >
+                                <span className="text-slate-400">{b.label}:</span>
+                                <b className="font-mono text-slate-900 dark:text-white">{b.value}</b>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {parsedAddr.instructions && (
+                          <div className={`mt-2.5 p-2.5 rounded-xl border text-[11px] leading-snug ${
+                            isDark
+                              ? 'bg-amber-950/30 border-amber-800/60 text-amber-200'
+                              : 'bg-amber-50/90 border-amber-200 text-amber-900'
+                          }`}>
+                            <div className="text-[9px] font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-0.5">
+                              💬 {language === 'ru' ? 'Инструкции курьеру (Примечание):' : language === 'en' ? 'Delivery Instructions (Note):' : 'Instrucțiuni livrare (Notă client):'}
+                            </div>
+                            <div className="font-semibold">{parsedAddr.instructions}</div>
+                          </div>
+                        )}
+                      </>
+                    )
+                  })()}
                 </div>
 
                 <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-800/30 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
@@ -2252,8 +2350,31 @@ export default function Dispatch() {
                       {selectedOrder.courier.phone && (
                         <div className="text-slate-500 dark:text-slate-400 mt-1 font-mono">{selectedOrder.courier.phone}</div>
                       )}
-                      {selectedOrder.courier.awb && (
-                        <div className="font-mono text-emerald-600 dark:text-emerald-400 font-bold mt-1">AWB: {selectedOrder.courier.awb}</div>
+                      {(selectedOrder.courier.awb || selectedOrder.courier.orderId) && (
+                        <div className="font-mono text-emerald-600 dark:text-emerald-400 font-bold mt-1 text-xs">
+                          AWB: {selectedOrder.courier.awb || selectedOrder.courier.orderId}
+                        </div>
+                      )}
+                      {selectedOrder.courier.status && (
+                        <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 mt-1">
+                          {language === 'ru' ? 'Статус курьера:' : language === 'en' ? 'Courier Status:' : 'Status Curier:'} <span className="font-mono font-bold text-amber-600 dark:text-amber-400">{selectedOrder.courier.status}</span>
+                        </div>
+                      )}
+                      {selectedOrder.courier.deliveryFee && (
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          {language === 'ru' ? 'Тариф доставки курьера:' : language === 'en' ? 'Courier delivery fee:' : 'Taxă livrare curier:'} <span className="font-bold text-slate-700 dark:text-slate-200">{selectedOrder.courier.deliveryFee} RON</span>
+                        </div>
+                      )}
+                      {selectedOrder.courier.trackingUrl && (
+                        <a
+                          href={selectedOrder.courier.trackingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/20 text-xs font-bold transition-colors"
+                        >
+                          <span>{language === 'ru' ? '📍 Live-трекинг курьера' : language === 'en' ? '📍 Live Courier Tracking' : '📍 Tracking Live Curier'}</span>
+                          <span>↗</span>
+                        </a>
                       )}
                     </>
                   ) : selectedOrder.channel_type === 'kiosk' || selectedOrder.channel_type === 'casierie' ? (

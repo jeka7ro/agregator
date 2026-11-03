@@ -243,3 +243,132 @@ export function maskAddress(address = '') {
   return trimmed.replace(/\d+/g, '••')
 }
 
+/**
+ * Separă inteligent adresa fizică (stradă, număr, oraș) de detaliile de clădire
+ * (Building name, Entrance/Staircase, Floor, Apartment, Intercom) și de instrucțiunile
+ * libere lăsate de client pentru curier (ex: "sa vii pe la intrarea de la bulevard...").
+ */
+export function parseDeliveryAddress(rawAddress = '', lang = 'ro') {
+  if (!rawAddress) {
+    return { streetAddress: '', buildingDetails: [], instructions: '' }
+  }
+
+  const labels = lang === 'ru'
+    ? {
+        building: 'Здание / Блок',
+        entrance: 'Подъезд / Вход',
+        floor: 'Этаж',
+        apartment: 'Кв. / Офис',
+        intercom: 'Домофон'
+      }
+    : lang === 'en'
+      ? {
+          building: 'Building',
+          entrance: 'Entrance',
+          floor: 'Floor',
+          apartment: 'Apt.',
+          intercom: 'Intercom'
+        }
+      : {
+          building: 'Clădire / Bloc',
+          entrance: 'Scară / Intrare',
+          floor: 'Etaj',
+          apartment: 'Ap.',
+          intercom: 'Interfon'
+        }
+
+  let cleaned = String(rawAddress).trim()
+
+  // Cazul 1: Format cu " -- " (ex: "Strada Osiris, 59 -- suna la poarta" sau "Strada Osiris, 59 -- ")
+  let dashNote = ''
+  if (cleaned.includes(' --')) {
+    const [beforeDash, ...afterDashParts] = cleaned.split(/\s*--\s*/)
+    cleaned = beforeDash.trim()
+    dashNote = afterDashParts.join(' - ').trim()
+  }
+
+  // Dacă nu conține ";" (doar adresă simplă)
+  if (!cleaned.includes(';')) {
+    return {
+      streetAddress: cleaned,
+      buildingDetails: [],
+      instructions: dashNote
+    }
+  }
+
+  // Cazul 2: Format Syrve/Wolt/Bolt/Glovo separat prin ";"
+  // Ex: "Bulevardul Petrochimiștilor 26; 117141 Pitești; ROU; sa vii pe la intrarea...; ; Building name: b21 sc e ; Entrance / Staircase: e; Floor: 6"
+  const segments = cleaned
+    .split(';')
+    .map(s => s.trim())
+    .filter(Boolean)
+
+  const addressParts = []
+  const buildingDetails = []
+  const instructionParts = []
+
+  segments.forEach((seg, idx) => {
+    // Ignoră codul de țară izolat
+    if (/^(ROU|RO|ROMANIA|ROMÂNIA)$/i.test(seg)) {
+      return
+    }
+
+    // Verifică etichetele structurate de clădire din agregatoare
+    const bldMatch = seg.match(/^(?:Building\s*name|Building|Cl[aă]dire|Bloc)\s*:\s*(.+)$/i)
+    if (bldMatch) {
+      buildingDetails.push({ label: labels.building, value: bldMatch[1].trim() })
+      return
+    }
+
+    const entMatch = seg.match(/^(?:Entrance\s*\/\s*Staircase|Entrance|Staircase|Scara|Intrare)\s*:\s*(.+)$/i)
+    if (entMatch) {
+      buildingDetails.push({ label: labels.entrance, value: entMatch[1].trim() })
+      return
+    }
+
+    const flrMatch = seg.match(/^(?:Floor|Etaj|Level)\s*:\s*(.+)$/i)
+    if (flrMatch) {
+      buildingDetails.push({ label: labels.floor, value: flrMatch[1].trim() })
+      return
+    }
+
+    const aptMatch = seg.match(/^(?:Apartment|Apt|Flat|Apartament|Door|Unit)\s*:\s*(.+)$/i)
+    if (aptMatch) {
+      buildingDetails.push({ label: labels.apartment, value: aptMatch[1].trim() })
+      return
+    }
+
+    const intMatch = seg.match(/^(?:Apartment\s+entrance\s+Intercom(?:\s+name\s*\/?\s*number)?|Intercom(?:\s+name\s*\/?\s*number)?|Doorphone|Door\s*code|Interfon|Cod\s*interfon)\s*:\s*(.+)$/i)
+    if (intMatch) {
+      buildingDetails.push({ label: labels.intercom, value: intMatch[1].trim() })
+      return
+    }
+
+    // Primul segment este întotdeauna strada și numărul
+    if (idx === 0) {
+      addressParts.push(seg)
+      return
+    }
+
+    // Al doilea segment este de obicei codul poștal + orașul (ex: "117141 Pitești" sau "București")
+    if (idx === 1 && (/^\d{5,6}\b/.test(seg) || seg.length <= 28) && !/\b(sa |să |nu |merge|usa|ușa|interfon|suna|sună|etaj|scara|intrare|poarta|poartă|rog)\b/i.test(seg)) {
+      addressParts.push(seg)
+      return
+    }
+
+    // Orice alt segment este instrucțiune de livrare de la client
+    instructionParts.push(seg)
+  })
+
+  if (dashNote) {
+    instructionParts.push(dashNote)
+  }
+
+  return {
+    streetAddress: addressParts.join(', ') || cleaned,
+    buildingDetails,
+    instructions: instructionParts.join(' • ')
+  }
+}
+
+

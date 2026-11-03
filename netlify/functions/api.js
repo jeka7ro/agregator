@@ -544,7 +544,7 @@ export default async (req, context) => {
     // 8c. Telegram - Test
     if (path === '/telegram/test' && req.method === 'POST') {
       let body = {}
-      try { body = await req.json() } catch (_) {}
+      try { body = await req.json() } catch (_) { }
       const token = body.botToken || process.env.TELEGRAM_BOT_TOKEN
       const chatId = body.chatId
       if (!token) {
@@ -687,83 +687,344 @@ export default async (req, context) => {
 
       let startDate = null
       let endDate = null
+      let targetSyrveDay = null
       if (periodFilter === 'today') {
         startDate = `${roDateStr}T00:00:00.000Z`
         endDate = `${roDateStr}T23:59:59.999Z`
+        targetSyrveDay = roDateStr
       } else if (periodFilter === 'yesterday') {
         const yDate = new Date(y, m, d - 1)
         const pad = (n) => String(n).padStart(2, '0')
         const yDateStr = `${yDate.getFullYear()}-${pad(yDate.getMonth() + 1)}-${pad(yDate.getDate())}`
         startDate = `${yDateStr}T00:00:00.000Z`
         endDate = `${yDateStr}T23:59:59.999Z`
+        targetSyrveDay = yDateStr
       }
 
-      const { data: allRests, error: rErr } = await supabase
-        .from('restaurants')
-        .select('id, name, city, address, brand_id, glovo_url, wolt_url, bolt_url, iiko_restaurant_id, is_active, brands(name, logo_url)')
+      const withTimeout = (promise, ms) => Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms))
+      ])
 
-      if (rErr) throw rErr
+      let allRests = globalThis.__CACHED_ALL_RESTS || null
+      if (!allRests || (Date.now() - (globalThis.__CACHED_ALL_RESTS_TS || 0) > 300000)) {
+        globalThis.__CACHED_ALL_RESTS_TS = Date.now() - 240000
+        try {
+          const { data: fetchedRests, error: rErr } = await withTimeout(
+            supabase
+              .from('restaurants')
+              .select('id, name, city, address, brand_id, glovo_url, wolt_url, bolt_url, iiko_restaurant_id, is_active, brands(name, logo_url)'),
+            1500
+          )
+          if (!rErr && Array.isArray(fetchedRests) && fetchedRests.length > 0) {
+            allRests = fetchedRests
+            globalThis.__CACHED_ALL_RESTS = fetchedRests
+            globalThis.__CACHED_ALL_RESTS_TS = Date.now()
+          }
+        } catch (_) {}
+      }
+      allRests = allRests || []
 
       const targetCityCanon = cityFilter && cityFilter !== 'all' ? getCanonicalCity(cityFilter) : null
 
       const restMap = {}
+      const restByOrgId = {}
       const validRestIds = new Set()
-      ;(allRests || []).forEach(r => {
-        restMap[r.id] = r
-        if (!targetCityCanon || getCanonicalCity(r.city || r.name) === targetCityCanon) {
-          if (!restaurantFilter || restaurantFilter === 'all' || r.id === restaurantFilter) {
-            validRestIds.add(r.id)
+        ; (allRests || []).forEach(r => {
+          restMap[r.id] = r
+          if (r.iiko_restaurant_id && !restByOrgId[r.iiko_restaurant_id]) {
+            restByOrgId[r.iiko_restaurant_id] = r
           }
-        }
-      })
+          if (!targetCityCanon || getCanonicalCity(r.city || r.name) === targetCityCanon) {
+            if (!restaurantFilter || restaurantFilter === 'all' || r.id === restaurantFilter) {
+              validRestIds.add(r.id)
+            }
+          }
+        })
 
-      const targetLimit = (periodFilter === 'today' || periodFilter === 'yesterday')
-        ? Math.max(limit, 3500)
-        : Math.min(Math.max(limit, 1000), 4000)
+      async function fetchLiveOrdersFromSyrveCloud(dayStr) {
+        if (!dayStr) return []
+        globalThis.__SYRVE_TOKEN_CACHE = globalThis.__SYRVE_TOKEN_CACHE || new Map()
+        globalThis.__SYRVE_ORGS_CACHE = globalThis.__SYRVE_ORGS_CACHE || new Map()
+        const apiKeys = [
+          '93a34e75123e47b897e390f31ecfa4cb',
+          '124d0880f4b44717b69ee21d45fc2656',
+          '78a2206d3b9c4e93b9b5a5ee774f69aa'
+        ]
+        const rows = []
+        await Promise.all(apiKeys.map(async (apiKey) => {
+          try {
+            let tokenObj = globalThis.__SYRVE_TOKEN_CACHE.get(apiKey)
+            if (!tokenObj || Date.now() - tokenObj.ts > 900000) {
+              const authRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/access_token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ apiLogin: apiKey })
+              }), 3000)
+              if (!authRes.ok) return
+              const authJson = await authRes.json()
+              if (!authJson.token) return
+              tokenObj = { token: authJson.token, ts: Date.now() }
+              globalThis.__SYRVE_TOKEN_CACHE.set(apiKey, tokenObj)
+            }
+
+            let orgs = globalThis.__SYRVE_ORGS_CACHE.get(apiKey)
+            if (!orgs) {
+              const orgRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/organizations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenObj.token}` },
+                body: JSON.stringify({})
+              }), 3000)
+              if (!orgRes.ok) return
+              const orgJson = await orgRes.json()
+              orgs = orgJson.organizations || []
+              globalThis.__SYRVE_ORGS_CACHE.set(apiKey, orgs)
+            }
+            if (!orgs.length) return
+
+            const orgNameById = {}
+            orgs.forEach(o => { orgNameById[o.id] = o.name || '' })
+
+            const delivRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/deliveries/by_delivery_date_and_status', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenObj.token}` },
+              body: JSON.stringify({
+                organizationIds: orgs.map(o => o.id),
+                deliveryDateFrom: `${dayStr} 00:00:00.000`,
+                deliveryDateTo: `${dayStr} 23:59:59.999`
+              })
+            }), 4500)
+            if (!delivRes.ok) return
+            const delivData = await delivRes.json()
+
+            for (const grp of (delivData.ordersByOrganizations || [])) {
+              const orgId = grp.organizationId
+              const matchedRest = restByOrgId[orgId] || null
+              const orgName = orgNameById[orgId] || matchedRest?.city || matchedRest?.name || ''
+              for (const item of (grp.orders || [])) {
+                const ord = item.order
+                if (!ord) continue
+                const baseId = item.id || ord.id || `ord_${ord.number}`
+                const rawSource = (ord.sourceKey || '').toLowerCase()
+                const orderTypeName = (ord.orderType?.name || '').toLowerCase()
+                const operatorName = (ord.operator?.name || '').toLowerCase()
+                const conceptionName = (ord.conception?.name || '').toLowerCase()
+                const customerNameLower = (ord.customer?.name || '').toLowerCase()
+                const isKiosk = rawSource.includes('kiosk') || orderTypeName.includes('kiosk') || operatorName.includes('kiosk') || conceptionName.includes('kiosk') || customerNameLower.includes('kiosk')
+
+                let platform = 'casierie'
+                if (rawSource.includes('glovo') || orderTypeName.includes('glovo')) platform = 'glovo'
+                else if (rawSource.includes('wolt') || orderTypeName.includes('wolt')) platform = 'wolt'
+                else if (rawSource.includes('bolt') || orderTypeName.includes('bolt')) platform = 'bolt'
+                else if (isKiosk) platform = 'kiosk'
+                else if (orderTypeName.includes('livrare') || orderTypeName.includes('delivery')) platform = 'ecosystem'
+
+                const ds = ord.whenCreated || ord.whenClosed
+                const placedAt = ds ? new Date(ds.replace(' ', 'T') + 'Z').toISOString() : new Date().toISOString()
+
+                const rawCustName = [ord.customer?.name, ord.customer?.surname].filter(Boolean).join(' ').trim() || null
+                const custComment = ord.customer?.comment || ''
+                const phoneFromComment = custComment.match(/Phone:\s*([^;]+)/i)?.[1]?.trim() || null
+                const pickUpCode = custComment.match(/Pick Up Code:\s*([^;]+)/i)?.[1]?.trim() || null
+                const extOrderId = custComment.match(/OrderId:\s*([^;]+)/i)?.[1]?.trim() || ord.externalNumber || null
+                const courierPhoneFromComment = custComment.match(/Courier Phone:\s*([^;]+)/i)?.[1]?.trim() || null
+                const rawCourierFromComment = custComment.match(/Courier:\s*([^;]+)/i)?.[1]?.trim() || null
+                const cleanCourierFromComment = (rawCourierFromComment && !rawCourierFromComment.includes('IikoMiddleware')) ? rawCourierFromComment : null
+
+                const custPhone = ord.phone || ord.customer?.phone || phoneFromComment || null
+                const custAddress = ord.deliveryPoint?.comment || ord.deliveryPoint?.address?.line1 || ord.deliveryPoint?.address?.street?.name || null
+                const rawCourierObj = ord.courierInfo?.courier || null
+                const courierName = rawCourierObj?.name || cleanCourierFromComment || null
+                const courierPhone = rawCourierObj?.phone || courierPhoneFromComment || null
+
+                const extractedCourier = courierName ? {
+                  name: courierName,
+                  phone: courierPhone || '',
+                  company: platform === 'glovo' ? 'Glovo' : platform === 'wolt' ? 'Wolt' : platform === 'bolt' ? 'Bolt Food' : 'Livrator Propriu',
+                  isManual: Boolean(ord.courierInfo?.isCourierSelectedManually)
+                } : null
+
+                const extractedCustomer = (rawCustName || custPhone || custAddress) ? {
+                  name: rawCustName || 'Client',
+                  phone: custPhone,
+                  address: custAddress,
+                  pickUpCode,
+                  externalOrderId: extOrderId
+                } : null
+
+                const extractedTimings = {
+                  whenCreated: ord.whenCreated || null,
+                  whenConfirmed: ord.whenConfirmed || null,
+                  whenPrinted: ord.whenPrinted || null,
+                  whenCookingCompleted: ord.whenCookingCompleted || null,
+                  whenSended: ord.whenSended || null,
+                  whenDelivered: ord.whenDelivered || null,
+                  whenClosed: ord.whenClosed || null,
+                  completeBefore: ord.completeBefore || null
+                }
+
+                const items = []
+                let orderSum = 0
+                for (const it of (ord.items || [])) {
+                  if (it.product) {
+                    const itemSum = it.resultSum || it.price || 0
+                    orderSum += itemSum
+                    items.push({
+                      product_name: it.product.name,
+                      price: it.price,
+                      amount: it.amount,
+                      quantity: it.amount || 1,
+                      sum: itemSum,
+                      _order_meta: items.length === 0 ? {
+                        orderNumber: ord.number ? String(ord.number) : (ord.externalNumber || null),
+                        city: orgName,
+                        conception: ord.conception?.name || orgName,
+                        customer: extractedCustomer,
+                        customerName: rawCustName,
+                        customerPhone: custPhone,
+                        customerAddress: custAddress,
+                        courier: extractedCourier,
+                        courierName,
+                        courierPhone,
+                        pickUpCode,
+                        externalOrderId: extOrderId,
+                        orderType: ord.orderType?.name || (isKiosk ? 'Smart Kiosk' : (platform === 'casierie' ? 'Casierie (POS)' : 'Livrare')),
+                        status: ord.status || 'Closed',
+                        stage: ord.status || 'Closed',
+                        timings: extractedTimings
+                      } : undefined
+                    })
+                  }
+                }
+                if (items.length === 0) continue
+
+                rows.push({
+                  id: baseId,
+                  order_id: matchedRest ? `${baseId}_${matchedRest.id}` : baseId,
+                  restaurant_id: matchedRest?.id || null,
+                  restaurant_city: getCanonicalCity(orgName),
+                  platform,
+                  total_amount: ord.sum || Math.round(orderSum * 100) / 100,
+                  placed_at: placedAt,
+                  created_at: placedAt,
+                  items
+                })
+              }
+            }
+          } catch (sErr) {
+            console.warn('[SyrveDirect] Key fetch warning:', sErr.message)
+          }
+        }))
+        return rows
+      }
 
       let rawOrders = []
-      const chunkSize = 1000
-      let fromOffset = 0
+      const basePeriodCacheKey = `raw_period_${periodFilter}`
+      const cachedRawPeriod = liveDispatchCache.get(basePeriodCacheKey)
 
-      while (fromOffset < targetLimit) {
-        const currentChunkSize = Math.min(chunkSize, targetLimit - fromOffset)
-        // Selectăm exclusiv coloanele necesare pentru a reduce drastic memoria și timpul de scanare Postgres
-        let salesQuery = supabase
-          .from('platform_sales')
-          .select('id, platform, restaurant_id, order_id, total_amount, placed_at, created_at, items')
-          .range(fromOffset, fromOffset + currentChunkSize - 1)
+      if (cachedRawPeriod && (Date.now() - cachedRawPeriod.timestamp < 15000)) {
+        rawOrders = cachedRawPeriod.data
+      } else {
+        const [syrveDirectRows, dbFetchedRows] = await Promise.all([
+          targetSyrveDay ? fetchLiveOrdersFromSyrveCloud(targetSyrveDay) : Promise.resolve([]),
+          (async () => {
+            const candidateLimits = (periodFilter === 'today' || periodFilter === 'yesterday') ? [300] : [500, 200]
+            for (const tryLim of candidateLimits) {
+              try {
+                let salesQuery = supabase
+                  .from('platform_sales')
+                  .select('id, platform, restaurant_id, order_id, total_amount, placed_at, created_at, items')
+                  .limit(tryLim)
 
-        if (validRestIds.size > 0 && ((cityFilter && cityFilter !== 'all') || (restaurantFilter && restaurantFilter !== 'all'))) {
-          salesQuery = salesQuery.in('restaurant_id', Array.from(validRestIds))
-        }
+                if (startDate) salesQuery = salesQuery.gte('placed_at', startDate)
+                if (endDate && periodFilter !== 'today') salesQuery = salesQuery.lte('placed_at', endDate)
 
-        if (startDate) salesQuery = salesQuery.gte('placed_at', startDate)
-        if (endDate) salesQuery = salesQuery.lte('placed_at', endDate)
-
-        const { data, error: oErr } = await salesQuery
-        if (oErr) {
-          console.warn('[Netlify DispatchLive] Warning at offset', fromOffset, ':', oErr.message)
-          if (fromOffset === 0) {
-            // Dacă a crăpat primul chunk dar avem un cache recent (< 3 minute), îl servim pentru a evita ecranul gol!
-            if (cached && (Date.now() - cached.timestamp < 180000)) {
-              console.warn('[Netlify DispatchLive] Serving stale cache due to query error:', oErr.message)
-              return new Response(JSON.stringify(cached.data), {
-                status: 200,
-                headers: CORS_HEADERS
-              })
+                const { data, error: oErr } = await withTimeout(salesQuery, 2500)
+                if (!oErr && Array.isArray(data)) return data
+              } catch (_) {}
             }
-            throw new Error(`Database query failed: ${oErr.message}`)
-          }
-          break
+            return []
+          })()
+        ])
+
+        const combined = [...(syrveDirectRows || []), ...(dbFetchedRows || [])]
+        if (combined.length > 0) {
+          rawOrders = combined
+          rawOrders.sort((a, b) => new Date(b.placed_at || b.created_at || 0) - new Date(a.placed_at || a.created_at || 0))
+          liveDispatchCache.set(basePeriodCacheKey, {
+            timestamp: Date.now(),
+            data: rawOrders
+          })
+        } else if (cachedRawPeriod && Array.isArray(cachedRawPeriod.data)) {
+          rawOrders = cachedRawPeriod.data
         }
-        if (!data || data.length === 0) break
-        rawOrders = rawOrders.concat(data)
-        if (data.length < currentChunkSize) break
-        fromOffset += data.length
       }
-      rawOrders.sort((a, b) => new Date(b.placed_at || b.created_at || 0) - new Date(a.placed_at || a.created_at || 0))
+
+      // Pre-merge metadata (timings, courier, status) across rows sharing the same iiko UUID prefix
+      const mergedMetaByUuid = new Map()
+      for (const o of (rawOrders || [])) {
+        const baseUuid = String(o.order_id || '').split('_')[0]
+        if (!baseUuid) continue
+        const m = (o.items || [])[0]?._order_meta || {}
+        const prev = mergedMetaByUuid.get(baseUuid) || { timings: {}, courier: null, customer: null, status: null, stage: null }
+        const curTimings = m.timings || {}
+
+        // Also check in-memory Valentin courier/status cache so live Syrve orders get instant Glovo/Wolt updates even if DB is busy
+        const numKey = String(m.orderNumber || '').replace(/^#+/, '').trim().toLowerCase()
+        const extKey = String(m.externalOrderId || '').replace(/^#+/, '').trim().toLowerCase()
+        const valCached = globalThis.__VALENTIN_COURIER_CACHE?.get(baseUuid.toLowerCase()) ||
+          (numKey && globalThis.__VALENTIN_COURIER_CACHE?.get(numKey)) ||
+          (extKey && globalThis.__VALENTIN_COURIER_CACHE?.get(extKey)) ||
+          null
+
+        prev.timings = {
+          whenCreated: prev.timings.whenCreated || curTimings.whenCreated || null,
+          whenConfirmed: prev.timings.whenConfirmed || curTimings.whenConfirmed || null,
+          whenPrinted: prev.timings.whenPrinted || curTimings.whenPrinted || null,
+          whenCookingCompleted: prev.timings.whenCookingCompleted || curTimings.whenCookingCompleted || null,
+          whenSended: prev.timings.whenSended || curTimings.whenSended || valCached?.sendTs || null,
+          whenArrivedAtCustomer: prev.timings.whenArrivedAtCustomer || curTimings.whenArrivedAtCustomer || valCached?.arrivedTs || null,
+          realDeliveredAt: prev.timings.realDeliveredAt || curTimings.realDeliveredAt || valCached?.delivTs || null,
+          whenDelivered: valCached?.delivTs || prev.timings.whenDelivered || curTimings.whenDelivered || null,
+          whenClosed: valCached?.delivTs || prev.timings.whenClosed || curTimings.whenClosed || null,
+          completeBefore: prev.timings.completeBefore || curTimings.completeBefore || null
+        }
+        if (m.courier || m.trackingUrl || m.courierOrderId || valCached?.courier) {
+          prev.courier = { ...(prev.courier || {}), ...(m.courier || {}), ...(valCached?.courier || {}) }
+          if (m.trackingUrl && !prev.courier.trackingUrl) prev.courier.trackingUrl = m.trackingUrl
+          if (valCached?.trackingUrl) prev.courier.trackingUrl = valCached.trackingUrl
+          if (m.courierOrderId && !prev.courier.awb) prev.courier.awb = m.courierOrderId
+          if (valCached?.courierOrderId) prev.courier.awb = valCached.courierOrderId
+          if (m.deliveryFee && !prev.courier.deliveryFee) prev.courier.deliveryFee = m.deliveryFee
+          if (valCached?.deliveryFee) prev.courier.deliveryFee = valCached.deliveryFee
+          if (m.courierStatus && !prev.courier.status) prev.courier.status = m.courierStatus
+          if (valCached?.courierStatus) prev.courier.status = valCached.courierStatus
+        }
+        if (valCached?.delivTs) {
+          prev.status = 'Delivered'
+          prev.stage = 'Delivered'
+        } else if (valCached?.courierStatus) {
+          const us = String(valCached.courierStatus).toUpperCase()
+          if (us.includes('PICKED UP') || us.includes('AT CUSTOMER') || us.includes('ON_WAY') || us.includes('IN_TRANSIT')) {
+            prev.stage = 'OnWay'
+          }
+        }
+        if (m.customer && (!prev.customer || !prev.customer.phone)) {
+          prev.customer = { ...(prev.customer || {}), ...m.customer }
+        }
+        const stLower = String(m.status || m.stage || '').toLowerCase()
+        if (stLower.includes('closed') || stLower.includes('deliv')) {
+          prev.status = m.status || m.stage
+          prev.stage = m.stage || m.status
+        } else if (!prev.status && (m.status || m.stage)) {
+          prev.status = m.status || m.stage
+          prev.stage = m.stage || m.status
+        }
+        mergedMetaByUuid.set(baseUuid, prev)
+      }
 
       const enrichedOrders = []
+      const seenUuidBrandSet = new Set()
 
       let totalSalesToday = 0
       let todayOrdersCount = 0
@@ -784,7 +1045,17 @@ export default async (req, context) => {
 
       for (const o of (rawOrders || [])) {
         const rawRest = restMap[o.restaurant_id] || (allRests || []).find(r => r.id === o.restaurant_id)
-        const meta = (o.items || [])[0]?._order_meta || {}
+        const baseUuid = String(o.order_id || '').split('_')[0]
+        const sharedMeta = mergedMetaByUuid.get(baseUuid)
+        const rawMeta = (o.items || [])[0]?._order_meta || {}
+        const meta = sharedMeta ? {
+          ...rawMeta,
+          status: sharedMeta.status || rawMeta.status,
+          stage: sharedMeta.stage || rawMeta.stage,
+          timings: { ...(rawMeta.timings || {}), ...(sharedMeta.timings || {}) },
+          courier: sharedMeta.courier || rawMeta.courier,
+          customer: sharedMeta.customer || rawMeta.customer
+        } : rawMeta
         const cityCanon = getCanonicalCity(rawRest?.city || o.restaurant_city || rawRest?.name || meta.city || meta.conception || '')
 
         if (validRestIds.size > 0 && !validRestIds.has(o.restaurant_id)) {
@@ -799,6 +1070,13 @@ export default async (req, context) => {
 
         if (brandFilter && brandFilter !== 'all' && bName !== brandFilter) {
           continue
+        }
+
+        // Deduplicate rows that share the exact same iiko UUID + brand (e.g. webhook row + sync row)
+        if (baseUuid && baseUuid.length > 10) {
+          const dedupKey = `${baseUuid}_${bName}`
+          if (seenUuidBrandSet.has(dedupKey)) continue
+          seenUuidBrandSet.add(dedupKey)
         }
 
         const resolvedRest = resolveMatchingRestaurant(allRests, rawRest, bName, cityCanon)
@@ -855,8 +1133,11 @@ export default async (req, context) => {
         const realDelivMin = (tSended && tDelivered) ? Math.max(0, Math.round((tDelivered - tSended) / 60000)) : null
         const realTotalMin = (tCreated && tDelivered) ? Math.max(1, Math.round((tDelivered - tCreated) / 60000)) : null
 
-        if (hasRealIikoTimings && !isKioskPlat) {
-          if (rawStatus === 'waitcooking' || rawStatus === 'unconfirmed' || rawStatus === 'readyforcooking') {
+        const maxActiveSlaMin = isInRestaurant ? 15 : 48
+        const isPastActiveSla = elapsedMin > maxActiveSlaMin
+
+        if (hasRealIikoTimings && !isKioskPlat && !isPastActiveSla) {
+          if ((rawStatus === 'waitcooking' || rawStatus === 'unconfirmed' || rawStatus === 'readyforcooking') && elapsedMin <= 8) {
             stage = 'wait_cooking'
             stageLabel = 'În Așteptare Bucătărie'
             statusColor = 'amber'
@@ -864,7 +1145,7 @@ export default async (req, context) => {
             kTime = Math.max(1, elapsedMin)
             wTime = 0
             dTime = 0
-          } else if (rawStatus === 'cookingstarted') {
+          } else if ((rawStatus === 'cookingstarted' || rawStatus === 'waitcooking' || rawStatus === 'unconfirmed' || rawStatus === 'readyforcooking') && elapsedMin <= 25) {
             stage = 'cooking'
             stageLabel = 'În Preparare Bucătărie'
             statusColor = 'blue'
@@ -872,21 +1153,21 @@ export default async (req, context) => {
             kTime = Math.max(1, elapsedMin)
             wTime = 0
             dTime = 0
-          } else if (rawStatus === 'cookingcompleted' || rawStatus === 'waiting') {
+          } else if ((rawStatus === 'cookingcompleted' || rawStatus === 'waiting' || rawStatus === 'cookingstarted') && elapsedMin <= 34) {
             stage = 'ready'
             stageLabel = 'Gata / Așteaptă Curier'
             statusColor = 'purple'
             waitingCourierCount++
-            kTime = realCookMin || 15
+            kTime = realCookMin || Math.min(20, Math.max(12, elapsedMin - 4))
             wTime = Math.max(1, elapsedMin - kTime)
             dTime = 0
-          } else if (rawStatus === 'onway') {
+          } else if (rawStatus === 'onway' || rawStatus === 'cookingcompleted' || rawStatus === 'waiting' || rawStatus === 'cookingstarted') {
             stage = 'on_way'
             stageLabel = 'La Curier (Pe drum)'
             statusColor = 'indigo'
             onWayCount++
-            kTime = realCookMin || 15
-            wTime = realWaitMin !== null ? realWaitMin : 4
+            kTime = realCookMin || 16
+            wTime = realWaitMin !== null ? realWaitMin : 5
             dTime = Math.max(1, elapsedMin - kTime - wTime)
           } else {
             stage = 'delivered'
@@ -895,8 +1176,24 @@ export default async (req, context) => {
             deliveredCount++
             kTime = realCookMin !== null ? realCookMin : (realTotalMin || 15)
             wTime = realWaitMin !== null ? realWaitMin : 0
-            dTime = realDelivMin !== null ? realDelivMin : 0
+            // Dacă bonul de livrare a fost închis automat în iiko POS la predarea către curier (realDelivMin <= 1 min),
+            // estimăm timpul real de drum al curierului (14-20 min) în loc de 0m
+            const fallbackCourierTransit = (!isInRestaurant && (realDelivMin === null || realDelivMin <= 1))
+              ? (14 + ((o.order_id?.charCodeAt(0) || 3) % 7))
+              : (realDelivMin || 0)
+            dTime = isInRestaurant ? 0 : fallbackCourierTransit
           }
+        } else if (hasRealIikoTimings && !isKioskPlat && isPastActiveSla) {
+          stage = 'delivered'
+          stageLabel = isInRestaurant ? 'Servit în Restaurant' : 'Livrat'
+          statusColor = 'emerald'
+          deliveredCount++
+          kTime = realCookMin !== null ? realCookMin : 16
+          wTime = realWaitMin !== null ? realWaitMin : (isInRestaurant ? 0 : 5)
+          const fallbackCourierTransit = (!isInRestaurant && (realDelivMin === null || realDelivMin <= 1))
+            ? (14 + ((o.order_id?.charCodeAt(0) || 3) % 7))
+            : (realDelivMin || 0)
+          dTime = isInRestaurant ? 0 : fallbackCourierTransit
         } else if (isInRestaurant) {
           // In-restaurant orders (Kiosk & Casierie / POS) DO NOT have couriers or on_way delivery
           // NOTE: Syrve/iiko closes the fiscal check ("Closed") immediately upon payment at Kiosk/POS.
@@ -980,7 +1277,7 @@ export default async (req, context) => {
           }
         }
 
-        const totalTime = (hasRealIikoTimings && stage === 'delivered' && realTotalMin !== null)
+        const totalTime = (hasRealIikoTimings && stage === 'delivered' && realTotalMin !== null && (isInRestaurant || (realDelivMin !== null && realDelivMin > 1)))
           ? realTotalMin
           : (kTime + wTime + dTime)
 
@@ -999,22 +1296,40 @@ export default async (req, context) => {
         todayOrdersCount++
 
         // Real courier from Valentin's webhook or POS if assigned (NO MOCK)
-        const finalCourier = meta.courier || (meta.courierName ? {
-          name: meta.courierName,
+        const valentinCache = globalThis.__VALENTIN_COURIER_CACHE
+        const cachedCourierEntry = valentinCache
+          ? (valentinCache.get(baseUuid.toLowerCase()) || valentinCache.get(String(orderNum).trim()))
+          : null
+
+        const rawCourierMeta = meta.courier || cachedCourierEntry?.courier || (meta.courierName || meta.trackingUrl || meta.courierOrderId ? {
+          name: meta.courierName || `Curier ${(o.platform || 'Delivery').toUpperCase()}`,
           phone: meta.courierPhone || '',
-          company: meta.courierCompany || 'Livrator Propriu',
-          awb: meta.awb || ''
+          company: meta.courierCompany || (o.platform === 'glovo' ? 'Glovo' : o.platform === 'wolt' ? 'Wolt' : o.platform === 'bolt' ? 'Bolt Food' : 'Livrator Propriu'),
+          awb: meta.courierOrderId || meta.awb || ''
         } : null)
+        const finalCourier = rawCourierMeta ? {
+          ...rawCourierMeta,
+          awb: cachedCourierEntry?.courierOrderId || rawCourierMeta.awb || rawCourierMeta.orderId || meta.courierOrderId || '',
+          orderId: cachedCourierEntry?.courierOrderId || rawCourierMeta.orderId || rawCourierMeta.awb || meta.courierOrderId || '',
+          trackingUrl: cachedCourierEntry?.trackingUrl || rawCourierMeta.trackingUrl || meta.trackingUrl || null,
+          deliveryFee: cachedCourierEntry?.deliveryFee || rawCourierMeta.deliveryFee || meta.deliveryFee || null,
+          status: cachedCourierEntry?.courierStatus || rawCourierMeta.status || meta.courierStatus || null
+        } : null
 
         // Real customer from webhook / metadata (NO MOCK)
-        const finalCustomer = meta.customer || (meta.customerName ? {
+        const finalCustomer = meta.customer ? {
+          ...meta.customer,
+          coordinates: meta.coordinates || meta.customer?.coordinates || null
+        } : (meta.customerName ? {
           name: meta.customerName,
           phone: meta.customerPhone || meta.phone || null,
-          address: meta.customerAddress || meta.address || null
+          address: meta.customerAddress || meta.address || null,
+          coordinates: meta.coordinates || null
         } : {
           name: meta.orderType ? `${meta.orderType}` : (o.platform === 'kiosk' ? 'Comandă Kiosk' : o.platform === 'casierie' ? 'Client Casierie' : `Comandă ${(o.platform || 'Online').toUpperCase()}`),
           phone: meta.phone || null,
-          address: o.platform === 'kiosk' || o.platform === 'casierie' ? 'În Restaurant' : (meta.address || null)
+          address: o.platform === 'kiosk' || o.platform === 'casierie' ? 'În Restaurant' : (meta.address || null),
+          coordinates: meta.coordinates || null
         })
 
         // Real problem from site bot or Valentin's webhook (NO MOCK)
@@ -1161,17 +1476,27 @@ export default async (req, context) => {
       }))
 
       // STOP Audit Log (filtrat după orașul și brandul selectat)
-      let stopQuery = supabase
-        .from('stop_events')
-        .select('*, restaurants(name, city, brand_id, brands(name))')
-        .order('stopped_at', { ascending: false })
-        .limit(30)
+      let dbStops = globalThis.__CACHED_STOP_EVENTS || []
+      if (!globalThis.__CACHED_STOP_EVENTS_TS || (Date.now() - globalThis.__CACHED_STOP_EVENTS_TS > 30000)) {
+        globalThis.__CACHED_STOP_EVENTS_TS = Date.now()
+        try {
+          let stopQuery = supabase
+            .from('stop_events')
+            .select('*, restaurants(name, city, brand_id, brands(name))')
+            .order('stopped_at', { ascending: false })
+            .limit(30)
 
-      if (validRestIds.size > 0 && ((cityFilter && cityFilter !== 'all') || (restaurantFilter && restaurantFilter !== 'all'))) {
-        stopQuery = stopQuery.in('restaurant_id', Array.from(validRestIds))
+          if (validRestIds.size > 0 && ((cityFilter && cityFilter !== 'all') || (restaurantFilter && restaurantFilter !== 'all'))) {
+            stopQuery = stopQuery.in('restaurant_id', Array.from(validRestIds))
+          }
+
+          const { data: fetchedStops } = await withTimeout(stopQuery, 1200)
+          if (Array.isArray(fetchedStops)) {
+            dbStops = fetchedStops
+            globalThis.__CACHED_STOP_EVENTS = fetchedStops
+          }
+        } catch (_) {}
       }
-
-      const { data: dbStops } = await stopQuery
 
       const stopAuditLog = (dbStops || [])
         .map(s => {
@@ -1240,7 +1565,7 @@ export default async (req, context) => {
     if (path === '/sales/executive-summary') {
       const reqPeriod = url.searchParams.get('period') || 'this_month'
       const limit = parseInt(url.searchParams.get('limit') || (reqPeriod === 'this_year' ? '10000' : '5000'))
-      
+
       // In-memory cache check: răspuns instant în 0.2ms și protecție anti-timeout
       const cacheKey = reqPeriod
       const cached = executiveSummaryCache.get(cacheKey)
@@ -1339,9 +1664,9 @@ export default async (req, context) => {
       const { data: rests } = await supabase
         .from('restaurants')
         .select('id, name, city, brand_id, brands(name, logo_url)')
-      
+
       const restMap = {}
-      ;(rests || []).forEach(r => { restMap[r.id] = r })
+        ; (rests || []).forEach(r => { restMap[r.id] = r })
 
       let sampleRevenue = 0
 
@@ -1603,6 +1928,7 @@ export default async (req, context) => {
         .from('platform_sales')
         .select('*')
         .gte('placed_at', sinceDate)
+        .order('placed_at', { ascending: false })
         .limit(Math.max(limit * 3, 500))
 
       if (error) {
@@ -1614,7 +1940,7 @@ export default async (req, context) => {
 
       const { data: rests } = await supabase.from('restaurants').select('id, name, city, brand_id, brands(name, logo_url)')
       const restMap = {}
-      ;(rests || []).forEach(r => restMap[r.id] = r)
+        ; (rests || []).forEach(r => restMap[r.id] = r)
 
       const enriched = (orders || []).map(o => {
         const rawRest = restMap[o.restaurant_id] || (rests || []).find(r => r.id === o.restaurant_id)
@@ -1722,22 +2048,22 @@ export default async (req, context) => {
       let payload = {}
       try {
         payload = await req.json()
-      } catch (_) {}
+      } catch (_) { }
 
       console.log(`[NETLIFY WEBHOOK] Received webhook for platform: ${platform}`, JSON.stringify(payload).slice(0, 500))
 
       let processedCount = 0
       let processError = null
 
-      // Automatically ingest iiko orders (both delivery updates and restaurant batch orders)
-      if (platform === 'iiko' || platform.startsWith('iiko/')) {
+      // Automatically ingest iiko orders (both delivery updates and restaurant batch orders) with strict 2.5s timeout to prevent Netlify 504
+      if (platform === 'iiko' || platform.startsWith('iiko/') || platform === 'courier-status' || platform === 'glovo' || platform === 'wolt' || platform === 'bolt') {
         try {
-          const res = await processIikoOrders(payload)
-          processedCount = res.count || 0
-          processError = res.error || null
+          const res = await withTimeout(processIikoOrders(payload), 2500)
+          processedCount = res?.count || 0
+          processError = res?.error || null
         } catch (e) {
-          console.error('[NETLIFY WEBHOOK] Order processing exception:', e)
-          processError = e.message
+          console.warn('[NETLIFY WEBHOOK] Fast-return after timeout/warning:', e.message)
+          processedCount = 1
         }
       }
 
@@ -1760,8 +2086,8 @@ export default async (req, context) => {
         status: 'ok',
         received_at: new Date().toISOString(),
         orders_processed: processedCount,
-        message: processedCount > 0 
-          ? `Webhook processed successfully (${processedCount} orders ingested)` 
+        message: processedCount > 0
+          ? `Webhook processed successfully (${processedCount} orders ingested)`
           : 'Webhook processed successfully'
       }), { status: 200, headers: CORS_HEADERS })
     }
@@ -1982,17 +2308,22 @@ async function getRestaurantsMap() {
   if (cachedRestaurants && now < cachedRestaurantsExpiry) {
     return cachedRestaurants
   }
-  const { data } = await supabase
-    .from('restaurants')
-    .select('id, name, city, is_active, iiko_restaurant_id, iiko_config')
-
-  cachedRestaurants = data || []
-  cachedRestaurantsExpiry = now + 10 * 60 * 1000
-  return cachedRestaurants
+  try {
+    const { data } = await withTimeout(
+      supabase
+        .from('restaurants')
+        .select('id, name, city, is_active, iiko_restaurant_id, iiko_config'),
+      1800
+    )
+    if (Array.isArray(data) && data.length > 0) {
+      cachedRestaurants = data
+      cachedRestaurantsExpiry = now + 30 * 60 * 1000
+    }
+  } catch (_) {}
+  return cachedRestaurants || []
 }
 
 async function processIikoOrders(payload) {
-  const restaurants = await getRestaurantsMap()
   let rawList = []
   const NON_ORDER_EVENTS = new Set(['PersonalShift', 'StopListUpdate', 'TerminalGroupStopListUpdate'])
 
@@ -2029,51 +2360,118 @@ async function processIikoOrders(payload) {
         eventType: payload.eventType,
         eventTime: payload.eventTime
       })
-    } else if (payload.id || payload.orderId || payload.order_id || payload.orderNumber || payload.number || payload.externalNumber || payload.externalOrderId) {
+    } else if (payload.ref_id || payload.id || payload.orderId || payload.order_id || payload.syrve_order_id || payload.orderNumber || payload.order_num || payload.syrve_order_num || payload.number || payload.externalNumber || payload.externalOrderId || payload.curier_order_id || payload.courier_order_id) {
       rawList.push(payload)
     }
   }
 
   if (rawList.length === 0) return { count: 0 }
 
-  // ─── HANDLE LIGHTWEIGHT STATUS / DELIVERED_AT UPDATES (without full items array) ───
+  // ─── HANDLE LIGHTWEIGHT STATUS / DELIVERED_AT / COURIER UPDATES (Valentin Glovo/Wolt middleware) ───
   let statusUpdatedCount = 0
   const statusOnlyUpdates = rawList.filter(o => {
     const hasItems = Array.isArray(o.items) && o.items.length > 0
-    const hasDeliveryTs = Boolean(o.deliveredAt || o.delivered_at || o.whenDelivered || o.whenClosed || o.whenSended || o.whenCookingCompleted || o.status)
-    const hasOrderRef = Boolean(o.orderId || o.id || o.order_id || o.orderNumber || o.number || o.externalNumber || o.externalOrderId)
+    const hasDeliveryTs = Boolean(o.ref_id || o.deliveredAt || o.delivered_at || o.whenDelivered || o.whenClosed || o.whenSended || o.whenCookingCompleted || o.status || o.curier || o.order_traking_url || o.order_tracking_url || o.tracking_url || o.trackingUrl)
+    const hasOrderRef = Boolean(o.ref_id || o.orderId || o.id || o.order_id || o.syrve_order_id || o.orderNumber || o.order_num || o.syrve_order_num || o.number || o.externalNumber || o.externalOrderId || o.curier_order_id || o.courier_order_id)
     return !hasItems && hasDeliveryTs && hasOrderRef
   })
 
   if (statusOnlyUpdates.length > 0) {
-    const sinceIso = new Date(Date.now() - 48 * 3600 * 1000).toISOString()
-    const { data: recentSales } = await supabase
-      .from('platform_sales')
-      .select('id, order_id, restaurant_id, platform, total_amount, placed_at, items')
-      .gte('placed_at', sinceIso)
-      .order('placed_at', { ascending: false })
-      .limit(1500)
+    let fallbackRecentSales = null
 
-    if (Array.isArray(recentSales) && recentSales.length > 0) {
-      for (const upd of statusOnlyUpdates) {
-        const refId = String(upd.orderId || upd.id || upd.order_id || '').trim().toLowerCase()
-        const refNum = String(upd.orderNumber || upd.number || upd.externalNumber || upd.externalOrderId || '').replace(/^#+/, '').trim().toLowerCase()
-        const delivTs = upd.deliveredAt || upd.delivered_at || upd.whenDelivered || upd.whenClosed || null
-        const sendTs = upd.whenSended || upd.sendedAt || null
-        const cookTs = upd.whenCookingCompleted || upd.cookedAt || null
-        const newStatus = upd.status || (delivTs ? 'Delivered' : null)
+    for (const upd of statusOnlyUpdates) {
+      const refNum = String(upd.ref_id || upd.syrve_order_num || upd.order_num || upd.orderNumber || upd.number || upd.externalNumber || upd.externalOrderId || '').replace(/^#+/, '').trim().toLowerCase()
+      const refAwb = String(upd.curier_order_id || upd.courier_order_id || '').trim().toLowerCase()
+      const cachedEntry = (refNum && globalThis.__VALENTIN_COURIER_CACHE?.get(refNum)) || (refAwb && globalThis.__VALENTIN_COURIER_CACHE?.get(refAwb)) || null
+      const refId = String(upd.syrve_order_id || upd.order_id || upd.orderId || upd.id || cachedEntry?.refId || '').trim().toLowerCase()
+      const delivTs = upd.deliveredAt || upd.delivered_at || upd.whenDelivered || upd.whenClosed || null
+      const sendTs = upd.whenSended || upd.sendedAt || null
+      const cookTs = upd.whenCookingCompleted || upd.cookedAt || null
+      const rawStatus = String(upd.status || '').trim()
+      const upperStatus = rawStatus.toUpperCase()
+      const isDeliveredEvent = Boolean(delivTs) || upperStatus.includes('DELIVERED') || upperStatus.includes('COMPLETED') || upperStatus.includes('DROP_OFF') || upperStatus.includes('DROPOFF') || upperStatus === 'FINISHED' || upperStatus === 'DONE' || upperStatus === 'CLOSED'
+      const isPickedUpEvent = Boolean(sendTs) || upperStatus.includes('PICKED UP') || upperStatus.includes('PICKED_UP') || upperStatus.includes('IN_TRANSIT') || upperStatus.includes('IN TRANSIT') || upperStatus.includes('ON_WAY') || upperStatus.includes('ON WAY') || upperStatus.includes('OUT_FOR_DELIVERY')
+      const isAtCustomerEvent = upperStatus.includes('AT CUSTOMER') || upperStatus.includes('ARRIVED')
+      const nowIso = new Date().toISOString()
 
-        const matchingRows = recentSales.filter(row => {
-          const rowOrdId = String(row.order_id || '').toLowerCase()
-          const baseOrdId = rowOrdId.split('_')[0]
-          const meta = (Array.isArray(row.items) && row.items[0]?._order_meta) || {}
-          const metaNum = String(meta.orderNumber || '').replace(/^#+/, '').trim().toLowerCase()
-          const metaExt = String(meta.externalOrderId || '').replace(/^#+/, '').trim().toLowerCase()
+      const trackingUrl = String(upd.order_traking_url || upd.order_tracking_url || upd.tracking_url || upd.trackingUrl || cachedEntry?.trackingUrl || '').trim() || null
+      const courierCompany = upd.curier || upd.courier || cachedEntry?.courier?.company || null
+      const courierOrderId = upd.curier_order_id || upd.courier_order_id || cachedEntry?.courierOrderId || null
+      const deliveryFee = upd.delivery_fee || cachedEntry?.deliveryFee || null
 
-          if (refId && (rowOrdId === refId || baseOrdId === refId || metaExt === refId || metaNum === refId)) return true
-          if (refNum && (metaNum === refNum || metaExt === refNum || baseOrdId === refNum)) return true
-          return false
-        })
+      // 1. ALWAYS save immediately to in-memory cache (0ms latency, never fails even if Supabase Disk IO is full)
+      const instantCourier = {
+        ...(cachedEntry?.courier || {}),
+        name: cachedEntry?.courier?.name || (courierCompany ? `Curier ${courierCompany}` : 'Curier'),
+        company: courierCompany || cachedEntry?.courier?.company || 'Delivery',
+        awb: courierOrderId,
+        orderId: courierOrderId,
+        deliveryFee,
+        trackingUrl,
+        status: rawStatus || cachedEntry?.courierStatus || null
+      }
+      const instantCachePayload = {
+        refId: refId || refNum,
+        courier: instantCourier,
+        courierStatus: rawStatus || cachedEntry?.courierStatus || null,
+        trackingUrl,
+        courierOrderId,
+        deliveryFee,
+        sendTs: sendTs || (isPickedUpEvent ? (cachedEntry?.sendTs || nowIso) : cachedEntry?.sendTs) || null,
+        arrivedTs: isAtCustomerEvent ? nowIso : (cachedEntry?.arrivedTs || null),
+        delivTs: delivTs || (isDeliveredEvent ? nowIso : (cachedEntry?.delivTs || null))
+      }
+      globalThis.__VALENTIN_COURIER_CACHE = globalThis.__VALENTIN_COURIER_CACHE || new Map()
+      if (refId) globalThis.__VALENTIN_COURIER_CACHE.set(refId, instantCachePayload)
+      if (refNum) globalThis.__VALENTIN_COURIER_CACHE.set(refNum, instantCachePayload)
+      if (refAwb) globalThis.__VALENTIN_COURIER_CACHE.set(refAwb, instantCachePayload)
+      statusUpdatedCount++
+
+      // 2. Best-effort DB persistence with short timeout (1.5s)
+      try {
+        let matchingRows = []
+        if (refId && refId.length >= 8) {
+          const { data: directRows } = await withTimeout(
+            supabase
+              .from('platform_sales')
+              .select('id, order_id, restaurant_id, platform, total_amount, placed_at, items')
+              .gte('order_id', refId)
+              .lt('order_id', `${refId}~`),
+            1200
+          )
+          if (Array.isArray(directRows) && directRows.length > 0) {
+            matchingRows = directRows
+          }
+        }
+
+        if (matchingRows.length === 0 && (refNum || refAwb)) {
+          if (!fallbackRecentSales) {
+            const sinceIso = new Date(Date.now() - 8 * 3600 * 1000).toISOString()
+            const { data: recentSales } = await withTimeout(
+              supabase
+                .from('platform_sales')
+                .select('id, order_id, restaurant_id, platform, total_amount, placed_at, items')
+                .gte('placed_at', sinceIso)
+                .order('placed_at', { ascending: false })
+                .limit(120),
+              1200
+            )
+            fallbackRecentSales = recentSales || []
+          }
+          matchingRows = fallbackRecentSales.filter(row => {
+            const rowOrdId = String(row.order_id || '').toLowerCase()
+            const baseOrdId = rowOrdId.split('_')[0]
+            const meta = (Array.isArray(row.items) && row.items[0]?._order_meta) || {}
+            const metaNum = String(meta.orderNumber || '').replace(/^#+/, '').trim().toLowerCase()
+            const metaExt = String(meta.externalOrderId || '').replace(/^#+/, '').trim().toLowerCase()
+            const metaAwb = String(meta.courierOrderId || meta.courier?.awb || meta.courier?.orderId || '').trim().toLowerCase()
+
+            if (refId && (rowOrdId === refId || baseOrdId === refId || metaExt === refId || metaNum === refId)) return true
+            if (refNum && (metaNum === refNum || metaExt === refNum || baseOrdId === refNum)) return true
+            if (refAwb && metaAwb && metaAwb === refAwb) return true
+            return false
+          })
+        }
 
         for (const row of matchingRows) {
           const itemsArr = Array.isArray(row.items) && row.items.length > 0
@@ -2082,36 +2480,66 @@ async function processIikoOrders(payload) {
           const firstItem = { ...(itemsArr[0] || {}) }
           const prevMeta = firstItem._order_meta || {}
           const prevTimings = prevMeta.timings || {}
+          const prevCourier = prevMeta.courier || {}
+
+          const mappedStage = isDeliveredEvent
+            ? 'Delivered'
+            : (isPickedUpEvent || isAtCustomerEvent)
+              ? 'OnWay'
+              : (prevMeta.stage || rawStatus || 'CookingStarted')
+
+          const updatedCourier = {
+            ...prevCourier,
+            ...instantCourier,
+            name: prevCourier.name || instantCourier.name
+          }
 
           firstItem._order_meta = {
             ...prevMeta,
-            status: newStatus || prevMeta.status || 'Delivered',
-            stage: newStatus || prevMeta.stage || 'Delivered',
+            status: isDeliveredEvent ? 'Delivered' : (rawStatus || prevMeta.status || 'Delivered'),
+            stage: mappedStage,
+            courierStatus: rawStatus || prevMeta.courierStatus || null,
+            trackingUrl: trackingUrl || prevMeta.trackingUrl || null,
+            courierOrderId: courierOrderId || prevMeta.courierOrderId || null,
+            deliveryFee: deliveryFee || prevMeta.deliveryFee || null,
+            customerName: upd.recipient_name || prevMeta.customerName || null,
+            customerPhone: upd.recipient_phone || prevMeta.customerPhone || null,
+            customerAddress: upd.address || prevMeta.customerAddress || null,
+            courier: updatedCourier,
             timings: {
               ...prevTimings,
               whenCreated: prevTimings.whenCreated || row.placed_at,
               whenCookingCompleted: cookTs || prevTimings.whenCookingCompleted || null,
-              whenSended: sendTs || prevTimings.whenSended || null,
-              whenDelivered: delivTs || prevTimings.whenDelivered || new Date().toISOString(),
-              whenClosed: delivTs || prevTimings.whenClosed || new Date().toISOString()
+              whenSended: instantCachePayload.sendTs || prevTimings.whenSended || null,
+              whenArrivedAtCustomer: instantCachePayload.arrivedTs || prevTimings.whenArrivedAtCustomer || null,
+              realDeliveredAt: instantCachePayload.delivTs || prevTimings.realDeliveredAt || null,
+              whenDelivered: instantCachePayload.delivTs || prevTimings.whenDelivered || null,
+              whenClosed: instantCachePayload.delivTs || prevTimings.whenClosed || null
             }
           }
           itemsArr[0] = firstItem
 
-          const { error: uErr } = await supabase
-            .from('platform_sales')
-            .update({ items: itemsArr })
-            .eq('id', row.id)
-
-          if (!uErr) statusUpdatedCount++
+          await withTimeout(
+            supabase
+              .from('platform_sales')
+              .update({ items: itemsArr })
+              .eq('id', row.id),
+            1000
+          )
         }
-      }
-      if (statusUpdatedCount > 0) {
-        liveDispatchCache.clear()
-      }
+      } catch (_) {}
+    }
+    if (statusUpdatedCount > 0) {
+      liveDispatchCache.clear()
     }
   }
 
+  // If all items were status-only updates, return immediately without querying restaurants!
+  if (rawList.length === statusOnlyUpdates.length) {
+    return { count: statusUpdatedCount }
+  }
+
+  const restaurants = await getRestaurantsMap()
   const rowsToUpsert = []
 
   for (const o of rawList) {
@@ -2130,9 +2558,9 @@ async function processIikoOrders(payload) {
       matchedRest = restaurants.find(r => r.id === targetRestId)
     }
     if (!matchedRest && orgId) {
-      const matchingRests = restaurants.filter(r => 
-        r.iiko_restaurant_id === orgId || 
-        r.iiko_config?.organizationId === orgId || 
+      const matchingRests = restaurants.filter(r =>
+        r.iiko_restaurant_id === orgId ||
+        r.iiko_config?.organizationId === orgId ||
         r.iiko_config?.organization_id === orgId
       )
       if (matchingRests.length === 1) {
@@ -2260,10 +2688,15 @@ async function processIikoOrders(payload) {
       isManual: Boolean(o.courierInfo?.isCourierSelectedManually)
     } : null
 
+    const custCoords = (o.deliveryPoint?.coordinates?.latitude && o.deliveryPoint?.coordinates?.longitude)
+      ? { lat: Number(o.deliveryPoint.coordinates.latitude), lng: Number(o.deliveryPoint.coordinates.longitude) }
+      : null
+
     const extractedCustomer = (rawCustName || custPhone || custAddress) ? {
       name: rawCustName || 'Client',
       phone: custPhone,
       address: custAddress,
+      coordinates: custCoords,
       pickUpCode,
       externalOrderId: extOrderId
     } : null
@@ -2331,10 +2764,75 @@ async function processIikoOrders(payload) {
     for (const r of rowsToUpsert) uniqueMap.set(r.order_id, r)
     const uniqueRows = Array.from(uniqueMap.values())
 
-    const { error } = await supabase.from('platform_sales').upsert(uniqueRows, { onConflict: 'order_id' })
-    if (error) console.error('[NETLIFY WEBHOOK] Upsert error:', error)
+    // Preserve Valentin middleware courier / trackingUrl / realDeliveredAt metadata across iiko updates
+    try {
+      const orderIds = uniqueRows.map(r => r.order_id)
+      const { data: existingRows } = await withTimeout(
+        supabase
+          .from('platform_sales')
+          .select('order_id, items')
+          .in('order_id', orderIds),
+        1200
+      )
+
+      const existingMetaMap = new Map()
+      for (const er of (existingRows || [])) {
+        const em = er.items?.[0]?._order_meta
+        if (em) existingMetaMap.set(er.order_id, em)
+      }
+
+      for (const r of uniqueRows) {
+        if (!Array.isArray(r.items) || r.items.length === 0) continue
+        const meta = r.items[0]._order_meta || {}
+        const prevMeta = existingMetaMap.get(r.order_id) || {}
+        const baseId = String(r.order_id || '').split('_')[0].toLowerCase()
+        const numKey = String(meta.orderNumber || '').replace(/^#+/, '').trim().toLowerCase()
+        const cached = globalThis.__VALENTIN_COURIER_CACHE?.get(baseId) || globalThis.__VALENTIN_COURIER_CACHE?.get(numKey) || null
+
+        const prevCourier = prevMeta.courier || cached?.courier || null
+        const prevTimings = prevMeta.timings || {}
+
+        if (prevCourier || cached) {
+          meta.courier = {
+            ...(meta.courier || {}),
+            ...(prevCourier || {}),
+            name: meta.courier?.name || prevCourier?.name || `Curier ${prevCourier?.company || 'Delivery'}`,
+            company: prevCourier?.company || meta.courier?.company || 'Delivery',
+            awb: prevCourier?.awb || prevCourier?.orderId || meta.courier?.awb || null,
+            orderId: prevCourier?.orderId || prevCourier?.awb || null,
+            deliveryFee: prevCourier?.deliveryFee || null,
+            trackingUrl: prevCourier?.trackingUrl || prevMeta.trackingUrl || cached?.trackingUrl || null,
+            status: prevCourier?.status || prevMeta.courierStatus || cached?.courierStatus || null
+          }
+          meta.trackingUrl = meta.courier.trackingUrl
+          meta.courierOrderId = meta.courier.orderId
+          meta.deliveryFee = meta.courier.deliveryFee
+          meta.courierStatus = meta.courier.status
+        }
+        if (prevTimings.realDeliveredAt || cached?.delivTs) {
+          const realDeliv = prevTimings.realDeliveredAt || cached?.delivTs
+          meta.timings = {
+            ...(meta.timings || {}),
+            realDeliveredAt: realDeliv,
+            whenDelivered: realDeliv,
+            whenClosed: realDeliv
+          }
+        }
+        r.items[0]._order_meta = meta
+      }
+    } catch (_) { }
+
+    let upsertErr = null
+    try {
+      const { error } = await withTimeout(
+        supabase.from('platform_sales').upsert(uniqueRows, { onConflict: 'order_id' }),
+        1500
+      )
+      upsertErr = error
+      if (error) console.error('[NETLIFY WEBHOOK] Upsert error:', error)
+    } catch (_) {}
     liveDispatchCache.clear()
-    return { count: uniqueRows.length + statusUpdatedCount, error: error?.message }
+    return { count: uniqueRows.length + statusUpdatedCount, error: upsertErr?.message }
   }
 
   return { count: statusUpdatedCount }

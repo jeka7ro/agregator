@@ -60,8 +60,10 @@ const UI_TEXT = {
     filterAll: 'Toate Recenziile',
     filterNegative: '🚨 Negative / Alerte',
     filterPositive: '👍 Pozitive',
+    filterWithPhotos: '📸 Cu Fotografii',
     filterWithComment: '💬 Cu Comentariu Text',
     filterMatched: '🔗 Legate de Bon iiko',
+    viewPhotosBtn: 'Vezi Foto',
     filterAllPlatforms: 'Toate Platformele',
     autoTranslateLabel: 'Traducere Automată Recenzii',
     showOriginalLabel: 'Arată originalul (RO)',
@@ -142,8 +144,10 @@ const UI_TEXT = {
     filterAll: 'All Reviews',
     filterNegative: '🚨 Negative / Alerts',
     filterPositive: '👍 Positive',
+    filterWithPhotos: '📸 With Photos',
     filterWithComment: '💬 With Text Comment',
     filterMatched: '🔗 Linked to iiko Receipt',
+    viewPhotosBtn: 'View Photo',
     filterAllPlatforms: 'All Platforms',
     autoTranslateLabel: 'Auto-Translate Reviews (EN)',
     showOriginalLabel: 'Show original (RO)',
@@ -224,8 +228,10 @@ const UI_TEXT = {
     filterAll: 'Все отзывы',
     filterNegative: '🚨 Негативные / Алерты',
     filterPositive: '👍 Позитивные',
+    filterWithPhotos: '📸 С фото',
     filterWithComment: '💬 С текстом отзыва',
     filterMatched: '🔗 Связанные с чеком iiko',
+    viewPhotosBtn: 'Смотреть фото',
     filterAllPlatforms: 'Все платформы',
     autoTranslateLabel: 'Автоперевод отзывов (RU)',
     showOriginalLabel: 'Показать оригинал (RO)',
@@ -321,6 +327,7 @@ export default function Reputation() {
   const [reviewsData, setReviewsData] = useState({ reviews: [], kpis: null, ratings_by_restaurant: {} })
   const [reviewsLoading, setReviewsLoading] = useState(false)
   const [selectedOrderForModal, setSelectedOrderForModal] = useState(null)
+  const [selectedPhotoModal, setSelectedPhotoModal] = useState(null)
   const [toastNotice, setToastNotice] = useState(null)
   const fileInputRef = useRef(null)
 
@@ -628,6 +635,8 @@ export default function Reputation() {
       list = list.filter(rv => rv.sentiment === 'negative')
     } else if (reviewFilter === 'positive') {
       list = list.filter(rv => rv.sentiment === 'positive')
+    } else if (reviewFilter === 'with_photos') {
+      list = list.filter(rv => Array.isArray(rv.review_photos) && rv.review_photos.length > 0)
     } else if (reviewFilter === 'with_comment') {
       list = list.filter(rv => rv.comment && rv.comment.trim().length > 0 && !rv.comment.startsWith('Evaluare publică'))
     } else if (reviewFilter === 'matched') {
@@ -914,6 +923,7 @@ export default function Reputation() {
             { id: 'all', label: L.filterAll },
             { id: 'negative', label: L.filterNegative },
             { id: 'positive', label: L.filterPositive },
+            { id: 'with_photos', label: `${L.filterWithPhotos} (${(reviewsData.reviews || []).filter(r => Array.isArray(r.review_photos) && r.review_photos.length > 0).length})` },
             { id: 'with_comment', label: L.filterWithComment },
             { id: 'matched', label: L.filterMatched }
           ].map(tab => (
@@ -1190,23 +1200,36 @@ export default function Reputation() {
                               </div>
                             )}
                             {Array.isArray(rv.review_photos) && rv.review_photos.length > 0 && (
-                              <div className="flex flex-wrap items-center gap-2 mt-2 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60">
+                              <div className="flex flex-wrap items-center gap-2.5 mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
                                 {rv.review_photos.map((photoUrl, pIdx) => (
-                                  <a
+                                  <button
                                     key={pIdx}
-                                    href={photoUrl.replace(/=w\d+.*$/, '=w1200')}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    title="Deschide fotografia încărcată de client pe Google Maps"
-                                    className="group relative block w-14 h-14 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shadow-xs hover:ring-2 hover:ring-blue-500 transition-all"
+                                    type="button"
+                                    onClick={() => setSelectedPhotoModal({
+                                      photos: rv.review_photos,
+                                      index: pIdx,
+                                      customerName: rv.customer_name || 'Client Google',
+                                      customerAvatar: rv.customer_avatar,
+                                      restaurantName: cleanRestaurantName(rv.restaurant_name || 'Locație'),
+                                      city: rv.city,
+                                      date: rv.reviewed_at,
+                                      rating: rv.rating,
+                                      comment: displayedComment,
+                                      reviewUrl: rv.review_url
+                                    })}
+                                    title={language === 'ru' ? 'Нажмите, чтобы увеличить фото клиента' : language === 'en' ? 'Click to enlarge customer photo' : 'Apasă pentru a mări fotografia încărcată de client'}
+                                    className="group relative block w-24 h-20 sm:w-28 sm:h-20 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-xs hover:ring-2 hover:ring-emerald-500 transition-all cursor-pointer bg-slate-900/10"
                                   >
                                     <img
                                       src={photoUrl}
                                       alt={`Foto recenzie ${pIdx + 1}`}
                                       referrerPolicy="no-referrer"
-                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                                     />
-                                  </a>
+                                    <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-md bg-black/70 text-white text-[9px] font-bold backdrop-blur-xs">
+                                      📸 {pIdx + 1}/{rv.review_photos.length}
+                                    </span>
+                                  </button>
                                 ))}
                               </div>
                             )}
@@ -1427,6 +1450,101 @@ export default function Reputation() {
         isOpen={!!selectedOrderForModal}
         onClose={() => setSelectedOrderForModal(null)}
       />
+
+      {/* Modal Lightbox Fotografii Încărcate de Clienți (Google Maps) */}
+      {selectedPhotoModal && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setSelectedPhotoModal(null)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            className={`rounded-2xl w-full max-w-3xl shadow-2xl border overflow-hidden flex flex-col max-h-[92vh] ${
+              isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+            }`}
+          >
+            <div className={`px-5 py-3.5 border-b flex items-center justify-between gap-3 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+              <div className="flex items-center gap-2.5 min-w-0">
+                {selectedPhotoModal.customerAvatar ? (
+                  <img
+                    src={selectedPhotoModal.customerAvatar}
+                    alt={selectedPhotoModal.customerName}
+                    referrerPolicy="no-referrer"
+                    className="w-8 h-8 rounded-full object-cover border border-slate-300 dark:border-slate-700 shrink-0"
+                  />
+                ) : (
+                  <PlatformLogo platform="google" size={24} />
+                )}
+                <div className="min-w-0">
+                  <div className="text-sm font-black truncate">
+                    {selectedPhotoModal.customerName} • {selectedPhotoModal.restaurantName}
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {selectedPhotoModal.city} • {selectedPhotoModal.date ? new Date(selectedPhotoModal.date).toLocaleString(localeCode) : ''} • 📸 {selectedPhotoModal.index + 1} / {selectedPhotoModal.photos.length}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedPhotoModal(null)}
+                className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer shrink-0"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="relative bg-slate-950 flex items-center justify-center min-h-[340px] max-h-[65vh] overflow-hidden">
+              <img
+                src={(selectedPhotoModal.photos[selectedPhotoModal.index] || '').replace(/=w\d+.*$/, '=w1200')}
+                alt={`Foto ${selectedPhotoModal.index + 1}`}
+                referrerPolicy="no-referrer"
+                className="max-w-full max-h-[65vh] object-contain"
+              />
+              {selectedPhotoModal.photos.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPhotoModal(prev => ({
+                      ...prev,
+                      index: (prev.index - 1 + prev.photos.length) % prev.photos.length
+                    }))}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center cursor-pointer transition-colors"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPhotoModal(prev => ({
+                      ...prev,
+                      index: (prev.index + 1) % prev.photos.length
+                    }))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center cursor-pointer transition-colors"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </>
+              )}
+            </div>
+
+            <div className={`px-5 py-3.5 border-t flex flex-wrap items-center justify-between gap-3 ${isDark ? 'border-slate-800 bg-slate-900' : 'border-slate-100 bg-slate-50'}`}>
+              <div className="text-xs font-medium text-slate-600 dark:text-slate-300 flex-1 min-w-[200px]">
+                {selectedPhotoModal.comment}
+              </div>
+              {selectedPhotoModal.reviewUrl && (
+                <a
+                  href={selectedPhotoModal.reviewUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shrink-0"
+                >
+                  <PlatformLogo platform="google" size={14} className="bg-white rounded-full p-0.5" />
+                  <span>Google Maps ↗</span>
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL MECANISMUL 2A: CONECTARE EMAIL (jeka7ro@gmail.com) */}
       {showEmailModal && (

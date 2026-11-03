@@ -281,24 +281,52 @@ export class ReviewsService {
         // Fallback if no "Răspunde la recenzie" split matched (e.g. photo upload notification emails)
         if (extracted.length === 0) {
             const subjReviewer = cleanSubject.match(/^(.+?)\s+a\s+scris\s+o\s+recenzie\s+pentru\s+(.+?)(?:\s+-|$)/i)
-            const customerName = subjReviewer ? subjReviewer[1].trim() : 'Client Google'
+            const photoSingleMatch = decodedBody.match(/([^\r\n<>]{2,50}?)\s+a\s+ad[aă]ugat\s+o\s+fotografie\s+nou[aă]/i)
+            const photoMultiMatch = decodedBody.match(/Fotografie\s+ad[aă]ugat[aă]\s+de\s*[\r\n]+\s*([^\r\n<>]{2,50})/i)
+            const customerName = (
+                subjReviewer?.[1] ||
+                photoSingleMatch?.[1] ||
+                photoMultiMatch?.[1] ||
+                'Client Google'
+            ).trim()
+
             const msgHash = Buffer.from(String(msgId)).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 14)
             const anyGmbUrl = decodedBody.match(/<(https:\/\/business\.google\.com\/[^>]+)>/i)?.[1] || null
             const fallbackFid = anyGmbUrl ? (anyGmbUrl.match(/fid=(\d+)/) || [])[1] : null
+            const fidBranch = this._resolveGoogleFidBranch(fallbackFid, brandName)
+
+            const isPhotoEmail = uploadedPhotos.length > 0 || /fotografi[ei]/i.test(cleanSubject)
+            const pCount = uploadedPhotos.length || 1
+            const roComment = isPhotoEmail
+                ? `📸 ${customerName} a adăugat ${pCount > 1 ? `${pCount} fotografii noi` : 'o fotografie nouă'} cu ${brandName} pe Google Maps`
+                : cleanSubject
+            const enComment = isPhotoEmail
+                ? `📸 ${customerName} added ${pCount > 1 ? `${pCount} new photos` : 'a new photo'} of ${brandName} on Google Maps`
+                : cleanSubject
+            const ruComment = isPhotoEmail
+                ? `📸 ${customerName} добавил(а) ${pCount > 1 ? `${pCount} новых фото` : 'новое фото'} ${brandName} на Google Maps`
+                : cleanSubject
+
             extracted.push({
                 id: `rev_gmb_0_${msgHash}`,
                 email_message_id: `${msgId}_0`,
                 platform: 'google',
                 source: 'email',
-                brand_name: brandName,
-                restaurant_name: `${brandName} (Google Business)`,
-                city: brandName,
+                brand_name: fidBranch.brand_name || brandName,
+                restaurant_name: fidBranch.restaurant_name,
+                city: fidBranch.city,
+                branch_address: fidBranch.branch_address || undefined,
                 customer_name: customerName,
                 customer_avatar: avatars[0] || null,
                 review_photos: uploadedPhotos,
                 rating: defaultRating,
                 max_rating: 5,
-                comment: cleanSubject,
+                comment: roComment,
+                comment_translations: {
+                    ro: roComment,
+                    en: enComment,
+                    ru: ruComment
+                },
                 review_url: fallbackFid ? `https://www.google.com/maps?cid=${fallbackFid}&hl=ro` : 'https://www.google.com/maps',
                 reviewed_at: emailDateIso || new Date().toISOString()
             })
@@ -307,8 +335,57 @@ export class ReviewsService {
         return extracted
     }
 
+    _resolveGoogleFidBranch(fid, defaultBrand = 'Roll Master') {
+        const knownFids = {
+            '212348595255049596': { brand_name: 'Roll Master', restaurant_name: 'Roll Master (Bd. George Enescu 38)', city: 'Suceava', branch_address: 'Bulevardul George Enescu 38, 720253 Suceava' },
+            '16893541500125054993': { brand_name: 'Roll Master', restaurant_name: 'Roll Master (Bd. Iuliu Maniu 19)', city: 'București', branch_address: 'Bulevardul Iuliu Maniu 19, 061076 București' },
+            '8886367137131391829': { brand_name: 'Roll Master', restaurant_name: 'Roll Master (Oradea)', city: 'Oradea', branch_address: 'Oradea' },
+            '6050939679381584558': { brand_name: 'Roll Master', restaurant_name: 'Roll Master (Târgu Mureș)', city: 'Târgu Mureș', branch_address: 'Târgu Mureș' },
+            '4003044515964959408': { brand_name: 'Roll Master', restaurant_name: 'Roll Master (Timișoara)', city: 'Timișoara', branch_address: 'Timișoara' },
+            '5650123139099289761': { brand_name: 'Roll Master', restaurant_name: 'Roll Master (Constanța)', city: 'Constanța', branch_address: 'Constanța' },
+            '820625959325582107': { brand_name: 'Poki Woki', restaurant_name: 'Poki Woki (București)', city: 'București', branch_address: 'București' },
+            '2061143753563067288': { brand_name: 'Roll Master', restaurant_name: 'Roll Master (Str. Ceaikovski 9)', city: 'București', branch_address: 'Strada Ceaikovski 9, 020261 București' },
+            '1185431199393258019': { brand_name: 'Roll Master', restaurant_name: 'Roll Master (Brașov)', city: 'Brașov', branch_address: 'Brașov' },
+            '11600966734718987496': { brand_name: 'Roll Master', restaurant_name: 'Roll Master (Piața Voievozilor A9)', city: 'Iași', branch_address: 'Piața Voievozilor A9, 700589 Iași' },
+            '8710053416848334195': { brand_name: 'Poki Woki', restaurant_name: 'Poki Woki (Cluj-Napoca)', city: 'Cluj-Napoca', branch_address: 'Cluj-Napoca' },
+            '759641223422042631': { brand_name: 'Smash Me', restaurant_name: 'Smash Me (Str. Avram Iancu 492)', city: 'Cluj-Napoca', branch_address: 'Strada Avram Iancu 492-500, 407280 Florești' },
+            '7377397401999471019': { brand_name: 'Roll Master', restaurant_name: 'Roll Master (Craiova)', city: 'Craiova', branch_address: 'Craiova' },
+            '5894239576460690232': { brand_name: 'Poki Woki', restaurant_name: 'Poki Woki (Oradea)', city: 'Oradea', branch_address: 'Oradea' },
+            '11709509439320690273': { brand_name: 'Roll Master', restaurant_name: 'Roll Master (Str. Emil Isac 15)', city: 'Cluj-Napoca', branch_address: 'Strada Emil Isac 15, 400023 Cluj-Napoca' },
+            '15451931845884224614': { brand_name: 'Roll Master', restaurant_name: 'Roll Master (Str. Teilor 33)', city: 'Pitești', branch_address: 'Strada Teilor 33, 110030 Pitești' },
+            '6473619937314026075': { brand_name: 'Roll Master', restaurant_name: 'Roll Master (Galați)', city: 'Galați', branch_address: 'Galați' },
+            '15662966528345810492': { brand_name: 'Roll Master', restaurant_name: 'Roll Master (Sibiu)', city: 'Sibiu', branch_address: 'Sibiu' }
+        }
+        if (fid && knownFids[String(fid)]) return knownFids[String(fid)]
+        if (fid) {
+            try {
+                const hex = BigInt(fid).toString(16).toLowerCase()
+                const match = (this.reviews || []).find(r =>
+                    r.platform === 'google' &&
+                    r.review_url &&
+                    r.review_url.toLowerCase().includes(`0x0:0x${hex}`) &&
+                    r.restaurant_name &&
+                    !r.restaurant_name.includes('(Google Business)')
+                )
+                if (match) {
+                    return {
+                        brand_name: match.brand_name || defaultBrand,
+                        restaurant_name: match.restaurant_name,
+                        city: match.city || defaultBrand,
+                        branch_address: match.branch_address
+                    }
+                }
+            } catch (_) {}
+        }
+        return {
+            brand_name: defaultBrand,
+            restaurant_name: `${defaultBrand} (Google Business)`,
+            city: defaultBrand
+        }
+    }
+
     /**
-     * Fetch full untruncated review text, exact star rating, and branch address from Google Maps RPC when email snippet is truncated with '...'
+     * Fetch full untruncated review text, exact star rating, branch address, and attached photos from Google Maps RPC
      */
     async _enrichGoogleReviewFromMaps(item) {
         if (!item || item.platform !== 'google' || !item.review_url) return item
@@ -357,6 +434,18 @@ export class ReviewsService {
                         ...item.comment_translations,
                         ro: item.comment
                     }
+                }
+                const revStr = JSON.stringify(revBlock)
+                const mapsPhotos = [...new Set(
+                    (revStr.match(/https:\/\/lh3\.googleusercontent\.com\/(?:grass-cs|p|geougc|gps-cs-s)\/[^"\\=]+/g) || [])
+                        .map(u => `${u}=w600`)
+                )]
+                if (mapsPhotos.length > 0) {
+                    item.review_photos = mapsPhotos
+                }
+                if (!item.customer_avatar) {
+                    const mapAv = revStr.match(/https:\/\/lh3\.googleusercontent\.com\/a-?\/[^"\\=]+/)?.[0]
+                    if (mapAv) item.customer_avatar = `${mapAv}=s120-c-rp-mo-br100`
                 }
             } else {
                 item.deleted_on_google = true
@@ -431,7 +520,7 @@ export class ReviewsService {
                 } else if (step === 'SELECT' && (buffer.includes('A2 OK') || buffer.includes('A2 NO'))) {
                     buffer = ''
                     step = 'SEARCH'
-                    socket.write(`A3 SEARCH X-GM-RAW "from:businessprofile-noreply@google.com OR subject:(a scris o recenzie) OR subject:(recenzii noi) OR subject:(new review)"\r\n`)
+                    socket.write(`A3 SEARCH X-GM-RAW "from:businessprofile-noreply@google.com OR subject:(a scris o recenzie) OR subject:(recenzii noi) OR subject:(new review) OR subject:(fotografie)"\r\n`)
                 } else if (step === 'SEARCH' && (buffer.includes('A3 OK') || buffer.includes('A3 NO') || buffer.includes('A3 BAD'))) {
                     const searchMatch = buffer.match(/\*\s+SEARCH\s+([0-9\s]+)/i)
                     const allIds = searchMatch ? searchMatch[1].trim().split(/\s+/).filter(Boolean) : []
@@ -486,10 +575,39 @@ export class ReviewsService {
                         // Skip Google Business non-review tips (e.g. "Adaugă programul de lucru pentru takeout")
                         if (/Adaug[aă]\s+programul\s+de\s+lucru/i.test(subject)) continue
 
-                        if (/businessprofile-noreply@google\.com|Google Business Profile|a scris o recenzie|recenzii noi/i.test(`${from} ${subject}`)) {
+                        if (/businessprofile-noreply@google\.com|Google Business Profile|a scris o recenzie|recenzii noi|fotografi[ei]/i.test(`${from} ${subject}`)) {
                             const gmbReviews = this._parseGoogleBusinessBody(subject, decodedText, emailDateIso, msgId, b2Raw)
                             for (const gr of gmbReviews) {
-                                if (this.reviews.some(r => r.email_message_id === gr.email_message_id || r.id === gr.id)) continue
+                                const existing = this.reviews.find(r => r.email_message_id === gr.email_message_id || r.id === gr.id)
+                                if (existing) {
+                                    let changed = false
+                                    if (gr.customer_name && gr.customer_name !== 'Client Google' && (!existing.customer_name || existing.customer_name === 'Client Google')) {
+                                        existing.customer_name = gr.customer_name
+                                        existing.comment = gr.comment
+                                        existing.comment_translations = gr.comment_translations
+                                        changed = true
+                                    }
+                                    if (gr.restaurant_name && !gr.restaurant_name.includes('(Google Business)') && existing.restaurant_name?.includes('(Google Business)')) {
+                                        existing.restaurant_name = gr.restaurant_name
+                                        existing.city = gr.city
+                                        existing.branch_address = gr.branch_address
+                                        changed = true
+                                    }
+                                    if (Array.isArray(gr.review_photos) && gr.review_photos.length > 0 && (!existing.review_photos || existing.review_photos.length === 0)) {
+                                        existing.review_photos = gr.review_photos
+                                        changed = true
+                                    }
+                                    if (gr.customer_avatar && !existing.customer_avatar) {
+                                        existing.customer_avatar = gr.customer_avatar
+                                        changed = true
+                                    }
+                                    if (gr.review_url && gr.review_url.includes('maps?cid=') && existing.review_url?.includes('business.google.com')) {
+                                        existing.review_url = gr.review_url
+                                        changed = true
+                                    }
+                                    if (changed) importedCount++
+                                    continue
+                                }
                                 toIngest.push(gr)
                             }
                         } else {

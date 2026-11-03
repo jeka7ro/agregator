@@ -19,7 +19,7 @@ import { supabase } from './services/supabase.js'
 
 // const supabase = createClient(...) removed
 
-const WORKER_TICK_MS = 15000 // 15 secunde
+const WORKER_TICK_MS = 300000 // 5 minute (protejează bugetul de Disk IO din Supabase)
 
 const INTERVAL_BY_PLAN = {
   basic:   600, // 10 minute
@@ -169,22 +169,28 @@ async function saveSnapshot(restaurantId, platform, result) {
 
 
 async function getIikoProducts(restaurantId) {
-  // Modificat pentru a lua iiko_catalog
+  if (global.__CACHED_IIKO_CATALOG && (Date.now() - (global.__CACHED_IIKO_CATALOG_TS || 0) < 600000)) {
+    return global.__CACHED_IIKO_CATALOG
+  }
   const { data, error } = await supabase
     .from('iiko_catalog') 
     .select('iiko_id, name, parent_category')
+    .limit(500)
 
   if (error) {
     console.error('[Worker] Eroare getIikoProducts:', error)
-    return []
+    return global.__CACHED_IIKO_CATALOG || []
   }
 
-  return (data || []).map(p => ({
+  const mapped = (data || []).map(p => ({
      iiko_item_id: p.iiko_id,
      name: p.name,
      category: p.parent_category,
      is_active: true
   }))
+  global.__CACHED_IIKO_CATALOG = mapped
+  global.__CACHED_IIKO_CATALOG_TS = Date.now()
+  return mapped
 }
 
 async function compareAndDetect(
