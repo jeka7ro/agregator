@@ -61,7 +61,19 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
       }
     } catch (_) {}
     fetchSales()
-    const timer = setInterval(fetchSales, 30000) // auto-refresh every 30s
+    const timer = setInterval(() => {
+      try {
+        const roHour = Number(
+          new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Europe/Bucharest',
+            hour: '2-digit',
+            hour12: false
+          }).format(new Date())
+        )
+        if (roHour >= 22 || roHour < 10) return
+      } catch (_) {}
+      fetchSales()
+    }, 30000) // auto-refresh every 30s (only between 10:00 and 22:00)
     return () => clearInterval(timer)
   }, [period, limit])
 

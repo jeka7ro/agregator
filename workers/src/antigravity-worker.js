@@ -506,7 +506,22 @@ async function processJob(job) {
 
 let isProcessingTick = false;
 
+// Regulă strictă: între 22:00 și 10:00 (ora României) orice verificare este oprită complet (0 trafic / 0 DB queries)
+function isWithinActiveHours() {
+  const roHour = Number(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Bucharest',
+      hour: '2-digit',
+      hour12: false
+    }).format(new Date())
+  )
+  return roHour >= 10 && roHour < 22
+}
+
 async function tick() {
+  if (!isWithinActiveHours()) {
+    return;
+  }
   if (isProcessingTick) {
     console.log('[Worker] Tick skip: încă procesează tura anterioară');
     return;
@@ -517,6 +532,7 @@ async function tick() {
     if (jobs.length === 0) return;
     console.log(`[Worker] Tick: ${jobs.length} job-uri de procesat`);
     for(const job of jobs) { 
+      if (!isWithinActiveHours()) break;
       await processJob(job); 
       await new Promise(r => setTimeout(r, 2000)); 
     }
@@ -528,7 +544,7 @@ async function tick() {
 async function startWorker() {
   console.log('════════════════════════════════════')
   console.log('  ANTIGRAVITY WORKER — pornit')
-  console.log(`  Tick interval: ${WORKER_TICK_MS / 1000}s`)
+  console.log(`  Tick interval: ${WORKER_TICK_MS / 1000}s (Activ doar 10:00 - 22:00)`)
   console.log('════════════════════════════════════')
 
   await tick()
@@ -541,14 +557,15 @@ async function startWorker() {
     }
   }, WORKER_TICK_MS)
 
-  // Autopilot nocturn - se trage ziua de ieri, în fiecare dimineață la 05:00
-  cron.schedule('0 5 * * *', async () => {
-    console.log('[CRON] Pornire automată sincronizare Iiko (2 zile, după tura anterioară)');
+  // Autopilot de dimineață - se trage ziua de ieri la ora 10:05 (după fereastra de pauză 22:00 - 10:00)
+  cron.schedule('5 10 * * *', async () => {
+    if (!isWithinActiveHours()) return;
+    console.log('[CRON] Pornire automată sincronizare Iiko la 10:05 (2 zile)');
     try {
         await salesSync.syncSales(2);
-        console.log('[CRON] Sincronizare nocturnă finalizată.');
+        console.log('[CRON] Sincronizare de dimineață finalizată.');
     } catch(e) {
-        console.error('[CRON] Eroare la sincronizare nocturnă:', e);
+        console.error('[CRON] Eroare la sincronizare:', e);
     }
   }, {
     scheduled: true,

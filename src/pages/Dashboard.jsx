@@ -429,7 +429,19 @@ export default function Dashboard() {
     }
 
     checkStatus()
-    interval = setInterval(checkStatus, 3000)
+    interval = setInterval(() => {
+      try {
+        const roHour = Number(
+          new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Europe/Bucharest',
+            hour: '2-digit',
+            hour12: false
+          }).format(new Date())
+        )
+        if ((roHour >= 22 || roHour < 10) && !isVerifyingRef.current) return
+      } catch (_) {}
+      checkStatus()
+    }, 15000)
     return () => clearInterval(interval)
   }, [fetchData])
 

@@ -526,7 +526,8 @@ export default async (req, context) => {
         active_restaurants: activeCount || 0,
         stops_count: stopsCount || 0,
         monitoring_schedule: ['11:00', '13:00', '17:00', '18:00', '19:00'],
-        sales_sync_schedule: ['04:00', '14:00', '22:00', '23:30'],
+        sales_sync_schedule: ['10:05', '14:00', '18:00', '21:50'],
+        night_pause_window: '22:00 - 10:00',
         iiko_cloud_api: 'https://api-eu.syrve.live',
         live_checks_cached: restsCount || 0
       }), { status: 200, headers: CORS_HEADERS })

@@ -1,6 +1,22 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { getApiUrl } from '../lib/api'
 
+function isWithinActiveOperatingHours() {
+  try {
+    const roHour = Number(
+      new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Europe/Bucharest',
+        hour: '2-digit',
+        hour12: false
+      }).format(new Date())
+    )
+    return roHour >= 10 && roHour < 22
+  } catch (_) {
+    const h = new Date().getHours()
+    return h >= 10 && h < 22
+  }
+}
+
 const DEFAULT_KPIS = {
   today_sales: 0,
   today_orders_count: 0,
@@ -136,6 +152,10 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
     setSecondsUntilRefresh(autoRefreshSeconds)
 
     timerRef.current = setInterval(() => {
+      // Între 22:00 și 10:00 nu mai facem polling automat (0 consum trafic noaptea)
+      if (!isWithinActiveOperatingHours()) {
+        return
+      }
       if (countdownRef.current <= 1) {
         countdownRef.current = autoRefreshSeconds
         setSecondsUntilRefresh(autoRefreshSeconds)

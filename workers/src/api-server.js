@@ -3110,11 +3110,27 @@ app.get('/api/sync-sales/status', (req, res) => {
     return res.json(salesSync.progress || { isSyncing: false, percent: 0 })
 })
 
+// ─── REGULĂ STRICTĂ PAUZĂ NOCTURNĂ (22:00 – 10:00, ora României) ───
+// Între orele 22:00 și 10:00 orice verificare automată / sincronizare / polling este OPRITĂ complet pentru 0 consum trafic / DB IO
+function isWithinActiveHours() {
+    const roHour = Number(
+        new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Europe/Bucharest',
+            hour: '2-digit',
+            hour12: false
+        }).format(new Date())
+    )
+    return roHour >= 10 && roHour < 22
+}
+
 // ─── Health + Auto-Sync keepalive ───
 // Designed to be pinged by an external cron (cron-job.org / UptimeRobot) every 20 min
-// This keeps Render from sleeping AND triggers sync every 4h automatically
+// This keeps Render from sleeping AND triggers sync every 4h automatically (ONLY between 10:00 and 22:00)
 let lastAutoSyncAt = 0
 app.get('/api/health-sync', (req, res) => {
+    if (!isWithinActiveHours()) {
+        return res.json({ status: 'ok', action: 'night_pause_22_10', message: 'Verificările și sincronizările sunt oprite între 22:00 și 10:00' })
+    }
     const now = Date.now()
     const hoursSinceSync = (now - lastAutoSyncAt) / (1000 * 60 * 60)
     if (!salesSync.progress?.isSyncing && hoursSinceSync >= 4) {
@@ -3126,16 +3142,18 @@ app.get('/api/health-sync', (req, res) => {
     return res.json({ status: 'ok', action: 'none', hoursSinceLastSync: hoursSinceSync.toFixed(1) })
 })
 
-// Auto-sync intern pentru mediul local (rulează la fiecare oră)
+// Auto-sync intern pentru mediul local (rulează la fiecare oră DOAR în intervalul 10:00 - 22:00)
 setInterval(() => {
+    if (!isWithinActiveHours()) return
     if (!salesSync.progress?.isSyncing) {
         console.log('[AUTO-SYNC] Internal timer triggering sales sync...')
         salesSync.syncSales(2).catch(e => console.error('[AUTO-SYNC] Sync err:', e))
     }
 }, 60 * 60 * 1000) // La fiecare oră
 
-// Auto-sync ultrarapid pentru Kiosk-uri (Cluj 1, Cluj 2, Constanța) la fiecare 45 secunde
+// Auto-sync ultrarapid pentru Kiosk-uri (Cluj 1, Cluj 2, Constanța) la fiecare 45 secunde (OPRIT între 22:00 și 10:00)
 setInterval(() => {
+    if (!isWithinActiveHours()) return
     salesSync.syncLiveKiosksToday().catch(e => console.error('[KIOSK-SYNC] Fast sync err:', e.message))
 }, 45 * 1000)
 
@@ -5045,7 +5063,9 @@ app.get('/api/settings/status', async (req, res) => {
             total_restaurants: totalCount || 0,
             active_restaurants: activeCount || 0,
             monitoring_schedule: ['11:00', '13:00', '17:00', '18:00', '19:00'],
-            sales_sync_schedule: ['04:00', '14:00', '22:00', '23:30'],
+            sales_sync_schedule: ['10:05', '14:00', '18:00', '21:50'],
+            night_pause_window: '22:00 - 10:00',
+            is_within_active_hours: isWithinActiveHours(),
             iiko_cloud_api: 'https://api-eu.syrve.live',
             live_checks_cached: (global.liveChecks || []).length
         })

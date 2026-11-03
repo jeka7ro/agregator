@@ -101,5 +101,21 @@ async function syncAllIikoStops() {
     console.log(`✅ Sincronizare finalizata! Au fost detectate ${globalStoppedCount} produse oprite in total. Baza de date actualizata pentru ${totalUpdated} restaurante.`);
 }
 
-syncAllIikoStops();
-setInterval(syncAllIikoStops, 60000);
+function isWithinActiveHours() {
+    const roHour = Number(
+        new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Europe/Bucharest',
+            hour: '2-digit',
+            hour12: false
+        }).format(new Date())
+    );
+    return roHour >= 10 && roHour < 22;
+}
+
+if (isWithinActiveHours()) {
+    syncAllIikoStops();
+}
+setInterval(() => {
+    if (!isWithinActiveHours()) return;
+    syncAllIikoStops();
+}, 60000);

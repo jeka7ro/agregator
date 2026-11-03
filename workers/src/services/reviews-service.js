@@ -87,9 +87,21 @@ export class ReviewsService {
         }
     }
 
+    _isWithinActiveHours() {
+        const roHour = Number(
+            new Intl.DateTimeFormat('en-GB', {
+                timeZone: 'Europe/Bucharest',
+                hour: '2-digit',
+                hour12: false
+            }).format(new Date())
+        )
+        return roHour >= 10 && roHour < 22
+    }
+
     _startAutoEmailSync() {
-        // Trigger an initial sync 3 seconds after server boot, then every 5 minutes
+        // Trigger an initial sync 3 seconds after server boot (only during active hours 10:00-22:00), then every 5 minutes
         setTimeout(async () => {
+            if (!this._isWithinActiveHours()) return
             if (this.emailConfig.appPassword && this.emailConfig.appPassword.length >= 8) {
                 try {
                     await this.syncFromImap()
@@ -100,6 +112,7 @@ export class ReviewsService {
         }, 3000)
 
         setInterval(async () => {
+            if (!this._isWithinActiveHours()) return
             if (this.emailConfig.appPassword && this.emailConfig.appPassword.length >= 8) {
                 try {
                     await this.syncFromImap()

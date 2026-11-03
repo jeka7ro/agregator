@@ -356,12 +356,25 @@ export async function runMonitoringCycle() {
     }
 }
 
+// ─── REGULĂ STRICTĂ PAUZĂ NOCTURNĂ (22:00 – 10:00, ora României) ───
+function isWithinActiveHours() {
+    const roHour = Number(
+        new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Europe/Bucharest',
+            hour: '2-digit',
+            hour12: false
+        }).format(new Date())
+    )
+    return roHour >= 10 && roHour < 22
+}
+
 // ─── START ───
 // Schedule at peak hours: 11:00, 13:00, 17:00, 18:00, 19:00
 const SCHEDULE = '0 11,13,17,18,19 * * *'
-console.log(`Scheduling checks at: 11:00, 13:00, 17:00, 18:00, 19:00`)
+console.log(`Scheduling checks at: 11:00, 13:00, 17:00, 18:00, 19:00 (Oprit 22:00 - 10:00)`)
 
 cron.schedule(SCHEDULE, () => {
+    if (!isWithinActiveHours()) return
     runMonitoringCycle()
 })
 
@@ -370,9 +383,10 @@ console.log('Next check will run at the next scheduled hour (11:00, 13:00, 17:00
 // Daily summary cron preserved below...
 // (Skipping integration with the new module here since new module handles atomic incidents, not daily aggregates yet)
 
-// ─── Competitive Intelligence: zilnic la 09:00 ───
+// ─── Competitive Intelligence: zilnic la 10:15 (în afara pauzei 22:00-10:00) ───
 const competitorScraper = new CompetitorScraper()
-cron.schedule('0 9 * * *', async () => {
+cron.schedule('15 10 * * *', async () => {
+    if (!isWithinActiveHours()) return
     console.log('\n🔍 [CRON] Starting daily competitive intelligence scan...')
     try {
         await competitorScraper.runAllSearches()
@@ -388,6 +402,8 @@ cron.schedule('0 9 * * *', async () => {
 
 // ─── DYNAMIC STOP SCAN SCHEDULER (Verificare Produse) ───
 cron.schedule('* * * * *', async () => {
+    // Oprit complet între 22:00 și 10:00 (fără interogări Supabase noaptea)
+    if (!isWithinActiveHours()) return
     try {
         const now = new Date()
         const currentHHMM = now.toTimeString().slice(0, 5) // "14:15"
@@ -433,6 +449,8 @@ cron.schedule('* * * * *', async () => {
 // ─── ANTIGRAVITY SPRINT 4: MAIN TELEGRAM NOTIFIER LOOP ───
 // Triggers the generalized notification engine to look for new aggregator_incidents
 cron.schedule('*/3 * * * *', async () => {
+    // Oprit complet între 22:00 și 10:00 (0 trafic noaptea)
+    if (!isWithinActiveHours()) return
     console.log('\n🔔 [SCHEDULER] Running Antigravity Telegram processAndNotify...')
     try {
         await processAndNotify()
@@ -441,34 +459,45 @@ cron.schedule('*/3 * * * *', async () => {
     }
 })
 
-// ─── AUTOMATIC IIKO SALES SYNC ───
-// Program de funcționare până la ora 22:00.
-// Sincronizare la 12:00, 16:00, 20:00 și 23:00 (final de zi). Până dimineața nu e nevoie.
-cron.schedule('0 12,16,20,23 * * *', async () => {
-    console.log('\n📈 [SCHEDULER] Running scheduled automatic Iiko Sales Sync...')
+// ─── AUTOMATIC IIKO SALES SYNC (STRICT ÎN INTERVALUL 10:00 - 22:00) ───
+// Sincronizare la 10:05 (deschidere + ieri), 14:00, 18:00 și 21:50 (înainte de pauza de la 22:00).
+cron.schedule('5 10 * * *', async () => {
+    if (!isWithinActiveHours()) return
+    console.log('\n📈 [SCHEDULER] Running 10:05 morning Iiko Sales Sync...')
     try {
-        await salesSync.syncSales(7) // 7 zile back — safe net dacă Render pică câteva zile
+        await salesSync.syncSales(3)
+    } catch (err) {
+        console.error('❌ [SCHEDULER] Sales Sync 10:05 error:', err.message)
+    }
+})
+
+cron.schedule('0 14,18 * * *', async () => {
+    if (!isWithinActiveHours()) return
+    console.log('\n📈 [SCHEDULER] Running scheduled daytime Iiko Sales Sync...')
+    try {
+        await salesSync.syncSales(2)
     } catch (err) {
         console.error('❌ [SCHEDULER] Sales Sync error:', err.message)
     }
 })
 
-// 23:30 — final sync pentru ziua curentă, prinde comenzile de seară (21:00-23:30)
-cron.schedule('30 23 * * *', async () => {
-    console.log('\n📈 [SCHEDULER] Running 23:30 end-of-day Iiko Sales Sync...')
+// 21:50 — ultimul sync înainte de pauza nocturnă 22:00 - 10:00
+cron.schedule('50 21 * * *', async () => {
+    if (!isWithinActiveHours()) return
+    console.log('\n📈 [SCHEDULER] Running 21:50 pre-night-pause Iiko Sales Sync...')
     try {
-        await salesSync.syncSales(1) // doar ziua curentă
+        await salesSync.syncSales(1)
     } catch (err) {
-        console.error('❌ [SCHEDULER] Sales Sync 23:30 error:', err.message)
+        console.error('❌ [SCHEDULER] Sales Sync 21:50 error:', err.message)
     }
 })
 
 console.log('Workers started successfully!')
+console.log('Night Blackout Window: 22:00 - 10:00 (ALL checks and syncs stopped)')
 console.log('Monitoring schedule: 11:00, 13:00, 17:00, 18:00, 19:00')
-console.log('Antigravity Notifier schedule: Every 3 minutes')
-console.log('Competitive intelligence scan scheduled for 09:00 daily')
-console.log('Brand reputation scan scheduled every hour')
-console.log('Automated Sales Sync scheduled for 04:00, 14:00, 22:00, 23:30')
+console.log('Antigravity Notifier schedule: Every 3 minutes (10:00 - 22:00 only)')
+console.log('Competitive intelligence scan scheduled for 10:15 daily')
+console.log('Automated Sales Sync scheduled for 10:05, 14:00, 18:00, 21:50')
 console.log('Press Ctrl+C to stop\n')
 
 global.runMonitoringCycle = runMonitoringCycle

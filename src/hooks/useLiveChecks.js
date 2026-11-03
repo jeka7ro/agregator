@@ -107,7 +107,20 @@ export function useLiveChecks() {
 
   useEffect(() => {
     fetchData()
-    const interval = setInterval(() => fetchData(true), 30000)
+    const interval = setInterval(() => {
+      // Oprește orice verificare automată în intervalul nocturn 22:00 - 10:00 (0 consum trafic)
+      try {
+        const roHour = Number(
+          new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Europe/Bucharest',
+            hour: '2-digit',
+            hour12: false
+          }).format(new Date())
+        )
+        if (roHour >= 22 || roHour < 10) return
+      } catch (_) {}
+      fetchData(true)
+    }, 30000)
     return () => clearInterval(interval)
   }, [])
 
