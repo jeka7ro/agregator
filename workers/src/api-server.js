@@ -493,6 +493,23 @@ app.post('/api/webhooks/glovo', async (req, res) => {
 })
 
 // 4. Iiko Cloud Webhook receiver (Order creation, delivery updates, table orders)
+app.get(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], (req, res) => {
+    res.status(200).json({
+        success: true,
+        status: 'active',
+        platform: 'iiko',
+        endpoint: 'https://smart-agregator.netlify.app/api/webhooks/iiko',
+        methods: ['POST', 'GET'],
+        message: 'Webhook endpoint is online and ready to receive POST JSON payloads.',
+        example_payload: {
+            orderId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+            orderNumber: '8977',
+            status: 'Delivered',
+            deliveredAt: '2026-11-03T18:55:00+02:00'
+        }
+    })
+})
+
 app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
     try {
         const payload = req.body || {}
@@ -540,8 +557,80 @@ app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
                         eventType: payload.eventType,
                         eventTime: payload.eventTime
                     })
-                } else if (payload.id || payload.orderId) {
+                } else if (payload.id || payload.orderId || payload.order_id || payload.orderNumber || payload.number || payload.externalNumber || payload.externalOrderId) {
                     rawList.push(payload)
+                }
+            }
+
+            // Handle lightweight status / deliveredAt updates without full items array
+            const statusOnlyUpdates = rawList.filter(o => {
+                const hasItems = Array.isArray(o.items) && o.items.length > 0
+                const hasDeliveryTs = Boolean(o.deliveredAt || o.delivered_at || o.whenDelivered || o.whenClosed || o.whenSended || o.whenCookingCompleted || o.status)
+                const hasOrderRef = Boolean(o.orderId || o.id || o.order_id || o.orderNumber || o.number || o.externalNumber || o.externalOrderId)
+                return !hasItems && hasDeliveryTs && hasOrderRef
+            })
+
+            if (statusOnlyUpdates.length > 0) {
+                const sinceIso = new Date(Date.now() - 48 * 3600 * 1000).toISOString()
+                const { data: recentSales } = await supabase
+                    .from('platform_sales')
+                    .select('id, order_id, restaurant_id, platform, total_amount, placed_at, items')
+                    .gte('placed_at', sinceIso)
+                    .order('placed_at', { ascending: false })
+                    .limit(1500)
+
+                if (Array.isArray(recentSales) && recentSales.length > 0) {
+                    for (const upd of statusOnlyUpdates) {
+                        const refId = String(upd.orderId || upd.id || upd.order_id || '').trim().toLowerCase()
+                        const refNum = String(upd.orderNumber || upd.number || upd.externalNumber || upd.externalOrderId || '').replace(/^#+/, '').trim().toLowerCase()
+                        const delivTs = upd.deliveredAt || upd.delivered_at || upd.whenDelivered || upd.whenClosed || null
+                        const sendTs = upd.whenSended || upd.sendedAt || null
+                        const cookTs = upd.whenCookingCompleted || upd.cookedAt || null
+                        const newStatus = upd.status || (delivTs ? 'Delivered' : null)
+
+                        const matchingRows = recentSales.filter(row => {
+                            const rowOrdId = String(row.order_id || '').toLowerCase()
+                            const baseOrdId = rowOrdId.split('_')[0]
+                            const meta = (Array.isArray(row.items) && row.items[0]?._order_meta) || {}
+                            const metaNum = String(meta.orderNumber || '').replace(/^#+/, '').trim().toLowerCase()
+                            const metaExt = String(meta.externalOrderId || '').replace(/^#+/, '').trim().toLowerCase()
+
+                            if (refId && (rowOrdId === refId || baseOrdId === refId || metaExt === refId || metaNum === refId)) return true
+                            if (refNum && (metaNum === refNum || metaExt === refNum || baseOrdId === refNum)) return true
+                            return false
+                        })
+
+                        for (const row of matchingRows) {
+                            const itemsArr = Array.isArray(row.items) && row.items.length > 0
+                                ? [...row.items]
+                                : [{ product_name: 'Comandă', price: row.total_amount || 0, amount: 1, quantity: 1, _order_meta: {} }]
+                            const firstItem = { ...(itemsArr[0] || {}) }
+                            const prevMeta = firstItem._order_meta || {}
+                            const prevTimings = prevMeta.timings || {}
+
+                            firstItem._order_meta = {
+                                ...prevMeta,
+                                status: newStatus || prevMeta.status || 'Delivered',
+                                stage: newStatus || prevMeta.stage || 'Delivered',
+                                timings: {
+                                    ...prevTimings,
+                                    whenCreated: prevTimings.whenCreated || row.placed_at,
+                                    whenCookingCompleted: cookTs || prevTimings.whenCookingCompleted || null,
+                                    whenSended: sendTs || prevTimings.whenSended || null,
+                                    whenDelivered: delivTs || prevTimings.whenDelivered || new Date().toISOString(),
+                                    whenClosed: delivTs || prevTimings.whenClosed || new Date().toISOString()
+                                }
+                            }
+                            itemsArr[0] = firstItem
+
+                            const { error: uErr } = await supabase
+                                .from('platform_sales')
+                                .update({ items: itemsArr })
+                                .eq('id', row.id)
+
+                            if (!uErr) processedCount++
+                        }
+                    }
                 }
             }
 
