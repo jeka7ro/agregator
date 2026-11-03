@@ -130,11 +130,21 @@ export class ReviewsService {
     }
 
     /**
-     * Parse a decoded plain-text Google Business Profile email body into 1 or more review items.
+     * Parse a decoded plain-text + HTML Google Business Profile email body into 1 or more review items (including avatars & uploaded photos).
      */
-    _parseGoogleBusinessBody(subject = '', decodedBody = '', emailDateIso = null, msgId = '') {
+    _parseGoogleBusinessBody(subject = '', decodedBody = '', emailDateIso = null, msgId = '', htmlBody = '') {
         const cleanSubject = this._decodeMimeWords(subject)
         const fullText = `${cleanSubject}\n${decodedBody}`
+
+        // Extract customer profile avatars and uploaded Google Maps photos from HTML body (BODY[2])
+        const cleanHtml = String(htmlBody || '')
+            .replace(/=\r?\n/g, '')
+            .replace(/=([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+        const avatars = [...new Set(cleanHtml.match(/https:\/\/lh3\.googleusercontent\.com\/a-?\/[^"'\s>]+/gi) || [])]
+        const uploadedPhotos = [...new Set(
+            (cleanHtml.match(/https:\/\/lh3\.googleusercontent\.com\/(?:grass-cs|p|geougc)\/[^"'\s>]+/gi) || [])
+                .map(u => u.replace(/=w\d+-h\d+[^"'\s>]*/i, '=w600'))
+        )]
 
         // Detect brand from subject or body ("Roll Master", "Poki-Woki", "Love Sushi", "Smash Me", "Crunch")
         let brandName = 'Roll Master'
@@ -143,9 +153,9 @@ export class ReviewsService {
         else if (/smash[\s-]*me/i.test(fullText)) brandName = 'Smash Me'
         else if (/crunch/i.test(fullText)) brandName = 'Crunch'
 
-        // Default star rating in email ("recenzie de 5 stele" / "cinci stele" / "patru stele" / etc.)
+        // Default star rating in email ("recenzie de 5 stele" / "1 stea" / "cinci stele" / "patru stele" / etc.)
         let defaultRating = 5
-        const numStarMatch = decodedBody.match(/recenzie\s+de\s+(\d)\s+stele/i)
+        const numStarMatch = decodedBody.match(/recenzie\s+de\s+(\d)\s+ste(?:le|a)/i)
         if (numStarMatch) {
             defaultRating = parseInt(numStarMatch[1], 10)
         } else if (/patru\s+stele/i.test(decodedBody) && !/cinci\s+stele/i.test(decodedBody)) {
@@ -154,7 +164,7 @@ export class ReviewsService {
             defaultRating = 3
         } else if (/dou[aă]\s+stele/i.test(decodedBody)) {
             defaultRating = 2
-        } else if (/o\s+stea/i.test(decodedBody)) {
+        } else if (/(?:o|1)\s+stea/i.test(decodedBody)) {
             defaultRating = 1
         }
 
@@ -178,7 +188,21 @@ export class ReviewsService {
                 const seg = chunks[idx]
                 const nextSeg = chunks[idx + 1] || ''
                 const urlMatch = nextSeg.match(/<(https:\/\/business\.google\.com\/[^>]+)>/i) || seg.match(/<(https:\/\/business\.google\.com\/[^>]+)>/i)
-                const reviewUrl = urlMatch ? urlMatch[1] : null
+                // Build direct Google Maps review URL using postId + fid so clicking Reply opens the review in Google Maps without 404
+                const rawUrl = urlMatch ? urlMatch[1].replace(/\s+/g, '') : null
+                const postIdMatch = rawUrl ? rawUrl.match(/\/reviews\/([^?&]+)/) : null
+                const fidMatch = rawUrl ? rawUrl.match(/fid=(\d+)/) : null
+                let reviewUrl = rawUrl ? rawUrl.replace(/\/reviews\/[^?]+(\?|$)/, '/reviews$1').split('&trk=')[0] : null
+                if (postIdMatch && fidMatch) {
+                    try {
+                        const postId = postIdMatch[1]
+                        const hex = BigInt(fidMatch[1]).toString(16)
+                        const inner = Buffer.from(postId, 'base64').toString('utf8').replace(/^[^C]+/, '').replace(/[^A-Za-z0-9+/=_=-]+$/, '')
+                        reviewUrl = `https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1s${postId}!2m1!1s0x0:0x${hex}!3m1!1s2@1:${inner}%7C%7C?hl=ro`
+                    } catch (_) {}
+                } else if (fidMatch) {
+                    reviewUrl = `https://www.google.com/maps?cid=${fidMatch[1]}&hl=ro`
+                }
 
                 // Clean out boilerplate lines before the reviewer name
                 const lines = seg
@@ -238,6 +262,8 @@ export class ReviewsService {
                     restaurant_name: `${brandName} (Google Business)`,
                     city: brandName,
                     customer_name: customerName,
+                    customer_avatar: avatars[idx] || avatars[0] || null,
+                    review_photos: idx === 0 ? uploadedPhotos : [],
                     rating: itemRating,
                     max_rating: 5,
                     comment: mainComment,
@@ -252,11 +278,13 @@ export class ReviewsService {
             }
         }
 
-        // Fallback if no "Răspunde la recenzie" split matched
+        // Fallback if no "Răspunde la recenzie" split matched (e.g. photo upload notification emails)
         if (extracted.length === 0) {
             const subjReviewer = cleanSubject.match(/^(.+?)\s+a\s+scris\s+o\s+recenzie\s+pentru\s+(.+?)(?:\s+-|$)/i)
             const customerName = subjReviewer ? subjReviewer[1].trim() : 'Client Google'
             const msgHash = Buffer.from(String(msgId)).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 14)
+            const anyGmbUrl = decodedBody.match(/<(https:\/\/business\.google\.com\/[^>]+)>/i)?.[1] || null
+            const fallbackFid = anyGmbUrl ? (anyGmbUrl.match(/fid=(\d+)/) || [])[1] : null
             extracted.push({
                 id: `rev_gmb_0_${msgHash}`,
                 email_message_id: `${msgId}_0`,
@@ -266,15 +294,75 @@ export class ReviewsService {
                 restaurant_name: `${brandName} (Google Business)`,
                 city: brandName,
                 customer_name: customerName,
+                customer_avatar: avatars[0] || null,
+                review_photos: uploadedPhotos,
                 rating: defaultRating,
                 max_rating: 5,
                 comment: cleanSubject,
-                review_url: null,
+                review_url: fallbackFid ? `https://www.google.com/maps?cid=${fallbackFid}&hl=ro` : 'https://www.google.com/maps',
                 reviewed_at: emailDateIso || new Date().toISOString()
             })
         }
 
         return extracted
+    }
+
+    /**
+     * Fetch full untruncated review text, exact star rating, and branch address from Google Maps RPC when email snippet is truncated with '...'
+     */
+    async _enrichGoogleReviewFromMaps(item) {
+        if (!item || item.platform !== 'google' || !item.review_url) return item
+        try {
+            const mapsUrl = item.review_url
+            if (!mapsUrl.includes('/maps/reviews/data=')) return item
+            const res = await fetch(mapsUrl, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
+            })
+            const txt = await res.text()
+            const idx = txt.indexOf('APP_INITIALIZATION_STATE')
+            const endIdx = txt.indexOf(';window.APP_FLAGS', idx)
+            if (idx === -1 || endIdx === -1) return item
+            const state = JSON.parse(txt.slice(idx + 25, endIdx))
+            const rpcPath = state[3]?.[state[3].length - 1]
+            if (!rpcPath) return item
+
+            const res2 = await fetch(`https://www.google.com${rpcPath}`, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
+            })
+            const txt2 = await res2.text()
+            const data = JSON.parse(txt2.replace(/^\)\]\}'\n/, ''))
+
+            const placeInfo = data[5]
+            if (placeInfo) {
+                const pName = placeInfo[2] || item.brand_name
+                const pAddr = placeInfo[3] || ''
+                const pCity = placeInfo[18] || ''
+                item.branch_address = pAddr
+                if (pCity) item.city = pCity
+                const shortStreet = pAddr.split(',')[0].trim()
+                if (shortStreet) item.restaurant_name = `${pName} (${shortStreet})`
+            }
+
+            const revBlock = data[7]
+            if (revBlock && Array.isArray(revBlock)) {
+                item.deleted_on_google = false
+                const starVal = revBlock[2]?.[0]?.[0]
+                if (typeof starVal === 'number' && starVal >= 1 && starVal <= 5) {
+                    item.rating = starVal
+                }
+                const textBlock = revBlock[2]?.[15]?.[0]?.[0]
+                if (typeof textBlock === 'string' && textBlock.trim().length > 0) {
+                    item.comment = textBlock.trim()
+                    item.comment_translations = {
+                        ...item.comment_translations,
+                        ro: item.comment
+                    }
+                }
+            } else {
+                item.deleted_on_google = true
+            }
+        } catch (_) {}
+        return item
     }
 
     /**
@@ -352,9 +440,9 @@ export class ReviewsService {
                         try { socket.write(`A4 LOGOUT\r\n`) } catch (_) {}
                         return finish({ success: true, checked: 0, imported: 0, reviews: [] })
                     }
-                    const recentIds = allIds.slice(-30)
+                    const recentIds = allIds.slice(-35)
                     step = 'FETCH'
-                    socket.write(`A4 FETCH ${recentIds.join(',')} (BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID)] BODY.PEEK[1]<0.16384>)\r\n`)
+                    socket.write(`A4 FETCH ${recentIds.join(',')} (BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID)] BODY.PEEK[1]<0.16384> BODY.PEEK[2]<0.65536>)\r\n`)
                 } else if (step === 'FETCH' && (buffer.includes('A4 OK') || buffer.includes('A4 NO') || buffer.includes('A4 BAD'))) {
                     const rawFetch = buffer
                     buffer = ''
@@ -378,8 +466,11 @@ export class ReviewsService {
                         const msgId = msgIdMatch ? msgIdMatch[1].trim() : `${subject}_${dateMatch ? dateMatch[1].trim() : ''}`
                         const emailDateIso = dateMatch ? new Date(dateMatch[1].trim()).toISOString() : new Date().toISOString()
 
-                        // Extract BODY[1] or BODY[1]<0>
-                        const b1Raw = blk.split(/BODY\[1\](?:<\d+>)?\s+\{\d+\}\r\n/i)[1]?.replace(/\)\s*(?:A4 OK[\s\S]*)?$/, '') || ''
+                        // Extract BODY[1] and BODY[2]
+                        const b1Section = blk.split(/BODY\[1\](?:<\d+>)?\s+\{\d+\}\r\n/i)[1] || ''
+                        const b1Raw = b1Section.split(/BODY\[2\]/i)[0]?.replace(/\)\s*(?:A4 OK[\s\S]*)?$/, '') || ''
+                        const b2Raw = blk.split(/BODY\[2\](?:<\d+>)?\s+\{\d+\}\r\n/i)[1]?.replace(/\)\s*(?:A4 OK[\s\S]*)?$/, '') || ''
+
                         let decodedText = ''
                         const compactB64 = b1Raw.replace(/\s+/g, '')
                         if (compactB64 && /^[A-Za-z0-9+/=]+$/.test(compactB64.slice(0, 120))) {
@@ -396,7 +487,7 @@ export class ReviewsService {
                         if (/Adaug[aă]\s+programul\s+de\s+lucru/i.test(subject)) continue
 
                         if (/businessprofile-noreply@google\.com|Google Business Profile|a scris o recenzie|recenzii noi/i.test(`${from} ${subject}`)) {
-                            const gmbReviews = this._parseGoogleBusinessBody(subject, decodedText, emailDateIso, msgId)
+                            const gmbReviews = this._parseGoogleBusinessBody(subject, decodedText, emailDateIso, msgId, b2Raw)
                             for (const gr of gmbReviews) {
                                 if (this.reviews.some(r => r.email_message_id === gr.email_message_id || r.id === gr.id)) continue
                                 toIngest.push(gr)
@@ -420,14 +511,29 @@ export class ReviewsService {
                     }
 
                     if (toIngest.length > 0) {
-                        // Translate custom comments to RU / EN online before saving
+                        // First enrich any Google Business review from Google Maps RPC (fetches 100% full untruncated text, exact rating & branch street address)
                         for (const item of toIngest) {
+                            if (item.platform === 'google') {
+                                await this._enrichGoogleReviewFromMaps(item)
+                            }
                             if (item.comment && !item.comment.startsWith('Evaluare 5★')) {
                                 try {
-                                    const ruTrans = await this.translateTextOnline(item.comment, 'ru')
-                                    const enTrans = item.comment_translations?.en || await this.translateTextOnline(item.comment, 'en')
+                                    const rawRo = item.comment || ''
+                                    const rawEn = item.comment_translations?.en || ''
+                                    const sourceForTranslation = (
+                                        (/\.{2,}$/.test(rawRo.trim()) && rawEn && !/\.{2,}$/.test(rawEn.trim())) ||
+                                        rawRo === rawEn
+                                    ) ? rawEn : rawRo
+
+                                    const roTrans = sourceForTranslation === rawEn
+                                        ? await this.translateTextOnline(rawEn, 'ro')
+                                        : rawRo
+                                    const ruTrans = await this.translateTextOnline(sourceForTranslation, 'ru')
+                                    const enTrans = rawEn || await this.translateTextOnline(roTrans, 'en')
+
+                                    item.comment = roTrans
                                     item.comment_translations = {
-                                        ro: item.comment,
+                                        ro: roTrans,
                                         en: enTrans,
                                         ru: ruTrans
                                     }
@@ -592,9 +698,8 @@ export class ReviewsService {
     async translateTextOnline(text, targetLang = 'ru') {
         const clean = String(text || '').trim()
         if (!clean) return ''
-        if (targetLang === 'ro') return clean
 
-        // Always use Google Translate API first for full, accurate sentence translation into RU / EN
+        // Always use Google Translate API first for full, accurate sentence translation into RO / RU / EN
         try {
             const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(clean)}`
             const res = await fetch(url)
@@ -876,8 +981,12 @@ export class ReviewsService {
                 max_rating: maxScale,
                 customer_name: customerName,
                 customer_phone: customerPhone,
+                customer_avatar: raw.customer_avatar || null,
+                review_photos: Array.isArray(raw.review_photos) ? raw.review_photos : [],
+                review_url: raw.review_url || null,
+                email_message_id: raw.email_message_id || null,
                 comment: rawComment,
-                comment_translations: {
+                comment_translations: raw.comment_translations || {
                     ro: rawComment,
                     en: enTrans,
                     ru: ruTrans
@@ -927,11 +1036,17 @@ export class ReviewsService {
                 })
             } catch (_) {}
 
-            // Deduplicate in memory cache
-            const existsIdx = this.reviews.findIndex(r =>
-                (r.order_id && reviewObj.order_id && r.order_id === reviewObj.order_id && r.platform === reviewObj.platform) ||
-                (r.comment && reviewObj.comment && r.comment === reviewObj.comment && r.restaurant_id === reviewObj.restaurant_id)
-            )
+            // Deduplicate in memory cache (if email_message_id is present, deduplicate strictly by email_message_id)
+            const existsIdx = this.reviews.findIndex(r => {
+                if (r.email_message_id && reviewObj.email_message_id) {
+                    return r.email_message_id === reviewObj.email_message_id
+                }
+                return (
+                    (r.id && reviewObj.id && r.id === reviewObj.id) ||
+                    (r.order_id && reviewObj.order_id && r.order_id === reviewObj.order_id && r.platform === reviewObj.platform) ||
+                    (r.comment && reviewObj.comment && r.comment === reviewObj.comment && r.customer_name === reviewObj.customer_name && r.restaurant_id === reviewObj.restaurant_id)
+                )
+            })
             if (existsIdx >= 0) {
                 this.reviews[existsIdx] = { ...this.reviews[existsIdx], ...reviewObj }
             } else {

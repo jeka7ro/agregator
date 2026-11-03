@@ -177,19 +177,59 @@ const SYRVE_SEEDS = [
     ingredients: null
   },
   {
-    name: 'Wok orez cu pui in sos Teriyaki',
-    synonyms: ['wok orez pui sos teriyaki', 'orez pui sos teriyaki', 'wok orez', 'wok udon'],
+    name: 'Wok Orez Pui Sos Teriyaki',
+    synonyms: ['wok orez pui sos teriyaki', 'wok orez cu pui in sos teriyaki', 'orez pui sos teriyaki'],
     brand: 'Poki Woki',
-    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/e0d7070d-43d4-4195-bf79-a4488e2a9909.png',
-    description: 'Orez prăjit la wok cu piept de pui fraged, legume proaspete și sos Teriyaki.',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3497474/ae1d8264-d128-4d54-b299-83181775cc35.jpg',
+    description: 'Orez la wok cu piept de pui fraged, legume proaspete și sos Teriyaki.',
     ingredients: null
   },
   {
-    name: 'Poke Bowl Salmon',
-    synonyms: ['poke bowl', 'poke somon', 'poke orez', 'poke ton'],
+    name: 'Wok Udon Pui Sos Chinezesc',
+    synonyms: ['wok udon pui sos chinezesc', 'wok udon cu pui in sos chinezesc'],
     brand: 'Poki Woki',
-    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/2d9ca6de-83c8-460b-be44-150dcbe9748a.png',
-    description: 'Bol hawaiian nutritiv cu somon proaspăt marinat, edamame, avocado și orez.',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3497474/a70a711a-e7b7-4ee3-a92d-a21eeba36f74.jpg',
+    description: 'Tăiței udon la wok cu piept de pui, legume crocante și sos chinezesc aromat.',
+    ingredients: null
+  },
+  {
+    name: 'Wok Udon Pui Sos Teriyaki',
+    synonyms: ['wok udon pui sos teriyaki', 'wok udon cu pui in sos teriyaki'],
+    brand: 'Poki Woki',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3497474/ad313594-758f-484a-bbcc-883bfcadac5b.jpg',
+    description: 'Tăiței udon la wok cu piept de pui, legume și sos Teriyaki.',
+    ingredients: null
+  },
+  {
+    name: 'Wok Orez Pui Sos Chinezesc',
+    synonyms: ['wok orez pui sos chinezesc', 'wok orez cu pui in sos chinezesc'],
+    brand: 'Poki Woki',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3497474/31d342d5-23a3-42ac-9cb7-b037ef9dd55a.png',
+    description: 'Orez la wok cu piept de pui, legume și sos chinezesc.',
+    ingredients: null
+  },
+  {
+    name: 'Wok Orez Pui Sos Taiwanez',
+    synonyms: ['wok orez pui sos taiwanez', 'wok orez cu pui in sos taiwanez'],
+    brand: 'Poki Woki',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3497474/ece60d7b-c279-4d58-95b2-25aa293c9f90.jpg',
+    description: 'Orez la wok cu pui și sos taiwanez aromat.',
+    ingredients: null
+  },
+  {
+    name: 'Wok Udon Creveti Sos Cremos',
+    synonyms: ['wok udon creveti sos cremos', 'wok udon cu creveti in sos cremos de stridii'],
+    brand: 'Poki Woki',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3497474/84c429d4-e0dd-45f6-a48e-1a72279e660f.jpg',
+    description: 'Tăiței udon la wok cu creveți și sos cremos de stridii.',
+    ingredients: null
+  },
+  {
+    name: 'Poke Orez Salmon Classic',
+    synonyms: ['poke orez salmon classic', 'poke bowl', 'poke somon', 'poke orez', 'poke ton'],
+    brand: 'Poki Woki',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3497474/15e42577-4980-4a68-9109-cbe003815572.jpg',
+    description: 'Bol Poke nutritiv cu somon proaspăt marinat, edamame, avocado și orez.',
     ingredients: null
   }
 ]
@@ -252,6 +292,22 @@ export function matchProductImage(rawName, brandHint = '') {
 
   const cleanRaw = normalizeName(rawName)
   const rawLower = rawName.toLowerCase().replace(/^(?:p_|pw_|rm_|sm_|ik_|ls_|[a-z0-9]{1,3}_)\s*/i, '').trim()
+
+  // 0. Dedicated Courier / Delivery item check (WOLT_BASE_DELIVERY, GLOVO_DELIVERY, BOLT_DELIVERY, Delivery, Livrare)
+  if (
+    rawLower.includes('delivery') ||
+    rawLower.includes('livrare') ||
+    rawLower.includes('curier') ||
+    rawLower.includes('transport')
+  ) {
+    return {
+      name: rawName,
+      brand: brandHint || 'Delivery',
+      image: null, // Handled by frontend getCourierDeliverySvg()
+      description: 'Serviciu de livrare prin curier (Wolt / Glovo / Bolt / Flotă proprie).',
+      ingredients: null
+    }
+  }
 
   // 1. Direct synonym match
   for (const entry of catalogCache) {

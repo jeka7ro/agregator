@@ -1129,8 +1129,18 @@ export default function Reputation() {
                           <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate max-w-[150px]">
                             {rv.city || 'România'} • <span className="uppercase">{rv.platform}</span>
                           </div>
-                          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate max-w-[150px]">
-                            {L.clientLbl} <strong className="text-slate-700 dark:text-slate-300">{rv.customer_name || 'Client'}</strong>
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate max-w-[155px]">
+                            {rv.customer_avatar && (
+                              <img
+                                src={rv.customer_avatar}
+                                alt={rv.customer_name || 'Client'}
+                                referrerPolicy="no-referrer"
+                                className="w-4 h-4 rounded-full object-cover shrink-0 border border-slate-300 dark:border-slate-600"
+                              />
+                            )}
+                            <span className="truncate">
+                              {L.clientLbl} <strong className="text-slate-700 dark:text-slate-300">{rv.customer_name || 'Client'}</strong>
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -1167,7 +1177,39 @@ export default function Reputation() {
                                 ? 'bg-slate-800/60 border-slate-700/80 text-slate-200'
                                 : 'bg-slate-50 border-slate-200/80 text-slate-700'
                           }`}>
-                            „{displayedComment}”
+                            <div className="whitespace-pre-line">„{displayedComment}”</div>
+                            {rv.deleted_on_google && (
+                              <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-[10px] font-bold">
+                                <span>
+                                  {language === 'ru'
+                                    ? '🗑️ Удалён клиентом из Google Maps (позже оставлен отзыв 5★)'
+                                    : language === 'en'
+                                      ? '🗑️ Deleted by customer on Google Maps (later replaced with 5★)'
+                                      : '🗑️ Ștearsă de client de pe Google Maps (înlocuită ulterior cu 5★)'}
+                                </span>
+                              </div>
+                            )}
+                            {Array.isArray(rv.review_photos) && rv.review_photos.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-2 mt-2 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60">
+                                {rv.review_photos.map((photoUrl, pIdx) => (
+                                  <a
+                                    key={pIdx}
+                                    href={photoUrl.replace(/=w\d+.*$/, '=w1200')}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title="Deschide fotografia încărcată de client pe Google Maps"
+                                    className="group relative block w-14 h-14 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shadow-xs hover:ring-2 hover:ring-blue-500 transition-all"
+                                  >
+                                    <img
+                                      src={photoUrl}
+                                      alt={`Foto recenzie ${pIdx + 1}`}
+                                      referrerPolicy="no-referrer"
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                    />
+                                  </a>
+                                ))}
+                              </div>
+                            )}
                           </div>
 
                           {language !== 'ro' && (
@@ -1283,14 +1325,30 @@ export default function Reputation() {
                         </div>
                       ) : rv.platform === 'google' ? (
                         <a
-                          href={rv.review_url || 'https://business.google.com/reviews'}
+                          href={(() => {
+                            const u = String(rv.review_url || '')
+                            if (!u) return 'https://www.google.com/maps'
+                            if (u.includes('business.google.com')) {
+                              const fid = (u.match(/fid=(\d+)/) || [])[1]
+                              return fid ? `https://www.google.com/maps?cid=${fid}&hl=ro` : 'https://www.google.com/maps'
+                            }
+                            return u
+                          })()}
                           target="_blank"
                           rel="noreferrer"
-                          title={language === 'ru' ? 'Ответить на отзыв в Google Business' : language === 'en' ? 'Reply to review on Google Business' : 'Răspunde la recenzie în Google Business'}
+                          title={
+                            rv.deleted_on_google
+                              ? (language === 'ru' ? 'Открыть точку на Google Maps (отзыв был удалён клиентом)' : 'Deschide locația pe Google Maps (recenzia a fost ștearsă de client)')
+                              : (language === 'ru' ? 'Открыть отзыв и ответить в Google' : language === 'en' ? 'Open review & reply on Google' : 'Deschide recenzia și răspunde pe Google')
+                          }
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-2xs shrink-0"
                         >
                           <PlatformLogo platform="google" size={14} className="bg-white rounded-full p-0.5" />
-                          <span>{language === 'ru' ? 'Ответить ↗' : language === 'en' ? 'Reply ↗' : 'Răspunde ↗'}</span>
+                          <span>
+                            {rv.deleted_on_google
+                              ? 'Google Maps ↗'
+                              : (language === 'ru' ? 'Ответить ↗' : language === 'en' ? 'Reply ↗' : 'Răspunde ↗')}
+                          </span>
                         </a>
                       ) : (
                         <div className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
