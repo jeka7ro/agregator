@@ -227,7 +227,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                   </div>
                   {rev.comment && (
                     <p className="text-xs font-bold text-slate-800 dark:text-slate-100 italic">
-                      „{(lang !== 'ro' && rev.translations?.[lang]) ? rev.translations[lang] : rev.comment}”
+                      „{(language !== 'ro' && (rev.translations?.[language] || rev.comment_translations?.[language])) ? (rev.translations?.[language] || rev.comment_translations?.[language]) : rev.comment}”
                     </p>
                   )}
                 </div>
