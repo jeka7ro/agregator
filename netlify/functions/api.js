@@ -434,7 +434,9 @@ export default async (req, context) => {
     if (path === '/stop-events') {
       const restaurantId = url.searchParams.get('restaurantId')
       const limit = parseInt(url.searchParams.get('limit') || '100')
-      const staticEvents = Array.isArray(stopEventsCacheStatic?.events) ? stopEventsCacheStatic.events : []
+      const staticEvents = Array.isArray(stopEventsCacheStatic)
+        ? stopEventsCacheStatic
+        : (Array.isArray(stopEventsCacheStatic?.events) ? stopEventsCacheStatic.events : [])
 
       let events = staticEvents
       try {
@@ -466,7 +468,9 @@ export default async (req, context) => {
 
     // 5. Live Checks (returns latest checks + rating_history enrichment)
     if (path === '/live-checks') {
-      const staticChecks = Array.isArray(liveChecksCacheStatic?.checks) ? liveChecksCacheStatic.checks : []
+      const staticChecks = Array.isArray(liveChecksCacheStatic)
+        ? liveChecksCacheStatic
+        : (Array.isArray(liveChecksCacheStatic?.checks) ? liveChecksCacheStatic.checks : [])
       return new Response(JSON.stringify({
         success: true,
         checks: staticChecks,
@@ -476,7 +480,9 @@ export default async (req, context) => {
 
     // 6. Settings - Restaurants
     if (path === '/settings/restaurants' && req.method === 'GET') {
-      const staticRests = Array.isArray(restaurantsCacheStatic?.restaurants) ? restaurantsCacheStatic.restaurants : []
+      const staticRests = Array.isArray(restaurantsCacheStatic)
+        ? restaurantsCacheStatic
+        : (Array.isArray(restaurantsCacheStatic?.restaurants) ? restaurantsCacheStatic.restaurants : [])
       if (staticRests.length > 0) {
         return new Response(JSON.stringify({
           success: true,
@@ -710,7 +716,7 @@ export default async (req, context) => {
         new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms))
       ])
 
-      let allRests = globalThis.__CACHED_ALL_RESTS || (Array.isArray(restaurantsCacheStatic?.restaurants) ? restaurantsCacheStatic.restaurants : null)
+      let allRests = globalThis.__CACHED_ALL_RESTS || (Array.isArray(restaurantsCacheStatic) ? restaurantsCacheStatic : (Array.isArray(restaurantsCacheStatic?.restaurants) ? restaurantsCacheStatic.restaurants : null))
       if (!allRests || allRests.length === 0) {
         try {
           const { data: fetchedRests, error: rErr } = await withTimeout(
@@ -1656,9 +1662,11 @@ export default async (req, context) => {
         endDate: end ? end.toISOString() : null
       }
 
-      const rests = Array.isArray(restaurantsCacheStatic?.restaurants) && restaurantsCacheStatic.restaurants.length > 0
-        ? restaurantsCacheStatic.restaurants
-        : (globalThis.__CACHED_ALL_RESTS || [])
+      const rests = Array.isArray(restaurantsCacheStatic) && restaurantsCacheStatic.length > 0
+        ? restaurantsCacheStatic
+        : (Array.isArray(restaurantsCacheStatic?.restaurants) && restaurantsCacheStatic.restaurants.length > 0
+          ? restaurantsCacheStatic.restaurants
+          : (globalThis.__CACHED_ALL_RESTS || []))
 
       const restMap = {}
         ; (rests || []).forEach(r => { restMap[r.id] = r })
