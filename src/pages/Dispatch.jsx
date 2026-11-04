@@ -1108,8 +1108,8 @@ export default function Dispatch() {
                     )}
                   </div>
                   <div className="flex items-center justify-between px-1 mt-1 text-[10px] text-slate-400 font-semibold">
-                    <span>{filteredLocationOptions.length} din {restaurantOptions.length} puncte</span>
-                    {locationSearch && <span className="text-emerald-500 font-bold">{language === 'ru' ? 'Поиск активен' : 'Filtrare activă'}</span>}
+                    <span>{filteredLocationOptions.length} {language === 'ru' ? 'из' : language === 'en' ? 'of' : 'din'} {restaurantOptions.length} {language === 'ru' ? 'точек' : language === 'en' ? 'locations' : 'puncte'}</span>
+                    {locationSearch && <span className="text-emerald-500 font-bold">{language === 'ru' ? 'Поиск активен' : language === 'en' ? 'Filter active' : 'Filtrare activă'}</span>}
                   </div>
                 </div>
 
@@ -1137,7 +1137,7 @@ export default function Dispatch() {
 
                   {filteredLocationOptions.length === 0 ? (
                     <div className="py-6 px-3 text-center text-xs text-slate-400 italic">
-                      {language === 'ru' ? `Ничего не найдено по запросу „${locationSearch}”` : `Niciun rezultat conform „${locationSearch}”`}
+                      {language === 'ru' ? `Ничего не найдено по запросу „${locationSearch}”` : language === 'en' ? `No results matching "${locationSearch}"` : `Niciun rezultat conform „${locationSearch}”`}
                     </div>
                   ) : (
                     filteredLocationOptions.map((opt) => {
@@ -1754,7 +1754,7 @@ export default function Dispatch() {
                                   type="button"
                                   onClick={(e) => openCustomerDossier(ord, e)}
                                   className="truncate text-left hover:text-sky-500 dark:hover:text-sky-400 hover:underline flex items-center gap-1 cursor-pointer"
-                                  title={language === 'ru' ? 'Открыть досье клиента 360°' : 'Deschide Dosar Client 360°'}
+                                  title={language === 'ru' ? 'Открыть досье клиента 360°' : language === 'en' ? 'Open Customer 360° Dossier' : 'Deschide Dosar Client 360°'}
                                 >
                                   <User size={11} className="text-sky-500 shrink-0" />
                                   <span className="truncate">{custName}</span>

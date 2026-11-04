@@ -1944,7 +1944,7 @@ export default function CouriersMap() {
                         type="button"
                         onClick={(e) => openCustomerDossier(ord, e)}
                         className="truncate text-left hover:text-sky-500 dark:hover:text-sky-400 hover:underline flex items-center gap-1 cursor-pointer"
-                        title={language === 'ru' ? 'Открыть досье клиента в базе' : 'Deschide dosarul clientului în baza de date'}
+                        title={language === 'ru' ? 'Открыть досье клиента в базе' : language === 'en' ? 'Open customer dossier in CRM' : 'Deschide dosarul clientului în baza de date'}
                       >
                         <User size={11} className="text-sky-500 shrink-0" />
                         <span className="truncate">{ord.customer?.name || '—'}</span>

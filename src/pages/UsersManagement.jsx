@@ -82,6 +82,7 @@ function randomPassword() {
 export default function UsersManagement() {
   const { isDark } = useTheme()
   const { language } = useLanguage()
+  const tr = (ro, en, ru) => (language === 'ru' ? ru : language === 'en' ? en : ro)
   const { user: currentUser, switchUserDirect } = useAuth()
   const fileInputRef = useRef(null)
 
@@ -365,11 +366,11 @@ export default function UsersManagement() {
   const handleSaveUser = async (e) => {
     e.preventDefault()
     if (!formEmail.trim() || !formEmail.includes('@')) {
-      showToast('error', language === 'ru' ? 'Введите корректный email.' : 'Introdu o adresă de email validă.')
+      showToast('error', tr('Introdu o adresă de email validă.', 'Please enter a valid email address.', 'Введите корректный email.'))
       return
     }
     if (!formFirstName.trim()) {
-      showToast('error', language === 'ru' ? 'Введите имя пользователя.' : 'Introdu prenumele utilizatorului.')
+      showToast('error', tr('Introdu prenumele utilizatorului.', 'Please enter the user first name.', 'Введите имя пользователя.'))
       return
     }
 
@@ -396,8 +397,8 @@ export default function UsersManagement() {
           })
         })
         const data = await res.json()
-        if (!res.ok || !data.success) throw new Error(data.error || 'Eroare la actualizare.')
-        showToast('success', language === 'ru' ? 'Пользователь успешно обновлен!' : 'Utilizatorul și permisiunile au fost actualizate!')
+        if (!res.ok || !data.success) throw new Error(data.error || tr('Eroare la actualizare.', 'Update error.', 'Ошибка обновления.'))
+        showToast('success', tr('Utilizatorul și permisiunile au fost actualizate!', 'User and permissions updated successfully!', 'Пользователь успешно обновлен!'))
       } else {
         const res = await fetch(getApiUrl('/api/users/invite'), {
           method: 'POST',
@@ -421,13 +422,19 @@ export default function UsersManagement() {
           })
         })
         const data = await res.json()
-        if (!res.ok || !data.success) throw new Error(data.error || 'Eroare la invitarea utilizatorului.')
+        if (!res.ok || !data.success) throw new Error(data.error || tr('Eroare la invitarea utilizatorului.', 'Error inviting user.', 'Ошибка приглашения пользователя.'))
         if (data.emailStatus?.sent) {
-          showToast('success', language === 'ru'
-            ? `Приглашение отправлено на ${data.user.email} (Пароль: ${data.tempPassword})`
-            : `Invitație trimisă pe email către ${data.user.email} (Parolă temp: ${data.tempPassword})`)
+          showToast('success', tr(
+            `Invitație trimisă pe email către ${data.user.email} (Parolă temp: ${data.tempPassword})`,
+            `Invitation sent via email to ${data.user.email} (Temp pass: ${data.tempPassword})`,
+            `Приглашение отправлено на ${data.user.email} (Пароль: ${data.tempPassword})`
+          ))
         } else {
-          showToast('info', `Utilizator creat! Parolă temporară: ${data.tempPassword}`)
+          showToast('info', tr(
+            `Utilizator creat! Parolă temporară: ${data.tempPassword}`,
+            `User created! Temporary password: ${data.tempPassword}`,
+            `Пользователь создан! Временный пароль: ${data.tempPassword}`
+          ))
         }
       }
       setIsUserModalOpen(false)
@@ -447,13 +454,19 @@ export default function UsersManagement() {
         body: JSON.stringify({ app_url: `${window.location.origin}/login` })
       })
       const data = await res.json()
-      if (!res.ok || !data.success) throw new Error(data.error || 'Eroare la retrimiterea invitației.')
+      if (!res.ok || !data.success) throw new Error(data.error || tr('Eroare la retrimiterea invitației.', 'Error resending invitation.', 'Ошибка повторной отправки приглашения.'))
       if (data.emailStatus?.sent) {
-        showToast('success', language === 'ru'
-          ? `Приглашение повторно отправлено на ${u.email} (Пароль: ${data.tempPassword})`
-          : `Invitația a fost retrimisă pe email către ${u.email} (Parolă temp: ${data.tempPassword})`)
+        showToast('success', tr(
+          `Invitația a fost retrimisă pe email către ${u.email} (Parolă temp: ${data.tempPassword})`,
+          `Invitation resent via email to ${u.email} (Temp pass: ${data.tempPassword})`,
+          `Приглашение повторно отправлено на ${u.email} (Пароль: ${data.tempPassword})`
+        ))
       } else {
-        showToast('info', `Parolă temporară regenerată: ${data.tempPassword}`)
+        showToast('info', tr(
+          `Parolă temporară regenerată: ${data.tempPassword}`,
+          `Temporary password regenerated: ${data.tempPassword}`,
+          `Временный пароль сгенерирован: ${data.tempPassword}`
+        ))
       }
       fetchAll()
     } catch (err) {
@@ -468,8 +481,12 @@ export default function UsersManagement() {
         method: 'DELETE'
       })
       const data = await res.json()
-      if (!res.ok || !data.success) throw new Error(data.error || 'Eroare la ștergere.')
-      showToast('success', `Contul ${deleteTargetUser.full_name} a fost șters.`)
+      if (!res.ok || !data.success) throw new Error(data.error || tr('Eroare la ștergere.', 'Delete error.', 'Ошибка удаления.'))
+      showToast('success', tr(
+        `Contul ${deleteTargetUser.full_name} a fost șters.`,
+        `Account ${deleteTargetUser.full_name} has been deleted.`,
+        `Аккаунт ${deleteTargetUser.full_name} удален.`
+      ))
       setDeleteTargetUser(null)
       fetchAll()
     } catch (err) {
@@ -492,11 +509,11 @@ export default function UsersManagement() {
         })
       })
       const data = await res.json()
-      if (!res.ok || !data.success) throw new Error(data.error || 'Eroare la salvarea configurației Brevo.')
+      if (!res.ok || !data.success) throw new Error(data.error || 'Error')
       setBrevoStatus(data.brevo)
       setBrevoApiKeyInput('')
       setIsBrevoModalOpen(false)
-      showToast('success', language === 'ru' ? 'Настройки Brevo сохранены!' : 'Configurația Brevo Email a fost salvată cu succes!')
+      showToast('success', tr('Configurația Brevo Email a fost salvată cu succes!', 'Brevo Email configuration saved successfully!', 'Настройки Brevo сохранены!'))
     } catch (err) {
       showToast('error', err.message)
     } finally {
@@ -505,11 +522,15 @@ export default function UsersManagement() {
   }
 
   const copyCredentials = (u) => {
-    const pass = u.temp_password_hint || '(parolă personalizată de utilizator)'
-    const text = `Get App — Date Acces:\nURL: ${window.location.origin}/login\nEmail: ${u.email}\nParolă: ${pass}\n(La prima logare ți se va cere schimbarea parolei)`
+    const pass = u.temp_password_hint || tr('(parolă personalizată de utilizator)', '(custom password set by user)', '(личный пароль пользователя)')
+    const text = `Get App — Access Credentials:\nURL: ${window.location.origin}/login\nEmail: ${u.email}\nPassword: ${pass}`
     navigator.clipboard?.writeText(text)
     setCopiedId(u.id)
-    showToast('success', `Datele de logare pentru ${u.full_name} au fost copiate în clipboard!`)
+    showToast('success', tr(
+      `Datele de logare pentru ${u.full_name} au fost copiate în clipboard!`,
+      `Login credentials for ${u.full_name} copied to clipboard!`,
+      `Данные для входа ${u.full_name} скопированы в буфер обмена!`
+    ))
     setTimeout(() => setCopiedId(null), 2000)
   }
 
@@ -542,12 +563,14 @@ export default function UsersManagement() {
           </div>
           <div>
             <h1 className="text-base sm:text-lg font-extrabold tracking-tight leading-tight">
-              {language === 'ru' ? 'Пользователи, Роли и Приглашения' : 'Utilizatori, Roluri de Acces & Invitații'}
+              {tr('Utilizatori, Roluri de Acces & Invitații', 'Users, Access Roles & Invitations', 'Пользователи, Роли и Приглашения')}
             </h1>
             <p className="text-xs text-slate-400">
-              {language === 'ru'
-                ? 'Управление правами доступа по городам, брендам, ресторанам и приглашения по email'
-                : 'Control granular pe orașe, branduri, puncte de lucru și invitații pe email'}
+              {tr(
+                'Control granular pe orașe, branduri, puncte de lucru și invitații pe email',
+                'Granular access control by city, brand, location and email invitations',
+                'Управление правами доступа по городам, брендам, ресторанам и приглашения по email'
+              )}
             </p>
           </div>
         </div>
@@ -559,7 +582,7 @@ export default function UsersManagement() {
             className="h-9 px-4 rounded-full text-xs font-extrabold bg-emerald-600 hover:bg-emerald-500 text-white inline-flex items-center justify-center gap-1.5 shadow-sm cursor-pointer transition-all"
           >
             <UserPlus size={14} />
-            <span>{language === 'ru' ? 'Пригласить пользователя' : 'Invită Utilizator Nou'}</span>
+            <span>{tr('Invită Utilizator Nou', 'Invite New User', 'Пригласить пользователя')}</span>
           </button>
         </div>
       </div>
@@ -568,33 +591,33 @@ export default function UsersManagement() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {[
           {
-            label: language === 'ru' ? 'Всего аккаунтов' : 'Total Utilizatori',
+            label: tr('Total Utilizatori', 'Total Users', 'Всего аккаунтов'),
             value: kpis.total,
-            sub: `${kpis.active} ${language === 'ru' ? 'активных' : 'activi'}`,
+            sub: `${kpis.active} ${tr('activi', 'active', 'активных')}`,
             color: 'text-emerald-600 dark:text-emerald-400'
           },
           {
-            label: language === 'ru' ? 'Ожидают 1-го входа' : 'Invitați (1-a Logare)',
+            label: tr('Invitați (1-a Logare)', 'Invited (1st Sign-In)', 'Ожидают 1-го входа'),
             value: kpis.invited,
-            sub: language === 'ru' ? 'Смена пароля при входе' : 'Schimbă parola la login',
+            sub: tr('Schimbă parola la login', 'Changes password on login', 'Смена пароля при входе'),
             color: 'text-amber-600 dark:text-amber-400'
           },
           {
             label: 'Admin & Supervisor',
             value: kpis.adminsAndSup,
-            sub: language === 'ru' ? 'Полный / Региональный' : 'Control extins / regional',
+            sub: tr('Control extins / regional', 'Full / Regional control', 'Полный / Региональный'),
             color: 'text-blue-600 dark:text-blue-400'
           },
           {
-            label: 'Operațional & Marketing',
+            label: tr('Operațional & Marketing', 'Operations & Marketing', 'Операционный и Маркетинг'),
             value: kpis.opsAndMkt,
-            sub: language === 'ru' ? 'Диспетчерская и CRM' : 'Dispecerat Live & CRM',
+            sub: tr('Dispecerat Live & CRM', 'Live Dispatch & CRM', 'Диспетчерская и CRM'),
             color: 'text-purple-600 dark:text-purple-400'
           },
           {
-            label: language === 'ru' ? 'Менеджеры точек' : 'Manageri Restaurant',
+            label: tr('Manageri Restaurant', 'Restaurant Managers', 'Менеджеры точек'),
             value: kpis.managers,
-            sub: language === 'ru' ? 'Доступ по точкам' : 'Acces per locație/oraș',
+            sub: tr('Acces per locație/oraș', 'Location / City access', 'Доступ по точкам'),
             color: 'text-cyan-600 dark:text-cyan-400'
           }
         ].map((card, i) => (
@@ -631,12 +654,12 @@ export default function UsersManagement() {
                   : 'bg-slate-50 border-slate-200 text-slate-800 hover:border-slate-300'
               }`}
             >
-              <option value="all">{language === 'ru' ? `Все роли (${users.length})` : `Toate Rolurile (${users.length})`}</option>
+              <option value="all">{tr(`Toate Rolurile (${users.length})`, `All Roles (${users.length})`, `Все роли (${users.length})`)}</option>
               <option value="admin">Super Admin ({users.filter(u => u.role === 'admin').length})</option>
               <option value="supervisor">Supervisor ({users.filter(u => u.role === 'supervisor').length})</option>
-              <option value="operational">{language === 'ru' ? 'Операционный' : 'Operațional'} ({users.filter(u => u.role === 'operational').length})</option>
+              <option value="operational">{tr('Operațional', 'Operations', 'Операционный')} ({users.filter(u => u.role === 'operational').length})</option>
               <option value="marketing">Marketing & CRM ({users.filter(u => u.role === 'marketing').length})</option>
-              <option value="restaurant_manager">{language === 'ru' ? 'Менеджер ресторана' : 'Manager Restaurant'} ({users.filter(u => u.role === 'restaurant_manager').length})</option>
+              <option value="restaurant_manager">{tr('Manager Restaurant', 'Restaurant Manager', 'Менеджер ресторана')} ({users.filter(u => u.role === 'restaurant_manager').length})</option>
             </select>
           </div>
 
@@ -644,9 +667,9 @@ export default function UsersManagement() {
 
           {/* Filtre Status cu înălțime identică h-8 */}
           {[
-            { key: 'all', label: language === 'ru' ? 'Все статусы' : 'Toți', count: users.length },
-            { key: 'active', label: language === 'ru' ? 'Активные' : 'Activi', count: kpis.active },
-            { key: 'invited', label: language === 'ru' ? 'Приглашенные' : 'Invitați', count: kpis.invited }
+            { key: 'all', label: tr('Toți', 'All', 'Все статусы'), count: users.length },
+            { key: 'active', label: tr('Activi', 'Active', 'Активные'), count: kpis.active },
+            { key: 'invited', label: tr('Invitați', 'Invited', 'Приглашенные'), count: kpis.invited }
           ].map(tab => {
             const active = statusFilter === tab.key
             return (
@@ -686,7 +709,7 @@ export default function UsersManagement() {
               setSearchQuery(e.target.value)
               setCurrentPage(1)
             }}
-            placeholder={language === 'ru' ? 'Поиск имени, email, города...' : 'Caută nume, email, oraș, brand...'}
+            placeholder={tr('Caută nume, email, oraș, brand...', 'Search name, email, city, brand...', 'Поиск имени, email, города...')}
             className={`h-8 w-full pl-8 pr-16 rounded-full text-xs font-medium border outline-none transition-colors ${
               isDark
                 ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-emerald-500'
@@ -726,7 +749,7 @@ export default function UsersManagement() {
                   className="py-2.5 px-3 cursor-pointer hover:text-emerald-500 transition-colors"
                 >
                   <div className="flex items-center gap-1">
-                    <span>{language === 'ru' ? 'Пользователь' : 'Utilizator'}</span>
+                    <span>{tr('Utilizator', 'User', 'Пользователь')}</span>
                     <span className="text-[10px]">{sortCol === 'name' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
                   </div>
                 </th>
@@ -735,7 +758,7 @@ export default function UsersManagement() {
                   className="py-2.5 px-3 cursor-pointer hover:text-emerald-500 transition-colors"
                 >
                   <div className="flex items-center gap-1">
-                    <span>{language === 'ru' ? 'Роль доступа' : 'Rol Acces'}</span>
+                    <span>{tr('Rol Acces', 'Access Role', 'Роль доступа')}</span>
                     <span className="text-[10px]">{sortCol === 'role' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
                   </div>
                 </th>
@@ -744,7 +767,7 @@ export default function UsersManagement() {
                   className="py-2.5 px-3 cursor-pointer hover:text-emerald-500 transition-colors"
                 >
                   <div className="flex items-center gap-1">
-                    <span>{language === 'ru' ? 'Города' : 'Orașe Permise'}</span>
+                    <span>{tr('Orașe Permise', 'Allowed Cities', 'Города')}</span>
                     <span className="text-[10px]">{sortCol === 'cities' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
                   </div>
                 </th>
@@ -753,7 +776,7 @@ export default function UsersManagement() {
                   className="py-2.5 px-3 cursor-pointer hover:text-emerald-500 transition-colors"
                 >
                   <div className="flex items-center gap-1">
-                    <span>{language === 'ru' ? 'Бренды' : 'Branduri Permise'}</span>
+                    <span>{tr('Branduri Permise', 'Allowed Brands', 'Бренды')}</span>
                     <span className="text-[10px]">{sortCol === 'brands' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
                   </div>
                 </th>
@@ -762,7 +785,7 @@ export default function UsersManagement() {
                   className="py-2.5 px-3 text-center cursor-pointer hover:text-emerald-500 transition-colors"
                 >
                   <div className="flex items-center justify-center gap-1">
-                    <span>{language === 'ru' ? 'Модули' : 'Module'}</span>
+                    <span>{tr('Module', 'Modules', 'Модули')}</span>
                     <span className="text-[10px]">{sortCol === 'modules' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
                   </div>
                 </th>
@@ -771,7 +794,7 @@ export default function UsersManagement() {
                   className="py-2.5 px-3 cursor-pointer hover:text-emerald-500 transition-colors"
                 >
                   <div className="flex items-center gap-1">
-                    <span>{language === 'ru' ? 'Статус и Пароль' : 'Status & Parolă'}</span>
+                    <span>{tr('Status & Parolă', 'Status & Password', 'Статус и Пароль')}</span>
                     <span className="text-[10px]">{sortCol === 'status' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
                   </div>
                 </th>
@@ -780,12 +803,12 @@ export default function UsersManagement() {
                   className="py-2.5 px-3 cursor-pointer hover:text-emerald-500 transition-colors"
                 >
                   <div className="flex items-center gap-1">
-                    <span>{language === 'ru' ? 'Вход' : 'Ultima Logare'}</span>
+                    <span>{tr('Ultima Logare', 'Last Login', 'Вход')}</span>
                     <span className="text-[10px]">{sortCol === 'last_login' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
                   </div>
                 </th>
                 <th className="py-2.5 px-3 text-right">
-                  {language === 'ru' ? 'Действия' : 'Acțiuni'}
+                  {tr('Acțiuni', 'Actions', 'Действия')}
                 </th>
               </tr>
             </thead>
@@ -823,7 +846,7 @@ export default function UsersManagement() {
                             </span>
                             {isCurrent && (
                               <span className="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
-                                TU
+                                {tr('TU', 'YOU', 'ВЫ')}
                               </span>
                             )}
                           </div>
@@ -845,7 +868,7 @@ export default function UsersManagement() {
                       {allCities ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                           <MapPin size={11} />
-                          <span>{language === 'ru' ? `Все (${availableCities.length})` : `Toate (${availableCities.length})`}</span>
+                          <span>{tr(`Toate (${availableCities.length})`, `All (${availableCities.length})`, `Все (${availableCities.length})`)}</span>
                         </span>
                       ) : (
                         <div className="truncate font-semibold text-slate-700 dark:text-slate-300" title={(u.allowed_cities || []).join(', ')}>
@@ -862,7 +885,7 @@ export default function UsersManagement() {
                       {allBrands ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400">
                           <Store size={11} />
-                          <span>{language === 'ru' ? `Все (${AUTHORITATIVE_BRANDS.length})` : `Toate (${AUTHORITATIVE_BRANDS.length})`}</span>
+                          <span>{tr(`Toate (${AUTHORITATIVE_BRANDS.length})`, `All (${AUTHORITATIVE_BRANDS.length})`, `Все (${AUTHORITATIVE_BRANDS.length})`)}</span>
                         </span>
                       ) : (
                         <div className="truncate font-semibold text-slate-700 dark:text-slate-300" title={(u.allowed_brands || []).join(', ')}>
@@ -886,17 +909,17 @@ export default function UsersManagement() {
                       {u.status === 'blocked' ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800">
                           <Lock size={11} />
-                          <span>{language === 'ru' ? 'Заблокирован' : 'Blocat'}</span>
+                          <span>{tr('Blocat', 'Blocked', 'Заблокирован')}</span>
                         </span>
                       ) : u.must_change_password ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800">
                           <KeyRound size={11} />
-                          <span>{language === 'ru' ? 'Приглашен (Смена пароля)' : 'Invitație (Schimbă la 1-a logare)'}</span>
+                          <span>{tr('Invitație (Schimbă la 1-a logare)', 'Invited (Change on 1st login)', 'Приглашен (Смена пароля)')}</span>
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800">
                           <CheckCircle2 size={11} />
-                          <span>{language === 'ru' ? 'Активен' : 'Activ'}</span>
+                          <span>{tr('Activ', 'Active', 'Активен')}</span>
                         </span>
                       )}
                     </td>
@@ -910,7 +933,7 @@ export default function UsersManagement() {
                             hour: '2-digit',
                             minute: '2-digit'
                           })
-                        : (language === 'ru' ? 'Не входил' : 'Neautentificat')}
+                        : tr('Neautentificat', 'Never logged in', 'Не входил')}
                     </td>
 
                     {/* Col 9: Acțiuni */}
@@ -919,7 +942,7 @@ export default function UsersManagement() {
                         <button
                           type="button"
                           onClick={() => switchUserDirect(u)}
-                          title={language === 'ru' ? 'Протестировать вход под этой ролью' : 'Testează aplicația cu acest cont/rol'}
+                          title={tr('Testează aplicația cu acest cont/rol', 'Test platform as this user/role', 'Протестировать вход под этой ролью')}
                           className="px-2 py-1 rounded-full text-[10px] font-bold border border-emerald-200 dark:border-emerald-800/80 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 cursor-pointer flex items-center gap-1"
                         >
                           <UserCheck size={11} />
@@ -928,7 +951,7 @@ export default function UsersManagement() {
                         <button
                           type="button"
                           onClick={() => copyCredentials(u)}
-                          title={language === 'ru' ? 'Скопировать доступы' : 'Copiază datele de logare'}
+                          title={tr('Copiază datele de logare', 'Copy login credentials', 'Скопировать доступы')}
                           className={`p-1.5 rounded-full border transition-colors cursor-pointer ${
                             isDark ? 'border-slate-700 hover:bg-slate-800 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-600'
                           }`}
@@ -938,7 +961,7 @@ export default function UsersManagement() {
                         <button
                           type="button"
                           onClick={() => handleResendInvite(u)}
-                          title={language === 'ru' ? 'Отправить приглашение на email повторно' : 'Retrimite invitația pe email'}
+                          title={tr('Retrimite invitația pe email', 'Resend invitation email', 'Отправить приглашение на email повторно')}
                           className={`p-1.5 rounded-full border transition-colors cursor-pointer ${
                             isDark ? 'border-slate-700 hover:bg-slate-800 text-emerald-400' : 'border-slate-200 hover:bg-slate-100 text-emerald-600'
                           }`}
@@ -948,7 +971,7 @@ export default function UsersManagement() {
                         <button
                           type="button"
                           onClick={() => openEditModal(u)}
-                          title={language === 'ru' ? 'Редактировать права' : 'Editează rol și limite de acces'}
+                          title={tr('Editează rol și limite de acces', 'Edit role & access scope', 'Редактировать права')}
                           className={`p-1.5 rounded-full border transition-colors cursor-pointer ${
                             isDark ? 'border-slate-700 hover:bg-slate-800 text-blue-400' : 'border-slate-200 hover:bg-slate-100 text-blue-600'
                           }`}
@@ -958,7 +981,7 @@ export default function UsersManagement() {
                         <button
                           type="button"
                           onClick={() => setDeleteTargetUser(u)}
-                          title={language === 'ru' ? 'Удалить аккаунт' : 'Șterge utilizator'}
+                          title={tr('Șterge utilizator', 'Delete user', 'Удалить аккаунт')}
                           className={`p-1.5 rounded-full border transition-colors cursor-pointer ${
                             isDark ? 'border-slate-700 hover:bg-rose-950/50 text-rose-400' : 'border-slate-200 hover:bg-rose-50 text-rose-600'
                           }`}
@@ -974,7 +997,7 @@ export default function UsersManagement() {
               {paginatedUsers.length === 0 && (
                 <tr>
                   <td colSpan={9} className="py-10 text-center text-slate-400 font-medium">
-                    {language === 'ru' ? 'Пользователи по выбранным фильтрам не найдены.' : 'Niciun utilizator găsit pentru filtrele selectate.'}
+                    {tr('Niciun utilizator găsit pentru filtrele selectate.', 'No users found for the selected filters.', 'Пользователи по выбранным фильтрам не найдены.')}
                   </td>
                 </tr>
               )}
@@ -988,28 +1011,28 @@ export default function UsersManagement() {
                 <td className="py-2.5 px-2 text-center font-mono text-emerald-600 dark:text-emerald-400">Σ</td>
                 <td className="py-2.5 px-3" colSpan={2}>
                   <div>
-                    {language === 'ru' ? 'Итого на странице:' : 'Total Pagină:'}{' '}
+                    {tr('Total Pagină:', 'Page Total:', 'Итого на странице:')}{' '}
                     <span className="text-emerald-600 dark:text-emerald-400">{paginatedUsers.length}</span>{' '}
                     <span className="text-slate-400 font-normal">
-                      ({language === 'ru' ? `из ${filteredUsers.length} всего` : `din ${filteredUsers.length} total`})
+                      ({tr(`din ${filteredUsers.length} total`, `of ${filteredUsers.length} total`, `из ${filteredUsers.length} всего`)})
                     </span>
                   </div>
                 </td>
                 <td className="py-2.5 px-3">
-                  <div>{totals.pageCities} {language === 'ru' ? 'гор.' : 'orașe'}</div>
-                  <div className="text-[10px] text-slate-400 font-semibold">Gen: {totals.genCities} {language === 'ru' ? 'гор.' : 'orașe'}</div>
+                  <div>{totals.pageCities} {tr('orașe', 'cities', 'гор.')}</div>
+                  <div className="text-[10px] text-slate-400 font-semibold">Gen: {totals.genCities} {tr('orașe', 'cities', 'гор.')}</div>
                 </td>
                 <td className="py-2.5 px-3">
-                  <div>{totals.pageBrands} {language === 'ru' ? 'бренд.' : 'branduri'}</div>
-                  <div className="text-[10px] text-slate-400 font-semibold">Gen: {totals.genBrands} {language === 'ru' ? 'бренд.' : 'branduri'}</div>
+                  <div>{totals.pageBrands} {tr('branduri', 'brands', 'бренд.')}</div>
+                  <div className="text-[10px] text-slate-400 font-semibold">Gen: {totals.genBrands} {tr('branduri', 'brands', 'бренд.')}</div>
                 </td>
                 <td className="py-2.5 px-3 text-center">
                   <div>{totals.pageModules} mod.</div>
                   <div className="text-[10px] text-slate-400 font-semibold">Gen: {totals.genModules} mod.</div>
                 </td>
                 <td className="py-2.5 px-3" colSpan={3}>
-                  <div>{totals.pageActive} {language === 'ru' ? 'активных на стр.' : 'activi pe pagină'}</div>
-                  <div className="text-[10px] text-slate-400 font-semibold">Gen: {totals.genActive} {language === 'ru' ? 'активных всего' : 'activi în total'}</div>
+                  <div>{totals.pageActive} {tr('activi pe pagină', 'active on page', 'активных на стр.')}</div>
+                  <div className="text-[10px] text-slate-400 font-semibold">Gen: {totals.genActive} {tr('activi în total', 'active total', 'активных всего')}</div>
                 </td>
               </tr>
             </tfoot>
@@ -1022,7 +1045,7 @@ export default function UsersManagement() {
         }`}>
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold text-slate-400">
-              {language === 'ru' ? 'Строк:' : 'Rânduri:'}
+              {tr('Rânduri:', 'Rows:', 'Строк:')}
             </span>
             <select
               value={rowsPerPage}
@@ -1038,18 +1061,18 @@ export default function UsersManagement() {
               {[10, 15, 25, 50, 100].map(n => (
                 <option key={n} value={n}>{n}</option>
               ))}
-              <option value="all">{language === 'ru' ? 'Все' : 'Toți'}</option>
+              <option value="all">{tr('Toți', 'All', 'Все')}</option>
             </select>
           </div>
 
           <div className="text-[11px] font-bold">
             Total: <span className="font-extrabold text-emerald-600 dark:text-emerald-400">{filteredUsers.length}</span>{' '}
-            {language === 'ru' ? 'записей' : 'înregistrări'} ({kpis.active} {language === 'ru' ? 'активных' : 'activi'})
+            {tr('înregistrări', 'records', 'записей')} ({kpis.active} {tr('activi', 'active', 'активных')})
           </div>
 
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-semibold text-slate-400">
-              {language === 'ru' ? `Страница ${safePage} из ${totalPages}` : `Pagina ${safePage} din ${totalPages}`}
+              {tr(`Pagina ${safePage} din ${totalPages}`, `Page ${safePage} of ${totalPages}`, `Страница ${safePage} из ${totalPages}`)}
             </span>
             <button
               type="button"
@@ -1105,13 +1128,15 @@ export default function UsersManagement() {
                 <div className="min-w-0">
                   <h3 className="text-base font-extrabold leading-tight truncate">
                     {editingUser
-                      ? (language === 'ru' ? `Редактировать доступ: ${editingUser.full_name}` : `Editare Rol & Acces: ${editingUser.full_name}`)
-                      : (language === 'ru' ? 'Пригласить нового пользователя' : 'Invită Utilizator Nou')}
+                      ? tr(`Editare Rol & Acces: ${editingUser.full_name}`, `Edit Role & Access: ${editingUser.full_name}`, `Редактировать доступ: ${editingUser.full_name}`)
+                      : tr('Invită Utilizator Nou', 'Invite New User', 'Пригласить нового пользователя')}
                   </h3>
                   <p className="text-xs text-slate-400 truncate">
-                    {language === 'ru'
-                      ? 'Настройте роль, разрешенные города, бренды и модули'
-                      : 'Setează rolul, orașele permise, brandurile, locațiile și parola de acces'}
+                    {tr(
+                      'Setează rolul, orașele permise, brandurile, locațiile și parola de acces',
+                      'Configure role, allowed cities, brands, modules and access password',
+                      'Настройте роль, разрешенные города, бренды и модули'
+                    )}
                   </p>
                 </div>
               </div>
@@ -1130,7 +1155,7 @@ export default function UsersManagement() {
                   className="h-8 px-3 rounded-full text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white inline-flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Upload size={12} />
-                  <span>{language === 'ru' ? 'Фото' : 'Poză'}</span>
+                  <span>{tr('Poză', 'Photo', 'Фото')}</span>
                 </button>
                 {formAvatarUrl && (
                   <button
@@ -1138,7 +1163,7 @@ export default function UsersManagement() {
                     onClick={() => setFormAvatarUrl('')}
                     className="h-8 px-3 rounded-full text-xs font-bold text-rose-500 border border-rose-200 dark:border-rose-900 inline-flex items-center justify-center cursor-pointer"
                   >
-                    {language === 'ru' ? 'Удалить' : 'Șterge'}
+                    {tr('Șterge', 'Remove', 'Удалить')}
                   </button>
                 )}
                 <button
@@ -1158,13 +1183,13 @@ export default function UsersManagement() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                    {language === 'ru' ? 'ИМЯ (PRENUME) *' : 'PRENUME *'}
+                    {tr('PRENUME *', 'FIRST NAME *', 'ИМЯ (PRENUME) *')}
                   </label>
                   <input
                     type="text"
                     value={formFirstName}
                     onChange={(e) => setFormFirstName(e.target.value)}
-                    placeholder={language === 'ru' ? 'Напр: Александр' : 'Ex: Alexandru'}
+                    placeholder={tr('Ex: Alexandru', 'E.g. Alexander', 'Напр: Александр')}
                     className={`h-9 w-full px-3 rounded-xl border text-xs font-semibold outline-none transition-colors ${
                       isDark ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-emerald-500 focus:bg-white'
                     }`}
@@ -1173,13 +1198,13 @@ export default function UsersManagement() {
 
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                    {language === 'ru' ? 'ФАМИЛИЯ (NUME)' : 'NUME DE FAMILIE'}
+                    {tr('NUME DE FAMILIE', 'LAST NAME', 'ФАМИЛИЯ (NUME)')}
                   </label>
                   <input
                     type="text"
                     value={formLastName}
                     onChange={(e) => setFormLastName(e.target.value)}
-                    placeholder={language === 'ru' ? 'Напр: Морару' : 'Ex: Moraru'}
+                    placeholder={tr('Ex: Moraru', 'E.g. Moraru', 'Напр: Морару')}
                     className={`h-9 w-full px-3 rounded-xl border text-xs font-semibold outline-none transition-colors ${
                       isDark ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-emerald-500 focus:bg-white'
                     }`}
@@ -1188,13 +1213,13 @@ export default function UsersManagement() {
 
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                    {language === 'ru' ? 'EMAIL (ДЛЯ ВХОДА И ПРИГЛАШЕНИЯ) *' : 'EMAIL (PENTRU LOGARE & INVITAȚIE) *'}
+                    {tr('EMAIL (PENTRU LOGARE & INVITAȚIE) *', 'EMAIL (FOR SIGN-IN & INVITE) *', 'EMAIL (ДЛЯ ВХОДА И ПРИГЛАШЕНИЯ) *')}
                   </label>
                   <input
                     type="email"
                     value={formEmail}
                     onChange={(e) => setFormEmail(e.target.value)}
-                    placeholder="utilizator@getapp.ro"
+                    placeholder="user@getapp.ro"
                     className={`h-9 w-full px-3 rounded-xl border text-xs font-semibold outline-none transition-colors ${
                       isDark ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-emerald-500 focus:bg-white'
                     }`}
@@ -1203,7 +1228,7 @@ export default function UsersManagement() {
 
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                    {language === 'ru' ? 'ТЕЛЕФОН' : 'TELEFON'}
+                    {tr('TELEFON', 'PHONE NUMBER', 'ТЕЛЕФОН')}
                   </label>
                   <input
                     type="text"
@@ -1219,7 +1244,7 @@ export default function UsersManagement() {
                 {/* Rol de Acces în Drop List (h-9) */}
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                    {language === 'ru' ? 'РОЛЬ ДОСТУПА (ВЫПАДАЮЩИЙ СПИСОК) *' : 'ROL DE ACCES (DROP LIST) *'}
+                    {tr('ROL DE ACCES (DROP LIST) *', 'ACCESS ROLE (DROPDOWN) *', 'РОЛЬ ДОСТУПА (ВЫПАДАЮЩИЙ СПИСОК) *')}
                   </label>
                   <select
                     value={formRole}
@@ -1230,7 +1255,7 @@ export default function UsersManagement() {
                   >
                     {Object.values(ROLE_META).map(r => (
                       <option key={r.key} value={r.key}>
-                        {language === 'ru' ? r.labelRu : r.labelRo}
+                        {language === 'ru' ? r.labelRu : language === 'en' ? r.labelEn : r.labelRo}
                       </option>
                     ))}
                   </select>
@@ -1240,8 +1265,8 @@ export default function UsersManagement() {
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
                     {editingUser
-                      ? (language === 'ru' ? 'ВРЕМЕННЫЙ ПАРОЛЬ (СБРОС)' : 'PAROLĂ TEMPORARĂ (RESETARE)')
-                      : (language === 'ru' ? 'ВРЕМЕННЫЙ ПАРОЛЬ ПРИГЛАШЕНИЯ *' : 'PAROLĂ TEMPORARĂ DE INVITAȚIE *')}
+                      ? tr('PAROLĂ TEMPORARĂ (RESETARE)', 'TEMPORARY PASSWORD (RESET)', 'ВРЕМЕННЫЙ ПАРОЛЬ (СБРОС)')
+                      : tr('PAROLĂ TEMPORARĂ DE INVITAȚIE *', 'INVITATION TEMPORARY PASSWORD *', 'ВРЕМЕННЫЙ ПАРОЛЬ ПРИГЛАШЕНИЯ *')}
                   </label>
                   <div className="relative">
                     <input
@@ -1259,7 +1284,7 @@ export default function UsersManagement() {
                       className="absolute right-1.5 top-1/2 -translate-y-1/2 h-6 px-2 rounded-lg text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 inline-flex items-center gap-1 cursor-pointer"
                     >
                       <RefreshCw size={10} />
-                      <span>{language === 'ru' ? 'Сгенер.' : 'Generează'}</span>
+                      <span>{tr('Generează', 'Generate', 'Сгенер.')}</span>
                     </button>
                   </div>
                 </div>
@@ -1273,9 +1298,11 @@ export default function UsersManagement() {
                   <span className="text-xs font-extrabold flex items-center gap-1.5">
                     <LayoutGrid size={13} className="text-emerald-500" />
                     <span>
-                      {language === 'ru'
-                        ? `Разрешенные разделы меню (${formPages.length}/${ALL_MODULES.length})`
-                        : `Pagini & Module Permise în Meniu (${formPages.length}/${ALL_MODULES.length})`}
+                      {tr(
+                        `Pagini & Module Permise în Meniu (${formPages.length}/${ALL_MODULES.length})`,
+                        `Allowed Menu Pages & Modules (${formPages.length}/${ALL_MODULES.length})`,
+                        `Разрешенные разделы меню (${formPages.length}/${ALL_MODULES.length})`
+                      )}
                     </span>
                   </span>
                   <button
@@ -1287,7 +1314,7 @@ export default function UsersManagement() {
                         : isDark ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-700'
                     }`}
                   >
-                    {language === 'ru' ? 'Все модули' : 'Toate Modulele'}
+                    {tr('Toate Modulele', 'All Modules', 'Все модули')}
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -1306,7 +1333,7 @@ export default function UsersManagement() {
                               : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        {language === 'ru' ? mod.labelRu : mod.labelRo}
+                        {language === 'ru' ? mod.labelRu : language === 'en' ? mod.labelEn : mod.labelRo}
                       </button>
                     )
                   })}
@@ -1320,7 +1347,7 @@ export default function UsersManagement() {
                 <div className="flex items-center justify-between mb-2.5">
                   <span className="text-xs font-extrabold flex items-center gap-1.5">
                     <MapPin size={13} className="text-emerald-500" />
-                    <span>{language === 'ru' ? 'Ограничение доступа по городам' : 'Limita de Acces pe Orașe'}</span>
+                    <span>{tr('Limita de Acces pe Orașe', 'City Access Scope', 'Ограничение доступа по городам')}</span>
                   </span>
                   <button
                     type="button"
@@ -1331,7 +1358,7 @@ export default function UsersManagement() {
                         : isDark ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-700'
                     }`}
                   >
-                    {language === 'ru' ? 'Все города' : 'Toate Orașele'}
+                    {tr('Toate Orașele', 'All Cities', 'Все города')}
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto custom-scrollbar">
@@ -1364,7 +1391,7 @@ export default function UsersManagement() {
                 <div className="flex items-center justify-between mb-2.5">
                   <span className="text-xs font-extrabold flex items-center gap-1.5">
                     <Store size={13} className="text-emerald-500" />
-                    <span>{language === 'ru' ? 'Ограничение доступа по брендам' : 'Limita de Acces pe Branduri'}</span>
+                    <span>{tr('Limita de Acces pe Branduri', 'Brand Access Scope', 'Ограничение доступа по брендам')}</span>
                   </span>
                   <button
                     type="button"
@@ -1375,7 +1402,7 @@ export default function UsersManagement() {
                         : isDark ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-700'
                     }`}
                   >
-                    {language === 'ru' ? 'Все бренды' : 'Toate Brandurile'}
+                    {tr('Toate Brandurile', 'All Brands', 'Все бренды')}
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -1415,9 +1442,11 @@ export default function UsersManagement() {
                       className="rounded accent-emerald-600 w-4 h-4 cursor-pointer"
                     />
                     <span>
-                      {language === 'ru'
-                        ? 'Обязательная смена пароля при первом входе'
-                        : 'Obligă schimbarea parolei la prima logare'}
+                      {tr(
+                        'Obligă schimbarea parolei la prima logare',
+                        'Require password change on first sign-in',
+                        'Обязательная смена пароля при первом входе'
+                      )}
                     </span>
                   </label>
 
@@ -1430,9 +1459,11 @@ export default function UsersManagement() {
                         className="rounded accent-emerald-600 w-4 h-4 cursor-pointer"
                       />
                       <span>
-                        {language === 'ru'
-                          ? 'Отправить приглашение на email'
-                          : 'Trimite invitația pe email'}
+                        {tr(
+                          'Trimite invitația pe email',
+                          'Send invitation via email',
+                          'Отправить приглашение на email'
+                        )}
                       </span>
                     </label>
                   )}
@@ -1446,9 +1477,9 @@ export default function UsersManagement() {
                       isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
                     }`}
                   >
-                    <option value="active">{language === 'ru' ? 'Статус: Активен' : 'Status: Activ'}</option>
-                    <option value="invited">{language === 'ru' ? 'Статус: Ожидает входа' : 'Status: Invitat'}</option>
-                    <option value="blocked">{language === 'ru' ? 'Статус: Заблокирован' : 'Status: Blocat'}</option>
+                    <option value="active">{tr('Status: Activ', 'Status: Active', 'Статус: Активен')}</option>
+                    <option value="invited">{tr('Status: Invitat', 'Status: Invited', 'Статус: Ожидает входа')}</option>
+                    <option value="blocked">{tr('Status: Blocat', 'Status: Blocked', 'Статус: Заблокирован')}</option>
                   </select>
                 )}
               </div>
@@ -1462,7 +1493,7 @@ export default function UsersManagement() {
                     isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
                   }`}
                 >
-                  {language === 'ru' ? 'Отмена' : 'Anulează'}
+                  {tr('Anulează', 'Cancel', 'Отмена')}
                 </button>
                 <button
                   type="submit"
@@ -1472,10 +1503,10 @@ export default function UsersManagement() {
                   {editingUser ? <CheckCircle2 size={14} /> : <Send size={14} />}
                   <span>
                     {savingUser
-                      ? (language === 'ru' ? 'Сохранение...' : 'Se salvează...')
+                      ? tr('Se salvează...', 'Saving...', 'Сохранение...')
                       : editingUser
-                        ? (language === 'ru' ? 'Сохранить изменения' : 'Salvează Modificările')
-                        : (language === 'ru' ? 'Создать и отправить приглашение' : 'Creează Cont & Trimite Invitația')}
+                        ? tr('Salvează Modificările', 'Save Changes', 'Сохранить изменения')
+                        : tr('Creează Cont & Trimite Invitația', 'Create Account & Send Invite', 'Создать и отправить приглашение')}
                   </span>
                 </button>
               </div>
@@ -1499,9 +1530,13 @@ export default function UsersManagement() {
             <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto mb-3">
               <Trash2 size={22} />
             </div>
-            <h3 className="text-base font-extrabold">Ștergi acest utilizator?</h3>
+            <h3 className="text-base font-extrabold">{tr('Ștergi acest utilizator?', 'Delete this user?', 'Удалить пользователя?')}</h3>
             <p className="text-xs text-slate-400 mt-1">
-              Contul <strong>{deleteTargetUser.full_name}</strong> ({deleteTargetUser.email}) nu se va mai putea autentifica în platformă.
+              {tr(
+                `Contul ${deleteTargetUser.full_name} (${deleteTargetUser.email}) nu se va mai putea autentifica în platformă.`,
+                `Account ${deleteTargetUser.full_name} (${deleteTargetUser.email}) will no longer be able to sign in.`,
+                `Аккаунт ${deleteTargetUser.full_name} (${deleteTargetUser.email}) больше не сможет войти в систему.`
+              )}
             </p>
             <div className="flex items-center justify-center gap-2 mt-5">
               <button
@@ -1509,14 +1544,14 @@ export default function UsersManagement() {
                 onClick={() => setDeleteTargetUser(null)}
                 className="px-4 py-2 rounded-full text-xs font-bold border border-slate-200 dark:border-slate-700 cursor-pointer"
               >
-                Anulează
+                {tr('Anulează', 'Cancel', 'Отмена')}
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDelete}
                 className="px-5 py-2 rounded-full text-xs font-extrabold bg-rose-600 hover:bg-rose-500 text-white cursor-pointer"
               >
-                Șterge Contul
+                {tr('Șterge Contul', 'Delete Account', 'Удалить аккаунт')}
               </button>
             </div>
           </div>

@@ -20,6 +20,7 @@ import UserAvatar, { compressAvatarImage } from './UserAvatar'
 export default function UserProfileModal({ isOpen, onClose, isDark }) {
   const { user, updateProfile } = useAuth()
   const { language } = useLanguage()
+  const tr = (ro, en, ru) => (language === 'ru' ? ru : language === 'en' ? en : ro)
   const fileInputRef = useRef(null)
 
   const [firstName, setFirstName] = useState('')
@@ -68,7 +69,7 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
     if (!firstName.trim()) {
       setFeedback({
         type: 'error',
-        text: language === 'ru' ? 'Введите имя.' : 'Introdu prenumele.'
+        text: tr('Introdu prenumele.', 'Please enter your first name.', 'Введите имя.')
       })
       return
     }
@@ -77,14 +78,14 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
       if (newPassword.length < 6) {
         setFeedback({
           type: 'error',
-          text: language === 'ru' ? 'Пароль должен содержать минимум 6 символов.' : 'Parola trebuie să aibă minim 6 caractere.'
+          text: tr('Parola trebuie să aibă minim 6 caractere.', 'Password must be at least 6 characters long.', 'Пароль должен содержать минимум 6 символов.')
         })
         return
       }
       if (newPassword !== confirmPassword) {
         setFeedback({
           type: 'error',
-          text: language === 'ru' ? 'Пароли не совпадают.' : 'Parolele nu coincid.'
+          text: tr('Parolele nu coincid.', 'Passwords do not match.', 'Пароли не совпадают.')
         })
         return
       }
@@ -103,7 +104,7 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
       setConfirmPassword('')
       setFeedback({
         type: 'success',
-        text: language === 'ru' ? 'Профиль успешно сохранен!' : 'Profilul a fost actualizat cu succes!'
+        text: tr('Profilul a fost actualizat cu succes!', 'Profile updated successfully!', 'Профиль успешно сохранен!')
       })
       setTimeout(() => {
         onClose()
@@ -123,11 +124,11 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
   }
 
   const citiesText = (user.allowed_cities || []).includes('all')
-    ? (language === 'ru' ? 'Все города' : 'Toate orașele')
+    ? tr('Toate orașele', 'All cities', 'Все города')
     : (user.allowed_cities || []).join(', ')
 
   const brandsText = (user.allowed_brands || []).includes('all')
-    ? (language === 'ru' ? 'Все бренды' : 'Toate brandurile')
+    ? tr('Toate brandurile', 'All brands', 'Все бренды')
     : (user.allowed_brands || []).join(', ')
 
   return (
@@ -149,7 +150,7 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
             <UserAvatar user={previewUser} size={42} showOnlineDot />
             <div>
               <h3 className="text-base font-extrabold leading-tight">
-                {language === 'ru' ? 'Мой профиль и безопасность' : 'Profilul Meu & Securitate'}
+                {tr('Profilul Meu & Securitate', 'My Profile & Security', 'Мой профиль и безопасность')}
               </h3>
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-xs text-slate-400 font-medium">{user.email}</span>
@@ -179,12 +180,14 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
               <UserAvatar user={previewUser} size={56} />
               <div>
                 <div className="text-xs font-extrabold">
-                  {language === 'ru' ? 'Фото профиля (Аватар)' : 'Poză de Profil (Avatar)'}
+                  {tr('Poză de Profil (Avatar)', 'Profile Photo (Avatar)', 'Фото профиля (Аватар)')}
                 </div>
                 <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
-                  {language === 'ru'
-                    ? 'Если фото не выбрано, автоматически отображаются инициалы имени и фамилии.'
-                    : 'Dacă nu setezi o poză, se afișează automat inițialele din Nume și Prenume.'}
+                  {tr(
+                    'Dacă nu setezi o poză, se afișează automat inițialele din Nume și Prenume.',
+                    'If no photo is set, initials from your first and last name are displayed automatically.',
+                    'Если фото не выбрано, автоматически отображаются инициалы имени и фамилии.'
+                  )}
                 </p>
               </div>
             </div>
@@ -202,13 +205,13 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
                 className="px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
                 <Upload size={13} />
-                <span>{language === 'ru' ? 'Фото' : 'Încarcă'}</span>
+                <span>{tr('Încarcă', 'Upload', 'Фото')}</span>
               </button>
               {avatarUrl && (
                 <button
                   type="button"
                   onClick={() => setAvatarUrl('')}
-                  title={language === 'ru' ? 'Удалить фото (оставить инициалы)' : 'Șterge poza (folosește inițialele)'}
+                  title={tr('Șterge poza (folosește inițialele)', 'Remove photo (use initials)', 'Удалить фото (оставить инициалы)')}
                   className="p-1.5 rounded-full border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 cursor-pointer"
                 >
                   <Trash2 size={13} />
@@ -221,7 +224,7 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                {language === 'ru' ? 'Имя (Prenume)' : 'Prenume'}
+                {tr('Prenume', 'First Name', 'Имя (Prenume)')}
               </label>
               <input
                 type="text"
@@ -236,7 +239,7 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
             </div>
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                {language === 'ru' ? 'Фамилия (Nume)' : 'Nume de familie'}
+                {tr('Nume de familie', 'Last Name', 'Фамилия (Nume)')}
               </label>
               <input
                 type="text"
@@ -253,7 +256,7 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
 
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-              {language === 'ru' ? 'Телефон' : 'Telefon de contact'}
+              {tr('Telefon de contact', 'Contact Phone', 'Телефон')}
             </label>
             <input
               type="text"
@@ -274,7 +277,7 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
           }`}>
             <div className="flex items-center gap-1.5 font-extrabold text-emerald-600 dark:text-emerald-400">
               <ShieldCheck size={14} />
-              <span>{language === 'ru' ? 'Права доступа аккаунта' : 'Permisiuni & Perimetru de Acces'}</span>
+              <span>{tr('Permisiuni & Perimetru de Acces', 'Access Permissions & Scope', 'Права доступа аккаунта')}</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
               <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 truncate">
@@ -295,7 +298,7 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-xs font-extrabold">
                 <KeyRound size={14} className="text-emerald-500" />
-                <span>{language === 'ru' ? 'Изменить пароль (необязательно)' : 'Schimbare Parolă (opțional)'}</span>
+                <span>{tr('Schimbare Parolă (opțional)', 'Change Password (optional)', 'Изменить пароль (необязательно)')}</span>
               </div>
               <button
                 type="button"
@@ -303,7 +306,7 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
                 className="text-[11px] font-bold text-slate-400 hover:text-slate-600 flex items-center gap-1 cursor-pointer"
               >
                 {showPassword ? <EyeOff size={12} /> : <Eye size={12} />}
-                <span>{showPassword ? (language === 'ru' ? 'Скрыть' : 'Ascunde') : (language === 'ru' ? 'Показать' : 'Arată')}</span>
+                <span>{showPassword ? tr('Ascunde', 'Hide', 'Скрыть') : tr('Arată', 'Show', 'Показать')}</span>
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -311,7 +314,7 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
                 type={showPassword ? 'text' : 'password'}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder={language === 'ru' ? 'Новый пароль (мин. 6 симв.)' : 'Parolă nouă (min. 6 caract.)'}
+                placeholder={tr('Parolă nouă (min. 6 caract.)', 'New password (min. 6 chars)', 'Новый пароль (мин. 6 симв.)')}
                 className={`w-full px-3.5 py-2 rounded-xl border text-xs font-semibold outline-none transition-colors ${
                   isDark
                     ? 'bg-slate-900 border-slate-700 text-white focus:border-emerald-500'
@@ -322,7 +325,7 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
                 type={showPassword ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder={language === 'ru' ? 'Подтвердите новый пароль' : 'Confirmă parola nouă'}
+                placeholder={tr('Confirmă parola nouă', 'Confirm new password', 'Подтвердите новый пароль')}
                 className={`w-full px-3.5 py-2 rounded-xl border text-xs font-semibold outline-none transition-colors ${
                   isDark
                     ? 'bg-slate-900 border-slate-700 text-white focus:border-emerald-500'
@@ -352,7 +355,7 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
                 isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
               }`}
             >
-              {language === 'ru' ? 'Отмена' : 'Anulează'}
+              {tr('Anulează', 'Cancel', 'Отмена')}
             </button>
             <button
               type="submit"
@@ -360,7 +363,7 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
               className="px-5 py-2 rounded-full text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
             >
               <Save size={13} />
-              <span>{saving ? (language === 'ru' ? 'Сохранение...' : 'Se salvează...') : (language === 'ru' ? 'Сохранить профиль' : 'Salvează Profilul')}</span>
+              <span>{saving ? tr('Se salvează...', 'Saving...', 'Сохранение...') : tr('Salvează Profilul', 'Save Profile', 'Сохранить профиль')}</span>
             </button>
           </div>
         </form>

@@ -36,6 +36,7 @@ export default function Login() {
   } = useAuth()
   const { isDark, toggleTheme } = useTheme()
   const { language } = useLanguage()
+  const tr = (ro, en, ru) => (language === 'ru' ? ru : language === 'en' ? en : ro)
   const navigate = useNavigate()
   const fileInputRef = useRef(null)
 
@@ -88,7 +89,7 @@ export default function Login() {
     if (!email.trim() || !password) {
       setFeedback({
         type: 'error',
-        text: language === 'ru' ? 'Введите email и пароль.' : 'Introdu adresa de email și parola.'
+        text: tr('Introdu adresa de email și parola.', 'Please enter your email address and password.', 'Введите email и пароль.')
       })
       return
     }
@@ -99,9 +100,11 @@ export default function Login() {
         setView('first_login')
         setFeedback({
           type: 'info',
-          text: language === 'ru'
-            ? 'Первый вход по приглашению: пожалуйста, установите личный пароль.'
-            : 'Prima autentificare din invitație: setează-ți propria parolă personală.'
+          text: tr(
+            'Prima autentificare din invitație: setează-ți propria parolă personală.',
+            'First sign-in from invitation: please set your personal password.',
+            'Первый вход по приглашению: пожалуйста, установите личный пароль.'
+          )
         })
       }
     } catch (err) {
@@ -117,14 +120,18 @@ export default function Login() {
     if (!newPassword || newPassword.length < 6) {
       setFeedback({
         type: 'error',
-        text: language === 'ru' ? 'Новый пароль должен содержать минимум 6 символов.' : 'Noua parolă trebuie să aibă minim 6 caractere.'
+        text: tr(
+          'Noua parolă trebuie să aibă minim 6 caractere.',
+          'New password must be at least 6 characters long.',
+          'Новый пароль должен содержать минимум 6 символов.'
+        )
       })
       return
     }
     if (newPassword !== confirmPassword) {
       setFeedback({
         type: 'error',
-        text: language === 'ru' ? 'Пароли не совпадают.' : 'Parolele nu coincid.'
+        text: tr('Parolele nu coincid.', 'Passwords do not match.', 'Пароли не совпадают.')
       })
       return
     }
@@ -152,7 +159,7 @@ export default function Login() {
     if (!resetEmail.trim()) {
       setFeedback({
         type: 'error',
-        text: language === 'ru' ? 'Введите ваш email.' : 'Introdu adresa ta de email.'
+        text: tr('Introdu adresa ta de email.', 'Please enter your email address.', 'Введите ваш email.')
       })
       return
     }
@@ -167,8 +174,8 @@ export default function Login() {
       setFeedback({
         type: 'success',
         text: res.emailSent
-          ? (language === 'ru' ? '6-значный код отправлен на ваш email!' : 'Codul de 6 cifre a fost trimis pe email!')
-          : (language === 'ru' ? 'Код подтверждения сгенерирован.' : 'Codul de resetare a fost generat.')
+          ? tr('Codul de 6 cifre a fost trimis pe email!', 'The 6-digit verification code has been sent to your email!', '6-значный код отправлен на ваш email!')
+          : tr('Codul de resetare a fost generat.', 'Verification code has been generated.', 'Код подтверждения сгенерирован.')
       })
     } catch (err) {
       setFeedback({ type: 'error', text: err.message })
@@ -183,21 +190,21 @@ export default function Login() {
     if (!resetCode.trim()) {
       setFeedback({
         type: 'error',
-        text: language === 'ru' ? 'Введите код подтверждения.' : 'Introdu codul de verificare.'
+        text: tr('Introdu codul de verificare.', 'Please enter the verification code.', 'Введите код подтверждения.')
       })
       return
     }
     if (!resetNewPass || resetNewPass.length < 6) {
       setFeedback({
         type: 'error',
-        text: language === 'ru' ? 'Пароль должен содержать минимум 6 символов.' : 'Parola nouă trebuie să aibă minim 6 caractere.'
+        text: tr('Parola nouă trebuie să aibă minim 6 caractere.', 'New password must be at least 6 characters long.', 'Пароль должен содержать минимум 6 символов.')
       })
       return
     }
     if (resetNewPass !== resetConfirmPass) {
       setFeedback({
         type: 'error',
-        text: language === 'ru' ? 'Пароли не совпадают.' : 'Parolele nu coincid.'
+        text: tr('Parolele nu coincid.', 'Passwords do not match.', 'Пароли не совпадают.')
       })
       return
     }
@@ -290,19 +297,21 @@ export default function Login() {
                   />
                 </div>
                 <h1 className="text-xl font-extrabold tracking-tight">
-                  {language === 'ru' ? 'Вход в систему' : 'Autentificare în Platformă'}
+                  {tr('Autentificare în Platformă', 'Sign in to Platform', 'Вход в систему')}
                 </h1>
                 <p className="text-xs text-slate-400 mt-1">
-                  {language === 'ru'
-                    ? 'Доступ по приглашению администратора'
-                    : 'Acces securizat în platforma operațională'}
+                  {tr(
+                    'Acces securizat în platforma operațională',
+                    'Secure access to the operations suite',
+                    'Доступ по приглашению администратора'
+                  )}
                 </p>
               </div>
 
               <form onSubmit={handleLoginSubmit} className="space-y-4">
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                    {language === 'ru' ? 'Email адрес' : 'Adresă de Email'}
+                    {tr('Adresă de Email', 'Email Address', 'Email адрес')}
                   </label>
                   <div className="relative">
                     <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -310,7 +319,7 @@ export default function Login() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="nume@companie.ro"
+                      placeholder={tr('nume@companie.ro', 'name@company.com', 'name@company.com')}
                       className={`w-full h-10 pl-10 pr-4 rounded-2xl border text-xs font-semibold outline-none transition-colors ${
                         isDark
                           ? 'bg-slate-800/90 border-slate-700 text-white focus:border-emerald-500'
@@ -323,7 +332,7 @@ export default function Login() {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      {language === 'ru' ? 'Пароль' : 'Parolă'}
+                      {tr('Parolă', 'Password', 'Пароль')}
                     </label>
                     <button
                       type="button"
@@ -334,7 +343,7 @@ export default function Login() {
                       }}
                       className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
                     >
-                      {language === 'ru' ? 'Забыли пароль?' : 'Ai uitat parola?'}
+                      {tr('Ai uitat parola?', 'Forgot password?', 'Забыли пароль?')}
                     </button>
                   </div>
                   <div className="relative">
@@ -376,7 +385,11 @@ export default function Login() {
                   disabled={loading}
                   className="w-full h-10 px-5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50"
                 >
-                  <span>{loading ? (language === 'ru' ? 'Вход...' : 'Se autentifică...') : (language === 'ru' ? 'Войти в платформу' : 'Intră în Platformă')}</span>
+                  <span>
+                    {loading
+                      ? tr('Se autentifică...', 'Signing in...', 'Вход...')
+                      : tr('Intră în Platformă', 'Sign in to Platform', 'Войти в платформу')}
+                  </span>
                   <ArrowRight size={14} />
                 </button>
               </form>
@@ -401,15 +414,17 @@ export default function Login() {
                 </div>
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30 mb-2">
                   <KeyRound size={11} />
-                  <span>{language === 'ru' ? 'Активация приглашения' : 'Activare Cont din Invitație'}</span>
+                  <span>{tr('Activare Cont din Invitație', 'Account Activation from Invite', 'Активация приглашения')}</span>
                 </span>
                 <h2 className="text-lg font-extrabold">
-                  {language === 'ru' ? 'Установите ваш личный пароль' : 'Setează-ți Parola Personală'}
+                  {tr('Setează-ți Parola Personală', 'Set Your Personal Password', 'Установите ваш личный пароль')}
                 </h2>
                 <p className="text-xs text-slate-400 mt-1">
-                  {language === 'ru'
-                    ? 'При первом входе по приглашению необходимо сменить временный пароль.'
-                    : 'La prima logare cu parola primită pe email este obligatorie setarea propriei parole.'}
+                  {tr(
+                    'La prima logare cu parola primită pe email este obligatorie setarea propriei parole.',
+                    'On your first sign-in with a temporary password, setting your personal password is required.',
+                    'При первом входе по приглашению необходимо сменить временный пароль.'
+                  )}
                 </p>
               </div>
 
@@ -420,9 +435,9 @@ export default function Login() {
                 }`}>
                   <div className="text-[11px] text-slate-500 dark:text-slate-300 leading-snug">
                     <strong className="block text-slate-800 dark:text-white">
-                      {language === 'ru' ? 'Фото профиля (необязательно)' : 'Poză de profil (opțional)'}
+                      {tr('Poză de profil (opțional)', 'Profile photo (optional)', 'Фото профиля (необязательно)')}
                     </strong>
-                    {language === 'ru' ? 'Без фото будут показаны ваши инициалы.' : 'Fără poză se vor afișa automat inițialele.'}
+                    {tr('Fără poză se vor afișa automat inițialele.', 'Without a photo, your initials will be displayed.', 'Без фото будут показаны ваши инициалы.')}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <input
@@ -438,7 +453,7 @@ export default function Login() {
                       className="px-3 py-1.5 rounded-full text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1 cursor-pointer"
                     >
                       <Upload size={12} />
-                      <span>{language === 'ru' ? 'Фото' : 'Poză'}</span>
+                      <span>{tr('Poză', 'Photo', 'Фото')}</span>
                     </button>
                     {avatarUrl && (
                       <button
@@ -456,7 +471,7 @@ export default function Login() {
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
-                      {language === 'ru' ? 'Имя' : 'Prenume'}
+                      {tr('Prenume', 'First Name', 'Имя')}
                     </label>
                     <input
                       type="text"
@@ -469,7 +484,7 @@ export default function Login() {
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
-                      {language === 'ru' ? 'Фамилия' : 'Nume'}
+                      {tr('Nume', 'Last Name', 'Фамилия')}
                     </label>
                     <input
                       type="text"
@@ -485,7 +500,7 @@ export default function Login() {
                 {/* New Password & Confirm */}
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
-                    {language === 'ru' ? 'Новый личный пароль' : 'Parolă Personală Nouă (min. 6 caractere)'}
+                    {tr('Parolă Personală Nouă (min. 6 caractere)', 'New Personal Password (min. 6 chars)', 'Новый личный пароль')}
                   </label>
                   <input
                     type="password"
@@ -499,7 +514,7 @@ export default function Login() {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
-                    {language === 'ru' ? 'Подтвердите новый пароль' : 'Confirmă Parola Nouă'}
+                    {tr('Confirmă Parola Nouă', 'Confirm New Password', 'Подтвердите новый пароль')}
                   </label>
                   <input
                     type="password"
@@ -535,7 +550,7 @@ export default function Login() {
                       isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
                     }`}
                   >
-                    {language === 'ru' ? 'Назад' : 'Înapoi'}
+                    {tr('Înapoi', 'Back', 'Назад')}
                   </button>
                   <button
                     type="submit"
@@ -543,7 +558,7 @@ export default function Login() {
                     className="flex-1 py-2.5 px-5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer disabled:opacity-50"
                   >
                     <CheckCircle2 size={14} />
-                    <span>{loading ? '...' : (language === 'ru' ? 'Сохранить пароль и войти' : 'Salvează Parola & Intră')}</span>
+                    <span>{loading ? '...' : tr('Salvează Parola & Intră', 'Save Password & Sign In', 'Сохранить пароль и войти')}</span>
                   </button>
                 </div>
               </form>
@@ -558,19 +573,21 @@ export default function Login() {
                   <RotateCcw size={22} />
                 </div>
                 <h2 className="text-lg font-extrabold">
-                  {language === 'ru' ? 'Восстановление пароля' : 'Resetare Parolă'}
+                  {tr('Resetare Parolă', 'Password Reset', 'Восстановление пароля')}
                 </h2>
                 <p className="text-xs text-slate-400 mt-1">
-                  {language === 'ru'
-                    ? 'Введите ваш email, чтобы получить 6-значный код сброса пароля.'
-                    : 'Introdu adresa ta de email pentru a primi codul de resetare.'}
+                  {tr(
+                    'Introdu adresa ta de email pentru a primi codul de resetare.',
+                    'Enter your email address to receive a 6-digit password reset code.',
+                    'Введите ваш email, чтобы получить 6-значный код сброса пароля.'
+                  )}
                 </p>
               </div>
 
               <form onSubmit={handleForgotRequest} className="space-y-4">
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                    {language === 'ru' ? 'Email аккаунта' : 'Adresa de Email a contului'}
+                    {tr('Adresa de Email a contului', 'Account Email Address', 'Email аккаунта')}
                   </label>
                   <div className="relative">
                     <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -578,7 +595,7 @@ export default function Login() {
                       type="email"
                       value={resetEmail}
                       onChange={(e) => setResetEmail(e.target.value)}
-                      placeholder="nume@companie.ro"
+                      placeholder={tr('nume@companie.ro', 'name@company.com', 'name@company.com')}
                       className={`w-full pl-10 pr-4 py-2.5 rounded-2xl border text-xs font-semibold outline-none ${
                         isDark ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-emerald-500'
                       }`}
@@ -604,14 +621,14 @@ export default function Login() {
                       isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
                     }`}
                   >
-                    {language === 'ru' ? 'Назад' : 'Înapoi la Login'}
+                    {tr('Înapoi la Login', 'Back to Sign In', 'Назад')}
                   </button>
                   <button
                     type="submit"
                     disabled={loading}
                     className="flex-1 py-2.5 px-5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer disabled:opacity-50"
                   >
-                    <span>{loading ? '...' : (language === 'ru' ? 'Отправить код на Email' : 'Trimite Cod pe Email')}</span>
+                    <span>{loading ? '...' : tr('Trimite Cod pe Email', 'Send Code via Email', 'Отправить код на Email')}</span>
                     <ArrowRight size={14} />
                   </button>
                 </div>
@@ -627,7 +644,7 @@ export default function Login() {
                   <KeyRound size={22} />
                 </div>
                 <h2 className="text-lg font-extrabold">
-                  {language === 'ru' ? 'Введите код и новый пароль' : 'Confirmă Codul & Setează Parola'}
+                  {tr('Confirmă Codul & Setează Parola', 'Verify Code & Set Password', 'Введите код и новый пароль')}
                 </h2>
                 <p className="text-xs text-slate-400 mt-1">
                   {resetEmail}
@@ -637,7 +654,7 @@ export default function Login() {
               <form onSubmit={handleForgotConfirm} className="space-y-3.5">
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
-                    {language === 'ru' ? '6-значный код из письма' : 'Cod de verificare (6 cifre)'}
+                    {tr('Cod de verificare (6 cifre)', 'Verification code (6 digits)', '6-значный код из письма')}
                   </label>
                   <input
                     type="text"
@@ -652,7 +669,7 @@ export default function Login() {
 
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
-                    {language === 'ru' ? 'Новый пароль' : 'Parolă Nouă (min. 6 caractere)'}
+                    {tr('Parolă Nouă (min. 6 caractere)', 'New Password (min. 6 chars)', 'Новый пароль')}
                   </label>
                   <input
                     type="password"
@@ -667,7 +684,7 @@ export default function Login() {
 
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
-                    {language === 'ru' ? 'Подтвердите новый пароль' : 'Confirmă Parola Nouă'}
+                    {tr('Confirmă Parola Nouă', 'Confirm New Password', 'Подтвердите новый пароль')}
                   </label>
                   <input
                     type="password"
@@ -702,7 +719,7 @@ export default function Login() {
                       isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
                     }`}
                   >
-                    {language === 'ru' ? 'Отмена' : 'Anulează'}
+                    {tr('Anulează', 'Cancel', 'Отмена')}
                   </button>
                   <button
                     type="submit"
@@ -710,7 +727,7 @@ export default function Login() {
                     className="flex-1 py-2.5 px-5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer disabled:opacity-50"
                   >
                     <CheckCircle2 size={14} />
-                    <span>{loading ? '...' : (language === 'ru' ? 'Сбросить пароль и войти' : 'Resetează Parola & Intră')}</span>
+                    <span>{loading ? '...' : tr('Resetează Parola & Intră', 'Reset Password & Sign In', 'Сбросить пароль и войти')}</span>
                   </button>
                 </div>
               </form>

@@ -920,7 +920,7 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
               }`}
             >
               {isFullscreen ? <Minimize2 size={11} /> : <Maximize2 size={11} />}
-              <span>{isFullscreen ? (language === 'ru' ? 'Закрыть' : 'Închide') : 'Fullscreen'}</span>
+              <span>{isFullscreen ? (language === 'ru' ? 'Закрыть' : language === 'en' ? 'Close' : 'Închide') : 'Fullscreen'}</span>
             </button>
           </div>
         </div>
@@ -1031,12 +1031,12 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
               : (isDark ? 'bg-slate-800/60 border-slate-700/60 text-slate-300' : 'bg-slate-50 border-slate-200/80 text-slate-700')
         }`}>
           <span className="font-mono">
-            {language === 'ru' ? 'Оптимум:' : 'Optim:'}{' '}
+            {language === 'ru' ? 'Оптимум:' : language === 'en' ? 'Optimal:' : 'Optim:'}{' '}
             <b className="text-sky-500">{routeInfo.distanceKm} {language === 'ru' ? 'км' : 'km'} (~{routeInfo.driveMin}{language === 'ru' ? 'м' : 'm'})</b>
           </span>
 
           <span className="font-mono">
-            {language === 'ru' ? 'Курьер:' : 'Curier:'}{' '}
+            {language === 'ru' ? 'Курьер:' : language === 'en' ? 'Courier:' : 'Curier:'}{' '}
             <b className={routeInfo.auditStatus === 'suboptimal' ? 'text-rose-500' : routeInfo.auditStatus === 'minor_detour' ? 'text-amber-500' : 'text-emerald-500'}>
               ~{routeInfo.actualKm} {language === 'ru' ? 'км' : 'km'} ({routeInfo.actualCourierMin}{language === 'ru' ? 'м' : 'm'})
             </b>
@@ -1046,11 +1046,11 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
             {routeInfo.extraCourierMin > 0 ? (
               <b className={routeInfo.extraCourierMin >= 10 ? 'text-rose-500' : 'text-amber-500'}>
                 +{routeInfo.extraCourierMin}{language === 'ru' ? 'м' : 'm'} (+{routeInfo.extraKm}{language === 'ru' ? 'км' : 'km'})
-                {routeInfo.kitchenMin > 0 ? ` · ${language === 'ru' ? 'Кухня' : 'Bucătărie'} ${routeInfo.kitchenMin}${language === 'ru' ? 'м' : 'm'}` : ''}
+                {routeInfo.kitchenMin > 0 ? ` · ${language === 'ru' ? 'Кухня' : language === 'en' ? 'Kitchen' : 'Bucătărie'} ${routeInfo.kitchenMin}${language === 'ru' ? 'м' : 'm'}` : ''}
               </b>
             ) : (
               <b className="text-emerald-500">
-                {language === 'ru' ? 'Без отклонений (0м)' : 'Fără ocolire (0m)'}
+                {language === 'ru' ? 'Без отклонений (0м)' : language === 'en' ? 'No detour (0m)' : 'Fără ocolire (0m)'}
               </b>
             )}
           </span>

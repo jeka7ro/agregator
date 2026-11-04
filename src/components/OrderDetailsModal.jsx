@@ -38,7 +38,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
       : (language === 'ru' ? 'Доставка' : language === 'en' ? 'Delivery' : 'Livrare')
   const orderType = order.order_type || defaultOrderType
   const paymentMethod = (order.payment_method || (channel === 'kiosk' ? 'CASH' : channel === 'casierie' ? 'POS / CASH' : 'CARD')).toUpperCase()
-  const paymentSubtype = order.payment_subtype || (paymentMethod === 'CASH' ? (language === 'ru' ? 'На кассе' : 'La Casă') : channel === 'casierie' ? 'Casier' : '')
+  const paymentSubtype = order.payment_subtype || (paymentMethod === 'CASH' ? (language === 'ru' ? 'На кассе' : language === 'en' ? 'At Counter' : 'La Casă') : channel === 'casierie' ? (language === 'en' ? 'Cashier' : 'Casier') : '')
   const iikoId = order.iiko_order_id || order.order_id || '—'
 
   const placedDate = order.placed_at ? new Date(order.placed_at) : new Date()

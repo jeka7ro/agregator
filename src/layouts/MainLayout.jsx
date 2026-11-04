@@ -105,15 +105,15 @@ export default function MainLayout() {
   const allowedCitiesClean = (user.allowed_cities || []).filter(c => c !== 'all')
   const allowedBrandsClean = (user.allowed_brands || []).filter(b => b !== 'all')
   const citiesScope = (user.allowed_cities || []).includes('all')
-    ? (language === 'ru' ? 'Все города' : 'Toate orașele')
+    ? (language === 'ru' ? 'Все города' : language === 'en' ? 'All cities' : 'Toate orașele')
     : allowedCitiesClean.length === 1
       ? allowedCitiesClean[0]
-      : `${allowedCitiesClean.length} ${language === 'ru' ? 'гор.' : 'orașe'}`
+      : `${allowedCitiesClean.length} ${language === 'ru' ? 'гор.' : language === 'en' ? 'cities' : 'orașe'}`
   const brandsScope = (user.allowed_brands || []).includes('all')
-    ? (language === 'ru' ? 'Все бренды' : 'Toate brandurile')
+    ? (language === 'ru' ? 'Все бренды' : language === 'en' ? 'All brands' : 'Toate brandurile')
     : allowedBrandsClean.length === 1
       ? allowedBrandsClean[0]
-      : `${allowedBrandsClean.length} ${language === 'ru' ? 'бренд.' : 'branduri'}`
+      : `${allowedBrandsClean.length} ${language === 'ru' ? 'бренд.' : language === 'en' ? 'brands' : 'branduri'}`
   const activeLocCount = (restaurants || []).filter(r => r.is_active !== false).length || (allowedCitiesClean.length === 1 ? 1 : 52)
 
   return (
@@ -346,7 +346,7 @@ export default function MainLayout() {
                       }`}
                     >
                       <UserCog size={15} className="text-emerald-500" />
-                      <span>{language === 'ru' ? 'Мой профиль (Фото и Пароль)' : 'Profilul Meu (Poză & Parolă)'}</span>
+                      <span>{language === 'ru' ? 'Мой профиль (Фото и Пароль)' : language === 'en' ? 'My Profile (Photo & Password)' : 'Profilul Meu (Poză & Parolă)'}</span>
                     </button>
 
                     {canAccessPage('users') && (
@@ -361,7 +361,7 @@ export default function MainLayout() {
                         }`}
                       >
                         <ShieldCheck size={15} className="text-blue-500" />
-                        <span>{language === 'ru' ? 'Пользователи и Приглашения' : 'Utilizatori, Roluri & Invitații'}</span>
+                        <span>{language === 'ru' ? 'Пользователи и Приглашения' : language === 'en' ? 'Users, Roles & Invitations' : 'Utilizatori, Roluri & Invitații'}</span>
                       </button>
                     )}
 
@@ -379,7 +379,7 @@ export default function MainLayout() {
                       }`}
                     >
                       <LogOut size={15} />
-                      <span>{language === 'ru' ? 'Выйти из аккаунта' : 'Deconectare (Pagina Login)'}</span>
+                      <span>{language === 'ru' ? 'Выйти из аккаунта' : language === 'en' ? 'Sign Out' : 'Deconectare (Pagina Login)'}</span>
                     </button>
                   </div>
                 </div>

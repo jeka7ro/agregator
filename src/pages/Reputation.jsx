@@ -1385,7 +1385,7 @@ export default function Reputation() {
                           rel="noreferrer"
                           title={
                             rv.deleted_on_google
-                              ? (language === 'ru' ? 'Открыть точку на Google Maps (отзыв был удалён клиентом)' : 'Deschide locația pe Google Maps (recenzia a fost ștearsă de client)')
+                              ? (language === 'ru' ? 'Открыть точку на Google Maps (отзыв был удалён клиентом)' : language === 'en' ? 'Open location on Google Maps (review removed by customer)' : 'Deschide locația pe Google Maps (recenzia a fost ștearsă de client)')
                               : (language === 'ru' ? 'Открыть отзыв и ответить в Google' : language === 'en' ? 'Open review & reply on Google' : 'Deschide recenzia și răspunde pe Google')
                           }
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-2xs shrink-0"
