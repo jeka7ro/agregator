@@ -381,7 +381,7 @@ class UsersService {
     const roleObj = ROLE_DEFINITIONS[user.role] || ROLE_DEFINITIONS.operational
     const citiesLabel = (user.allowed_cities || []).includes('all') ? 'Toate orașele' : (user.allowed_cities || []).join(', ')
     const brandsLabel = (user.allowed_brands || []).includes('all') ? 'Toate brandurile' : (user.allowed_brands || []).join(', ')
-    const loginUrl = appUrl || 'http://localhost:5174/login'
+    const loginUrl = appUrl || 'https://getapp.food/login'
 
     return `
       <div style="font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif; max-width: 560px; margin: 0 auto; background: #f8fafc; padding: 24px; border-radius: 20px; border: 1px solid #e2e8f0;">
