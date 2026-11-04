@@ -4,6 +4,7 @@ import customersCacheStatic from '../../data/customers-cache.json'
 import restaurantsCacheStatic from '../../data/restaurants-cache.json'
 import liveChecksCacheStatic from '../../data/live-checks-cache.json'
 import stopEventsCacheStatic from '../../data/stop-events-cache.json'
+import appUsersStatic from '../../data/app-users.json'
 import customersService from '../../workers/src/services/customers-service.js'
 import { usersService } from '../../workers/src/services/users-service.js'
 
@@ -15,6 +16,7 @@ const fastWithTimeout = (promise, ms = 1400) => Promise.race([
 try {
   customersService.hydrateFromStatic(customersCacheStatic)
   customersService.ingestReviews(reviewsCacheStatic)
+  usersService.hydrateFromStatic(appUsersStatic)
 } catch (_) {}
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://arzxvzjyiwmkxgoagjcq.supabase.co'

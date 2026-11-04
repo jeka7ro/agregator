@@ -3,8 +3,14 @@ import path from 'path'
 import crypto from 'crypto'
 import { fileURLToPath } from 'url'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const USERS_DATA_FILE = path.resolve(__dirname, '..', '..', '..', 'data', 'app-users.json')
+const _usersFileDir = (() => {
+  try {
+    return import.meta?.url ? path.dirname(fileURLToPath(import.meta.url)) : process.cwd()
+  } catch (_) {
+    return process.cwd()
+  }
+})()
+const USERS_DATA_FILE = path.resolve(_usersFileDir, '..', '..', '..', 'data', 'app-users.json')
 
 export const ROLE_DEFINITIONS = {
   admin: {
@@ -232,6 +238,23 @@ class UsersService {
 
     this.state = getDefaultSeedData()
     this._save()
+  }
+
+  hydrateFromStatic(raw) {
+    try {
+      if (raw && Array.isArray(raw.users) && raw.users.length > 0) {
+        this.state = {
+          brevoConfig: {
+            apiKey: raw.brevoConfig?.apiKey || DEFAULT_BREVO_API_KEY,
+            senderEmail: (raw.brevoConfig?.senderEmail && raw.brevoConfig.senderEmail !== 'noreply@smartdevize.ro') ? raw.brevoConfig.senderEmail : DEFAULT_BREVO_SENDER_EMAIL,
+            senderName: raw.brevoConfig?.senderName || DEFAULT_BREVO_SENDER_NAME,
+            enabled: raw.brevoConfig?.enabled !== false
+          },
+          resetCodes: raw.resetCodes || {},
+          users: raw.users
+        }
+      }
+    } catch (_) {}
   }
 
   _save() {

@@ -2,19 +2,24 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+const _custFileDir = (() => {
+  try {
+    return import.meta?.url ? path.dirname(fileURLToPath(import.meta.url)) : process.cwd()
+  } catch (_) {
+    return process.cwd()
+  }
+})()
 
 const CACHE_PATHS = [
-  path.resolve(__dirname, '../../../data/customers-cache.json'),
+  path.resolve(_custFileDir, '../../../data/customers-cache.json'),
   path.resolve(process.cwd(), 'data/customers-cache.json'),
-  path.resolve(__dirname, '../../data/customers-cache.json')
+  path.resolve(_custFileDir, '../../data/customers-cache.json')
 ]
 
 const REVIEWS_CACHE_PATHS = [
-  path.resolve(__dirname, '../../../data/reviews-cache.json'),
+  path.resolve(_custFileDir, '../../../data/reviews-cache.json'),
   path.resolve(process.cwd(), 'data/reviews-cache.json'),
-  path.resolve(__dirname, '../../data/reviews-cache.json')
+  path.resolve(_custFileDir, '../../data/reviews-cache.json')
 ]
 
 function resolveCacheFilePath() {
