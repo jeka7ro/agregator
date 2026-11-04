@@ -1,5 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 import reviewsCacheStatic from '../../data/reviews-cache.json'
+import customersCacheStatic from '../../data/customers-cache.json'
+import customersService from '../../workers/src/services/customers-service.js'
+import { usersService } from '../../workers/src/services/users-service.js'
+
+try {
+  customersService.hydrateFromStatic(customersCacheStatic)
+  customersService.ingestReviews(reviewsCacheStatic)
+} catch (_) {}
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://arzxvzjyiwmkxgoagjcq.supabase.co'
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyenh2emp5aXdta3hnb2FnamNxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzE1NTc2MywiZXhwIjoyMDg4NzMxNzYzfQ.2GHl7vyMLCmmIznKP88GK6Xm54uUoiXLmqOfWPxJuB0'
@@ -1476,39 +1484,53 @@ export default async (req, context) => {
         iiko: r.iiko_restaurant_id ? 'OPEN' : 'N/A'
       }))
 
-      // STOP Audit Log (filtrat după orașul și brandul selectat)
-      let dbStops = globalThis.__CACHED_STOP_EVENTS || []
-      if (!globalThis.__CACHED_STOP_EVENTS_TS || (Date.now() - globalThis.__CACHED_STOP_EVENTS_TS > 30000)) {
-        globalThis.__CACHED_STOP_EVENTS_TS = Date.now()
-        try {
-          let stopQuery = supabase
-            .from('stop_events')
-            .select('*, restaurants(name, city, brand_id, brands(name))')
-            .order('stopped_at', { ascending: false })
-            .limit(30)
+      // STOP Audit Log (filtrat strict după perioada, orașul și brandul selectat)
+      let dbStops = []
+      try {
+        let stopQuery = supabase
+          .from('stop_events')
+          .select('*, restaurants(name, city, brand_id, brands(name))')
+          .order('stopped_at', { ascending: false })
+          .limit(30)
 
-          if (validRestIds.size > 0 && ((cityFilter && cityFilter !== 'all') || (restaurantFilter && restaurantFilter !== 'all'))) {
-            stopQuery = stopQuery.in('restaurant_id', Array.from(validRestIds))
-          }
+        if (periodInfo.startDate) {
+          stopQuery = stopQuery.gte('stopped_at', periodInfo.startDate)
+        }
+        if (periodInfo.endDate && periodFilter !== 'today') {
+          stopQuery = stopQuery.lte('stopped_at', periodInfo.endDate)
+        }
+        if (validRestIds.size > 0 && ((cityFilter && cityFilter !== 'all') || (restaurantFilter && restaurantFilter !== 'all'))) {
+          stopQuery = stopQuery.in('restaurant_id', Array.from(validRestIds))
+        }
 
-          const { data: fetchedStops } = await withTimeout(stopQuery, 1200)
-          if (Array.isArray(fetchedStops)) {
-            dbStops = fetchedStops
-            globalThis.__CACHED_STOP_EVENTS = fetchedStops
-          }
-        } catch (_) {}
-      }
+        const { data: fetchedStops } = await withTimeout(stopQuery, 1200)
+        if (Array.isArray(fetchedStops)) {
+          dbStops = fetchedStops
+        }
+      } catch (_) {}
 
       const stopAuditLog = (dbStops || [])
+        .filter(s => {
+          if (!s.stopped_at) return false
+          if (periodInfo.startDate && new Date(s.stopped_at) < new Date(periodInfo.startDate)) return false
+          if (periodInfo.endDate && periodFilter !== 'today' && new Date(s.stopped_at) > new Date(periodInfo.endDate)) return false
+          return true
+        })
         .map(s => {
-          const r = s.restaurants
+          const r = s.restaurants || restMap[s.restaurant_id] || null
           const config = s.loss_calculation_config || {}
+          const rName = r?.name || s.restaurant_name || ''
+          const cName = getCanonicalCity(r?.city || s.city || rName) || ''
+          const bName = r?.brands?.name || s.brand || (rName.toLowerCase().includes('smash') ? 'Smash Me' : rName.toLowerCase().includes('poki') ? 'Poki Woki' : rName.toLowerCase().includes('love') ? 'Love Sushi' : 'Roll Master')
+          const cleanReason = (!s.reason || s.reason === 'Unknown')
+            ? `Locație închisă temporar pe ${(s.platform || 'agregator').toUpperCase()} în timpul programului`
+            : s.reason
           return {
             id: s.id,
             restaurant_id: s.restaurant_id,
-            restaurant_name: r?.name || 'Restaurant',
-            city: getCanonicalCity(r?.city || r?.name) || 'Oraș',
-            brand: r?.brands?.name || 'Roll Master',
+            restaurant_name: rName,
+            city: cName,
+            brand: bName,
             platform: s.platform,
             stopped_at: s.stopped_at,
             resumed_at: s.resumed_at,
@@ -1517,11 +1539,13 @@ export default async (req, context) => {
             active_orders_at_stop: config.active_orders_count ?? (Math.floor(s.id?.charCodeAt(0) % 7 || 3) + 4),
             last_5_kitchen_avg_min: config.last_5_kitchen_avg_min ?? (16 + (s.id?.charCodeAt(1) % 5 || 2)),
             last_5_delivery_avg_min: config.last_5_delivery_avg_min ?? (32 + (s.id?.charCodeAt(2) % 10 || 4)),
-            reason: s.reason || 'Depășire timp bucătărie / STOP manual agregator',
+            reason: cleanReason,
             telegram_alert_sent: true
           }
         })
         .filter(log => {
+          if (!log.restaurant_name || log.restaurant_name === 'Restaurant' || !log.city || log.city === 'Oraș') return false
+          if (targetCityCanon && log.city !== targetCityCanon) return false
           if (brandFilter && brandFilter !== 'all' && log.brand !== brandFilter) return false
           return true
         })
@@ -1551,6 +1575,11 @@ export default async (req, context) => {
         stop_matrix: stopMatrix,
         stop_audit_log: stopAuditLog
       }
+
+      // Salvează automat clienții noi / actualizați în baza de date de clienți
+      try {
+        customersService.ingestOrders(enrichedOrders)
+      } catch (_) {}
 
       // Salvează în cache dacă avem date valide
       if (enrichedOrders.length > 0) {
@@ -2285,6 +2314,141 @@ export default async (req, context) => {
           lastSyncStatus: 'ok'
         }
       }), { status: 200, headers: CORS_HEADERS })
+    }
+
+    // ─── CUSTOMERS DATABASE API ───────────────────────────────────────────────
+    if (path === '/customers' && req.method === 'GET') {
+      const result = customersService.queryCustomers({
+        city: url.searchParams.get('city') || 'all',
+        brand: url.searchParams.get('brand') || 'all',
+        platform: url.searchParams.get('platform') || 'all',
+        segment: url.searchParams.get('segment') || 'all',
+        search: url.searchParams.get('search') || '',
+        sort: url.searchParams.get('sort') || 'last_order',
+        sort_dir: url.searchParams.get('sort_dir') || 'desc',
+        page: url.searchParams.get('page') || 1,
+        limit: url.searchParams.get('limit') || 25
+      })
+      return new Response(JSON.stringify({ success: true, ...result }), { status: 200, headers: CORS_HEADERS })
+    }
+
+    if (path.startsWith('/customers/') && req.method === 'PUT') {
+      const custId = decodeURIComponent(path.replace('/customers/', '').trim())
+      const body = await req.json().catch(() => ({}))
+      const updated = customersService.updateCustomer(custId, body || {})
+      if (!updated) {
+        return new Response(JSON.stringify({ success: false, error: 'Clientul nu a fost găsit' }), { status: 404, headers: CORS_HEADERS })
+      }
+      return new Response(JSON.stringify({ success: true, customer: updated }), { status: 200, headers: CORS_HEADERS })
+    }
+
+    // ─── AUTHENTICATION, USERS, ROLES & BREVO INVITATIONS ENDPOINTS ───────────
+    if (path === '/auth/login' && req.method === 'POST') {
+      const body = await req.json().catch(() => ({}))
+      try {
+        const result = usersService.login(body.email, body.password)
+        return new Response(JSON.stringify({ success: true, ...result }), { status: 200, headers: CORS_HEADERS })
+      } catch (err) {
+        return new Response(JSON.stringify({ success: false, error: err.message }), { status: 401, headers: CORS_HEADERS })
+      }
+    }
+
+    if (path === '/auth/first-login-password' && req.method === 'POST') {
+      const body = await req.json().catch(() => ({}))
+      try {
+        const user = usersService.completeFirstLogin(body)
+        return new Response(JSON.stringify({ success: true, user }), { status: 200, headers: CORS_HEADERS })
+      } catch (err) {
+        return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
+      }
+    }
+
+    if (path === '/auth/forgot-password' && req.method === 'POST') {
+      const body = await req.json().catch(() => ({}))
+      try {
+        const result = await usersService.requestPasswordReset(body.email)
+        return new Response(JSON.stringify({ success: true, ...result }), { status: 200, headers: CORS_HEADERS })
+      } catch (err) {
+        return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
+      }
+    }
+
+    if (path === '/auth/reset-password' && req.method === 'POST') {
+      const body = await req.json().catch(() => ({}))
+      try {
+        const user = usersService.confirmPasswordReset(body)
+        return new Response(JSON.stringify({ success: true, user }), { status: 200, headers: CORS_HEADERS })
+      } catch (err) {
+        return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
+      }
+    }
+
+    if (path === '/auth/profile' && req.method === 'PUT') {
+      const body = await req.json().catch(() => ({}))
+      try {
+        const { userId, ...rest } = body
+        const user = usersService.updateOwnProfile(userId, rest)
+        return new Response(JSON.stringify({ success: true, user }), { status: 200, headers: CORS_HEADERS })
+      } catch (err) {
+        return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
+      }
+    }
+
+    if (path === '/users' && req.method === 'GET') {
+      const data = usersService.getUsersList()
+      return new Response(JSON.stringify({ success: true, ...data }), { status: 200, headers: CORS_HEADERS })
+    }
+
+    if (path === '/users/invite' && req.method === 'POST') {
+      const body = await req.json().catch(() => ({}))
+      try {
+        const result = await usersService.inviteUser(body)
+        return new Response(JSON.stringify({ success: true, ...result }), { status: 200, headers: CORS_HEADERS })
+      } catch (err) {
+        return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
+      }
+    }
+
+    if (path === '/users/brevo-config' && req.method === 'PUT') {
+      const body = await req.json().catch(() => ({}))
+      try {
+        const brevo = usersService.updateBrevoConfig(body)
+        return new Response(JSON.stringify({ success: true, brevo }), { status: 200, headers: CORS_HEADERS })
+      } catch (err) {
+        return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
+      }
+    }
+
+    if (path.startsWith('/users/') && path.endsWith('/resend-invite') && req.method === 'POST') {
+      const userId = decodeURIComponent(path.replace('/users/', '').replace('/resend-invite', '').trim())
+      const body = await req.json().catch(() => ({}))
+      try {
+        const result = await usersService.resendInvite(userId, body.app_url)
+        return new Response(JSON.stringify({ success: true, ...result }), { status: 200, headers: CORS_HEADERS })
+      } catch (err) {
+        return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
+      }
+    }
+
+    if (path.startsWith('/users/') && req.method === 'PUT') {
+      const userId = decodeURIComponent(path.replace('/users/', '').trim())
+      const body = await req.json().catch(() => ({}))
+      try {
+        const user = usersService.updateUser(userId, body)
+        return new Response(JSON.stringify({ success: true, user }), { status: 200, headers: CORS_HEADERS })
+      } catch (err) {
+        return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
+      }
+    }
+
+    if (path.startsWith('/users/') && req.method === 'DELETE') {
+      const userId = decodeURIComponent(path.replace('/users/', '').trim())
+      try {
+        usersService.deleteUser(userId)
+        return new Response(JSON.stringify({ success: true }), { status: 200, headers: CORS_HEADERS })
+      } catch (err) {
+        return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
+      }
     }
 
     return new Response(JSON.stringify({ success: false, error: 'Endpoint not found: ' + path }), {

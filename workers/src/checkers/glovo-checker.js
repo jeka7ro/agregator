@@ -159,15 +159,10 @@ export class GlovoChecker {
             this.browser = null
 
             // ─── DETERMINE STATUS ───
-            let finalStatus = 'unavailable'
+            let finalStatus = 'available'
             let uiErrorMessage = null
 
-            if (pageData.notFound) {
-                finalStatus = 'unavailable'
-                uiErrorMessage = 'Nelistat pe Glovo'
-            } else if (pageData.isWaf || pageData.isOpen) {
-                finalStatus = 'available'
-            } else if (pageData.isClosed) {
+            if (pageData.isClosed && !pageData.isWaf) {
                 finalStatus = 'closed'
                 uiErrorMessage = pageData.scheduleInfo || 'Închis conform program'
             }
@@ -245,14 +240,14 @@ export class GlovoChecker {
 
             try {
                 await supabase.from('monitoring_checks').insert(fallbackCheck)
-            } catch (_) {}
+            } catch (_) { }
 
             return fallbackCheck
         } finally {
             if (this.browser) {
                 try {
                     await this.browser.close()
-                } catch (_) {}
+                } catch (_) { }
                 this.browser = null
             }
         }

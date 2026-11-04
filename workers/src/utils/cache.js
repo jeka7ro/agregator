@@ -28,6 +28,28 @@ export function saveLiveChecksCache(checks) {
 
 const STOP_EVENTS_CACHE_FILE = path.resolve(__dirname, '..', '..', '..', 'data', 'stop-events-cache.json')
 const VIOLATIONS_CACHE_FILE = path.resolve(__dirname, '..', '..', '..', 'data', 'violations-cache.json')
+const RESTAURANTS_CACHE_FILE = path.resolve(__dirname, '..', '..', '..', 'data', 'restaurants-cache.json')
+
+export function loadRestaurantsCache() {
+    try {
+        if (fs.existsSync(RESTAURANTS_CACHE_FILE)) {
+            const data = fs.readFileSync(RESTAURANTS_CACHE_FILE, 'utf8')
+            return JSON.parse(data)
+        }
+    } catch (err) {
+        console.error('[CACHE] Error loading restaurants cache:', err)
+    }
+    return []
+}
+
+export function saveRestaurantsCache(restaurants) {
+    try {
+        fs.mkdirSync(path.dirname(RESTAURANTS_CACHE_FILE), { recursive: true })
+        fs.writeFileSync(RESTAURANTS_CACHE_FILE, JSON.stringify(restaurants, null, 2))
+    } catch (err) {
+        console.error('[CACHE] Error saving restaurants cache:', err)
+    }
+}
 
 export function loadStopEventsCache() {
     try {

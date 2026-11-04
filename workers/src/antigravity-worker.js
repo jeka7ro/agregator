@@ -543,34 +543,19 @@ async function tick() {
 
 async function startWorker() {
   console.log('════════════════════════════════════')
-  console.log('  ANTIGRAVITY WORKER — pornit')
-  console.log(`  Tick interval: ${WORKER_TICK_MS / 1000}s (Activ doar 10:00 - 22:00)`)
+  console.log('  ANTIGRAVITY WORKER — Standby (On-Demand Mode pentru protecție Disk IO Supabase)')
   console.log('════════════════════════════════════')
 
-  await tick()
-
-  setInterval(async () => {
-    try {
-      await tick()
-    } catch (err) {
-      console.error('[Worker] Eroare în tick:', err)
-    }
-  }, WORKER_TICK_MS)
-
-  // Autopilot de dimineață - se trage ziua de ieri la ora 10:05 (după fereastra de pauză 22:00 - 10:00)
-  cron.schedule('5 10 * * *', async () => {
-    if (!isWithinActiveHours()) return;
-    console.log('[CRON] Pornire automată sincronizare Iiko la 10:05 (2 zile)');
-    try {
-        await salesSync.syncSales(2);
-        console.log('[CRON] Sincronizare de dimineață finalizată.');
-    } catch(e) {
-        console.error('[CRON] Eroare la sincronizare:', e);
-    }
-  }, {
-    scheduled: true,
-    timezone: "Europe/Bucharest"
-  });
+  if (process.env.ENABLE_AUTO_SNAPSHOTS === 'true') {
+    await tick()
+    setInterval(async () => {
+      try {
+        await tick()
+      } catch (err) {
+        console.error('[Worker] Eroare în tick:', err)
+      }
+    }, WORKER_TICK_MS)
+  }
 }
 
 startWorker().catch((err) => {

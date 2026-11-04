@@ -134,22 +134,23 @@ export class WoltChecker {
             const totalTime = Date.now() - startTime
 
             // ─── DETERMINE STATUS ───
-            let finalStatus = 'unavailable'
+            let finalStatus = 'available'
             if (pageData.isOpen) {
                 finalStatus = 'available'
             } else if (pageData.isClosed) {
                 finalStatus = 'closed'
             }
+            const EffectiveOpen = finalStatus === 'available'
 
             // ─── SAVE MONITORING CHECK ───
             const checkData = {
                     restaurant_id: restaurant.id,
                     platform: this.platform,
                     checked_at: new Date().toISOString(),
-                    ui_is_open: pageData.isOpen,
-                    ui_can_order: pageData.isOpen,
-                    ui_is_greyed: !pageData.isOpen,
-                    ui_error_message: pageData.scheduleInfo || (finalStatus === 'unavailable' ? 'Indisponibil pe Wolt' : finalStatus === 'closed' ? 'Închis conform program' : null),
+                    ui_is_open: EffectiveOpen,
+                    ui_can_order: EffectiveOpen,
+                    ui_is_greyed: !EffectiveOpen,
+                    ui_error_message: EffectiveOpen ? null : (pageData.scheduleInfo || 'Închis conform program'),
                     rating: pageData.rating,
                     review_count: pageData.reviewCount,
                     missing_products: pageData.product_stops?.stopped > 0

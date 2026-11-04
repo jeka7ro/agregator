@@ -1,21 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { getApiUrl } from '../lib/api'
-
-function isWithinActiveOperatingHours() {
-  try {
-    const roHour = Number(
-      new Intl.DateTimeFormat('en-GB', {
-        timeZone: 'Europe/Bucharest',
-        hour: '2-digit',
-        hour12: false
-      }).format(new Date())
-    )
-    return roHour >= 10 && roHour < 22
-  } catch (_) {
-    const h = new Date().getHours()
-    return h >= 10 && h < 22
-  }
-}
+import { useAuth } from '../lib/AuthContext'
+import { getCanonicalCity } from '../lib/orderUtils'
+import { getBrandInfo } from '../components/BrandAvatar'
 
 const DEFAULT_KPIS = {
   today_sales: 0,
@@ -67,7 +54,8 @@ function getInitialState(period) {
   }
 }
 
-export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'all', channel = 'all', period = 'today', autoRefreshSeconds = 15 } = {}) {
+export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'all', channel = 'all', period = 'today', autoRefreshSeconds = 300 } = {}) {
+  const { user, canAccessCity, canAccessBrand, canAccessRestaurant } = useAuth()
   const [data, setData] = useState(() => getInitialState(period))
   const [loading, setLoading] = useState(() => data.orders.length === 0)
   const [lastUpdated, setLastUpdated] = useState(() => new Date())
@@ -76,6 +64,7 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
   const timerRef = useRef(null)
   const countdownRef = useRef(autoRefreshSeconds)
   const isFetchingRef = useRef(false)
+  const fetchDataRef = useRef(null)
 
   const fetchData = useCallback(async (silent = false) => {
     countdownRef.current = autoRefreshSeconds
@@ -138,6 +127,8 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
     }
   }, [city, brand, restaurantId, channel, period, autoRefreshSeconds])
 
+  fetchDataRef.current = fetchData
+
   useEffect(() => {
     fetchData(false)
   }, [fetchData])
@@ -152,14 +143,25 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
     setSecondsUntilRefresh(autoRefreshSeconds)
 
     timerRef.current = setInterval(() => {
-      // Între 22:00 și 10:00 nu mai facem polling automat (0 consum trafic noaptea)
-      if (!isWithinActiveOperatingHours()) {
-        return
-      }
+      // Nu consuma resurse când tab-ul este în fundal sau în pauza nocturnă 22:00 - 10:00
+      if (typeof document !== 'undefined' && document.hidden) return
+      try {
+        const roHour = Number(
+          new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Europe/Bucharest',
+            hour: '2-digit',
+            hour12: false
+          }).format(new Date())
+        )
+        if (roHour >= 22 || roHour < 10) return
+      } catch (_) {}
+
       if (countdownRef.current <= 1) {
         countdownRef.current = autoRefreshSeconds
         setSecondsUntilRefresh(autoRefreshSeconds)
-        fetchData(true)
+        if (fetchDataRef.current) {
+          fetchDataRef.current(true)
+        }
       } else {
         countdownRef.current -= 1
         setSecondsUntilRefresh(countdownRef.current)
@@ -169,12 +171,113 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
     }
-  }, [isAutoRefreshEnabled, autoRefreshSeconds, fetchData])
+  }, [isAutoRefreshEnabled, autoRefreshSeconds])
+
+  const scopedOrders = useMemo(() => {
+    const raw = data.orders || []
+    if (!user || user.role === 'admin') return raw
+    const allC = (user.allowed_cities || ['all']).includes('all')
+    const allB = (user.allowed_brands || ['all']).includes('all')
+    const allR = (user.allowed_restaurants || ['all']).includes('all')
+    if (allC && allB && allR) return raw
+
+    return raw.filter(ord => {
+      const ordCity = getCanonicalCity(ord.restaurant_city || ord.city || ord.restaurant_name || '')
+      const ordBrand = ord.brand_name || ord.brand || getBrandInfo({ name: ord.restaurant_name, brand: ord.brand_name })?.name || ''
+      if (!allC && !canAccessCity(ordCity || ord.restaurant_city || ord.restaurant_name)) return false
+      if (!allB && !canAccessBrand(ordBrand || ord.restaurant_name)) return false
+      if (!allR && ord.restaurant_id && !canAccessRestaurant(ord.restaurant_id)) return false
+      return true
+    })
+  }, [data.orders, user, canAccessCity, canAccessBrand, canAccessRestaurant])
+
+  const scopedStopMatrix = useMemo(() => {
+    const raw = data.stop_matrix || []
+    if (!user || user.role === 'admin') return raw
+    const allC = (user.allowed_cities || ['all']).includes('all')
+    const allB = (user.allowed_brands || ['all']).includes('all')
+    const allR = (user.allowed_restaurants || ['all']).includes('all')
+    if (allC && allB && allR) return raw
+
+    return raw.filter(st => {
+      const stCity = getCanonicalCity(st.city || st.restaurant_city || st.restaurant_name || st.name || '')
+      const stBrand = st.brand || st.brand_name || getBrandInfo({ name: st.restaurant_name || st.name, brand: st.brand })?.name || ''
+      if (!allC && !canAccessCity(stCity || st.city || st.restaurant_name || st.name)) return false
+      if (!allB && !canAccessBrand(stBrand || st.restaurant_name || st.name)) return false
+      if (!allR && st.restaurant_id && !canAccessRestaurant(st.restaurant_id)) return false
+      return true
+    })
+  }, [data.stop_matrix, user, canAccessCity, canAccessBrand, canAccessRestaurant])
+
+  const scopedKpis = useMemo(() => {
+    if (!user || user.role === 'admin') return data.kpis
+    const allC = (user.allowed_cities || ['all']).includes('all')
+    const allB = (user.allowed_brands || ['all']).includes('all')
+    const allR = (user.allowed_restaurants || ['all']).includes('all')
+    if (allC && allB && allR) return data.kpis
+
+    const list = scopedOrders || []
+    let todaySales = 0
+    let kioskCount = 0
+    let casierieCount = 0
+    let aggregatorsCount = 0
+    let ownDeliveryCount = 0
+    let activeInKitchen = 0
+    let waitingCourier = 0
+    let onWayCount = 0
+    let deliveredCount = 0
+    let problemsCount = 0
+    let kSum = 0, kCnt = 0
+    let wSum = 0, wCnt = 0
+    let dSum = 0, dCnt = 0
+    let tSum = 0, tCnt = 0
+
+    list.forEach(o => {
+      todaySales += Number(o.total_amount || 0)
+      const ch = String(o.channel_type || '').toLowerCase()
+      const pl = String(o.platform || '').toLowerCase()
+      if (ch === 'kiosk' || pl === 'kiosk') kioskCount++
+      else if (ch === 'casierie' || pl === 'casierie' || pl === 'in-store') casierieCount++
+      else if (ch === 'own_delivery') ownDeliveryCount++
+      else aggregatorsCount++
+
+      if (o.stage === 'wait_cooking' || o.stage === 'cooking') activeInKitchen++
+      else if (o.stage === 'ready') waitingCourier++
+      else if (o.stage === 'on_way') onWayCount++
+      else if (o.stage === 'delivered') deliveredCount++
+
+      if (o.has_problem || o.sla_breached) problemsCount++
+
+      if (Number(o.kitchen_minutes) > 0) { kSum += Number(o.kitchen_minutes); kCnt++ }
+      if (Number(o.courier_wait_minutes) > 0) { wSum += Number(o.courier_wait_minutes); wCnt++ }
+      if (Number(o.delivery_minutes) > 0) { dSum += Number(o.delivery_minutes); dCnt++ }
+      if (Number(o.total_minutes || o.lead_time_minutes) > 0) { tSum += Number(o.total_minutes || o.lead_time_minutes); tCnt++ }
+    })
+
+    return {
+      ...data.kpis,
+      today_sales: Math.round(todaySales * 100) / 100,
+      today_orders_count: list.length,
+      kiosk_count: kioskCount,
+      casierie_count: casierieCount,
+      aggregators_count: aggregatorsCount,
+      own_delivery_count: ownDeliveryCount,
+      active_in_kitchen: activeInKitchen,
+      waiting_courier: waitingCourier,
+      on_way_count: onWayCount,
+      delivered_count: deliveredCount,
+      problems_count: problemsCount,
+      avg_kitchen_time: kCnt > 0 ? Number((kSum / kCnt).toFixed(1)) : (data.kpis?.avg_kitchen_time || 14.5),
+      avg_courier_wait_time: wCnt > 0 ? Number((wSum / wCnt).toFixed(1)) : (data.kpis?.avg_courier_wait_time || 5.8),
+      avg_delivery_time: dCnt > 0 ? Number((dSum / dCnt).toFixed(1)) : (data.kpis?.avg_delivery_time || 16.6),
+      avg_total_time: tCnt > 0 ? Number((tSum / tCnt).toFixed(1)) : (data.kpis?.avg_total_time || 36.4)
+    }
+  }, [data.kpis, scopedOrders, user])
 
   return {
-    kpis: data.kpis,
-    orders: data.orders,
-    stopMatrix: data.stop_matrix,
+    kpis: scopedKpis,
+    orders: scopedOrders,
+    stopMatrix: scopedStopMatrix,
     stopAuditLog: data.stop_audit_log,
     period: data.period,
     periodLabel: data.period_label,

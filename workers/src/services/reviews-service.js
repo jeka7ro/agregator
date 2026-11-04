@@ -4,6 +4,7 @@ import tls from 'tls'
 import { fileURLToPath } from 'url'
 import { supabase } from './supabase.js'
 import { enrichOrderItems } from './product-matcher.js'
+import { customersService } from './customers-service.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const REVIEWS_CACHE_FILE = path.resolve(__dirname, '..', '..', '..', 'data', 'reviews-cache.json')
@@ -311,13 +312,13 @@ export class ReviewsService {
             const isPhotoEmail = uploadedPhotos.length > 0 || /fotografi[ei]/i.test(cleanSubject)
             const pCount = uploadedPhotos.length || 1
             const roComment = isPhotoEmail
-                ? `📸 ${customerName} a adăugat ${pCount > 1 ? `${pCount} fotografii noi` : 'o fotografie nouă'} cu ${brandName} pe Google Maps`
+                ? `${customerName} a adăugat ${pCount > 1 ? `${pCount} fotografii noi` : 'o fotografie nouă'} cu ${brandName} pe Google Maps`
                 : cleanSubject
             const enComment = isPhotoEmail
-                ? `📸 ${customerName} added ${pCount > 1 ? `${pCount} new photos` : 'a new photo'} of ${brandName} on Google Maps`
+                ? `${customerName} added ${pCount > 1 ? `${pCount} new photos` : 'a new photo'} of ${brandName} on Google Maps`
                 : cleanSubject
             const ruComment = isPhotoEmail
-                ? `📸 ${customerName} добавил(а) ${pCount > 1 ? `${pCount} новых фото` : 'новое фото'} ${brandName} на Google Maps`
+                ? `${customerName} добавил(а) ${pCount > 1 ? `${pCount} новых фото` : 'новое фото'} ${brandName} на Google Maps`
                 : cleanSubject
 
             extracted.push({
@@ -851,16 +852,19 @@ export class ReviewsService {
      * Get latest ratings per restaurant & platform from rating_history
      */
     async getLatestRatingsMap(force = false) {
-        if (!force && this.ratingsMap.size > 0 && (Date.now() - this.lastRatingsFetch < 120000)) {
+        if (!force && (Date.now() - this.lastRatingsFetch < 300000)) {
             return this.ratingsMap
         }
+        this.lastRatingsFetch = Date.now()
 
         try {
-            const { data: rows, error } = await supabase
+            const queryPromise = supabase
                 .from('rating_history')
                 .select('restaurant_id, platform, rating, previous_rating, review_count, previous_review_count, change_direction, recorded_at')
                 .order('recorded_at', { ascending: false })
-                .limit(1000)
+                .limit(500)
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('rating_history timeout')), 1500))
+            const { data: rows, error } = await Promise.race([queryPromise, timeoutPromise])
 
             if (!error && Array.isArray(rows)) {
                 const nextMap = new Map()
@@ -871,10 +875,9 @@ export class ReviewsService {
                     }
                 }
                 this.ratingsMap = nextMap
-                this.lastRatingsFetch = Date.now()
             }
         } catch (err) {
-            console.warn('[ReviewsService] Failed to fetch rating_history:', err.message)
+            // Non-blocking fallback to existing ratingsMap
         }
 
         return this.ratingsMap
@@ -884,8 +887,11 @@ export class ReviewsService {
      * Continuously sync latest platform rating_history checks & recent orders into reviews
      */
     async ensureSeeded(restaurants = []) {
+        if (this.reviews.length > 0) {
+            return
+        }
         const now = Date.now()
-        if (this.lastSeedSync && (now - this.lastSeedSync < 60000) && this.reviews.length > 0) {
+        if (this.lastSeedSync && (now - this.lastSeedSync < 300000)) {
             return
         }
         this.lastSeedSync = now
@@ -1340,6 +1346,37 @@ export class ReviewsService {
                         cooking_completed_time: extractHHMMSS(timings.whenCookingCompleted),
                         sended_time: extractHHMMSS(timings.whenSended),
                         delivered_time: extractHHMMSS(timings.whenDelivered || timings.whenClosed)
+                    }
+                }
+            } else {
+                // Fallback la baza de date persistentă de clienți & comenzi (customersService)
+                const custList = Array.from(customersService.customersByKey.values())
+                const matchedCust = custList.find(c =>
+                    (c.reviews || []).some(rv => rv.id === r.id) ||
+                    (r.order_id && (c.recent_orders || []).some(ro => String(ro.order_number) === String(r.order_id))) ||
+                    (r.customer_name && c.name === r.customer_name)
+                )
+                const ro = matchedCust
+                    ? ((matchedCust.recent_orders || []).find(o => String(o.order_number) === String(r.order_id)) || (matchedCust.recent_orders || [])[0])
+                    : null
+                if (matchedCust && ro) {
+                    orderDetails = {
+                        id: ro.order_id || ro.base_uuid,
+                        order_id: ro.base_uuid || ro.order_id,
+                        order_number: ro.order_number || r.order_id,
+                        platform: ro.platform || r.platform,
+                        brand_name: ro.brand_name || r.brand_name,
+                        restaurant_name: ro.restaurant_name || r.restaurant_name,
+                        total_amount: ro.total_amount,
+                        placed_at: ro.placed_at,
+                        items: enrichOrderItems(ro.items || [], ro.brand_name || r.brand_name),
+                        customer: {
+                            name: matchedCust.name,
+                            phone: matchedCust.phone,
+                            address: ro.address || matchedCust.address
+                        },
+                        courier: ro.courier || null,
+                        timings: ro.timings || null
                     }
                 }
             }

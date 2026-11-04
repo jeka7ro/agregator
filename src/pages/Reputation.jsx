@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, Link } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 import {
   Search,
@@ -29,6 +29,7 @@ import {
 } from 'lucide-react'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
+import { useAuth } from '../lib/AuthContext'
 import { useLiveChecks } from '../hooks/useLiveChecks'
 import PlatformLogo from '../components/PlatformLogo'
 import BrandAvatar, { getBrandInfo, cleanRestaurantName } from '../components/BrandAvatar'
@@ -60,8 +61,8 @@ const UI_TEXT = {
     filterAll: 'Toate Recenziile',
     filterNegative: '🚨 Negative / Alerte',
     filterPositive: '👍 Pozitive',
-    filterWithPhotos: '📸 Cu Fotografii',
-    filterWithComment: '💬 Cu Comentariu Text',
+    filterWithPhotos: 'Cu Fotografii',
+    filterWithComment: 'Cu Comentariu Text',
     filterMatched: '🔗 Legate de Bon iiko',
     viewPhotosBtn: 'Vezi Foto',
     filterAllPlatforms: 'Toate Platformele',
@@ -144,8 +145,8 @@ const UI_TEXT = {
     filterAll: 'All Reviews',
     filterNegative: '🚨 Negative / Alerts',
     filterPositive: '👍 Positive',
-    filterWithPhotos: '📸 With Photos',
-    filterWithComment: '💬 With Text Comment',
+    filterWithPhotos: 'With Photos',
+    filterWithComment: 'With Text Comment',
     filterMatched: '🔗 Linked to iiko Receipt',
     viewPhotosBtn: 'View Photo',
     filterAllPlatforms: 'All Platforms',
@@ -228,8 +229,8 @@ const UI_TEXT = {
     filterAll: 'Все отзывы',
     filterNegative: '🚨 Негативные / Алерты',
     filterPositive: '👍 Позитивные',
-    filterWithPhotos: '📸 С фото',
-    filterWithComment: '💬 С текстом отзыва',
+    filterWithPhotos: 'С фото',
+    filterWithComment: 'С текстом отзыва',
     filterMatched: '🔗 Связанные с чеком iiko',
     viewPhotosBtn: 'Смотреть фото',
     filterAllPlatforms: 'Все платформы',
@@ -296,6 +297,7 @@ const UI_TEXT = {
 export default function Reputation() {
   const { isDark } = useTheme()
   const { t, language } = useLanguage()
+  const { canAccessCity, canAccessBrand, hasScopeRestrictions } = useAuth()
   const { restaurants } = useLiveChecks()
   const [searchParams] = useSearchParams()
 
@@ -465,24 +467,26 @@ export default function Reputation() {
   }
 
   const { groupedByBrand, allBrands } = useMemo(() => {
-    const grouped = {
-      'Roll Master': [],
-      'Poki Woki': [],
-      'Love Sushi': [],
-      'Smash Me': [],
-      'Crunch': []
-    }
+    const allowedBrandsList = AUTHORITATIVE_BRANDS.filter(b => canAccessBrand(b))
+    const grouped = {}
+    allowedBrandsList.forEach(b => { grouped[b] = [] })
     restaurants.forEach(r => {
       if (!r.is_active) return
       const brand = deduceBrandName(r)
       if (grouped[brand]) grouped[brand].push(r)
-      else grouped['Roll Master'].push(r)
     })
     return {
       groupedByBrand: grouped,
-      allBrands: ['all', ...AUTHORITATIVE_BRANDS]
+      allBrands: allowedBrandsList.length === 1 ? allowedBrandsList : ['all', ...allowedBrandsList]
     }
-  }, [restaurants])
+  }, [restaurants, canAccessBrand])
+
+  useEffect(() => {
+    const allowedBrandsList = AUTHORITATIVE_BRANDS.filter(b => canAccessBrand(b))
+    if (allowedBrandsList.length === 1 && activeBrand !== allowedBrandsList[0]) {
+      setActiveBrand(allowedBrandsList[0])
+    }
+  }, [canAccessBrand, activeBrand])
 
   // MECANISMUL 1: Import Manual din Excel / CSV (handleFileUpload cu XLSX)
   const handleFileUpload = async (e) => {
@@ -621,6 +625,15 @@ export default function Reputation() {
 
   const filteredReviews = useMemo(() => {
     let list = [...(reviewsData.reviews || [])]
+    if (hasScopeRestrictions) {
+      list = list.filter(rv => {
+        const rvCity = rv.city || rv.restaurant_city || rv.restaurant_name || ''
+        const rvBrand = rv.brand_name || rv.brand || deduceBrandName({ name: rv.restaurant_name }) || ''
+        if (!canAccessCity(rvCity)) return false
+        if (!canAccessBrand(rvBrand || rv.restaurant_name)) return false
+        return true
+      })
+    }
     if (activeBrand !== 'all') {
       list = list.filter(rv => {
         if (rv.brand_name && rv.brand_name === activeBrand) return true
@@ -1149,7 +1162,18 @@ export default function Reputation() {
                               />
                             )}
                             <span className="truncate">
-                              {L.clientLbl} <strong className="text-slate-700 dark:text-slate-300">{rv.customer_name || 'Client'}</strong>
+                              {L.clientLbl}{' '}
+                              {rv.customer_name && rv.customer_name !== 'Client' ? (
+                                <Link
+                                  to={`/customers?search=${encodeURIComponent(rv.customer_name)}&open=1`}
+                                  className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                                  title="Vezi Dosarul Complet al Clientului (Comenzi, Produse, Adresă și Recenzii)"
+                                >
+                                  {rv.customer_name}
+                                </Link>
+                              ) : (
+                                <strong className="text-slate-700 dark:text-slate-300">{rv.customer_name || 'Client'}</strong>
+                              )}
                             </span>
                           </div>
                         </div>
@@ -1227,7 +1251,7 @@ export default function Reputation() {
                                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                                     />
                                     <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-md bg-black/70 text-white text-[9px] font-bold backdrop-blur-xs">
-                                      📸 {pIdx + 1}/{rv.review_photos.length}
+                                      {pIdx + 1}/{rv.review_photos.length}
                                     </span>
                                   </button>
                                 ))}
@@ -1480,7 +1504,7 @@ export default function Reputation() {
                     {selectedPhotoModal.customerName} • {selectedPhotoModal.restaurantName}
                   </div>
                   <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {selectedPhotoModal.city} • {selectedPhotoModal.date ? new Date(selectedPhotoModal.date).toLocaleString(localeCode) : ''} • 📸 {selectedPhotoModal.index + 1} / {selectedPhotoModal.photos.length}
+                    {selectedPhotoModal.city} • {selectedPhotoModal.date ? new Date(selectedPhotoModal.date).toLocaleString(localeCode) : ''} • {selectedPhotoModal.index + 1} / {selectedPhotoModal.photos.length}
                   </div>
                 </div>
               </div>

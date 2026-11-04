@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   MapPin,
   Navigation,
@@ -11,14 +12,20 @@ import {
   ExternalLink,
   X,
   ChevronDown,
-  Eye
+  Eye,
+  User,
+  CheckCircle2,
+  AlertTriangle,
+  ShieldAlert
 } from 'lucide-react'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
+import { useAuth } from '../lib/AuthContext'
 import { useLiveDispatch } from '../hooks/useLiveDispatch'
 import { useLiveChecks } from '../hooks/useLiveChecks'
 import BrandAvatar, { getBrandInfo, cleanRestaurantName } from '../components/BrandAvatar'
 import PlatformLogo from '../components/PlatformLogo'
+import OrderLiveRouteMap from '../components/OrderLiveRouteMap'
 import { getProductImage } from '../lib/productImages'
 import { getCanonicalCity, getCityDisplayName, formatDisplayOrderNumber, parseDeliveryAddress } from '../lib/orderUtils'
 
@@ -45,13 +52,13 @@ const UI_TEXT = {
     allLocations: 'Toate Punctele',
     allCouriers: 'Toți Curierii',
     reset: 'Resetează',
-    tabAll: 'Toate Livrările',
-    tabTracking: '📍 Cu Tracking Live Glovo/Wolt',
-    tabAtRest: 'La Restaurant / Așteaptă Curier',
-    tabOnWay: 'Pe Drum (În Livrare)',
+    tabAll: 'Toate',
+    tabTracking: 'Tracking Live',
+    tabAtRest: 'La Restaurant',
+    tabOnWay: 'Pe Drum',
     tabAtCustomer: 'La Client',
     tabDelivered: 'Livrate',
-    searchPlaceholder: 'Caută #bon, client, AWB curier, adresă...',
+    searchPlaceholder: 'Caută #bon, client, AWB...',
     legendStore: 'Punct de Lucru',
     legendAtRest: 'La Restaurant',
     legendOnWay: 'Pe Drum (Picked Up)',
@@ -62,7 +69,7 @@ const UI_TEXT = {
     noDeliveries: 'Nicio livrare găsită pentru filtrele selectate.',
     fleetLabel: 'Flotă:',
     deliveryFeeShort: 'Livrare:',
-    trackingLiveBtn: '📍 Tracking Live',
+    trackingLiveBtn: 'Tracking Live',
     checkBtn: 'Bon',
     popupLocation: 'Punct de Lucru',
     popupBrand: 'Brand:',
@@ -71,9 +78,9 @@ const UI_TEXT = {
     popupCustomer: 'Client:',
     popupStatus: 'Status:',
     popupFee: 'Taxă livrare:',
-    popupTrackingBtn: '📍 Tracking Live Curier ↗',
+    popupTrackingBtn: 'Tracking Live Curier',
     modalPlacedAt: 'Plasat la',
-    modalTimingsTitle: '⏱ Cronologie Timpi iiko & Curier (Ore Exacte)',
+    modalTimingsTitle: 'Cronologie Timpi iiko & Curier (Ore Exacte)',
     modalSlaPromised: 'Termen promis (SLA):',
     step1: '1. Comandă Intrată',
     step2: '2. Gata Bucătărie',
@@ -84,7 +91,7 @@ const UI_TEXT = {
     courierWord: 'Curier',
     liveStatusLabel: 'Status Live:',
     courierFeeLabel: 'Taxă livrare curier:',
-    openLiveMapBtn: '📍 Deschide Harta Live Glovo/Wolt',
+    openLiveMapBtn: 'Deschide Harta Live Glovo/Wolt',
     orderedItemsTitle: 'Articole Comandate',
     orderTotalLabel: 'Total Comandă:',
     statusAtRest: 'LA RESTAURANT',
@@ -96,10 +103,15 @@ const UI_TEXT = {
     depTimeLabel: 'Plecare',
     estDeliveryLabel: 'Est. Livrare',
     deliveredAtLabel: 'Livrat',
-    googleMapsRouteBtn: '🗺️ Traseu Google Maps',
+    googleMapsRouteBtn: 'Traseu Google Maps',
     streetRouteBadge: 'Traseu Stradal',
     minShort: 'min',
-    kmShort: 'km'
+    kmShort: 'km',
+    legendDoneRoute: 'Parcurs de curier',
+    legendRemRoute: 'Rămas până la client',
+    showAllOrdersBtn: 'Afișează toate comenzile',
+    selectedOrderBadge: 'Comandă izolată pe hartă:',
+    tabSuboptimal: 'Întârzieri Curier'
   },
   ru: {
     radarBadge: 'РАДАР КУРЬЕРОВ LIVE',
@@ -114,13 +126,13 @@ const UI_TEXT = {
     allLocations: 'Все точки',
     allCouriers: 'Все курьеры',
     reset: 'Сбросить',
-    tabAll: 'Все доставки',
-    tabTracking: '📍 С Live-трекингом Glovo/Wolt',
-    tabAtRest: 'В ресторане / Ожидает курьера',
-    tabOnWay: 'В пути (Курьер забрал)',
+    tabAll: 'Все',
+    tabTracking: 'Live-трекинг',
+    tabAtRest: 'В ресторане',
+    tabOnWay: 'В пути',
     tabAtCustomer: 'У клиента',
     tabDelivered: 'Доставлены',
-    searchPlaceholder: 'Поиск #чека, клиента, AWB курьера, адреса...',
+    searchPlaceholder: 'Поиск #чека, клиента, AWB...',
     legendStore: 'Точка (Ресторан)',
     legendAtRest: 'В ресторане',
     legendOnWay: 'В пути (Забрал)',
@@ -131,7 +143,7 @@ const UI_TEXT = {
     noDeliveries: 'Доставки по выбранным фильтрам не найдены.',
     fleetLabel: 'Служба:',
     deliveryFeeShort: 'Доставка:',
-    trackingLiveBtn: '📍 Live-трекинг',
+    trackingLiveBtn: 'Live-трекинг',
     checkBtn: 'Чек',
     popupLocation: 'Точка (Ресторан)',
     popupBrand: 'Бренд:',
@@ -140,9 +152,9 @@ const UI_TEXT = {
     popupCustomer: 'Клиент:',
     popupStatus: 'Статус:',
     popupFee: 'Тариф доставки:',
-    popupTrackingBtn: '📍 Live-трекинг курьера ↗',
+    popupTrackingBtn: 'Live-трекинг курьера',
     modalPlacedAt: 'Время заказа:',
-    modalTimingsTitle: '⏱ Хронология времени iiko и курьера (точное время)',
+    modalTimingsTitle: 'Хронология времени iiko и курьера (точное время)',
     modalSlaPromised: 'Обещанный срок (SLA):',
     step1: '1. Заказ принят',
     step2: '2. Готов на кухне',
@@ -153,7 +165,7 @@ const UI_TEXT = {
     courierWord: 'Курьер',
     liveStatusLabel: 'Live-статус:',
     courierFeeLabel: 'Тариф доставки курьера:',
-    openLiveMapBtn: '📍 Открыть Live-карту Glovo/Wolt',
+    openLiveMapBtn: 'Открыть Live-карту Glovo/Wolt',
     orderedItemsTitle: 'Позиции в чеке',
     orderTotalLabel: 'Итого по чеку:',
     statusAtRest: 'В РЕСТОРАНЕ',
@@ -165,10 +177,15 @@ const UI_TEXT = {
     depTimeLabel: 'Выезд',
     estDeliveryLabel: 'Ожид. дост.',
     deliveredAtLabel: 'Доставлен',
-    googleMapsRouteBtn: '🗺️ Маршрут Google Maps',
+    googleMapsRouteBtn: 'Маршрут Google Maps',
     streetRouteBadge: 'По улицам',
     minShort: 'мин',
-    kmShort: 'км'
+    kmShort: 'км',
+    legendDoneRoute: 'Пройдено курьером',
+    legendRemRoute: 'Осталось до клиента',
+    showAllOrdersBtn: 'Показать все заказы',
+    selectedOrderBadge: 'Заказ на карте:',
+    tabSuboptimal: 'Задержки курьера'
   },
   en: {
     radarBadge: 'LIVE COURIERS RADAR',
@@ -183,13 +200,13 @@ const UI_TEXT = {
     allLocations: 'All Locations',
     allCouriers: 'All Couriers',
     reset: 'Reset',
-    tabAll: 'All Deliveries',
-    tabTracking: '📍 With Live Tracking Glovo/Wolt',
-    tabAtRest: 'At Restaurant / Waiting Courier',
-    tabOnWay: 'On the Way (Picked Up)',
+    tabAll: 'All',
+    tabTracking: 'Live Track',
+    tabAtRest: 'At Restaurant',
+    tabOnWay: 'On Way',
     tabAtCustomer: 'At Customer',
     tabDelivered: 'Delivered',
-    searchPlaceholder: 'Search #check, customer, courier AWB, address...',
+    searchPlaceholder: 'Search #check, customer, AWB...',
     legendStore: 'Restaurant',
     legendAtRest: 'At Restaurant',
     legendOnWay: 'On the Way (Picked Up)',
@@ -200,7 +217,7 @@ const UI_TEXT = {
     noDeliveries: 'No deliveries found for the selected filters.',
     fleetLabel: 'Fleet:',
     deliveryFeeShort: 'Delivery:',
-    trackingLiveBtn: '📍 Live Tracking',
+    trackingLiveBtn: 'Live Tracking',
     checkBtn: 'Check',
     popupLocation: 'Restaurant Location',
     popupBrand: 'Brand:',
@@ -209,9 +226,9 @@ const UI_TEXT = {
     popupCustomer: 'Customer:',
     popupStatus: 'Status:',
     popupFee: 'Delivery fee:',
-    popupTrackingBtn: '📍 Live Courier Tracking ↗',
+    popupTrackingBtn: 'Live Courier Tracking',
     modalPlacedAt: 'Placed at',
-    modalTimingsTitle: '⏱ iiko & Courier Exact Timings',
+    modalTimingsTitle: 'iiko & Courier Exact Timings',
     modalSlaPromised: 'Promised SLA:',
     step1: '1. Order Received',
     step2: '2. Kitchen Ready',
@@ -222,7 +239,7 @@ const UI_TEXT = {
     courierWord: 'Courier',
     liveStatusLabel: 'Live Status:',
     courierFeeLabel: 'Courier delivery fee:',
-    openLiveMapBtn: '📍 Open Live Glovo/Wolt Map',
+    openLiveMapBtn: 'Open Live Glovo/Wolt Map',
     orderedItemsTitle: 'Ordered Items',
     orderTotalLabel: 'Order Total:',
     statusAtRest: 'AT RESTAURANT',
@@ -234,10 +251,15 @@ const UI_TEXT = {
     depTimeLabel: 'Departure',
     estDeliveryLabel: 'Est. Delivery',
     deliveredAtLabel: 'Delivered',
-    googleMapsRouteBtn: '🗺️ Google Maps Route',
+    googleMapsRouteBtn: 'Google Maps Route',
     streetRouteBadge: 'Street Route',
     minShort: 'min',
-    kmShort: 'km'
+    kmShort: 'km',
+    legendDoneRoute: 'Completed by courier',
+    legendRemRoute: 'Remaining to client',
+    showAllOrdersBtn: 'Show all orders',
+    selectedOrderBadge: 'Isolated order:',
+    tabSuboptimal: 'Courier Delays'
   }
 }
 
@@ -249,7 +271,7 @@ const CITY_COORDS = {
   'TIMISOARA': { lat: 45.7489, lng: 21.2087, zoom: 13 },
   'CLUJ-NAPOCA': { lat: 46.7712, lng: 23.6236, zoom: 13 },
   'BRASOV': { lat: 45.6427, lng: 25.5887, zoom: 13 },
-  'CONSTANTA': { lat: 44.1598, lng: 28.6348, zoom: 13 },
+  'CONSTANTA': { lat: 44.1792, lng: 28.6348, zoom: 13 },
   'ORADEA': { lat: 47.0465, lng: 21.9189, zoom: 13 },
   'SUCEAVA': { lat: 47.6514, lng: 26.2556, zoom: 13 },
   'BACAU': { lat: 46.5670, lng: 26.9146, zoom: 13 },
@@ -289,6 +311,9 @@ function getRestaurantCoords(cityCanon, restName, restId) {
     if (nameUpper.includes('BANEASA') || nameUpper.includes('PIPERA')) return { lat: 44.4920, lng: 26.0850 }
     if (nameUpper.includes('UNIRII')) return { lat: 44.4268, lng: 26.1025 }
   }
+  if (cityCanon === 'CONSTANTA') {
+    return { lat: 44.1792, lng: 28.6348 }
+  }
   const dLat = ((h % 100) / 100 - 0.5) * 0.012
   const dLng = (((h >> 8) % 100) / 100 - 0.5) * 0.016
   return { lat: base.lat + dLat, lng: base.lng + dLng }
@@ -300,10 +325,14 @@ function getOrderDeliveryCoords(order, restCoords) {
     return { lat: Number(explicit.lat), lng: Number(explicit.lng), isExactGps: true }
   }
   const h = hashString(`${order.order_id || order.id}_${order.customer?.address || ''}_${order.order_number || ''}`)
-  const angle = ((h % 360) * Math.PI) / 180
+  const cityCanon = getCanonicalCity(order.cityCanon || order.restaurant_city || order.city || order.restaurant_name || '')
+  const deg = cityCanon === 'CONSTANTA'
+    ? (115 + (h % 190)) // Spre interiorul orașului Constanța (niciodată în port / Marea Neagră)
+    : (h % 360)
+  const angle = (deg * Math.PI) / 180
   const distKm = 0.9 + ((h >> 9) % 28) / 10 // 0.9km .. 3.7km around restaurant
-  const dLat = (distKm / 111) * Math.cos(angle)
-  const dLng = (distKm / 78) * Math.sin(angle)
+  const dLat = (distKm / 111) * Math.sin(angle)
+  const dLng = (distKm / 78) * Math.cos(angle)
   return {
     lat: restCoords.lat + dLat,
     lng: restCoords.lng + dLng,
@@ -328,6 +357,60 @@ function getCourierLivePosition(order, restCoords, custCoords) {
     lat: restCoords.lat + (custCoords.lat - restCoords.lat) * progress,
     lng: restCoords.lng + (custCoords.lng - restCoords.lng) * progress
   }
+}
+
+function getPlatformMapBadgeHtml(platform, size = 18) {
+  const p = String(platform || '').toLowerCase()
+  if (p.includes('glovo')) {
+    return `
+      <span style="
+        width: ${size}px; height: ${size}px; border-radius: 50%;
+        background: #FFC244; display: inline-flex; align-items: center; justify-content: center;
+        flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      " title="Glovo">
+        <svg viewBox="0 0 24 24" width="${Math.round(size * 0.68)}" height="${Math.round(size * 0.68)}" fill="#00A082">
+          <path d="M12.012 0C7.847 0 4.459 3.388 4.459 7.553c0 1.576.494 3.106 1.412 4.4l.211.281 3.93 5.555s.47.775 1.529.775h.941c1.036 0 1.53-.775 1.53-.775l3.93-5.555.187-.28a7.43 7.43 0 0 0 1.412-4.401C19.564 3.388 16.176 0 12.011 0Zm0 3.693a3.837 3.837 0 0 1 3.836 3.836c0 .824-.26 1.578-.73 2.237l-.212.28-2.894 4.095-2.895-4.07-.21-.305a3.848 3.848 0 0 1-.731-2.237 3.837 3.837 0 0 1 3.836-3.836zm-2.117 18.26c0 1.106.893 2.023 2.07 2.047 1.223 0 2.117-.917 2.117-2.059 0-1.14-.894-2.058-2.094-2.058-1.2 0-2.093.917-2.093 2.07z"/>
+        </svg>
+      </span>
+    `
+  }
+  if (p.includes('wolt')) {
+    return `
+      <span style="
+        width: ${size}px; height: ${size}px; border-radius: 50%;
+        background: #00C2E8; color: #ffffff;
+        display: inline-flex; align-items: center; justify-content: center;
+        flex-shrink: 0; font-family: system-ui, sans-serif; font-weight: 900;
+        font-style: italic; font-size: ${Math.max(7, Math.round(size * 0.44))}px; letter-spacing: -0.4px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      " title="Wolt">wolt</span>
+    `
+  }
+  if (p.includes('bolt')) {
+    return `
+      <span style="
+        width: ${size}px; height: ${size}px; border-radius: 50%;
+        background: #34D186; display: inline-flex; align-items: center; justify-content: center;
+        flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      " title="Bolt Food">
+        <svg viewBox="0 0 256 326" width="${Math.round(size * 0.62)}" height="${Math.round(size * 0.62)}" fill="#22262A">
+          <path d="M146.913164,0 L125.011288,98.780726 C142.70058,79.4448787 159.127663,72.299019 180.186309,72.299019 C225.675379,72.299019 256,102.143383 256,156.78784 C256,213.113341 221.042391,285.412745 148.597627,285.412745 C125.432404,285.412745 102.688439,277.006103 89.6315659,258.931608 L85.0262251,280.248197 L0,325.328264 L9.17897315,280.248197 L71.0994728,0 L146.913164,0 Z M143.96464,139.133749 C132.171399,139.133749 122.062907,144.177164 113.218048,153.005635 L101.424807,204.706699 C109.427434,213.533745 121.641791,218.578585 135.11978,218.578585 C159.127663,218.578585 177.659614,198.822477 177.659614,172.761743 C177.659614,152.585232 162.076187,139.133749 143.96464,139.133749 Z"/>
+        </svg>
+      </span>
+    `
+  }
+  return `
+    <span style="
+      width: ${size}px; height: ${size}px; border-radius: 50%;
+      background: #4f46e5; color: #ffffff;
+      display: inline-flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    ">
+      <svg viewBox="0 0 24 24" width="${Math.round(size * 0.62)}" height="${Math.round(size * 0.62)}" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+      </svg>
+    </span>
+  `
 }
 
 function getCleanOrderNumber(ord) {
@@ -550,14 +633,52 @@ function computeOrderRouteAndTimeline(ord, streetRouteEntry, language = 'ro') {
     }
   }
 
+  // Audit eficiență traseu și timp curier față de traseul stradal optim OSRM
+  const rawDelivMin = Number(ord.delivery_minutes || 0)
+  const diffSentDeliv = (sentHHMM && deliveredHHMM) ? diffMinutesBetweenHHMM(sentHHMM, deliveredHHMM) : null
+  const nowHHMM = new Date().toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })
+  const elapsedSinceDep = (depTime && depTime !== '—') ? diffMinutesBetweenHHMM(depTime, nowHHMM) : null
+
+  let actualCourierMin = driveMin
+  if (rawDelivMin >= 3) {
+    actualCourierMin = Math.round(rawDelivMin)
+  } else if (diffSentDeliv !== null && diffSentDeliv >= 3 && diffSentDeliv <= 140) {
+    actualCourierMin = Math.round(diffSentDeliv)
+  } else if ((ord.courierPhase === 'on_way' || ord.courierPhase === 'at_customer') && elapsedSinceDep !== null && elapsedSinceDep > driveMin && elapsedSinceDep <= 120) {
+    actualCourierMin = Math.round(elapsedSinceDep)
+  }
+
+  const extraCourierMin = ord.courierPhase === 'at_restaurant' ? 0 : Math.max(0, actualCourierMin - driveMin)
+  const actualKm = extraCourierMin <= 3
+    ? Number(distanceKm.toFixed(1))
+    : Number((distanceKm * (1 + Math.min(1.25, extraCourierMin * 0.045)) + Math.min(2.4, extraCourierMin * 0.12)).toFixed(1))
+  const extraKm = Math.max(0, Number((actualKm - distanceKm).toFixed(1)))
+  const efficiencyPct = (ord.courierPhase === 'at_restaurant' || extraCourierMin <= 2)
+    ? 100
+    : Math.max(25, Math.min(98, Math.round((driveMin / Math.max(driveMin, actualCourierMin)) * 100)))
+
+  let auditStatus = 'optimal' // 'waiting_pickup' | 'optimal' | 'minor_detour' | 'suboptimal'
+  if (ord.courierPhase === 'at_restaurant') {
+    auditStatus = 'waiting_pickup'
+  } else if (extraCourierMin >= 10) {
+    auditStatus = 'suboptimal'
+  } else if (extraCourierMin >= 5) {
+    auditStatus = 'minor_detour'
+  }
+
   let estArrTime = null
   if (isDelivered && deliveredHHMM) {
-    estArrTime = deliveredHHMM
+    const diffDeliv = depTime && depTime !== '—' ? diffMinutesBetweenHHMM(depTime, deliveredHHMM) : null
+    if (diffDeliv !== null && diffDeliv < 3) {
+      estArrTime = addMinutesToHHMM(depTime, actualCourierMin)
+    } else {
+      estArrTime = deliveredHHMM
+    }
   } else if (depTime && depTime !== '—') {
     const byDrive = addMinutesToHHMM(depTime, driveMin)
     if (slaHHMM) {
       const diffSla = diffMinutesBetweenHHMM(depTime, slaHHMM)
-      estArrTime = (diffSla !== null && diffSla >= 3 && diffSla <= 55) ? slaHHMM : byDrive
+      estArrTime = (diffSla !== null && diffSla >= 4 && diffSla <= 55) ? slaHHMM : byDrive
     } else {
       estArrTime = byDrive
     }
@@ -568,22 +689,20 @@ function computeOrderRouteAndTimeline(ord, streetRouteEntry, language = 'ro') {
   }
 
   // Procent progres pe bara de status și pe traseul stradal
-  let progress01 = 0.5
+  let progress01 = 0
   if (ord.courierPhase === 'delivered') {
     progress01 = 1
   } else if (ord.courierPhase === 'at_customer') {
     progress01 = 0.94
   } else if (ord.courierPhase === 'at_restaurant') {
-    progress01 = cookedHHMM ? 0.22 : 0.14
+    progress01 = 0
   } else {
     // Pe drum: interpolăm în timp real față de ora curentă dacă e azi, altfel poziție deterministă pe traseu
-    const nowHHMM = new Date().toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })
-    const elapsed = depTime && depTime !== '—' ? diffMinutesBetweenHHMM(depTime, nowHHMM) : null
     const totalTrip = (depTime && estArrTime && depTime !== '—' && estArrTime !== '—')
       ? Math.max(4, diffMinutesBetweenHHMM(depTime, estArrTime) || driveMin)
       : driveMin
-    if (elapsed !== null && elapsed >= 0 && elapsed <= totalTrip) {
-      progress01 = Math.max(0.28, Math.min(0.88, 0.25 + (elapsed / totalTrip) * 0.65))
+    if (elapsedSinceDep !== null && elapsedSinceDep >= 0 && elapsedSinceDep <= totalTrip) {
+      progress01 = Math.max(0.28, Math.min(0.88, 0.25 + (elapsedSinceDep / totalTrip) * 0.65))
     } else {
       progress01 = 0.42 + ((seed % 38) / 100)
     }
@@ -606,6 +725,12 @@ function computeOrderRouteAndTimeline(ord, streetRouteEntry, language = 'ro') {
     isDelivered,
     distanceKm: Number(distanceKm).toFixed(1),
     driveMin,
+    actualCourierMin,
+    extraCourierMin,
+    actualKm: Number(actualKm).toFixed(1),
+    extraKm: Number(extraKm).toFixed(1),
+    efficiencyPct,
+    auditStatus,
     progressPct: Math.round(progress01 * 100),
     progress01,
     routeLatLngs,
@@ -621,7 +746,24 @@ function computeOrderRouteAndTimeline(ord, streetRouteEntry, language = 'ro') {
 export default function CouriersMap() {
   const { isDark } = useTheme()
   const { language } = useLanguage()
+  const { canAccessCity, canAccessBrand } = useAuth()
+  const navigate = useNavigate()
   const ui = UI_TEXT[language] || UI_TEXT.ro
+
+  const openCustomerDossier = (ord, e) => {
+    e?.stopPropagation()
+    const cName = String(ord?.customer?.name || '').trim()
+    const cPhone = String(ord?.customer?.phone || '').replace(/[^\d+]/g, '')
+    const hasRealPhone = cPhone && !cPhone.includes('000000')
+    const query = (cName && !cName.toLowerCase().includes('nespecificat') && !cName.toLowerCase().includes('client'))
+      ? cName
+      : (hasRealPhone ? cPhone : String(ord?.order_number || '').replace(/^#+/, ''))
+    if (query) {
+      navigate(`/customers?search=${encodeURIComponent(query)}&open=1`)
+    } else {
+      navigate('/customers')
+    }
+  }
 
   const [selectedCity, setSelectedCity] = useState('all')
   const [selectedBrand, setSelectedBrand] = useState('all')
@@ -746,17 +888,38 @@ export default function CouriersMap() {
 
   const availableCities = useMemo(() => {
     const set = new Set()
-    deliveryOrders.forEach(o => { if (o.cityCanon) set.add(o.cityCanon) })
+    deliveryOrders.forEach(o => { if (o.cityCanon && canAccessCity(o.cityCanon)) set.add(o.cityCanon) })
     allRestaurants.forEach(r => {
       const c = getCanonicalCity(r.city || r.name || '')
-      if (c) set.add(c)
+      if (c && canAccessCity(c)) set.add(c)
     })
     return ['all', ...Array.from(set).sort()]
-  }, [deliveryOrders, allRestaurants])
+  }, [deliveryOrders, allRestaurants, canAccessCity])
+
+  const availableBrands = useMemo(() => {
+    return AUTHORITATIVE_BRANDS.filter(b => canAccessBrand(b))
+  }, [canAccessBrand])
+
+  useEffect(() => {
+    const citiesOnly = availableCities.filter(c => c !== 'all')
+    if (citiesOnly.length === 1 && selectedCity !== citiesOnly[0]) {
+      setSelectedCity(citiesOnly[0])
+    } else if (selectedCity !== 'all' && citiesOnly.length > 0 && !citiesOnly.includes(selectedCity)) {
+      setSelectedCity(citiesOnly.length === 1 ? citiesOnly[0] : 'all')
+    }
+  }, [availableCities, selectedCity])
+
+  useEffect(() => {
+    if (availableBrands.length === 1 && selectedBrand !== availableBrands[0]) {
+      setSelectedBrand(availableBrands[0])
+    } else if (selectedBrand !== 'all' && availableBrands.length > 0 && !availableBrands.includes(selectedBrand)) {
+      setSelectedBrand(availableBrands.length === 1 ? availableBrands[0] : 'all')
+    }
+  }, [availableBrands, selectedBrand])
 
   const brandCounts = useMemo(() => {
     const counts = { all: 0 }
-    AUTHORITATIVE_BRANDS.forEach(b => { counts[b] = 0 })
+    availableBrands.forEach(b => { counts[b] = 0 })
     deliveryOrders.forEach(o => {
       if (selectedCity !== 'all' && o.cityCanon !== selectedCity) return
       counts.all++
@@ -764,7 +927,7 @@ export default function CouriersMap() {
       if (counts[bInfo.name] !== undefined) counts[bInfo.name]++
     })
     return counts
-  }, [deliveryOrders, selectedCity])
+  }, [deliveryOrders, selectedCity, availableBrands])
 
   const filteredRestaurantsForSelector = useMemo(() => {
     return allRestaurants.filter(r => {
@@ -796,6 +959,10 @@ export default function CouriersMap() {
       if (selectedStatusTab === 'on_way' && o.courierPhase !== 'on_way') return false
       if (selectedStatusTab === 'at_customer' && o.courierPhase !== 'at_customer') return false
       if (selectedStatusTab === 'delivered' && o.courierPhase !== 'delivered') return false
+      if (selectedStatusTab === 'suboptimal') {
+        const rInfo = computeOrderRouteAndTimeline(o, streetRoutes[o.id], language)
+        if (rInfo.extraCourierMin < 5) return false
+      }
 
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim()
@@ -808,7 +975,7 @@ export default function CouriersMap() {
       }
       return true
     })
-  }, [deliveryOrders, selectedCity, selectedBrand, selectedRestaurantId, selectedFleet, selectedStatusTab, searchQuery])
+  }, [deliveryOrders, selectedCity, selectedBrand, selectedRestaurantId, selectedFleet, selectedStatusTab, searchQuery, streetRoutes, language])
 
   // Statistici pe statusuri pentru tab-uri și KPI cards
   const stats = useMemo(() => {
@@ -833,11 +1000,15 @@ export default function CouriersMap() {
       on_way: base.filter(o => o.courierPhase === 'on_way').length,
       at_customer: base.filter(o => o.courierPhase === 'at_customer').length,
       delivered: base.filter(o => o.courierPhase === 'delivered').length,
+      suboptimal: base.filter(o => {
+        const rInfo = computeOrderRouteAndTimeline(o, streetRoutes[o.id], language)
+        return rInfo.extraCourierMin >= 5
+      }).length,
       glovo: base.filter(o => String(o.courier?.company || o.platform || '').toLowerCase().includes('glovo')).length,
       wolt: base.filter(o => String(o.courier?.company || o.platform || '').toLowerCase().includes('wolt')).length,
       bolt: base.filter(o => String(o.courier?.company || o.platform || '').toLowerCase().includes('bolt')).length
     }
-  }, [deliveryOrders, selectedCity, selectedBrand, selectedRestaurantId, selectedFleet])
+  }, [deliveryOrders, selectedCity, selectedBrand, selectedRestaurantId, selectedFleet, streetRoutes, language])
 
   // Inițializare hartă Leaflet cu tile-uri Google Maps Stradal (fără watermark)
   useEffect(() => {
@@ -848,7 +1019,8 @@ export default function CouriersMap() {
     const map = L.map(mapContainerRef.current, {
       center: [ROMANIA_CENTER.lat, ROMANIA_CENTER.lng],
       zoom: ROMANIA_CENTER.zoom,
-      zoomControl: true
+      zoomControl: true,
+      scrollWheelZoom: false
     })
 
     tileLayerRef.current = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ro', {
@@ -865,7 +1037,7 @@ export default function CouriersMap() {
     }
   }, [])
 
-  // Geocodare adresă client + calcul traseu stradal real (OSRM Driving) pentru comenzile active și comanda selectată
+  // Geocodare adresă client + calcul traseu stradal real (OSRM Driving) ON-DEMAND (la click pe comandă + max 3 curieri activi pe drum, cu cache în sessionStorage)
   useEffect(() => {
     let cancelled = false
     const candidates = []
@@ -875,20 +1047,35 @@ export default function CouriersMap() {
       if (sel) candidates.push(sel)
     }
 
-    filteredDeliveries.slice(0, 24).forEach(o => {
-      if (o.courierPhase === 'on_way' || o.courierPhase === 'at_customer' || o.courierPhase === 'at_restaurant') {
+    // Doar primii max 3 curieri aflați efectiv PE DRUM (on_way / at_customer), restul folosesc calculul matematic instant cu 0 trafic până când se dă click pe ei
+    filteredDeliveries.forEach(o => {
+      if (candidates.length >= 4) return
+      if (o.courierPhase === 'on_way' || o.courierPhase === 'at_customer') {
         if (!candidates.some(c => c.id === o.id)) candidates.push(o)
       }
     })
 
-    const toFetch = candidates
-      .filter(o => !streetRoutesCacheRef.current.has(o.id))
-      .slice(0, 12)
+    const toFetch = []
+    for (const o of candidates) {
+      if (streetRoutesCacheRef.current.has(o.id)) continue
+      try {
+        const cachedRaw = sessionStorage.getItem(`ag_route_v1_${o.id}`)
+        if (cachedRaw) {
+          const parsed = JSON.parse(cachedRaw)
+          if (parsed?.coordinates?.length >= 2) {
+            streetRoutesCacheRef.current.set(o.id, parsed)
+            setStreetRoutes(prev => ({ ...prev, [o.id]: parsed }))
+            continue
+          }
+        }
+      } catch (_) {}
+      toFetch.push(o)
+    }
 
     if (toFetch.length === 0) return
 
     ;(async () => {
-      for (const ord of toFetch) {
+      for (const ord of toFetch.slice(0, 4)) {
         if (cancelled) break
         // Marcare provizorie pentru a evita request-uri duplicate
         streetRoutesCacheRef.current.set(ord.id, { pending: true })
@@ -948,6 +1135,9 @@ export default function CouriersMap() {
                 custCoords: targetCustCoords
               }
               streetRoutesCacheRef.current.set(ord.id, entry)
+              try {
+                sessionStorage.setItem(`ag_route_v1_${ord.id}`, JSON.stringify(entry))
+              } catch (_) {}
               if (!cancelled) {
                 setStreetRoutes(prev => ({ ...prev, [ord.id]: entry }))
               }
@@ -983,8 +1173,14 @@ export default function CouriersMap() {
     const layer = markersLayerRef.current
     layer.clearLayers()
 
-    // Limitează la primele 150 de livrări pentru performanță fluidă pe hartă
-    const visibleOrders = filteredDeliveries.slice(0, 150)
+    // Când utilizatorul selectează o comandă, afișăm pe hartă DOAR acea comandă (fără aglomerație de alți pini)
+    const selectedOrderObj = selectedOrderId
+      ? (filteredDeliveries.find(o => o.id === selectedOrderId) || deliveryOrders.find(o => o.id === selectedOrderId))
+      : null
+
+    const visibleOrders = selectedOrderObj
+      ? [selectedOrderObj]
+      : filteredDeliveries.slice(0, 150)
 
     // 1. Pini Restaurante unice din comenzile vizibile
     const seenRests = new Map()
@@ -1000,21 +1196,37 @@ export default function CouriersMap() {
     })
 
     seenRests.forEach(rest => {
+      const bInfo = getBrandInfo(rest.brand || rest.name || 'Roll Master')
+      const brandLogoHtml = bInfo?.logo
+        ? `<img src="${bInfo.logo}" alt="${rest.brand || ''}" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover; display: block;" />`
+        : `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#10b981" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></svg>`
+
       const restIcon = L.divIcon({
         className: 'custom-rest-marker',
         html: `
           <div style="
-            width: 28px; height: 28px; border-radius: 50%;
-            background: #0f172a; border: 2px solid #10b981;
+            position: relative;
+            width: 32px; height: 32px; border-radius: 50%;
+            background: #0f172a; border: 2.5px solid #10b981;
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 4px 12px rgba(0,0,0,0.45);
-            color: #10b981; font-size: 13px; font-weight: 900;
           " title="${ui.popupLocation}: ${rest.name}">
-            🏪
+            ${brandLogoHtml}
+            <span style="
+              position: absolute; bottom: -3px; right: -3px;
+              width: 14px; height: 14px; border-radius: 50%;
+              background: #10b981; border: 1.5px solid #0f172a;
+              display: flex; align-items: center; justify-content: center;
+            ">
+              <svg viewBox="0 0 24 24" width="8" height="8" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/>
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+              </svg>
+            </span>
           </div>
         `,
-        iconSize: [28, 28],
-        iconAnchor: [14, 14]
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
       })
       L.marker([rest.coords.lat, rest.coords.lng], { icon: restIcon })
         .bindPopup(`
@@ -1027,13 +1239,12 @@ export default function CouriersMap() {
         .addTo(layer)
     })
 
-    // 2. Pini Curieri + Trasee Stradale (NU linie dreaptă aeriană)
+    // 2. Pini Curieri + Trasee Stradale (VERDE = parcurs de curier, ROȘU = rămas până la client)
     visibleOrders.forEach(ord => {
       const isSelected = selectedOrderId === ord.id
       const routeInfo = computeOrderRouteAndTimeline(ord, streetRoutes[ord.id], language)
       const plat = String(ord.courier?.company || ord.platform || 'delivery').toLowerCase()
-      const platBadge = plat.includes('glovo') ? 'G' : plat.includes('wolt') ? 'W' : plat.includes('bolt') ? 'B' : 'D'
-      const platColor = plat.includes('glovo') ? '#f59e0b' : plat.includes('wolt') ? '#00c2e8' : '#10b981'
+      const displayNum = getCleanOrderNumber(ord)
 
       let statusColor = '#10b981' // on_way
       if (ord.courierPhase === 'at_customer') statusColor = '#0ea5e9'
@@ -1041,77 +1252,142 @@ export default function CouriersMap() {
       else if (ord.courierPhase === 'delivered') statusColor = '#64748b'
 
       if (isSelected || ord.courierPhase === 'on_way' || ord.courierPhase === 'at_customer' || ord.courierPhase === 'at_restaurant') {
-        // Segmentul parcurs deja de la restaurant până la poziția curierului (linie continuă pe străzi)
+        // Segmentul PARCURS deja de la restaurant până la poziția curierului -> VERDE CONTINUU (#10b981)
         if (routeInfo.completedLatLngs.length >= 2) {
           L.polyline(routeInfo.completedLatLngs, {
-            color: isSelected ? '#059669' : statusColor,
-            weight: isSelected ? 5 : 3,
-            opacity: isSelected ? 0.95 : 0.7,
+            color: '#10b981',
+            weight: isSelected ? 5.5 : 3.5,
+            opacity: isSelected ? 0.98 : 0.85,
             lineCap: 'round',
             lineJoin: 'round'
           }).addTo(layer)
         }
-        // Segmentul rămas pe străzi până la adresa clientului (linie punctată pe străzi)
+        // Segmentul RĂMAS pe străzi până la adresa clientului -> ROȘU ÎNTRERUPT (#ef4444)
         if (routeInfo.remainingLatLngs.length >= 2) {
           L.polyline(routeInfo.remainingLatLngs, {
-            color: isSelected ? '#10b981' : statusColor,
-            weight: isSelected ? 4 : 2.5,
-            opacity: isSelected ? 0.85 : 0.5,
-            dashArray: '7, 7',
+            color: '#ef4444',
+            weight: isSelected ? 4.5 : 3,
+            opacity: isSelected ? 0.92 : 0.75,
+            dashArray: '8, 7',
             lineCap: 'round',
             lineJoin: 'round'
           }).addTo(layer)
         }
 
-        // Pin Destinație Client (🏠) pentru comanda selectată sau în curs de livrare
-        if (isSelected || ord.courierPhase === 'on_way' || ord.courierPhase === 'at_customer') {
+        // Pin Destinație Client cu iconiță clară de Casă / Client (SVG)
+        if (isSelected || ord.courierPhase === 'on_way' || ord.courierPhase === 'at_customer' || ord.courierPhase === 'at_restaurant') {
+          const rawClientName = String(ord.customer?.name || '').trim()
+          const shortClientLabel = (isSelected && rawClientName && !rawClientName.toLowerCase().includes('client'))
+            ? rawClientName.split(/\s+/)[0].slice(0, 10)
+            : (language === 'ru' ? 'КЛИЕНТ' : 'CLIENT')
+
           const custIcon = L.divIcon({
             className: 'custom-cust-marker',
             html: `
               <div style="
-                width: ${isSelected ? '26px' : '22px'}; height: ${isSelected ? '26px' : '22px'}; border-radius: 50%;
-                background: ${isSelected ? '#0284c7' : '#0f172a'}; border: 2px solid #38bdf8;
-                display: flex; align-items: center; justify-content: center;
-                box-shadow: 0 3px 10px rgba(0,0,0,0.4);
-                font-size: ${isSelected ? '12px' : '10px'};
-              " title="${ord.customer?.name || 'Client'}">
-                🏠
+                position: relative;
+                display: inline-flex; align-items: center; gap: 4px;
+                padding: 3px 7px 3px 4px; border-radius: 999px;
+                background: ${isSelected ? '#0284c7' : '#0f172a'};
+                border: 2px solid #38bdf8;
+                color: #ffffff; font-family: system-ui, sans-serif;
+                font-size: 9px; font-weight: 800; white-space: nowrap;
+                box-shadow: 0 4px 12px rgba(2,132,199,0.45);
+                transform: ${isSelected ? 'scale(1.12)' : 'scale(1)'};
+              " title="Client: ${rawClientName || displayNum}">
+                <span style="
+                  width: 17px; height: 17px; border-radius: 50%;
+                  background: #0ea5e9; color: #ffffff;
+                  display: inline-flex; align-items: center; justify-content: center;
+                  flex-shrink: 0;
+                ">
+                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/>
+                    <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                  </svg>
+                </span>
+                <span style="letter-spacing: 0.2px;">${shortClientLabel}</span>
+                <span style="
+                  position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%);
+                  width: 0; height: 0;
+                  border-left: 5px solid transparent; border-right: 5px solid transparent;
+                  border-top: 5px solid #38bdf8;
+                "></span>
               </div>
             `,
-            iconSize: [isSelected ? 26 : 22, isSelected ? 26 : 22],
-            iconAnchor: [isSelected ? 13 : 11, isSelected ? 13 : 11]
+            iconSize: [74, 28],
+            iconAnchor: [37, 28]
           })
-          L.marker([routeInfo.custCoords.lat, routeInfo.custCoords.lng], { icon: custIcon }).addTo(layer)
+          const parsedCustAddr = parseDeliveryAddress(ord.customer?.address, language)
+          const custSearchQuery = (rawClientName && !rawClientName.toLowerCase().includes('client'))
+            ? rawClientName
+            : String(ord.order_number || '').replace(/^#+/, '')
+          const dossierBtnLabel = language === 'ru'
+            ? 'Открыть досье клиента 360° →'
+            : language === 'en'
+              ? 'Open 360° Customer Dossier →'
+              : 'Deschide Dosar Client 360° →'
+          L.marker([routeInfo.custCoords.lat, routeInfo.custCoords.lng], { icon: custIcon })
+            .bindPopup(`
+              <div style="font-family: system-ui, sans-serif; min-width: 195px;">
+                <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #0284c7;">
+                  ${ui.popupCustomer} (${displayNum})
+                </div>
+                <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-top: 2px;">
+                  ${rawClientName || 'Client'}
+                </div>
+                ${parsedCustAddr.streetAddress ? `<div style="font-size: 11px; color: #475569; margin-top: 2px;">${parsedCustAddr.streetAddress}</div>` : ''}
+                <a href="/customers?search=${encodeURIComponent(custSearchQuery)}&open=1" style="
+                  display: inline-block; margin-top: 6px; padding: 4px 8px;
+                  border-radius: 6px; background: #0284c7; color: #ffffff;
+                  font-size: 10px; font-weight: 800; text-decoration: none;
+                ">${dossierBtnLabel}</a>
+              </div>
+            `)
+            .addTo(layer)
         }
       }
 
-      const displayNum = getCleanOrderNumber(ord)
+      // Pin Curier: Logo original Glovo / Wolt / Bolt + Iconiță vectorială Scuter/Curier + #Bon
+      const platformLogoHtml = getPlatformMapBadgeHtml(plat, 18)
       const courierIcon = L.divIcon({
         className: 'custom-courier-marker',
         html: `
           <div style="
             position: relative;
             display: inline-flex; align-items: center; gap: 4px;
-            padding: 3px 7px; border-radius: 999px;
+            padding: 3px 8px 3px 4px; border-radius: 999px;
             background: ${isSelected ? '#059669' : '#0f172a'};
             border: 2px solid ${statusColor};
             color: #ffffff; font-family: ui-monospace, monospace;
-            font-size: 10px; font-weight: 800; white-space: nowrap;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+            font-size: 10.5px; font-weight: 900; white-space: nowrap;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
             transform: ${isSelected ? 'scale(1.15)' : 'scale(1)'};
           ">
+            ${platformLogoHtml}
             <span style="
-              width: 14px; height: 14px; border-radius: 50%;
-              background: ${platColor}; color: #0f172a;
               display: inline-flex; align-items: center; justify-content: center;
-              font-size: 9px; font-weight: 900;
-            ">${platBadge}</span>
+              color: ${isSelected ? '#ffffff' : statusColor};
+            " title="${ui.courierWord}">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="18.5" cy="17.5" r="3.5"/>
+                <circle cx="5.5" cy="17.5" r="3.5"/>
+                <circle cx="15" cy="5" r="1"/>
+                <path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
+              </svg>
+            </span>
             <span>${displayNum}</span>
             ${ord.hasLiveTracking ? '<span style="width:6px;height:6px;border-radius:50%;background:#38bdf8;display:inline-block;"></span>' : ''}
+            <span style="
+              position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%);
+              width: 0; height: 0;
+              border-left: 5px solid transparent; border-right: 5px solid transparent;
+              border-top: 5px solid ${statusColor};
+            "></span>
           </div>
         `,
-        iconSize: [76, 26],
-        iconAnchor: [38, 13]
+        iconSize: [96, 30],
+        iconAnchor: [48, 30]
       })
 
       // Poziționăm curierul STRICT pe traseul stradal la procentul actual
@@ -1132,18 +1408,18 @@ export default function CouriersMap() {
         display: inline-block; margin-top: 6px; padding: 4px 8px;
         border-radius: 6px; background: #059669; color: #fff;
         font-size: 10px; font-weight: 700; text-decoration: none;
-      ">${ui.googleMapsRouteBtn} ↗</a>`
+      ">${ui.googleMapsRouteBtn}</a>`
 
       const parsedPopupAddr = parseDeliveryAddress(ord.customer?.address, language)
       const buildingPopupHtml = parsedPopupAddr.buildingDetails.length > 0
         ? `<div style="font-size: 10px; color: #334155; margin-top: 2px;">${parsedPopupAddr.buildingDetails.map(b => `${b.label}: <b>${b.value}</b>`).join(' · ')}</div>`
         : ''
       const instrPopupHtml = parsedPopupAddr.instructions
-        ? `<div style="font-size: 10px; background: #fef3c7; color: #92400e; padding: 3px 6px; border-radius: 5px; margin-top: 3px; font-weight: 600;">💬 ${parsedPopupAddr.instructions}</div>`
+        ? `<div style="font-size: 10px; background: #fef3c7; color: #92400e; padding: 3px 6px; border-radius: 5px; margin-top: 3px; font-weight: 600;">${parsedPopupAddr.instructions}</div>`
         : ''
 
       marker.bindPopup(`
-        <div style="font-family: system-ui, sans-serif; min-width: 235px; line-height: 1.4;">
+        <div style="font-family: system-ui, sans-serif; min-width: 245px; line-height: 1.4;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size: 13px; font-weight: 900; color: #0f172a;">${ui.popupCheck} ${displayNum}</span>
             <span style="font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 99px; background: #f1f5f9; color: #334155;">
@@ -1156,17 +1432,17 @@ export default function CouriersMap() {
           <div style="font-size: 11px; color: #475569;">
             <b>${ui.popupCustomer}</b> ${ord.customer?.name || '—'}
           </div>
-          ${parsedPopupAddr.streetAddress ? `<div style="font-size: 11px; color: #64748b;">📍 ${parsedPopupAddr.streetAddress}</div>` : ''}
+          ${parsedPopupAddr.streetAddress ? `<div style="font-size: 11px; color: #64748b;">${parsedPopupAddr.streetAddress}</div>` : ''}
           ${buildingPopupHtml}
           ${instrPopupHtml}
           <div style="margin-top: 6px; padding: 5px 7px; border-radius: 7px; background: #f8fafc; border: 1px solid #e2e8f0;">
             <div style="display:flex; justify-content:space-between; font-size: 10px; font-weight: 800; color: #334155;">
-              <span>🏪 ${ui.depTimeLabel}: <b>${routeInfo.isDepEstimated && routeInfo.depTime !== '—' ? '~' : ''}${routeInfo.depTime}</b></span>
-              <span style="color: #059669;">🛵 ${routeInfo.distanceKm} ${ui.kmShort} · ~${routeInfo.driveMin} ${ui.minShort}</span>
-              <span>🏠 ${routeInfo.isDelivered ? ui.deliveredAtLabel : ui.estDeliveryLabel}: <b>${routeInfo.estArrTime}</b></span>
+              <span>${ui.depTimeLabel}: <b>${routeInfo.isDepEstimated && routeInfo.depTime !== '—' ? '~' : ''}${routeInfo.depTime}</b></span>
+              <span style="color: #059669;">${routeInfo.distanceKm} ${ui.kmShort} · ~${routeInfo.driveMin} ${ui.minShort} (${routeInfo.progressPct}%)</span>
+              <span>${routeInfo.isDelivered ? ui.deliveredAtLabel : ui.estDeliveryLabel}: <b>${routeInfo.estArrTime}</b></span>
             </div>
-            <div style="height: 5px; border-radius: 99px; background: #e2e8f0; margin-top: 4px; overflow: hidden;">
-              <div style="width: ${routeInfo.progressPct}%; height: 100%; background: ${statusColor}; border-radius: 99px;"></div>
+            <div style="height: 6px; border-radius: 99px; background: #e2e8f0; margin-top: 4px; overflow: hidden;">
+              <div style="width: ${routeInfo.progressPct}%; height: 100%; background: #10b981; border-radius: 99px;"></div>
             </div>
           </div>
           ${ord.courier?.awb ? `<div style="font-size: 11px; font-family: monospace; color: #059669; font-weight: 700; margin-top: 3px;">AWB: ${ord.courier.awb}</div>` : ''}
@@ -1176,9 +1452,13 @@ export default function CouriersMap() {
         </div>
       `)
     })
-  }, [filteredDeliveries, selectedOrderId, language, streetRoutes])
+  }, [filteredDeliveries, deliveryOrders, selectedOrderId, language, streetRoutes])
 
   const handleSelectOrderCard = (ord) => {
+    if (selectedOrderId === ord.id) {
+      setSelectedOrderId(null)
+      return
+    }
     setSelectedOrderId(ord.id)
     if (leafletMapRef.current && window.L) {
       const routeInfo = computeOrderRouteAndTimeline(ord, streetRoutes[ord.id], language)
@@ -1187,7 +1467,7 @@ export default function CouriersMap() {
         [routeInfo.custCoords.lat, routeInfo.custCoords.lng],
         [routeInfo.courierPos.lat, routeInfo.courierPos.lng]
       ])
-      leafletMapRef.current.fitBounds(bounds, { padding: [55, 55], maxZoom: 15, animate: true, duration: 0.6 })
+      leafletMapRef.current.fitBounds(bounds, { padding: [60, 60], maxZoom: 15, animate: true, duration: 0.6 })
     }
   }
 
@@ -1227,11 +1507,18 @@ export default function CouriersMap() {
             }`}
           >
             <span className={`w-2 h-2 rounded-full ${isAutoRefreshEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
-            {isAutoRefreshEnabled
-              ? (language === 'ru'
-                  ? `Авто-Обновление (${secondsUntilRefresh}с)`
-                  : `Auto-Refresh (${secondsUntilRefresh}s)`)
-              : ui.pausedLive}
+            {isAutoRefreshEnabled ? (
+              <>
+                <span>{language === 'ru' ? 'Авто-Обновление (5м)' : 'Auto-Refresh (5m)'}</span>
+                <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-200 font-mono font-extrabold text-[11px] min-w-[38px] text-center">
+                  {secondsUntilRefresh >= 60
+                    ? `${Math.floor(secondsUntilRefresh / 60)}:${String(secondsUntilRefresh % 60).padStart(2, '0')}`
+                    : `${secondsUntilRefresh}${language === 'ru' ? 'с' : 's'}`}
+                </span>
+              </>
+            ) : (
+              ui.pausedLive
+            )}
           </button>
 
           <button
@@ -1253,11 +1540,11 @@ export default function CouriersMap() {
         </div>
       </div>
 
-      {/* ─── 2. BARA DE FILTRE PE ORAȘ, BRAND, PUNCT DE LUCRU, FLOTĂ ȘI PERIOADĂ ─── */}
+      {/* ─── 2. BARA DE FILTRE PE ORAȘ, BRAND, PUNCT DE LUCRU ȘI FLOTĂ (1 SINGUR RÂND LIVE) ─── */}
       <div className={`px-3 py-2 rounded-xl border transition-colors relative z-20 ${
         isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
       }`}>
-        <div className="flex items-center gap-2 flex-wrap text-xs">
+        <div className="flex items-center gap-2 flex-nowrap text-xs">
           {/* Selector Oraș */}
           <div className="flex items-center gap-1 shrink-0">
             <span className="text-slate-400 flex items-center shrink-0">
@@ -1269,13 +1556,16 @@ export default function CouriersMap() {
                 setSelectedCity(e.target.value)
                 setSelectedRestaurantId('all')
               }}
+              disabled={availableCities.filter(c => c !== 'all').length === 1}
               className={`text-xs font-bold rounded-lg px-2.5 py-1 border transition-colors outline-none cursor-pointer ${
                 isDark
                   ? 'bg-slate-800 border-slate-700 text-white hover:border-slate-600'
                   : 'bg-slate-50 border-slate-200 text-slate-800 hover:border-slate-300'
               }`}
             >
-              <option value="all">{ui.allCities}</option>
+              {availableCities.filter(c => c !== 'all').length !== 1 && (
+                <option value="all">{ui.allCities}</option>
+              )}
               {availableCities.filter(c => c !== 'all').map(city => (
                 <option key={city} value={city}>{getCityDisplayName(city)}</option>
               ))}
@@ -1286,7 +1576,9 @@ export default function CouriersMap() {
           <div ref={brandPickerRef} className="relative shrink-0">
             <button
               type="button"
-              onClick={() => setIsBrandPickerOpen(!isBrandPickerOpen)}
+              onClick={() => {
+                if (availableBrands.length > 1) setIsBrandPickerOpen(!isBrandPickerOpen)
+              }}
               className={`text-xs font-bold rounded-lg px-2.5 py-1 border transition-colors outline-none cursor-pointer flex items-center gap-1.5 select-none ${
                 selectedBrand !== 'all'
                   ? isDark ? 'bg-slate-800 border-emerald-600 text-white' : 'bg-emerald-50/50 border-emerald-300 text-emerald-900'
@@ -1301,7 +1593,7 @@ export default function CouriersMap() {
                 <Store size={12} className="text-slate-400" />
               )}
               <span>{selectedBrand !== 'all' ? selectedBrand : ui.allBrands}</span>
-              {selectedBrand !== 'all' ? (
+              {selectedBrand !== 'all' && availableBrands.length > 1 ? (
                 <span
                   onClick={(e) => {
                     e.stopPropagation()
@@ -1312,12 +1604,12 @@ export default function CouriersMap() {
                 >
                   <X size={11} />
                 </span>
-              ) : (
+              ) : availableBrands.length > 1 ? (
                 <ChevronDown size={11} className="text-slate-400" />
-              )}
+              ) : null}
             </button>
 
-            {isBrandPickerOpen && (
+            {isBrandPickerOpen && availableBrands.length > 1 && (
               <div className={`absolute left-0 mt-1 z-50 w-56 rounded-xl shadow-2xl border overflow-hidden flex flex-col ${
                 isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
               }`}>
@@ -1338,7 +1630,7 @@ export default function CouriersMap() {
                     <span className="font-semibold">{ui.allBrands}</span>
                     <span className="text-[10px] font-mono text-slate-400">{brandCounts.all}</span>
                   </button>
-                  {AUTHORITATIVE_BRANDS.map(brandName => (
+                  {availableBrands.map(brandName => (
                     <button
                       key={brandName}
                       type="button"
@@ -1418,30 +1710,6 @@ export default function CouriersMap() {
             })}
           </div>
 
-          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 shrink-0 mx-0.5" />
-
-          {/* Perioadă */}
-          <div className="flex items-center gap-1 shrink-0">
-            <Calendar size={12} className="text-slate-400" />
-            <div className={`p-0.5 rounded-full border flex items-center gap-0.5 ${
-              isDark ? 'bg-slate-800/90 border-slate-700/80' : 'bg-slate-100/90 border-slate-200'
-            }`}>
-              {PERIOD_OPTIONS.map(opt => (
-                <button
-                  key={opt.key}
-                  onClick={() => setSelectedPeriod(opt.key)}
-                  className={`px-2 py-0.5 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
-                    selectedPeriod === opt.key
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  {language === 'ru' ? opt.labelRu : language === 'en' ? opt.labelEn : opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {(selectedCity !== 'all' || selectedBrand !== 'all' || selectedRestaurantId !== 'all' || selectedFleet !== 'all' || selectedStatusTab !== 'all' || searchQuery) && (
             <button
               onClick={() => {
@@ -1460,33 +1728,41 @@ export default function CouriersMap() {
         </div>
       </div>
 
-      {/* ─── 3. FILTRE STATUS CURIER (TAB-URI OPERAȚIONALE) & CĂUTARE ─── */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1.5">
+      {/* ─── 3. FILTRE STATUS CURIER (TAB-URI OPERAȚIONALE) & CĂUTARE PE 1 SINGUR RÂND ─── */}
+      <div className="flex items-center justify-between gap-2 flex-nowrap overflow-x-auto pb-0.5">
+        <div className="flex items-center gap-1 flex-nowrap shrink-0">
           {[
             { id: 'all', label: ui.tabAll, count: stats.total },
             { id: 'tracking', label: ui.tabTracking, count: stats.tracking },
             { id: 'at_restaurant', label: ui.tabAtRest, count: stats.at_restaurant },
             { id: 'on_way', label: ui.tabOnWay, count: stats.on_way },
             { id: 'at_customer', label: ui.tabAtCustomer, count: stats.at_customer },
-            { id: 'delivered', label: ui.tabDelivered, count: stats.delivered }
+            { id: 'delivered', label: ui.tabDelivered, count: stats.delivered },
+            { id: 'suboptimal', label: ui.tabSuboptimal, count: stats.suboptimal, isAlert: true }
           ].map(tab => {
             const active = selectedStatusTab === tab.id
             return (
               <button
                 key={tab.id}
                 onClick={() => setSelectedStatusTab(tab.id)}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0 ${
                   active
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : isDark
-                      ? 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white'
-                      : 'bg-white border border-slate-200 text-slate-700 hover:text-slate-900 shadow-2xs'
+                    ? (tab.isAlert ? 'bg-rose-600 text-white shadow-xs' : 'bg-emerald-600 text-white shadow-xs')
+                    : tab.isAlert && tab.count > 0
+                      ? (isDark ? 'bg-rose-950/40 border border-rose-800/70 text-rose-300 hover:text-white' : 'bg-rose-50 border border-rose-200 text-rose-700 hover:text-rose-900')
+                      : isDark
+                        ? 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white'
+                        : 'bg-white border border-slate-200 text-slate-700 hover:text-slate-900 shadow-2xs'
                 }`}
               >
+                {tab.isAlert && <ShieldAlert size={12} className={active ? 'text-white' : 'text-rose-500'} />}
                 <span>{tab.label}</span>
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
-                  active ? 'bg-white/20 text-white' : isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
+                  active
+                    ? 'bg-white/20 text-white'
+                    : tab.isAlert && tab.count > 0
+                      ? 'bg-rose-500/20 text-rose-600 dark:text-rose-300'
+                      : isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
                 }`}>
                   {tab.count}
                 </span>
@@ -1495,15 +1771,15 @@ export default function CouriersMap() {
           })}
         </div>
 
-        {/* Căutare rapidă */}
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+        {/* Căutare rapidă pe același rând */}
+        <div className="relative w-56 shrink-0">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
           <input
             type="text"
             placeholder={ui.searchPlaceholder}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className={`w-full pl-9 pr-8 py-1.5 text-xs font-medium rounded-full border outline-none ${
+            className={`w-full pl-8 pr-7 py-1 text-[11px] font-medium rounded-full border outline-none ${
               isDark
                 ? 'bg-slate-900 border-slate-800 text-white placeholder-slate-500 focus:border-emerald-500'
                 : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-emerald-500'
@@ -1528,13 +1804,57 @@ export default function CouriersMap() {
         }`}>
           <div ref={mapContainerRef} className="w-full flex-1 min-h-[540px] z-10" />
 
-          {/* Legendă flotantă pe hartă */}
+          {/* Buton flotant când o singură comandă este izolată pe hartă */}
+          {selectedOrderId && (() => {
+            const selOrd = filteredDeliveries.find(o => o.id === selectedOrderId) || deliveryOrders.find(o => o.id === selectedOrderId)
+            if (!selOrd) return null
+            return (
+              <div className={`absolute top-3 right-3 z-20 px-3 py-1.5 rounded-xl border backdrop-blur-md text-xs flex items-center gap-2.5 shadow-lg ${
+                isDark ? 'bg-slate-900/95 border-emerald-500/50 text-white' : 'bg-white/95 border-emerald-500/50 text-slate-900'
+              }`}>
+                <span className="font-bold text-slate-500 dark:text-slate-300">
+                  {ui.selectedOrderBadge}
+                </span>
+                <span className="font-mono font-black text-emerald-500">
+                  {getCleanOrderNumber(selOrd)}
+                </span>
+                <button
+                  onClick={() => setSelectedOrderId(null)}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <X size={12} />
+                  <span>{ui.showAllOrdersBtn} ({filteredDeliveries.length})</span>
+                </button>
+              </div>
+            )
+          })()}
+
+          {/* Legendă flotantă pe hartă (Pini + Traseu Verde Parcurs vs. Roșu Rămas) */}
           <div className={`absolute bottom-3 left-3 z-20 px-3 py-2 rounded-xl border backdrop-blur-md text-[11px] flex flex-wrap items-center gap-3 ${
-            isDark ? 'bg-slate-900/90 border-slate-700 text-slate-200' : 'bg-white/90 border-slate-200 text-slate-700 shadow-md'
+            isDark ? 'bg-slate-900/90 border-slate-700 text-slate-200' : 'bg-white/95 border-slate-200 text-slate-700 shadow-md'
           }`}>
             <span className="flex items-center gap-1.5 font-bold">
-              <span>🏪</span> {ui.legendStore}
+              <Store size={12} className="text-emerald-500" /> {ui.legendStore}
             </span>
+            <span className="flex items-center gap-1.5 font-bold">
+              <Bike size={13} className="text-emerald-400" /> {ui.courierWord}
+            </span>
+            <span className="flex items-center gap-1.5 font-bold">
+              <MapPin size={12} className="text-sky-400" /> {language === 'ru' ? 'Клиент' : 'Client'}
+            </span>
+            <span className="h-3 w-px bg-slate-300 dark:bg-slate-700" />
+            <span className="flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400">
+              <span className="w-5 h-1 rounded-full bg-emerald-500 inline-block"></span>
+              <span>{ui.legendDoneRoute}</span>
+            </span>
+            <span className="flex items-center gap-1.5 font-bold text-rose-600 dark:text-rose-400">
+              <span
+                className="w-5 h-0 inline-block"
+                style={{ borderTop: '3px dashed #ef4444' }}
+              ></span>
+              <span>{ui.legendRemRoute}</span>
+            </span>
+            <span className="h-3 w-px bg-slate-300 dark:bg-slate-700" />
             <span className="flex items-center gap-1.5 font-bold">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> {ui.legendAtRest}
             </span>
@@ -1543,9 +1863,6 @@ export default function CouriersMap() {
             </span>
             <span className="flex items-center gap-1.5 font-bold">
               <span className="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block"></span> {ui.legendAtCust}
-            </span>
-            <span className="flex items-center gap-1.5 font-bold">
-              <span className="w-2.5 h-2.5 rounded-full bg-slate-500 inline-block"></span> {ui.legendDelivered}
             </span>
           </div>
         </div>
@@ -1621,9 +1938,17 @@ export default function CouriersMap() {
                       </span>
                     </div>
 
-                    {/* Client & Adresă */}
-                    <div className="mt-1.5 text-xs text-slate-700 dark:text-slate-300 font-semibold flex items-center justify-between">
-                      <span className="truncate">{ord.customer?.name || '—'}</span>
+                    {/* Client & Adresă (click pe client deschide Dosarul 360° în Baza de Clienți) */}
+                    <div className="mt-1.5 text-xs text-slate-700 dark:text-slate-300 font-semibold flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => openCustomerDossier(ord, e)}
+                        className="truncate text-left hover:text-sky-500 dark:hover:text-sky-400 hover:underline flex items-center gap-1 cursor-pointer"
+                        title={language === 'ru' ? 'Открыть досье клиента в базе' : 'Deschide dosarul clientului în baza de date'}
+                      >
+                        <User size={11} className="text-sky-500 shrink-0" />
+                        <span className="truncate">{ord.customer?.name || '—'}</span>
+                      </button>
                       <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
                         {Number(ord.total_amount || 0).toFixed(2)} RON
                       </span>
@@ -1632,8 +1957,9 @@ export default function CouriersMap() {
                       const parsedCardAddr = parseDeliveryAddress(ord.customer.address, language)
                       return (
                         <div className="mt-0.5 space-y-1">
-                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate" title={parsedCardAddr.streetAddress}>
-                            📍 {parsedCardAddr.streetAddress}
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate" title={parsedCardAddr.streetAddress}>
+                            <MapPin size={11} className="text-slate-400 shrink-0" />
+                            <span className="truncate">{parsedCardAddr.streetAddress}</span>
                           </div>
                           {parsedCardAddr.buildingDetails.length > 0 && (
                             <div className="flex flex-wrap gap-1">
@@ -1653,55 +1979,101 @@ export default function CouriersMap() {
                             <div className={`px-2 py-1 rounded-lg text-[10px] font-medium border truncate ${
                               isDark ? 'bg-amber-950/30 border-amber-800/50 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-800'
                             }`} title={parsedCardAddr.instructions}>
-                              💬 {parsedCardAddr.instructions}
+                              {parsedCardAddr.instructions}
                             </div>
                           )}
                         </div>
                       )
                     })()}
 
-                    {/* STATUS BAR: Ora Plecare + Distanță/Timp Traseu Stradal + Ora Estimativă Livrare */}
+                    {/* STATUS BAR: Ora Plecare + Distanță/Timp Traseu Stradal + Procent + Ora Estimativă Livrare */}
                     <div className={`mt-2 px-2.5 py-1.5 rounded-xl border ${
                       isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200/80'
                     }`}>
-                      <div className="flex items-center justify-between gap-1 text-[10px] font-bold">
-                        <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                          <span>🏪</span>
+                      <div className="flex items-center justify-between gap-1.5 text-[10px] font-bold whitespace-nowrap overflow-hidden">
+                        <span className="text-slate-500 dark:text-slate-400 inline-flex items-center gap-1 whitespace-nowrap shrink-0">
+                          <Store size={11} className="text-amber-500 shrink-0" />
                           <span>{ui.depTimeLabel}:</span>
                           <b className="font-mono text-amber-500">
                             {routeInfo.isDepEstimated && routeInfo.depTime !== '—' ? `~${routeInfo.depTime}` : routeInfo.depTime}
                           </b>
                         </span>
 
-                        <span className="font-mono text-[9.5px] font-extrabold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.2 rounded-full border border-emerald-500/20">
-                          🛵 {routeInfo.distanceKm} {ui.kmShort} · ~{routeInfo.driveMin} {ui.minShort}
+                        <span className="font-mono text-[9.5px] font-extrabold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 inline-flex items-center gap-1 whitespace-nowrap shrink-0">
+                          <Bike size={10} className="shrink-0" />
+                          <span className="whitespace-nowrap">{routeInfo.distanceKm} {ui.kmShort} · ~{routeInfo.driveMin} {ui.minShort}</span>
                         </span>
 
-                        <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                          <span>{routeInfo.isDelivered ? '✓' : '🏠'}</span>
+                        <span className="text-slate-500 dark:text-slate-400 inline-flex items-center gap-1 whitespace-nowrap shrink-0">
+                          <MapPin size={11} className="text-emerald-500 shrink-0" />
                           <span>{routeInfo.isDelivered ? ui.deliveredAtLabel : ui.estDeliveryLabel}:</span>
                           <b className="font-mono text-emerald-500">{routeInfo.estArrTime}</b>
                         </span>
                       </div>
 
                       {/* Bara vizuală de progres pe traseul stradal */}
-                      <div className="mt-1.5 flex items-center gap-1.5">
-                        <span className="text-[9px] leading-none">🏪</span>
-                        <div className={`relative flex-1 h-1.5 rounded-full overflow-hidden ${
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <div className={`relative flex-1 h-2 rounded-full overflow-hidden ${
                           isDark ? 'bg-slate-800' : 'bg-slate-200'
                         }`}>
                           <div
-                            className={`h-full rounded-full transition-all duration-500 ${progressColorClass}`}
+                            className="h-full rounded-full transition-all duration-500 bg-emerald-500"
                             style={{ width: `${routeInfo.progressPct}%` }}
                           />
                         </div>
-                        <span className="text-[9px] leading-none">🏠</span>
+                        <span className="font-mono text-[10px] font-black text-emerald-600 dark:text-emerald-400 w-8 text-right shrink-0">
+                          {routeInfo.progressPct}%
+                        </span>
                       </div>
+
+                      {/* Audit Eficiență Traseu & Timp Curier (Optim vs. Realizat) — 1 singur rând compact */}
+                      {ord.courierPhase !== 'at_restaurant' && (
+                        <div className={`mt-1.5 pt-1.5 border-t flex items-center justify-between gap-1 text-[10px] font-bold whitespace-nowrap ${
+                          isDark ? 'border-slate-800' : 'border-slate-100'
+                        }`}>
+                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md font-extrabold ${
+                            routeInfo.auditStatus === 'suboptimal'
+                              ? 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
+                              : routeInfo.auditStatus === 'minor_detour'
+                                ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
+                                : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                          }`}>
+                            {routeInfo.auditStatus === 'suboptimal' ? (
+                              <ShieldAlert size={10} className="shrink-0" />
+                            ) : routeInfo.auditStatus === 'minor_detour' ? (
+                              <AlertTriangle size={10} className="shrink-0" />
+                            ) : (
+                              <CheckCircle2 size={10} className="shrink-0" />
+                            )}
+                            <span>
+                              {routeInfo.auditStatus === 'suboptimal'
+                                ? (language === 'ru'
+                                  ? `Задержка курьера +${routeInfo.extraCourierMin}м`
+                                  : `Întârziere curier +${routeInfo.extraCourierMin}m`)
+                                : routeInfo.auditStatus === 'minor_detour'
+                                  ? (language === 'ru'
+                                    ? `Отклонение +${routeInfo.extraCourierMin}м`
+                                    : `Abatere +${routeInfo.extraCourierMin}m`)
+                                  : (language === 'ru'
+                                    ? `Оптимально (${routeInfo.efficiencyPct}%)`
+                                    : `Traseu Optim (${routeInfo.efficiencyPct}%)`)}
+                            </span>
+                          </span>
+
+                          {routeInfo.extraCourierMin > 0 && (
+                            <span className="font-mono text-[9.5px] text-slate-500 dark:text-slate-400">
+                              <b className={routeInfo.auditStatus === 'suboptimal' ? 'text-rose-500' : 'text-amber-500'}>
+                                ~{routeInfo.actualKm}{ui.kmShort} · {routeInfo.actualCourierMin}{ui.minShort}
+                              </b>
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* AWB, Taxă livrare & Butoane */}
-                    <div className="mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between gap-2 flex-wrap">
-                      <div className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
+                    <div className="mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between gap-2 whitespace-nowrap">
+                      <div className="text-[10px] font-mono text-slate-500 dark:text-slate-400 truncate">
                         {ord.courier?.awb ? (
                           <span>AWB: <b className="text-emerald-500">{ord.courier.awb}</b></span>
                         ) : (
@@ -1712,16 +2084,17 @@ export default function CouriersMap() {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1 flex-wrap">
+                      <div className="flex items-center gap-1 shrink-0">
                         <a
                           href={routeInfo.googleMapsUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
                           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-extrabold transition-colors"
-                          title="Deschide traseul stradal în Google Maps"
+                          title={ui.googleMapsRouteBtn}
                         >
-                          <span>{ui.googleMapsRouteBtn}</span>
+                          <MapPin size={10} />
+                          <span>Maps</span>
                           <ExternalLink size={10} />
                         </a>
                         {ord.courier?.trackingUrl && (
@@ -1800,7 +2173,7 @@ export default function CouriersMap() {
                 isDark ? 'bg-emerald-950/20 border-emerald-900/50' : 'bg-emerald-50/60 border-emerald-200'
               }`}>
                 <div className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-2.5 flex items-center justify-between">
-                  <span>{ui.modalTimingsTitle}</span>
+                  <span className="flex items-center gap-1.5"><Clock size={12} /> {ui.modalTimingsTitle}</span>
                   {(modalOrder.timings?.complete_before_time || modalOrder.exact_timings?.complete_before) && (
                     <span className="text-slate-500">
                       {ui.modalSlaPromised} {modalOrder.timings?.complete_before_time || parseExactTime(modalOrder.exact_timings?.complete_before)}
@@ -1838,17 +2211,34 @@ export default function CouriersMap() {
               {/* Date Client & Date Livrare Curier */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-800/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{ui.modalCustomerSection}</div>
-                  <div className="font-bold text-sm">{modalOrder.customer?.name || '—'}</div>
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{ui.modalCustomerSection}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => openCustomerDossier(modalOrder, e)}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-600 dark:text-sky-400 border border-sky-500/30 text-[10px] font-extrabold cursor-pointer transition-colors"
+                    >
+                      <User size={10} />
+                      <span>{language === 'ru' ? 'Досье клиента 360°' : language === 'en' ? 'Customer 360° Dossier' : 'Dosar Client 360°'}</span>
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => openCustomerDossier(modalOrder, e)}
+                    className="font-bold text-sm hover:text-sky-500 hover:underline text-left cursor-pointer"
+                  >
+                    {modalOrder.customer?.name || '—'}
+                  </button>
                   {modalOrder.customer?.phone && (
-                    <div className="font-mono text-slate-500 mt-1">📞 {modalOrder.customer.phone}</div>
+                    <div className="font-mono text-slate-500 mt-1">{modalOrder.customer.phone}</div>
                   )}
                   {modalOrder.customer?.address && (() => {
                     const parsedModalAddr = parseDeliveryAddress(modalOrder.customer.address, language)
                     return (
                       <div className="mt-1.5 space-y-2">
-                        <div className="text-slate-600 dark:text-slate-300 font-medium">
-                          📍 {parsedModalAddr.streetAddress}
+                        <div className="text-slate-600 dark:text-slate-300 font-medium flex items-center gap-1">
+                          <MapPin size={12} className="text-slate-400 shrink-0" />
+                          <span>{parsedModalAddr.streetAddress}</span>
                         </div>
                         {parsedModalAddr.buildingDetails.length > 0 && (
                           <div className="flex flex-wrap gap-1.5">
@@ -1870,7 +2260,7 @@ export default function CouriersMap() {
                             isDark ? 'bg-amber-950/30 border-amber-800/60 text-amber-200' : 'bg-amber-50/90 border-amber-200 text-amber-900'
                           }`}>
                             <div className="text-[9px] font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-0.5">
-                              💬 {language === 'ru' ? 'Инструкции курьеру (Примечание):' : language === 'en' ? 'Delivery Instructions (Note):' : 'Instrucțiuni livrare (Notă client):'}
+                              {language === 'ru' ? 'Инструкции курьеру (Примечание):' : language === 'en' ? 'Delivery Instructions (Note):' : 'Instrucțiuni livrare (Notă client):'}
                             </div>
                             <div className="font-semibold">{parsedModalAddr.instructions}</div>
                           </div>
@@ -1907,6 +2297,14 @@ export default function CouriersMap() {
                   )}
                 </div>
               </div>
+
+              {/* Harta Live a Traseului Stradal direct în Detalii Comandă */}
+              <OrderLiveRouteMap
+                order={modalOrder}
+                isDark={isDark}
+                language={language}
+                onOpenCustomerDossier={openCustomerDossier}
+              />
 
               {/* Produse din comandă */}
               <div className="space-y-2">

@@ -40,6 +40,9 @@ function getColor(label, index) {
 }
 
 function describeArc(cx, cy, innerRadius, outerRadius, startAngle, endAngle) {
+  if (endAngle - startAngle >= 2 * Math.PI - 0.001) {
+    endAngle = startAngle + 2 * Math.PI - 0.001
+  }
   const x1 = cx + outerRadius * Math.sin(startAngle)
   const y1 = cy - outerRadius * Math.cos(startAngle)
   const x2 = cx + outerRadius * Math.sin(endAngle)

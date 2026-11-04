@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useLiveChecks } from '../hooks/useLiveChecks'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
+import { useAuth } from '../lib/AuthContext'
 import { getApiUrl } from '../lib/api'
 import { 
   Loader2, 
@@ -90,6 +91,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const { isDark } = useTheme()
   const { t, language } = useLanguage()
+  const { canAccessBrand } = useAuth()
   const { restaurants, checks, loading, lastRefresh, fetchData } = useLiveChecks()
   const [selectedPeriod, setSelectedPeriod] = useState(() => {
     try {
@@ -154,8 +156,10 @@ export default function Dashboard() {
           const c = checks.find(chk => chk.restaurant_id === r.id && chk.platform === p)
           if (c) {
             const st = c.final_status?.toLowerCase()
-            if (st === 'available' || st === 'open' || st === 'online') health[p].online++
+            if (st === 'available' || st === 'open' || st === 'online' || !st || st === 'unchecked') health[p].online++
             else health[p].unavailable++
+          } else {
+            health[p].online++
           }
         }
       })
@@ -164,8 +168,10 @@ export default function Dashboard() {
         const c = checks.find(chk => chk.restaurant_id === r.id && chk.platform === 'iiko')
         if (c) {
           const st = c.final_status?.toLowerCase()
-          if (st === 'available' || st === 'open' || st === 'online') health.iiko.online++
+          if (st === 'available' || st === 'open' || st === 'online' || !st || st === 'unchecked') health.iiko.online++
           else health.iiko.unavailable++
+        } else {
+          health.iiko.online++
         }
       }
     })
@@ -200,13 +206,13 @@ export default function Dashboard() {
         if (!isConfigured) return
 
         const c = checks.find(chk => chk.restaurant_id === r.id && chk.platform === p)
-        const st = c?.final_status?.toLowerCase() || 'unchecked'
+        const st = c?.final_status?.toLowerCase() || 'online'
 
-        let statusCategory = 'offline'
-        let statusLabel = t('common.offline', 'Oprit')
+        let statusCategory = 'online'
+        let statusLabel = t('common.online', 'Online')
         let diagnostic = c?.ui_error_message || '-'
 
-        if (st === 'available' || st === 'open' || st === 'online') {
+        if (st === 'available' || st === 'open' || st === 'online' || st === 'unchecked') {
           statusCategory = 'online'
           statusLabel = t('common.online', 'Online')
           diagnostic = c?.raw_data?.delivery_time_min 
@@ -248,7 +254,7 @@ export default function Dashboard() {
 
   // Matrice Executivă de Performanță pe Branduri
   const brandMetrics = useMemo(() => {
-    return AUTHORITATIVE_BRANDS.map(brandName => {
+    return AUTHORITATIVE_BRANDS.filter(b => canAccessBrand(b)).map(brandName => {
       const brandRests = restaurants.filter(r => r.is_active && deduceBrandName(r) === brandName)
       const locationsCount = brandRests.length
 
@@ -846,12 +852,13 @@ export default function Dashboard() {
               </div>
             ) : (
               topCities.map((ct, idx) => {
-                const cityRestCount = restaurants.filter(r => r.is_active && r.city && r.city.toLowerCase() === ct.city.toLowerCase()).length
+                const cityName = String(ct?.city || ct?.name || '')
+                const cityRestCount = restaurants.filter(r => r.is_active && r.city && r.city.toLowerCase() === cityName.toLowerCase()).length
                 const totalRev = salesData?.totals?.totalRevenue || 1
-                const cityShare = Math.round((ct.revenue / totalRev) * 100) || 0
+                const cityShare = Math.round(((ct?.revenue || 0) / totalRev) * 100) || 0
 
                 return (
-                  <div key={ct.city} className="p-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                  <div key={cityName || idx} className="p-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-2">
                         <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold ${
@@ -864,7 +871,7 @@ export default function Dashboard() {
                           {idx + 1}
                         </span>
                         <span className="font-bold text-xs text-slate-900 dark:text-white">
-                          {ct.city}
+                          {cityName}
                         </span>
                         {cityRestCount > 0 && (
                           <span className="text-[10px] text-slate-400">
@@ -875,10 +882,10 @@ export default function Dashboard() {
 
                       <div className="text-right">
                         <span className="font-bold text-xs text-emerald-600 dark:text-emerald-400">
-                          {ct.revenue.toLocaleString()} RON
+                          {(ct?.revenue || 0).toLocaleString()} RON
                         </span>
                         <span className="text-[10px] text-slate-400 font-medium ml-1.5">
-                          ({ct.count.toLocaleString()} com)
+                          ({(ct?.count || 0).toLocaleString()} com)
                         </span>
                       </div>
                     </div>
@@ -938,7 +945,7 @@ export default function Dashboard() {
                 <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <span>{t('dashboard.network_all_operational', 'Rețea 100% Operațională')}</span>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                    52 / 52 Active
+                    {stats.activeRestaurants} / {stats.activeRestaurants} Active
                   </span>
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { 
   Radio, 
   RotateCw, 
@@ -31,14 +32,17 @@ import {
   Globe,
   ChevronLeft,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  User
 } from 'lucide-react'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
+import { useAuth } from '../lib/AuthContext'
 import { useLiveDispatch } from '../hooks/useLiveDispatch'
 import { useLiveChecks } from '../hooks/useLiveChecks'
 import BrandAvatar, { getBrandInfo, cleanRestaurantName } from '../components/BrandAvatar'
 import PlatformLogo from '../components/PlatformLogo'
+import OrderLiveRouteMap from '../components/OrderLiveRouteMap'
 import { getProductImage } from '../lib/productImages'
 import { getCanonicalCity, getCityDisplayName, maskPhone, maskCustomerName, maskAddress, formatDisplayOrderNumber, parseDeliveryAddress } from '../lib/orderUtils'
 
@@ -146,6 +150,23 @@ function computeElapsedMinutes(placedAt, createdAt, fallbackMin = 0) {
 export default function Dispatch() {
   const { isDark } = useTheme()
   const { t, language } = useLanguage()
+  const { canAccessCity, canAccessBrand } = useAuth()
+  const navigate = useNavigate()
+
+  const openCustomerDossier = (ord, e) => {
+    e?.stopPropagation()
+    const cName = String(ord?.customer?.name || '').trim()
+    const cPhone = String(ord?.customer?.phone || '').replace(/[^\d+]/g, '')
+    const hasRealPhone = cPhone && !cPhone.includes('000000')
+    const query = (cName && !cName.toLowerCase().includes('nespecificat') && !cName.toLowerCase().includes('client') && !cName.toLowerCase().includes('comand'))
+      ? cName
+      : (hasRealPhone ? cPhone : String(ord?.order_number || '').replace(/^#+/, ''))
+    if (query) {
+      navigate(`/customers?search=${encodeURIComponent(query)}&open=1`)
+    } else {
+      navigate('/customers')
+    }
+  }
 
   // Filtre locale (inițializate din URL dacă utilizatorul accesează direct ?city=CLUJ-NAPOCA etc.)
   const [selectedCity, setSelectedCity] = useState(() => {
@@ -298,21 +319,44 @@ export default function Dispatch() {
     brand: selectedBrand, 
     restaurantId: selectedRestaurantId,
     period: selectedPeriod,
-    autoRefreshSeconds: 15 
+    autoRefreshSeconds: 300 
   })
 
   // Hook pentru lista de restaurante complete (pentru filtre)
   const { restaurants } = useLiveChecks()
 
-  // Lista unică a orașelor canonice (fără duplicate Cluj / Cluj-Napoca, fără cartiere/malluri BUC)
+  // Lista unică a orașelor canonice permise utilizatorului
   const availableCities = useMemo(() => {
     const set = new Set()
     restaurants.forEach(r => {
       const c = getCanonicalCity(r.city || r.name)
-      if (c) set.add(c)
+      if (c && canAccessCity(c)) set.add(c)
     })
     return ['all', ...Array.from(set).sort()]
-  }, [restaurants])
+  }, [restaurants, canAccessCity])
+
+  // Brandurile permise utilizatorului
+  const availableBrands = useMemo(() => {
+    return AUTHORITATIVE_BRANDS.filter(b => canAccessBrand(b))
+  }, [canAccessBrand])
+
+  // Dacă utilizatorul are acces la 1 singur oraș sau 1 singur brand, îl preselectăm automat
+  useEffect(() => {
+    const citiesOnly = availableCities.filter(c => c !== 'all')
+    if (citiesOnly.length === 1 && selectedCity !== citiesOnly[0]) {
+      setSelectedCity(citiesOnly[0])
+    } else if (selectedCity !== 'all' && citiesOnly.length > 0 && !citiesOnly.includes(selectedCity)) {
+      setSelectedCity(citiesOnly.length === 1 ? citiesOnly[0] : 'all')
+    }
+  }, [availableCities, selectedCity])
+
+  useEffect(() => {
+    if (availableBrands.length === 1 && selectedBrand !== availableBrands[0]) {
+      setSelectedBrand(availableBrands[0])
+    } else if (selectedBrand !== 'all' && availableBrands.length > 0 && !availableBrands.includes(selectedBrand)) {
+      setSelectedBrand(availableBrands.length === 1 ? availableBrands[0] : 'all')
+    }
+  }, [availableBrands, selectedBrand])
 
   // Restaurante filtrate conform orașului și brandului
   const filteredRestaurantsForSelector = useMemo(() => {
@@ -357,13 +401,13 @@ export default function Dispatch() {
 
   // Opțiuni formatate pentru Selectorul Brand cu avatar
   const brandOptions = useMemo(() => {
-    return AUTHORITATIVE_BRANDS.map(b => ({
+    return availableBrands.map(b => ({
       value: b,
       label: b,
       avatar: <BrandAvatar brand={b} size={18} />,
       keywords: b
     }))
-  }, [])
+  }, [availableBrands])
 
   // Searchable Location Picker state
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false)
@@ -392,11 +436,11 @@ export default function Dispatch() {
   // Număr restaurante active per brand
   const brandCounts = useMemo(() => {
     const counts = { all: restaurants.filter(r => r.is_active).length }
-    AUTHORITATIVE_BRANDS.forEach(b => {
+    availableBrands.forEach(b => {
       counts[b] = restaurants.filter(r => r.is_active && getBrandInfo(r).name === b).length
     })
     return counts
-  }, [restaurants])
+  }, [restaurants, availableBrands])
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -787,14 +831,21 @@ export default function Dispatch() {
                 ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-700'
                 : 'bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
             }`}
-            title="Auto-refresh la 15 secunde"
+            title="Auto-refresh la 5 minute"
           >
             <span className={`w-2 h-2 rounded-full ${isAutoRefreshEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
-            {isAutoRefreshEnabled
-              ? (language === 'ru'
-                  ? `Авто-Обновление (${secondsUntilRefresh}с)`
-                  : `Auto-Refresh (${secondsUntilRefresh}s)`)
-              : t('dispatch.auto_refresh_off', 'Pauză Live')}
+            {isAutoRefreshEnabled ? (
+              <>
+                <span>{language === 'ru' ? 'Авто-Обновление (5м)' : 'Auto-Refresh (5m)'}</span>
+                <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-200 font-mono font-extrabold text-[11px] min-w-[38px] text-center">
+                  {secondsUntilRefresh >= 60
+                    ? `${Math.floor(secondsUntilRefresh / 60)}:${String(secondsUntilRefresh % 60).padStart(2, '0')}`
+                    : `${secondsUntilRefresh}${language === 'ru' ? 'с' : 's'}`}
+                </span>
+              </>
+            ) : (
+              t('dispatch.auto_refresh_off', 'Pauză Live')
+            )}
           </button>
 
           <button
@@ -830,13 +881,16 @@ export default function Dispatch() {
             <select
               value={selectedCity}
               onChange={(e) => handleCityChange(e.target.value)}
+              disabled={availableCities.filter(c => c !== 'all').length === 1}
               className={`text-xs font-bold rounded-lg px-2.5 py-1 border transition-colors outline-none cursor-pointer ${
                 isDark 
                   ? 'bg-slate-800 border-slate-700 text-white hover:border-slate-600' 
                   : 'bg-slate-50 border-slate-200 text-slate-800 hover:border-slate-300'
               }`}
             >
-              <option value="all">{t('dispatch.filter_all_cities', 'Toate Orașele')}</option>
+              {availableCities.filter(c => c !== 'all').length !== 1 && (
+                <option value="all">{t('dispatch.filter_all_cities', 'Toate Orașele')}</option>
+              )}
               {availableCities.filter(c => c !== 'all').map(city => (
                 <option key={city} value={city}>{city}</option>
               ))}
@@ -847,7 +901,9 @@ export default function Dispatch() {
           <div ref={brandPickerRef} className="relative shrink-0">
             <button
               type="button"
-              onClick={() => setIsBrandPickerOpen(!isBrandPickerOpen)}
+              onClick={() => {
+                if (availableBrands.length > 1) setIsBrandPickerOpen(!isBrandPickerOpen)
+              }}
               className={`text-xs font-bold rounded-lg px-2.5 py-1 border transition-colors outline-none cursor-pointer flex items-center gap-1.5 select-none ${
                 isBrandPickerOpen
                   ? 'border-emerald-500 ring-2 ring-emerald-500/20'
@@ -869,7 +925,7 @@ export default function Dispatch() {
               <span className="truncate max-w-[130px]">
                 {selectedBrand !== 'all' ? selectedBrand : t('dispatch.filter_all_brands', 'Toate Brandurile')}
               </span>
-              {selectedBrand !== 'all' ? (
+              {selectedBrand !== 'all' && availableBrands.length > 1 ? (
                 <span
                   onClick={(e) => {
                     e.stopPropagation()
@@ -881,13 +937,13 @@ export default function Dispatch() {
                 >
                   <X size={11} />
                 </span>
-              ) : (
+              ) : availableBrands.length > 1 ? (
                 <ChevronDown size={11} className={`text-slate-400 transition-transform duration-150 ${isBrandPickerOpen ? 'rotate-180 text-emerald-500' : ''}`} />
-              )}
+              ) : null}
             </button>
 
             {/* Dropdown flotant cu avatare branduri */}
-            {isBrandPickerOpen && (
+            {isBrandPickerOpen && availableBrands.length > 1 && (
               <div className={`absolute left-0 mt-1 z-50 w-56 rounded-xl shadow-2xl border overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100 ${
                 isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
               }`}>
@@ -896,7 +952,7 @@ export default function Dispatch() {
                 }`}>
                   <span>{language === 'ru' ? 'Выберите Бренд' : language === 'en' ? 'Select Brand' : 'Selectează Brand'}</span>
                   <span className="text-[10px] text-slate-400 font-mono">
-                    {AUTHORITATIVE_BRANDS.length} {language === 'ru' ? 'брендов' : language === 'en' ? 'brands' : 'branduri'}
+                    {availableBrands.length} {language === 'ru' ? 'брендов' : language === 'en' ? 'brands' : 'branduri'}
                   </span>
                 </div>
 
@@ -928,7 +984,7 @@ export default function Dispatch() {
                   </button>
 
                   {/* Fiecare Brand cu Avatar Oficial */}
-                  {AUTHORITATIVE_BRANDS.map(brandName => {
+                  {availableBrands.map(brandName => {
                     const isSelected = selectedBrand === brandName
                     const count = brandCounts[brandName] || 0
                     return (
@@ -1694,9 +1750,15 @@ export default function Dispatch() {
                           return (
                             <div>
                               <div className="font-bold text-slate-900 dark:text-white truncate flex items-center justify-between gap-1">
-                                <span className="truncate" title={isUnmasked ? rawName : 'Nume mascat conform GDPR'}>
-                                  {custName}
-                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => openCustomerDossier(ord, e)}
+                                  className="truncate text-left hover:text-sky-500 dark:hover:text-sky-400 hover:underline flex items-center gap-1 cursor-pointer"
+                                  title={language === 'ru' ? 'Открыть досье клиента 360°' : 'Deschide Dosar Client 360°'}
+                                >
+                                  <User size={11} className="text-sky-500 shrink-0" />
+                                  <span className="truncate">{custName}</span>
+                                </button>
                                 {ord.customer?.phone && (
                                   <button
                                     onClick={(e) => toggleUnmaskRow(ord.id || ord.order_id, e)}
@@ -1718,7 +1780,7 @@ export default function Dispatch() {
                               </div>
                               {isUnmasked && parsedTableAddr.instructions && (
                                 <div className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold truncate mt-0.5" title={parsedTableAddr.instructions}>
-                                  💬 {parsedTableAddr.instructions}
+                                  {parsedTableAddr.instructions}
                                 </div>
                               )}
                             </div>
@@ -2285,13 +2347,29 @@ export default function Dispatch() {
               {/* Informații Client & Curier */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                 <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-800/30 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
                     <span className="font-bold text-slate-500 uppercase text-[10px] tracking-wider">{t('dispatch.modal_customer_data', 'Date Client')}</span>
-                    <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-800 flex items-center gap-1">
-                      <ShieldCheck size={10} /> GDPR
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => openCustomerDossier(selectedOrder, e)}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-500/15 hover:bg-sky-500/25 text-sky-600 dark:text-sky-400 border border-sky-500/30 text-[10px] font-extrabold cursor-pointer transition-colors"
+                      >
+                        <User size={10} />
+                        <span>{language === 'ru' ? 'Досье клиента 360°' : language === 'en' ? 'Customer 360° Dossier' : 'Dosar Client 360°'}</span>
+                      </button>
+                      <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-800 flex items-center gap-1">
+                        <ShieldCheck size={10} /> GDPR
+                      </span>
+                    </div>
                   </div>
-                  <div className="font-bold text-sm text-slate-900 dark:text-white">{selectedOrder.customer?.name || t('dispatch.modal_customer_data', 'Client Nespecificat')}</div>
+                  <button
+                    type="button"
+                    onClick={(e) => openCustomerDossier(selectedOrder, e)}
+                    className="font-bold text-sm text-slate-900 dark:text-white hover:text-sky-500 dark:hover:text-sky-400 hover:underline text-left cursor-pointer"
+                  >
+                    {selectedOrder.customer?.name || t('dispatch.modal_customer_data', 'Client Nespecificat')}
+                  </button>
                   <div className="text-slate-500 dark:text-slate-400 mt-1 font-mono flex items-center gap-1.5">
                     <Phone size={11} className="text-slate-400 shrink-0" />
                     <span>{selectedOrder.customer?.phone || t('dispatch.modal_no_phone', 'Fără număr de telefon')}</span>
@@ -2328,7 +2406,7 @@ export default function Dispatch() {
                               : 'bg-amber-50/90 border-amber-200 text-amber-900'
                           }`}>
                             <div className="text-[9px] font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-0.5">
-                              💬 {language === 'ru' ? 'Инструкции курьеру (Примечание):' : language === 'en' ? 'Delivery Instructions (Note):' : 'Instrucțiuni livrare (Notă client):'}
+                              {language === 'ru' ? 'Инструкции курьеру (Примечание):' : language === 'en' ? 'Delivery Instructions (Note):' : 'Instrucțiuni livrare (Notă client):'}
                             </div>
                             <div className="font-semibold">{parsedAddr.instructions}</div>
                           </div>
@@ -2372,7 +2450,7 @@ export default function Dispatch() {
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/20 text-xs font-bold transition-colors"
                         >
-                          <span>{language === 'ru' ? '📍 Live-трекинг курьера' : language === 'en' ? '📍 Live Courier Tracking' : '📍 Tracking Live Curier'}</span>
+                          <span>{language === 'ru' ? 'Live-трекинг курьера' : language === 'en' ? 'Live Courier Tracking' : 'Tracking Live Curier'}</span>
                           <span>↗</span>
                         </a>
                       )}
@@ -2390,6 +2468,16 @@ export default function Dispatch() {
                   )}
                 </div>
               </div>
+
+              {/* Harta Live a Traseului Stradal pentru comenzile de livrare */}
+              {selectedOrder.channel_type !== 'kiosk' && selectedOrder.channel_type !== 'casierie' && selectedOrder.platform !== 'kiosk' && selectedOrder.platform !== 'casierie' && selectedOrder.platform !== 'IN-STORE' && (
+                <OrderLiveRouteMap
+                  order={selectedOrder}
+                  isDark={isDark}
+                  language={language}
+                  onOpenCustomerDossier={openCustomerDossier}
+                />
+              )}
 
               {/* Total Bon */}
               <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">

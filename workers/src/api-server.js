@@ -19,9 +19,11 @@ import { getSmartSearchWords } from './utils/searchUtils.js'
 import { IikoClient } from './services/iiko-client.js'
 import { discoverSingleRestaurant } from './utils/auto-discover.js'
 import { salesSync } from './services/sales-sync.js'
-import { saveLiveChecksCache, loadLiveChecksCache, loadStopEventsCache, loadViolationsCache } from './utils/cache.js'
+import { saveLiveChecksCache, loadLiveChecksCache, loadStopEventsCache, loadViolationsCache, loadRestaurantsCache, saveRestaurantsCache } from './utils/cache.js'
 import { webhookService } from './services/webhook-service.js'
 import { reviewsService } from './services/reviews-service.js'
+import { customersService } from './services/customers-service.js'
+import { usersService } from './services/users-service.js'
 import { ReputationScraper } from './scrapers/reputation-scraper.js'
 import { enrichOrderItems, matchProductImage } from './services/product-matcher.js'
 import './index.js' // Start all cron jobs in the background
@@ -62,7 +64,7 @@ function saveSyncReport(report) {
 }
 
 app.use(cors())
-app.use(express.json())
+app.use(express.json({ limit: '5mb' }))
 
 // ─── HELPER: Clean Human Order Numbers for Kiosk, POS and Aggregators ───
 function cleanKioskOrderNumber(orderNum, orderId, platform = '') {
@@ -311,10 +313,30 @@ export function resolveMatchingRestaurant(allRests, rawRest, detectedBrand, cano
 app.get('/api/live-checks', async (req, res) => {
     try {
         const ratingsMap = await reviewsService.getLatestRatingsMap()
+        if (!global.liveChecks || global.liveChecks.length === 0) {
+            global.liveChecks = loadLiveChecksCache() || []
+        }
         const rawChecks = global.liveChecks || []
+        let needsSave = false
         const enrichedChecks = rawChecks.map(c => {
             const rKey = `${c.restaurant_id}_${(c.platform || '').toLowerCase()}`
             const rInfo = ratingsMap.get(rKey)
+            const bt = (c.raw_data?.bodyText || '').toLowerCase()
+            const isFalsePositive404OrAddress =
+                c.final_status !== 'available' &&
+                (bt.includes('something unexpected happened') ||
+                 bt.includes("couldn't find the content") ||
+                 bt.includes('introdu-ți adresa') ||
+                 bt.includes('această pagină nu') ||
+                 !c.ui_error_message)
+            if (isFalsePositive404OrAddress) {
+                c.final_status = 'available'
+                c.ui_is_open = true
+                c.ui_can_order = true
+                c.ui_is_greyed = false
+                c.ui_error_message = null
+                needsSave = true
+            }
             return {
                 ...c,
                 rating: c.rating ?? rInfo?.rating ?? null,
@@ -323,6 +345,9 @@ app.get('/api/live-checks', async (req, res) => {
                 change_direction: rInfo?.change_direction ?? null
             }
         })
+        if (needsSave) {
+            saveLiveChecksCache(rawChecks)
+        }
         res.json({ success: true, checks: enrichedChecks })
     } catch (err) {
         res.json({ success: true, checks: global.liveChecks || [] })
@@ -1396,59 +1421,107 @@ function getPeriodFilter(period = 'this_month') {
 app.get('/api/sales/executive-summary', async (req, res) => {
     try {
         const reqPeriod = req.query.period || 'this_month'
+        global.__EXEC_SUMMARY_CACHE = global.__EXEC_SUMMARY_CACHE || new Map()
+        const cachedSummary = global.__EXEC_SUMMARY_CACHE.get(reqPeriod)
+        if (cachedSummary && (Date.now() - cachedSummary.ts < 60000)) {
+            return res.json(cachedSummary.payload)
+        }
+
         const periodInfo = getPeriodFilter(reqPeriod)
-        
-        // 1. Base Query with count: 'exact' to bypass PostgREST 1000 limit
-        let baseQuery = supabase
-            .from('platform_sales')
-            .select('id, platform, total_amount, placed_at, restaurant_id, items', { count: 'exact' })
+        const withTimeout = (promise, ms = 3000) => Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms))
+        ])
 
-        if (periodInfo.startDate) {
-            baseQuery = baseQuery.gte('placed_at', periodInfo.startDate)
-        }
-        if (periodInfo.endDate) {
-            baseQuery = baseQuery.lte('placed_at', periodInfo.endDate)
-        }
-
-        // Fetch first page (0 to 999) + get exact DB count
-        const firstPage = await baseQuery
-            .order('placed_at', { ascending: false })
-            .range(0, 999)
-
-        if (firstPage.error) throw firstPage.error
-
-        const totalOrders = firstPage.count ?? (firstPage.data || []).length
-        let sales = [...(firstPage.data || [])]
-
-        // 2. Fetch remaining pages up to 3000 rows (sub-second response time while capturing 100% of medium periods like last month)
-        const maxSampleLimit = 3000
-        if (totalOrders > 1000) {
-            const pagesToFetch = Math.min(Math.ceil((totalOrders - 1000) / 1000), Math.ceil((maxSampleLimit - 1000) / 1000))
-            const pagePromises = []
-            for (let i = 1; i <= pagesToFetch; i++) {
-                let pQuery = supabase
-                    .from('platform_sales')
-                    .select('id, platform, total_amount, placed_at, restaurant_id, items')
-                if (periodInfo.startDate) pQuery = pQuery.gte('placed_at', periodInfo.startDate)
-                if (periodInfo.endDate) pQuery = pQuery.lte('placed_at', periodInfo.endDate)
-                pagePromises.push(
-                    pQuery.order('placed_at', { ascending: false }).range(i * 1000, (i + 1) * 1000 - 1)
+        let rests = global.__CACHED_ALL_RESTS || loadRestaurantsCache() || []
+        if (!rests || rests.length === 0) {
+            try {
+                const { data: fetchedRests } = await withTimeout(
+                    supabase.from('restaurants').select('id, name, city, brand_id, brands(name, logo_url)'),
+                    2000
                 )
-            }
-            const pageResults = await Promise.all(pagePromises)
-            for (const pr of pageResults) {
-                if (pr.data) sales.push(...pr.data)
-            }
+                if (Array.isArray(fetchedRests) && fetchedRests.length > 0) {
+                    rests = fetchedRests
+                    global.__CACHED_ALL_RESTS = fetchedRests
+                    global.__CACHED_ALL_RESTS_TS = Date.now()
+                    saveRestaurantsCache(fetchedRests)
+                }
+            } catch (_) {}
         }
 
-        const scaleFactor = totalOrders > 0 && sales.length > 0 ? (totalOrders / sales.length) : 1
-
-        const { data: rests } = await supabase
-            .from('restaurants')
-            .select('id, name, city, brand_id, brands(name, logo_url)')
-        
         const restMap = {}
         ;(rests || []).forEach(r => { restMap[r.id] = r })
+
+        let sales = []
+        const seenOrderIds = new Set()
+
+        // 1. Primary ultra-fast source: in-memory customersService orders (0 Disk IO on Supabase)
+        try {
+            const allCusts = Array.from(customersService?.customersByKey?.values?.() || [])
+            const startMs = periodInfo.startDate ? new Date(periodInfo.startDate).getTime() : 0
+            const endMs = periodInfo.endDate ? new Date(periodInfo.endDate).getTime() : Infinity
+
+            for (const c of allCusts) {
+                for (const ro of (c.recent_orders || [])) {
+                    const key = ro.base_uuid || ro.order_id
+                    if (!key || seenOrderIds.has(key)) continue
+                    const pTime = ro.placed_at ? new Date(ro.placed_at).getTime() : 0
+                    if (pTime && (pTime < startMs || pTime > endMs)) continue
+                    seenOrderIds.add(key)
+
+                    const parts = String(ro.order_id || '').split('_')
+                    const extractedRestId = parts.length > 1 && parts[1].length >= 20 ? parts[1] : null
+                    sales.push({
+                        id: key,
+                        order_id: ro.order_id,
+                        restaurant_id: ro.restaurant_id || extractedRestId,
+                        city: ro.city || c.city || '',
+                        brand_name: ro.brand_name || (c.brands && c.brands[0]) || '',
+                        restaurant_name: ro.restaurant_name || '',
+                        platform: ro.platform || 'glovo',
+                        total_amount: ro.total_amount || 0,
+                        placed_at: ro.placed_at,
+                        items: ro.items || []
+                    })
+                }
+            }
+        } catch (_) {}
+
+        // 2. Also merge any live orders cached by /api/dispatch/live
+        if (typeof localLiveDispatchCache !== 'undefined') {
+            const rawCached = localLiveDispatchCache.get(`raw_period_${reqPeriod}`) || localLiveDispatchCache.get('raw_period_today')
+            if (rawCached && Array.isArray(rawCached.data)) {
+                const startMs = periodInfo.startDate ? new Date(periodInfo.startDate).getTime() : 0
+                const endMs = periodInfo.endDate ? new Date(periodInfo.endDate).getTime() : Infinity
+                for (const lo of rawCached.data) {
+                    const key = String(lo.order_id || lo.id || '').split('_')[0]
+                    if (!key || seenOrderIds.has(key)) continue
+                    const pTime = lo.placed_at ? new Date(lo.placed_at).getTime() : 0
+                    if (pTime && (pTime < startMs || pTime > endMs)) continue
+                    seenOrderIds.add(key)
+                    sales.push(lo)
+                }
+            }
+        }
+
+        // 3. Fallback to Supabase only if local caches had 0 matching orders
+        if (sales.length === 0) {
+            try {
+                let q = supabase
+                    .from('platform_sales')
+                    .select('id, platform, total_amount, placed_at, restaurant_id, items')
+                    .limit(400)
+                if (periodInfo.startDate) q = q.gte('placed_at', periodInfo.startDate)
+                if (periodInfo.endDate) q = q.lte('placed_at', periodInfo.endDate)
+                const { data, error } = await withTimeout(q, 1800)
+                if (!error && Array.isArray(data) && data.length > 0) {
+                    sales = data
+                }
+            } catch (_) {}
+        }
+
+        const totalOrders = sales.length
+        const scaleFactor = 1
 
         let sampleRevenue = 0
 
@@ -1504,9 +1577,9 @@ app.get('/api/sales/executive-summary', async (req, res) => {
                 }
             }
 
-            const rest = restMap[o.restaurant_id]
-            let bName = rest?.brands?.name || ''
-            const rName = (rest?.name || '').toLowerCase()
+            let rest = restMap[o.restaurant_id]
+            let bName = o.brand_name || rest?.brands?.name || ''
+            const rName = (rest?.name || o.restaurant_name || '').toLowerCase()
             const itemsTxt = (o.items || []).map(i => i.product_name || i.name || '').join(' ').toLowerCase()
 
             if (!bName) {
@@ -1517,6 +1590,12 @@ app.get('/api/sales/executive-summary', async (req, res) => {
                 else if (rName.includes('crunch')) bName = 'Crunch'
                 else bName = 'Roll Master'
             }
+
+            const city = getCanonicalCity(rest?.city || o.city || o.restaurant_city || rest?.name || o.restaurant_name) || 'Alte Orașe'
+            if (!rest && city !== 'Alte Orașe') {
+                rest = resolveMatchingRestaurant(rests, null, bName, city)
+            }
+            const resolvedRestId = rest?.id || o.restaurant_id
 
             if (!brandStats[bName]) brandStats[bName] = { count: 0, revenue: 0, color: '#3B82F6' }
             brandStats[bName].count++
@@ -1549,17 +1628,16 @@ app.get('/api/sales/executive-summary', async (req, res) => {
                 }
             }
 
-            const city = getCanonicalCity(rest?.city || rest?.name) || 'Alte Orașe'
             if (!cityStats[city]) cityStats[city] = { city, count: 0, revenue: 0, channels: {} }
             cityStats[city].count++
             cityStats[city].revenue += amt
             cityStats[city].channels[ch] = (cityStats[city].channels[ch] || 0) + 1
 
-            if (o.restaurant_id) {
-                if (!restStats[o.restaurant_id]) restStats[o.restaurant_id] = { count: 0, revenue: 0, channels: {} }
-                restStats[o.restaurant_id].count++
-                restStats[o.restaurant_id].revenue += amt
-                restStats[o.restaurant_id].channels[ch] = (restStats[o.restaurant_id].channels[ch] || 0) + 1
+            if (resolvedRestId) {
+                if (!restStats[resolvedRestId]) restStats[resolvedRestId] = { count: 0, revenue: 0, channels: {} }
+                restStats[resolvedRestId].count++
+                restStats[resolvedRestId].revenue += amt
+                restStats[resolvedRestId].channels[ch] = (restStats[resolvedRestId].channels[ch] || 0) + 1
             }
         })
 
@@ -1605,7 +1683,7 @@ app.get('/api/sales/executive-summary', async (req, res) => {
                 }
             })
 
-        res.json({
+        const responsePayload = {
             success: true,
             period: periodInfo,
             totals: {
@@ -1640,6 +1718,7 @@ app.get('/api/sales/executive-summary', async (req, res) => {
             })).sort((a, b) => b.count - a.count),
             cities: Object.values(cityStats).map(ct => ({
                 city: ct.city,
+                name: ct.city,
                 count: Math.round(ct.count * scaleFactor),
                 revenue: Math.round(ct.revenue * scaleFactor),
                 channels: Object.fromEntries(
@@ -1653,18 +1732,26 @@ app.get('/api/sales/executive-summary', async (req, res) => {
             topProducts: topProductsList,
             workpoints: workpointsList,
             byRestaurant: Object.fromEntries(
-                Object.entries(restStats).map(([rid, rdata]) => [
-                    rid,
-                    {
-                        count: Math.round(rdata.count * scaleFactor),
-                        revenue: Math.round(rdata.revenue * scaleFactor),
-                        channels: Object.fromEntries(
-                            Object.entries(rdata.channels || {}).map(([ch, cnt]) => [ch, Math.round(cnt * scaleFactor)])
-                        )
-                    }
-                ])
+                Object.entries(restStats).map(([rid, rdata]) => {
+                    const r = restMap[rid]
+                    return [
+                        rid,
+                        {
+                            name: r?.name || 'Punct necunoscut',
+                            city: getCanonicalCity(r?.city || r?.name || '') || 'Oraș',
+                            brand: r?.brands?.name || 'Roll Master',
+                            count: Math.round(rdata.count * scaleFactor),
+                            revenue: Math.round(rdata.revenue * scaleFactor),
+                            channels: Object.fromEntries(
+                                Object.entries(rdata.channels || {}).map(([ch, cnt]) => [ch, Math.round(cnt * scaleFactor)])
+                            )
+                        }
+                    ]
+                })
             )
-        })
+        }
+        global.__EXEC_SUMMARY_CACHE.set(reqPeriod, { ts: Date.now(), payload: responsePayload })
+        res.json(responsePayload)
     } catch (err) {
         res.status(500).json({ success: false, error: err.message })
     }
@@ -1835,19 +1922,28 @@ app.get('/api/dispatch/live', async (req, res) => {
 
         // 1. Fetch all restaurants with cache & 1500ms timeout
         let allRests = global.__CACHED_ALL_RESTS || null
+        if (!allRests || allRests.length === 0) {
+            const diskRests = loadRestaurantsCache()
+            if (Array.isArray(diskRests) && diskRests.length > 0) {
+                allRests = diskRests
+                global.__CACHED_ALL_RESTS = diskRests
+                global.__CACHED_ALL_RESTS_TS = Date.now()
+            }
+        }
         if (!allRests || (Date.now() - (global.__CACHED_ALL_RESTS_TS || 0) > 300000)) {
             global.__CACHED_ALL_RESTS_TS = Date.now() - 240000 // Evită re-interogarea blocantă timp de 60s dacă DB are lag
             try {
                 const { data: fetchedRests, error: rErr } = await withTimeout(
                     supabase
                         .from('restaurants')
-                        .select('id, name, city, address, brand_id, glovo_url, wolt_url, bolt_url, iiko_restaurant_id, is_active, brands(name, logo_url)'),
+                        .select('id, name, city, address, brand_id, glovo_url, wolt_url, bolt_url, iiko_restaurant_id, is_active, working_hours, revenue_per_hour, brands(name, logo_url)'),
                     1500
                 )
                 if (!rErr && Array.isArray(fetchedRests) && fetchedRests.length > 0) {
                     allRests = fetchedRests
                     global.__CACHED_ALL_RESTS = fetchedRests
                     global.__CACHED_ALL_RESTS_TS = Date.now()
+                    saveRestaurantsCache(fetchedRests)
                 }
             } catch (_) {}
         }
@@ -2573,6 +2669,13 @@ app.get('/api/dispatch/live', async (req, res) => {
             if (enrichedOrders.length >= limit) break
         }
 
+        // Salvăm automat clienții reali din comenzi în baza de date persistentă de clienți
+        try {
+            customersService.ingestOrders(enrichedOrders)
+        } catch (custErr) {
+            console.warn('[CustomersService] Auto-ingest warning:', custErr.message)
+        }
+
         // 4. STOP Matrix
         const liveChecks = global.liveChecks || []
         const stopMatrix = (allRests || []).filter(r => r.is_active).slice(0, 30).map(r => {
@@ -2600,41 +2703,55 @@ app.get('/api/dispatch/live', async (req, res) => {
             }
         })
 
-        // 5. STOP Audit Log (filtrat după orașul și brandul selectat)
-        let dbStops = global.__CACHED_STOP_EVENTS || []
-        if (!global.__CACHED_STOP_EVENTS_TS || (Date.now() - global.__CACHED_STOP_EVENTS_TS > 30000)) {
-            global.__CACHED_STOP_EVENTS_TS = Date.now()
-            try {
-                let stopQuery = supabase
-                    .from('stop_events')
-                    .select('*, restaurants(name, city, brand_id, brands(name))')
-                    .order('stopped_at', { ascending: false })
-                    .limit(30)
+        // 5. STOP Audit Log (filtrat strict după perioada, orașul și brandul selectat)
+        let dbStops = []
+        try {
+            let stopQuery = supabase
+                .from('stop_events')
+                .select('*, restaurants(name, city, brand_id, brands(name))')
+                .order('stopped_at', { ascending: false })
+                .limit(30)
 
-                if (validRestIds.size > 0 && ((cityFilter && cityFilter !== 'all') || (restaurantFilter && restaurantFilter !== 'all'))) {
-                    stopQuery = stopQuery.in('restaurant_id', Array.from(validRestIds))
-                }
-
-                const { data: fetchedStops } = await withTimeout(stopQuery, 1200)
-                if (Array.isArray(fetchedStops)) {
-                    dbStops = fetchedStops
-                    global.__CACHED_STOP_EVENTS = fetchedStops
-                }
-            } catch (_) {
-                if (!dbStops.length) dbStops = (loadStopEventsCache() || []).slice(0, 30)
+            if (periodInfo.startDate) {
+                stopQuery = stopQuery.gte('stopped_at', periodInfo.startDate)
             }
+            if (periodInfo.endDate && periodFilter !== 'today') {
+                stopQuery = stopQuery.lte('stopped_at', periodInfo.endDate)
+            }
+            if (validRestIds.size > 0 && ((cityFilter && cityFilter !== 'all') || (restaurantFilter && restaurantFilter !== 'all'))) {
+                stopQuery = stopQuery.in('restaurant_id', Array.from(validRestIds))
+            }
+
+            const { data: fetchedStops } = await withTimeout(stopQuery, 1200)
+            if (Array.isArray(fetchedStops)) {
+                dbStops = fetchedStops
+            }
+        } catch (_) {
+            dbStops = loadStopEventsCache() || []
         }
 
         const stopAuditLog = (dbStops || [])
+            .filter(s => {
+                if (!s.stopped_at) return false
+                if (periodInfo.startDate && new Date(s.stopped_at) < new Date(periodInfo.startDate)) return false
+                if (periodInfo.endDate && periodFilter !== 'today' && new Date(s.stopped_at) > new Date(periodInfo.endDate)) return false
+                return true
+            })
             .map(s => {
-                const r = s.restaurants
+                const r = s.restaurants || restMap[s.restaurant_id] || null
                 const config = s.loss_calculation_config || {}
+                const rName = r?.name || s.restaurant_name || ''
+                const cName = getCanonicalCity(r?.city || s.city || rName) || ''
+                const bName = r?.brands?.name || s.brand || (rName.toLowerCase().includes('smash') ? 'Smash Me' : rName.toLowerCase().includes('poki') ? 'Poki Woki' : rName.toLowerCase().includes('love') ? 'Love Sushi' : 'Roll Master')
+                const cleanReason = (!s.reason || s.reason === 'Unknown')
+                    ? `Locație închisă temporar pe ${(s.platform || 'agregator').toUpperCase()} în timpul programului`
+                    : s.reason
                 return {
                     id: s.id,
                     restaurant_id: s.restaurant_id,
-                    restaurant_name: r?.name || 'Restaurant',
-                    city: getCanonicalCity(r?.city || r?.name) || 'Oraș',
-                    brand: r?.brands?.name || 'Roll Master',
+                    restaurant_name: rName,
+                    city: cName,
+                    brand: bName,
                     platform: s.platform,
                     stopped_at: s.stopped_at,
                     resumed_at: s.resumed_at,
@@ -2643,11 +2760,13 @@ app.get('/api/dispatch/live', async (req, res) => {
                     active_orders_at_stop: config.active_orders_count ?? (Math.floor(s.id?.charCodeAt(0) % 7 || 3) + 4),
                     last_5_kitchen_avg_min: config.last_5_kitchen_avg_min ?? (16 + (s.id?.charCodeAt(1) % 5 || 2)),
                     last_5_delivery_avg_min: config.last_5_delivery_avg_min ?? (32 + (s.id?.charCodeAt(2) % 10 || 4)),
-                    reason: s.reason || 'Depășire timp bucătărie / STOP manual agregator',
+                    reason: cleanReason,
                     telegram_alert_sent: true
                 }
             })
             .filter(log => {
+                if (!log.restaurant_name || log.restaurant_name === 'Restaurant' || !log.city || log.city === 'Oraș') return false
+                if (targetCityCanon && log.city !== targetCityCanon) return false
                 if (brandFilter && brandFilter !== 'all' && log.brand !== brandFilter) return false
                 return true
             })
@@ -3142,20 +3261,8 @@ app.get('/api/health-sync', (req, res) => {
     return res.json({ status: 'ok', action: 'none', hoursSinceLastSync: hoursSinceSync.toFixed(1) })
 })
 
-// Auto-sync intern pentru mediul local (rulează la fiecare oră DOAR în intervalul 10:00 - 22:00)
-setInterval(() => {
-    if (!isWithinActiveHours()) return
-    if (!salesSync.progress?.isSyncing) {
-        console.log('[AUTO-SYNC] Internal timer triggering sales sync...')
-        salesSync.syncSales(2).catch(e => console.error('[AUTO-SYNC] Sync err:', e))
-    }
-}, 60 * 60 * 1000) // La fiecare oră
-
-// Auto-sync ultrarapid pentru Kiosk-uri (Cluj 1, Cluj 2, Constanța) la fiecare 45 secunde (OPRIT între 22:00 și 10:00)
-setInterval(() => {
-    if (!isWithinActiveHours()) return
-    salesSync.syncLiveKiosksToday().catch(e => console.error('[KIOSK-SYNC] Fast sync err:', e.message))
-}, 45 * 1000)
+// Auto-sync-urile frecvente (45s / 1h) către Supabase sunt dezactivate pentru a proteja Disk IO
+// Comenzile live din Dispecerat sunt citite direct din Syrve Cloud API în timp real.
 
 
 // ─── 1:1 SYNC Test (Iiko vs Aggregators) ───
@@ -4895,16 +5002,48 @@ app.get('/api/nomenclature', async (req, res) => {
 // GET /api/settings/restaurants - List all restaurants with brand name and full configs
 app.get('/api/settings/restaurants', async (req, res) => {
     try {
-        const { data, error } = await supabase
-            .from('restaurants')
-            .select('*, brands(name)')
-            .order('name', { ascending: true })
+        if (!global.__CACHED_ALL_RESTS || global.__CACHED_ALL_RESTS.length === 0) {
+            const diskRests = loadRestaurantsCache()
+            if (Array.isArray(diskRests) && diskRests.length > 0) {
+                global.__CACHED_ALL_RESTS = diskRests
+                global.__CACHED_ALL_RESTS_TS = Date.now()
+            }
+        }
 
-        if (error) throw error
-        res.json({ success: true, count: data.length, restaurants: data })
+        // If we have fresh cached restaurants (< 5 min), return immediately
+        if (Array.isArray(global.__CACHED_ALL_RESTS) && global.__CACHED_ALL_RESTS.length > 0 && (Date.now() - (global.__CACHED_ALL_RESTS_TS || 0) < 300000)) {
+            return res.json({ success: true, count: global.__CACHED_ALL_RESTS.length, restaurants: global.__CACHED_ALL_RESTS })
+        }
+
+        const withTimeout = (promise, ms = 2500) => Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms))
+        ])
+
+        try {
+            const { data, error } = await withTimeout(
+                supabase
+                    .from('restaurants')
+                    .select('*, brands(name, logo_url)')
+                    .order('name', { ascending: true }),
+                2500
+            )
+            if (!error && Array.isArray(data) && data.length > 0) {
+                global.__CACHED_ALL_RESTS = data
+                global.__CACHED_ALL_RESTS_TS = Date.now()
+                saveRestaurantsCache(data)
+                return res.json({ success: true, count: data.length, restaurants: data })
+            }
+        } catch (dbErr) {
+            console.warn('[API] /api/settings/restaurants Supabase timeout/error, serving cache:', dbErr.message)
+        }
+
+        const fallback = global.__CACHED_ALL_RESTS || loadRestaurantsCache() || []
+        res.json({ success: true, count: fallback.length, restaurants: fallback })
     } catch (err) {
         console.error('[API] /api/settings/restaurants error:', err.message)
-        res.status(500).json({ success: false, error: err.message })
+        const fallback = global.__CACHED_ALL_RESTS || loadRestaurantsCache() || []
+        res.json({ success: true, count: fallback.length, restaurants: fallback })
     }
 })
 
@@ -5055,6 +5194,42 @@ app.post('/api/settings/trigger-sales-sync', async (req, res) => {
     }
 })
 
+// ─── REAL CUSTOMERS DATABASE & CRM ENDPOINTS ───
+app.get('/api/customers', (req, res) => {
+    try {
+        if (Array.isArray(reviewsService?.reviews) && reviewsService.reviews.length > 0) {
+            customersService.ingestReviews(reviewsService.reviews)
+        }
+        const result = customersService.queryCustomers({
+            city: req.query.city || 'all',
+            brand: req.query.brand || 'all',
+            platform: req.query.platform || 'all',
+            segment: req.query.segment || 'all',
+            search: req.query.search || '',
+            sort: req.query.sort || 'last_order',
+            sort_dir: req.query.sort_dir || 'desc',
+            page: req.query.page || 1,
+            limit: req.query.limit || 25
+        })
+        res.json({ success: true, ...result })
+    } catch (err) {
+        console.error('[API] GET /api/customers error:', err.message)
+        res.status(500).json({ success: false, error: err.message })
+    }
+})
+
+app.put('/api/customers/:id', (req, res) => {
+    try {
+        const updated = customersService.updateCustomer(req.params.id, req.body || {})
+        if (!updated) {
+            return res.status(404).json({ success: false, error: 'Clientul nu a fost găsit' })
+        }
+        res.json({ success: true, customer: updated })
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message })
+    }
+})
+
 // GET /api/settings/status - System status, active counts, and schedules
 app.get('/api/settings/status', async (req, res) => {
     try {
@@ -5078,4 +5253,108 @@ app.get('/api/settings/status', async (req, res) => {
         res.status(500).json({ success: false, error: err.message })
     }
 })
+
+// ─── AUTHENTICATION, USERS, ROLES & BREVO INVITATIONS ENDPOINTS ───
+app.post('/api/auth/login', (req, res) => {
+    try {
+        const { email, password } = req.body || {}
+        const result = usersService.login(email, password)
+        res.json({ success: true, ...result })
+    } catch (err) {
+        res.status(401).json({ success: false, error: err.message })
+    }
+})
+
+app.post('/api/auth/first-login-password', (req, res) => {
+    try {
+        const user = usersService.completeFirstLogin(req.body || {})
+        res.json({ success: true, user })
+    } catch (err) {
+        res.status(400).json({ success: false, error: err.message })
+    }
+})
+
+app.post('/api/auth/forgot-password', async (req, res) => {
+    try {
+        const { email } = req.body || {}
+        const result = await usersService.requestPasswordReset(email)
+        res.json({ success: true, ...result })
+    } catch (err) {
+        res.status(400).json({ success: false, error: err.message })
+    }
+})
+
+app.post('/api/auth/reset-password', (req, res) => {
+    try {
+        const user = usersService.confirmPasswordReset(req.body || {})
+        res.json({ success: true, user })
+    } catch (err) {
+        res.status(400).json({ success: false, error: err.message })
+    }
+})
+
+app.put('/api/auth/profile', (req, res) => {
+    try {
+        const { userId, ...rest } = req.body || {}
+        const user = usersService.updateOwnProfile(userId, rest)
+        res.json({ success: true, user })
+    } catch (err) {
+        res.status(400).json({ success: false, error: err.message })
+    }
+})
+
+app.get('/api/users', (req, res) => {
+    try {
+        const data = usersService.getUsersList()
+        res.json({ success: true, ...data })
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message })
+    }
+})
+
+app.post('/api/users/invite', async (req, res) => {
+    try {
+        const result = await usersService.inviteUser(req.body || {})
+        res.json({ success: true, ...result })
+    } catch (err) {
+        res.status(400).json({ success: false, error: err.message })
+    }
+})
+
+app.put('/api/users/brevo-config', (req, res) => {
+    try {
+        const brevo = usersService.updateBrevoConfig(req.body || {})
+        res.json({ success: true, brevo })
+    } catch (err) {
+        res.status(400).json({ success: false, error: err.message })
+    }
+})
+
+app.put('/api/users/:id', (req, res) => {
+    try {
+        const user = usersService.updateUser(req.params.id, req.body || {})
+        res.json({ success: true, user })
+    } catch (err) {
+        res.status(400).json({ success: false, error: err.message })
+    }
+})
+
+app.post('/api/users/:id/resend-invite', async (req, res) => {
+    try {
+        const result = await usersService.resendInvite(req.params.id, req.body?.app_url)
+        res.json({ success: true, ...result })
+    } catch (err) {
+        res.status(400).json({ success: false, error: err.message })
+    }
+})
+
+app.delete('/api/users/:id', (req, res) => {
+    try {
+        usersService.deleteUser(req.params.id)
+        res.json({ success: true })
+    } catch (err) {
+        res.status(400).json({ success: false, error: err.message })
+    }
+})
+
 

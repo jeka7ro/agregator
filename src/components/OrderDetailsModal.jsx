@@ -3,7 +3,8 @@ import { X, Copy, Check, Utensils } from 'lucide-react'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
 import BrandAvatar, { cleanRestaurantName } from './BrandAvatar'
-import { formatDisplayOrderNumber } from '../lib/orderUtils'
+import OrderLiveRouteMap from './OrderLiveRouteMap'
+import { formatDisplayOrderNumber, parseDeliveryAddress } from '../lib/orderUtils'
 import { getProductImage } from '../lib/productImages'
 
 function formatCleanDishName(rawName = '') {
@@ -184,7 +185,34 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                     <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">{lbl.client}</span>
                     <div className="font-bold text-slate-900 dark:text-white">{customerInfo.name}</div>
                     {customerInfo.phone && <div className="font-mono text-[11px] text-slate-500 mt-0.5">{customerInfo.phone}</div>}
-                    {customerInfo.address && <div className="text-[11px] text-slate-500 mt-0.5 truncate" title={customerInfo.address}>{customerInfo.address}</div>}
+                    {customerInfo.address && (() => {
+                      const parsedModalAddr = parseDeliveryAddress(customerInfo.address, language)
+                      return (
+                        <div className="mt-1.5 space-y-1.5">
+                          <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">
+                            {parsedModalAddr.streetAddress || customerInfo.address}
+                          </div>
+                          {parsedModalAddr.buildingDetails.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {parsedModalAddr.buildingDetails.map((b, bIdx) => (
+                                <span
+                                  key={bIdx}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                                >
+                                  <span className="text-slate-400">{b.label}:</span>
+                                  <b className="font-mono text-slate-900 dark:text-white">{b.value}</b>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {parsedModalAddr.instructions && (
+                            <div className="p-2 rounded-xl bg-amber-50/90 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-[11px] leading-snug font-semibold">
+                              {parsedModalAddr.instructions}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
                 {courierInfo?.name && (
@@ -216,7 +244,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/20 text-[11px] font-bold transition-colors"
                       >
-                        📍 Tracking Live Curier ↗
+                        Tracking Live Curier ↗
                       </a>
                     )}
                     {(meta.pickUpCode || customerInfo?.pickUpCode) && (
@@ -225,6 +253,19 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                   </div>
                 )}
               </div>
+            )}
+
+            {/* HARTA LIVE TRASEU STRADAL CURIER & CLIENT */}
+            {channel !== 'kiosk' && channel !== 'casierie' && channel !== 'IN-STORE' && (
+              <OrderLiveRouteMap
+                order={{
+                  ...order,
+                  customer: customerInfo || order.customer,
+                  courier: courierInfo || order.courier
+                }}
+                isDark={isDark}
+                language={language}
+              />
             )}
 
             {/* RECENZIE CLIENT ATAȘATĂ (dacă există) */}

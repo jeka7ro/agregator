@@ -1,0 +1,5211 @@
+[
+  {
+    "id": "65a9e7e5-7f9f-4561-8edb-8db04bffe40e",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "BACAU (Ikura Sushi)",
+    "city": "BACAU",
+    "address": "9 Mai 600022 Bacau Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/391105",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dafe6e21bfd57729792a5e",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/34oasIzTAZ/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "d0ca9d11-a38e-48e1-ae02-54ce627f8419",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "d0ca9d11-a38e-48e1-ae02-54ce627f8419"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "a6912d55-8d9d-4fcf-acd6-8585a9807f61",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "BACAU (Love Sushi)",
+    "city": "BACAU",
+    "address": "Strada 9 Mai 600022 Bacău Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/bacau/stores/we-love-sushi-bacau",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dafe6e21bfd57729792a5f",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/HdM0NOW6xt/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "d0ca9d11-a38e-48e1-ae02-54ce627f8419",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "d0ca9d11-a38e-48e1-ae02-54ce627f8419"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "fa546232-e9f3-490c-8c57-425f91742efc",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "BACAU (Poki Woki)",
+    "city": "BACAU",
+    "address": "9 Mai 600022 Bacau Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/bacau/stores/ikura-sushi-bcu",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dafe6e21bfd57729792a5e",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/34oasIzTAZ/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "d0ca9d11-a38e-48e1-ae02-54ce627f8419",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "d0ca9d11-a38e-48e1-ae02-54ce627f8419"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "9df5b824-8e4e-4ac2-b54f-1459417ed9b7",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "BACAU (Roll Master)",
+    "city": "BACAU",
+    "address": "Strada 9 Mai 600022 Bacău Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/bacau/stores/sushi-master-bcu",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dafe6e21bfd57729792a5d",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/7vSTG0gpJI/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "d0ca9d11-a38e-48e1-ae02-54ce627f8419",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "d0ca9d11-a38e-48e1-ae02-54ce627f8419"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "dc10558d-2f4a-4bd8-9ca4-b5c662859724",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "BACAU (Sushi Master)",
+    "city": "BACAU",
+    "address": "Strada 9 Mai 600022 Bacău Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/390524",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dafe6e21bfd57729792a5d",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/7vSTG0gpJI/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "d0ca9d11-a38e-48e1-ae02-54ce627f8419",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "d0ca9d11-a38e-48e1-ae02-54ce627f8419"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "239b5d9c-e93e-463a-a9cd-0544ea9a8186",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "BALOTESTI (Ikura Sushi)",
+    "city": "BALOTESTI",
+    "address": "Calea Bucureşti 2bis, 077015, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/286941",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7044",
+    "bolt_url": "https://food.bolt.eu/ro-RO/search?q=Poki%20Woki%20Balotesti",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "264cb8e8-0dc9-46c3-b8f5-6a38f6c43fe9",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "264cb8e8-0dc9-46c3-b8f5-6a38f6c43fe9"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "76e6a6e9-b8eb-43a7-a66d-cf9959ccda97",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "BALOTESTI (Love Sushi)",
+    "city": "BALOTESTI",
+    "address": "Calea Bucureşti 2bis, 077015, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/balotesti/stores/we-love-sushi-balotesti",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7050",
+    "bolt_url": "https://food.bolt.eu/ro-RO/search?q=Love%20Sushi%20Balotesti",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "264cb8e8-0dc9-46c3-b8f5-6a38f6c43fe9",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "264cb8e8-0dc9-46c3-b8f5-6a38f6c43fe9"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "67aec385-594f-4e25-bd29-d67552b95ca4",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "BALOTESTI (Poki Woki)",
+    "city": "BALOTESTI",
+    "address": "Calea Bucureşti 2bis, 077015, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/balotesti/stores/ikura-crb",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7044",
+    "bolt_url": "https://food.bolt.eu/ro-RO/search?q=Poki%20Woki%20Balotesti",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "264cb8e8-0dc9-46c3-b8f5-6a38f6c43fe9",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "264cb8e8-0dc9-46c3-b8f5-6a38f6c43fe9"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "d22a3ec7-f23b-4711-a069-45d42197c7e5",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "BALOTESTI (Roll Master)",
+    "city": "BALOTESTI",
+    "address": "Calea Bucureşti 2bis, 077015, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/balotesti/stores/sushi-master2",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7039",
+    "bolt_url": "https://food.bolt.eu/ro-RO/search?q=Roll%20Master%20Balotesti",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "264cb8e8-0dc9-46c3-b8f5-6a38f6c43fe9",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "264cb8e8-0dc9-46c3-b8f5-6a38f6c43fe9"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "5d28adc5-3f9d-4164-8bf4-efc6bead0da2",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "BALOTESTI (Sushi Master)",
+    "city": "BALOTESTI",
+    "address": "Calea Bucureşti 2bis, 077015, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/324707",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7039",
+    "bolt_url": "https://food.bolt.eu/ro-RO/search?q=Roll%20Master%20Balotesti",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "264cb8e8-0dc9-46c3-b8f5-6a38f6c43fe9",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "264cb8e8-0dc9-46c3-b8f5-6a38f6c43fe9"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "072454b0-fb31-4c33-89fa-022ac5fa71e1",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "BOTOSANI (Ikura Sushi)",
+    "city": "BOTOSANI",
+    "address": "Bulevardul George Enescu 4, Botoșani, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/394190",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642508",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/IDeu3UaHjn/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "f6c77b52-5bf8-4808-b4e4-e7fbfa1a2805",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "f6c77b52-5bf8-4808-b4e4-e7fbfa1a2805"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "a0da8c43-d7ca-4a34-af5c-d6a009b2f91d",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "BOTOSANI (Love Sushi)",
+    "city": "BOTOSANI",
+    "address": "Bulevardul George Enescu 4, Botoșani, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/botosani/search/?q=Love%20Sushi",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e64250c",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/W0CyYdkuCQ/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "f6c77b52-5bf8-4808-b4e4-e7fbfa1a2805",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "f6c77b52-5bf8-4808-b4e4-e7fbfa1a2805"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "4ccbadbe-e543-4b46-bb97-493b12373f91",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "BOTOSANI (Poki Woki)",
+    "city": "BOTOSANI",
+    "address": "Bulevardul George Enescu 4, Botoșani, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/botosani/stores/ikura-sushi-bto",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642508",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/IDeu3UaHjn/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "f6c77b52-5bf8-4808-b4e4-e7fbfa1a2805",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "f6c77b52-5bf8-4808-b4e4-e7fbfa1a2805"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "c6587b6a-62bf-4202-a29b-dfe44467a4a0",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "BOTOSANI (Roll Master)",
+    "city": "BOTOSANI",
+    "address": "Bulevardul George Enescu 4, Botoșani, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/botosani/stores/sushi-master-bto",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642507",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/21B7H8m1nF/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "f6c77b52-5bf8-4808-b4e4-e7fbfa1a2805",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "f6c77b52-5bf8-4808-b4e4-e7fbfa1a2805"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "ee3fb355-6c6e-497c-8f9d-bdd1d9a29350",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "BOTOSANI (Sushi Master)",
+    "city": "BOTOSANI",
+    "address": "Bulevardul George Enescu 4, Botoșani, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/394182",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642507",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/21B7H8m1nF/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "f6c77b52-5bf8-4808-b4e4-e7fbfa1a2805",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "f6c77b52-5bf8-4808-b4e4-e7fbfa1a2805"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "b2a259bd-5925-40ff-a1ba-9b49afa19740",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "BRAILA (Ikura Sushi)",
+    "city": "BRAILA",
+    "address": "Strada Școlilor 2 810009 Județul Brăila Brăila România",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/552292",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/6932b4efa8d6546c7b8ca353",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/b1nHLpQeOw/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "effc9518-ceef-4eec-8ad5-9b48ae84c540",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "effc9518-ceef-4eec-8ad5-9b48ae84c540"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "8860ef11-e9cd-486f-92cd-aa5f3a93ad0f",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "BRAILA (Love Sushi)",
+    "city": "BRAILA",
+    "address": "Strada Școlilor 2 810009 Județul Brăila Brăila România",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/552382",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/6932b4dca15d3673ed37b9ed",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/lifqFdT0If/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "effc9518-ceef-4eec-8ad5-9b48ae84c540",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "effc9518-ceef-4eec-8ad5-9b48ae84c540"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "19464d1f-b271-43c5-a0d1-06b1a7282bd5",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "BRAILA (Poki Woki)",
+    "city": "BRAILA",
+    "address": "Strada Școlilor 2 810009 Județul Brăila Brăila România",
+    "glovo_url": "https://glovoapp.com/ro/ro/braila/stores/ikura-sushi-brl",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/6932b4efa8d6546c7b8ca353",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/b1nHLpQeOw/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "effc9518-ceef-4eec-8ad5-9b48ae84c540",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "effc9518-ceef-4eec-8ad5-9b48ae84c540"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "81539556-80ec-4fa5-9401-4fc6e0b30bdb",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "BRAILA (Roll Master)",
+    "city": "BRAILA",
+    "address": "Strada Școlilor 2 810009 Județul Brăila Brăila România",
+    "glovo_url": "https://glovoapp.com/ro/ro/braila/stores/sushi-master-brl",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/6932b4cea15d3673ed37b9ec",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/ybjyyTEM4v/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "effc9518-ceef-4eec-8ad5-9b48ae84c540",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "effc9518-ceef-4eec-8ad5-9b48ae84c540"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "a22ba2c4-46ea-4162-82bb-4b38b9c5d226",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "BRAILA (Sushi Master)",
+    "city": "BRAILA",
+    "address": "Strada Școlilor 2 810009 Județul Brăila Brăila România",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/552379",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/6932b4cea15d3673ed37b9ec",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/ybjyyTEM4v/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "effc9518-ceef-4eec-8ad5-9b48ae84c540",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "effc9518-ceef-4eec-8ad5-9b48ae84c540"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "616ae53c-d298-4b6b-a51d-dccad6f5cf04",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "BRASOV (Ikura Sushi)",
+    "city": "BRASOV",
+    "address": "Calea București 107 500299 Brașov Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/246147",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf703d",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/xRIcx4IHLO/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "adddb5a0-26e5-4d50-b472-1c74726c3f72",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "adddb5a0-26e5-4d50-b472-1c74726c3f72"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "f459268b-1675-41c7-8b54-3453385a0fa6",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "BRASOV (Love Sushi)",
+    "city": "BRASOV",
+    "address": "Calea București 107 500299 Brașov Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/443734",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7053",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/XV6D2PYHte/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "adddb5a0-26e5-4d50-b472-1c74726c3f72",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "adddb5a0-26e5-4d50-b472-1c74726c3f72"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "f40e312b-5fca-4178-9f27-dbfe2837c721",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "BRASOV (Poki Woki)",
+    "city": "BRASOV",
+    "address": "Calea București 107 500299 Brașov Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/brasov/stores/ikurasushi",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf703d",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/xRIcx4IHLO/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "adddb5a0-26e5-4d50-b472-1c74726c3f72",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "adddb5a0-26e5-4d50-b472-1c74726c3f72"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "1f75ded4-f726-45c1-a1f3-eca4f9116e08",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "BRASOV (Roll Master)",
+    "city": "BRASOV",
+    "address": "Calea București 107 500299 Brașov Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/brasov/stores/roll-master-brv",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7035",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/2OWdyDgsmj/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "adddb5a0-26e5-4d50-b472-1c74726c3f72",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "adddb5a0-26e5-4d50-b472-1c74726c3f72"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "a4ff6db8-16ef-4f90-bfd1-718df590caea",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "BRASOV (Sushi Master)",
+    "city": "BRASOV",
+    "address": "Calea București 107 500299 Brașov Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/45153",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7035",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/2OWdyDgsmj/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "adddb5a0-26e5-4d50-b472-1c74726c3f72",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "adddb5a0-26e5-4d50-b472-1c74726c3f72"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "aa3745e2-8381-425b-9fa2-096f6ea7d70b",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "BUC CEAIKOVSKI (Ikura Sushi)",
+    "city": "BUC CEAIKOVSKI",
+    "address": "Strada Ceaikovski 9, București, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/252898",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7040",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/TENbOXPh3s/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "742343d9-38c1-4712-add3-1035b6bd7637",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "742343d9-38c1-4712-add3-1035b6bd7637"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "df4abf0a-d988-4edb-bd26-2252f3bb9e43",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "BUC CEAIKOVSKI (Love Sushi)",
+    "city": "BUC CEAIKOVSKI",
+    "address": "Strada Ceaikovski 9, București, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/426935",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf704a",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/etCLKqdKIQ/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "742343d9-38c1-4712-add3-1035b6bd7637",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "742343d9-38c1-4712-add3-1035b6bd7637"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "ff89718b-d1d7-4b54-b67e-4bc50b5ea80f",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "BUC CEAIKOVSKI (Poki Woki)",
+    "city": "BUC CEAIKOVSKI",
+    "address": "Strada Ceaikovski 9, București, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/bucuresti/stores/ikurasushi-buc",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7040",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/TENbOXPh3s/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "742343d9-38c1-4712-add3-1035b6bd7637",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "742343d9-38c1-4712-add3-1035b6bd7637"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "8691a9d3-9197-4602-94fd-7bd7e042ca23",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "BUC CEAIKOVSKI (Roll Master)",
+    "city": "BUC CEAIKOVSKI",
+    "address": "Strada Ceaikovski 9, București, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/bucuresti/stores/sushi-master",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf703b",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/jyYbcUNd6t/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "742343d9-38c1-4712-add3-1035b6bd7637",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "742343d9-38c1-4712-add3-1035b6bd7637"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "816891c7-847c-4062-bf1e-a334850ca934",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "BUC CEAIKOVSKI (Sushi Master)",
+    "city": "BUC CEAIKOVSKI",
+    "address": "Strada Ceaikovski 9, București, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/20201",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf703b",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/jyYbcUNd6t/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "742343d9-38c1-4712-add3-1035b6bd7637",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "742343d9-38c1-4712-add3-1035b6bd7637"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "d7f2b3d3-c7dd-4758-8e20-9f2cb32bf12c",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "BUC CORA (Ikura Sushi)",
+    "city": "BUC CORA",
+    "address": "Bulevardul Iuliu Maniu 19, București 061344, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/252898",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf703f",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/otADG7MeNT/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "6956213e-6f71-48ed-9431-44d020511190",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "6956213e-6f71-48ed-9431-44d020511190"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "3c1ae0d7-9588-44d0-8bdb-3180d9f9f5a6",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "BUC CORA (Love Sushi)",
+    "city": "BUC CORA",
+    "address": "Bulevardul Iuliu Maniu 19, București 061344, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/426935",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf704d",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/3wdGs4EEeg/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "6956213e-6f71-48ed-9431-44d020511190",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "6956213e-6f71-48ed-9431-44d020511190"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "c72bd8f7-b064-4093-8c34-3604e6b384a2",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "BUC CORA (Poki Woki)",
+    "city": "BUC CORA",
+    "address": "Bulevardul Iuliu Maniu 19, București 061344, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/bucuresti/stores/ikurasushi-buc",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf703f",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/otADG7MeNT/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "6956213e-6f71-48ed-9431-44d020511190",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "6956213e-6f71-48ed-9431-44d020511190"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "8b02140e-a340-41ca-9a83-b4950016ee15",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "BUC CORA (Roll Master)",
+    "city": "BUC CORA",
+    "address": "Bulevardul Iuliu Maniu 19, București 061344, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/bucuresti/stores/sushi-master",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf703a",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/0tuwyx66O6/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "6956213e-6f71-48ed-9431-44d020511190",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "6956213e-6f71-48ed-9431-44d020511190"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "8b88886e-7be4-4414-97a2-c353c7fd7702",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "BUC CORA (Sushi Master)",
+    "city": "BUC CORA",
+    "address": "Bulevardul Iuliu Maniu 19, București 061344, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/20201",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf703a",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/0tuwyx66O6/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "6956213e-6f71-48ed-9431-44d020511190",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "6956213e-6f71-48ed-9431-44d020511190"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "ed54e517-4784-42e2-afe2-f74ab375d657",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "BUC TITAN",
+    "city": "BUCURESTI",
+    "address": "Bulevardul 1 Decembrie 1918 33a, București 032455, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/20201",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7036",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/9ruScaYgxd/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-04-02T12:36:53.435359+00:00",
+    "updated_at": "2026-04-02T12:36:53.435359+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "04062575-5a47-426b-9d35-9dc748f24139",
+    "iiko_config": {
+      "organizationId": "04062575-5a47-426b-9d35-9dc748f24139",
+      "excluded_product_name_patterns": [
+        "we love sushi",
+        "ikura",
+        "smash me",
+        "love roll",
+        "love set",
+        "love phila",
+        "love maki",
+        "love nigiri",
+        "love tempura",
+        "love extra"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "e8ca1d27-9a56-46a8-9583-db89002bb3f1",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "BUC TITAN (Ikura Sushi)",
+    "city": "BUC TITAN",
+    "address": "Bulevardul 1 Decembrie 1918 33a, București 032455, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/252898",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7043",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/Yp1vsXg6Vt/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "04062575-5a47-426b-9d35-9dc748f24139",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "04062575-5a47-426b-9d35-9dc748f24139"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "3537819e-fa0b-42c8-a937-4388c263c7b4",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "BUC TITAN (Love Sushi)",
+    "city": "BUC TITAN",
+    "address": "Bulevardul 1 Decembrie 1918 33A, București 032455, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/426935",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf704b",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/n3sqlgXBO5/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "04062575-5a47-426b-9d35-9dc748f24139",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "04062575-5a47-426b-9d35-9dc748f24139"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "bdacab4f-9150-495e-ba53-9ce470ce4da7",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "BUC TITAN (Poki Woki)",
+    "city": "BUC TITAN",
+    "address": "Bulevardul 1 Decembrie 1918 33a, București 032455, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/bucuresti/stores/ikurasushi-buc",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7043",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/Yp1vsXg6Vt/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "04062575-5a47-426b-9d35-9dc748f24139",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "04062575-5a47-426b-9d35-9dc748f24139"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "5de3d519-c566-4e04-9129-770dcb72b5fa",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "BUC TITAN (Roll Master)",
+    "city": "BUC TITAN",
+    "address": "Bulevardul 1 Decembrie 1918 33a, București 032455, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/bucuresti/stores/sushi-master",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7036",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/9ruScaYgxd/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "04062575-5a47-426b-9d35-9dc748f24139",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "04062575-5a47-426b-9d35-9dc748f24139"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "da86444c-6f9c-4adb-b46a-c7fa1150bf51",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "BUC TITAN (Sushi Master)",
+    "city": "BUC TITAN",
+    "address": "Bulevardul 1 Decembrie 1918 33a, București 032455, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/20201",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7036",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/9ruScaYgxd/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "04062575-5a47-426b-9d35-9dc748f24139",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "04062575-5a47-426b-9d35-9dc748f24139"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "6d689def-81e6-4887-a026-62aa578c7d42",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "BUC UNIRII (Ikura Sushi)",
+    "city": "BUC UNIRII",
+    "address": "Strada Halelor 17, București, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/252898",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7041",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/8cmxKxEfxc/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "0a7c46eb-f8e1-43f8-bac2-f7c34239d185",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "0a7c46eb-f8e1-43f8-bac2-f7c34239d185"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "ddc86244-d00a-481f-afeb-8c52482ee70a",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "BUC UNIRII (Love Sushi)",
+    "city": "BUC UNIRII",
+    "address": "Strada Halelor 17, București, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/426935",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf704c",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/8T5Mh8r1qV/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "0a7c46eb-f8e1-43f8-bac2-f7c34239d185",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "0a7c46eb-f8e1-43f8-bac2-f7c34239d185"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "14adb9aa-a9aa-4b71-9846-41f367f98c24",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "BUC UNIRII (Poki Woki)",
+    "city": "BUC UNIRII",
+    "address": "Strada Halelor 17, București, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/bucuresti/stores/ikurasushi-buc",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7041",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/8cmxKxEfxc/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "0a7c46eb-f8e1-43f8-bac2-f7c34239d185",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "0a7c46eb-f8e1-43f8-bac2-f7c34239d185"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "7990f9b6-9fa0-46d4-9ec5-219d10458ecc",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "BUC UNIRII (Roll Master)",
+    "city": "BUC UNIRII",
+    "address": "Strada Halelor 17, București, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/bucuresti/stores/sushi-master",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7037",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/GBPNb46IXY/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "0a7c46eb-f8e1-43f8-bac2-f7c34239d185",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "0a7c46eb-f8e1-43f8-bac2-f7c34239d185"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "314b6ada-d86d-46e4-96a7-90c0365664ed",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "BUC UNIRII (Sushi Master)",
+    "city": "BUC UNIRII",
+    "address": "Strada Halelor 17, București, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/20201",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7037",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/GBPNb46IXY/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "0a7c46eb-f8e1-43f8-bac2-f7c34239d185",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "0a7c46eb-f8e1-43f8-bac2-f7c34239d185"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "9d41d0a3-6324-40c8-a06a-7a85147be605",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "CLUJ",
+    "city": "CLUJ-NAPOCA",
+    "address": "Strada Emil Isac 15, Cluj-Napoca 400000, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/237723",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf703c",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/SfiSn42p6o/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-04-02T12:36:53.435359+00:00",
+    "updated_at": "2026-04-02T12:36:53.435359+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "90296b11-9ba9-4279-a69b-1f84e193315e",
+    "iiko_config": {
+      "organizationId": "90296b11-9ba9-4279-a69b-1f84e193315e",
+      "excluded_product_name_patterns": [
+        "we love sushi",
+        "ikura",
+        "smash me",
+        "love roll",
+        "love set",
+        "love phila",
+        "love maki",
+        "love nigiri",
+        "love tempura",
+        "love extra"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "43b05af8-bcc3-4b6e-a266-dd14d92624fd",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "CLUJ (Ikura Sushi)",
+    "city": "CLUJ",
+    "address": "Strada Emil Isac 15, Cluj-Napoca 400000, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/259744",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf703e",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/JS3WTjW9wO/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "90296b11-9ba9-4279-a69b-1f84e193315e",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "90296b11-9ba9-4279-a69b-1f84e193315e"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "b13a23fa-638f-41ec-9e14-46c8a71b4dd8",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "CLUJ (Love Sushi)",
+    "city": "CLUJ",
+    "address": "Strada Emil Isac 15, Cluj-Napoca 400000, România",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/443682",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf704e",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/ZML1MPokwY/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "90296b11-9ba9-4279-a69b-1f84e193315e",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "90296b11-9ba9-4279-a69b-1f84e193315e"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "2fb07d2d-5065-43d4-9edf-51fe400f917d",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "CLUJ (Poki Woki)",
+    "city": "CLUJ",
+    "address": "Strada Emil Isac 15, Cluj-Napoca 400000, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/cluj-napoca/stores/ikurasushiclj",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf703e",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/JS3WTjW9wO/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "90296b11-9ba9-4279-a69b-1f84e193315e",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "90296b11-9ba9-4279-a69b-1f84e193315e"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "758d0120-d3b4-4c5c-9baf-f6dcc52c615e",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "CLUJ (Roll Master)",
+    "city": "CLUJ",
+    "address": "Strada Emil Isac 15, Cluj-Napoca 400000, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/cluj-napoca/stores/sushi-masterclj",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf703c",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/SfiSn42p6o/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "90296b11-9ba9-4279-a69b-1f84e193315e",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "90296b11-9ba9-4279-a69b-1f84e193315e"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "31a8f277-914f-4997-9253-f4e5b0d9b63e",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "CLUJ (Sushi Master)",
+    "city": "CLUJ",
+    "address": "Strada Emil Isac 15, Cluj-Napoca 400000, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/237723",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf703c",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/SfiSn42p6o/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "90296b11-9ba9-4279-a69b-1f84e193315e",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "90296b11-9ba9-4279-a69b-1f84e193315e"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "a722680a-0e21-48c8-8823-b379da36d866",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "CONSTANTA (Ikura Sushi)",
+    "city": "CONSTANTA",
+    "address": "Bulevardul Tomis 56, Constanța 900178, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/395215",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7047",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/BMlSIYETji/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "8ed15b53-e788-411b-8a06-96d0f9ee005a",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "8ed15b53-e788-411b-8a06-96d0f9ee005a"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "59cea0af-5fe2-4fb0-b59a-1e3bb0fa34d2",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "CONSTANTA (Love Sushi)",
+    "city": "CONSTANTA",
+    "address": "Bulevardul Tomis 56, Constanța 900178, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/constanta/stores/we-love-sushi-cnd",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf704f",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/0JB2rMCmAq/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "8ed15b53-e788-411b-8a06-96d0f9ee005a",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "8ed15b53-e788-411b-8a06-96d0f9ee005a"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "1c2b8519-107d-4f6a-a644-22ec53f54b60",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "CONSTANTA (Poki Woki)",
+    "city": "CONSTANTA",
+    "address": "Bulevardul Tomis 56, Constanța 900178, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/constanta/stores/ikura-sushi-cta",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7047",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/BMlSIYETji/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "8ed15b53-e788-411b-8a06-96d0f9ee005a",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "8ed15b53-e788-411b-8a06-96d0f9ee005a"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "46e6b5a3-8537-46e6-8f5a-6eff4db84979",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "CONSTANTA (Roll Master)",
+    "city": "CONSTANTA",
+    "address": "Bulevardul Tomis 56, Constanța 900178, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/constanta/stores/sushi-master-cta",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7046",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/fORQSGWvmf/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "8ed15b53-e788-411b-8a06-96d0f9ee005a",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "8ed15b53-e788-411b-8a06-96d0f9ee005a"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "316244eb-ede6-437c-a08c-ad61d58b8a47",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "CONSTANTA (Sushi Master)",
+    "city": "CONSTANTA",
+    "address": "Bulevardul Tomis 56, Constanța 900178, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/395199",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7046",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/fORQSGWvmf/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "8ed15b53-e788-411b-8a06-96d0f9ee005a",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "8ed15b53-e788-411b-8a06-96d0f9ee005a"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "90d5a50a-33c5-474b-b712-7f2dbb8413d2",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "CRAIOVA (Ikura Sushi)",
+    "city": "CRAIOVA",
+    "address": "Calea București 80, Craiova, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/427376",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7048",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/obs43XqY1X/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "a7f99f17-1ded-4f6f-8920-931ace99b3e0",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "a7f99f17-1ded-4f6f-8920-931ace99b3e0"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "e670608e-7341-496a-bd4a-e493d5ed5312",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "CRAIOVA (Love Sushi)",
+    "city": "CRAIOVA",
+    "address": "Calea București 80, Craiova, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/448792",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7051",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/gBQlfTQGPk/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "a7f99f17-1ded-4f6f-8920-931ace99b3e0",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "a7f99f17-1ded-4f6f-8920-931ace99b3e0"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "c1392719-078e-4737-9774-ba7137a0c054",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "CRAIOVA (Poki Woki)",
+    "city": "CRAIOVA",
+    "address": "Calea București 80, Craiova, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/craiova/stores/ikura-sushi-crv",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7048",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/obs43XqY1X/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "a7f99f17-1ded-4f6f-8920-931ace99b3e0",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "a7f99f17-1ded-4f6f-8920-931ace99b3e0"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "6d18f13f-736d-44fd-87c7-928c875dff3d",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "CRAIOVA (Roll Master)",
+    "city": "CRAIOVA",
+    "address": "8R7M+56G, Craiova, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/craiova/stores/sushi-master-crv",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7049",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/50Jrn5lP1V/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "a7f99f17-1ded-4f6f-8920-931ace99b3e0",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "a7f99f17-1ded-4f6f-8920-931ace99b3e0"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "a9af3fe4-fdb2-400e-85ff-a28a38d81de2",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "CRAIOVA (Sushi Master)",
+    "city": "CRAIOVA",
+    "address": "8R7M+56G, Craiova, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/426838",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7049",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/50Jrn5lP1V/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "a7f99f17-1ded-4f6f-8920-931ace99b3e0",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "a7f99f17-1ded-4f6f-8920-931ace99b3e0"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "ee1151fa-2bf8-4238-af5c-f7b7e24b6c7f",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "GALATI (Ikura Sushi)",
+    "city": "GALATI",
+    "address": "Strada Brașov 91, Galați 800402, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/346174",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67db00593a31651eb80dec19",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/vmXg9ahjx2/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "37512ec4-ce69-4ce7-91f8-76d7a4216091",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "37512ec4-ce69-4ce7-91f8-76d7a4216091"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "bd642ea8-c8a5-440b-98ad-4b564e2c6e3a",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "GALATI (Love Sushi)",
+    "city": "GALATI",
+    "address": "Strada Braso 91 800402 Galati Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/galati/stores/we-love-sushi-galati",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67db00593a31651eb80dec1a",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/ghO0uE40k6/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "37512ec4-ce69-4ce7-91f8-76d7a4216091",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "37512ec4-ce69-4ce7-91f8-76d7a4216091"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "038c6b5c-f730-43d9-954f-7d672c5363b1",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "GALATI (Poki Woki)",
+    "city": "GALATI",
+    "address": "Strada Brașov 91, Galați 800402, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/galati/stores/ikura-sushi-galati",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67db00593a31651eb80dec19",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/vmXg9ahjx2/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "37512ec4-ce69-4ce7-91f8-76d7a4216091",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "37512ec4-ce69-4ce7-91f8-76d7a4216091"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "bc13fc1f-2dd8-4b68-9acb-6b1652c49dda",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "GALATI (Roll Master)",
+    "city": "GALATI",
+    "address": "Strada Brașov 91, Galați 800402, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/galati/stores/sushi-mastergl",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67db00593a31651eb80dec18",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/fKEZVLqzbG/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "37512ec4-ce69-4ce7-91f8-76d7a4216091",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "37512ec4-ce69-4ce7-91f8-76d7a4216091"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "29b219c2-b5ae-481f-a812-688140adde58",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "GALATI (Sushi Master)",
+    "city": "GALATI",
+    "address": "Strada Brașov 91, Galați 800402, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/212596",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67db00593a31651eb80dec18",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/fKEZVLqzbG/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "37512ec4-ce69-4ce7-91f8-76d7a4216091",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "37512ec4-ce69-4ce7-91f8-76d7a4216091"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "51b2333b-fc27-4e9a-8180-91592652e7c0",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "IASI#1 (Ikura Sushi)",
+    "city": "IASI#1",
+    "address": "Piața Voievozilor a9, Iași, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/246180",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642504",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/Hw0PfaBcXg/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "26bc7c2c-5113-4a18-a9e9-c1c84da4ba9f",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "26bc7c2c-5113-4a18-a9e9-c1c84da4ba9f"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "b27e37d9-4d3f-4689-93e4-e0048c216b27",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "IASI#1 (Love Sushi)",
+    "city": "IASI#1",
+    "address": "Piața Voievozilor a9, Iași, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/iasi/search/?q=Love%20Sushi",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e64250f",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/tRappg4uJt/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "26bc7c2c-5113-4a18-a9e9-c1c84da4ba9f",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "26bc7c2c-5113-4a18-a9e9-c1c84da4ba9f"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "d4c4f7d2-58fa-4a53-9445-8186aa2679c3",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "IASI#1 (Poki Woki)",
+    "city": "IASI#1",
+    "address": "Piața Voievozilor a9, Iași, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/iasi/stores/ikurasushi-ias",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642504",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/Hw0PfaBcXg/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "26bc7c2c-5113-4a18-a9e9-c1c84da4ba9f",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "26bc7c2c-5113-4a18-a9e9-c1c84da4ba9f"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "e3a2c0c3-654d-4c52-8d6e-1dfa2ba9ab36",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "IASI#1 (Roll Master)",
+    "city": "IASI#1",
+    "address": "Piața Voievozilor a9, Iași, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/iasi/stores/sushi-master-ias",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642501",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/iPmz2mw5At/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "26bc7c2c-5113-4a18-a9e9-c1c84da4ba9f",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "26bc7c2c-5113-4a18-a9e9-c1c84da4ba9f"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "f4d1c834-105c-4f13-9c76-adab4b1a7178",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "IASI#1 (Sushi Master)",
+    "city": "IASI#1",
+    "address": "Piața Voievozilor a9, Iași, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/45746",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642501",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/iPmz2mw5At/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "26bc7c2c-5113-4a18-a9e9-c1c84da4ba9f",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "26bc7c2c-5113-4a18-a9e9-c1c84da4ba9f"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "d51021d7-d284-445f-bc21-feb4d89cff94",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "IASI#2 (Ikura Sushi)",
+    "city": "IASI#2",
+    "address": "T17, Campus, Bulevardul Tudor Vladimirescu 111, Iași 700560, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/246180",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e64250a",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/cDMbAAe1zb/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "9f260bf3-b6d8-42db-b2f1-ee8bb01cc7aa",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "9f260bf3-b6d8-42db-b2f1-ee8bb01cc7aa"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "1eb2dcff-33ba-42f2-a199-331d64a9af88",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "IASI#2 (Love Sushi)",
+    "city": "IASI#2",
+    "address": "T17, Campus, Bulevardul Tudor Vladimirescu 111, Iași 700560, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/iasi/search/?q=Love%20Sushi",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e64250e",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/5O8uD6knU8/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "9f260bf3-b6d8-42db-b2f1-ee8bb01cc7aa",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "9f260bf3-b6d8-42db-b2f1-ee8bb01cc7aa"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "f27c7fba-ecdf-4f44-a752-195d5caf9561",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "IASI#2 (Poki Woki)",
+    "city": "IASI#2",
+    "address": "T17, Campus, Bulevardul Tudor Vladimirescu 111, Iași 700560, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/iasi/stores/ikurasushi-ias",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e64250a",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/cDMbAAe1zb/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "9f260bf3-b6d8-42db-b2f1-ee8bb01cc7aa",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "9f260bf3-b6d8-42db-b2f1-ee8bb01cc7aa"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "10049ce8-3358-425f-9dc6-543ca4a40f7c",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "IASI#2 (Roll Master)",
+    "city": "IASI#2",
+    "address": "T17, Campus, Bulevardul Tudor Vladimirescu 111, Iași 700560, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/iasi/stores/sushi-master-ias",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642509",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/yb9KGyKWGC/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "9f260bf3-b6d8-42db-b2f1-ee8bb01cc7aa",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "9f260bf3-b6d8-42db-b2f1-ee8bb01cc7aa"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "548f1b5e-524d-4fbb-86e7-d6ec07d1ea58",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "IASI#2 (Sushi Master)",
+    "city": "IASI#2",
+    "address": "T17, Campus, Bulevardul Tudor Vladimirescu 111, Iași 700560, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/45746",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642509",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/yb9KGyKWGC/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "9f260bf3-b6d8-42db-b2f1-ee8bb01cc7aa",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "9f260bf3-b6d8-42db-b2f1-ee8bb01cc7aa"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "59affed5-45ae-4a24-b852-70ba98d4fb5b",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "Ikura Sushi Bucharest - Halelor",
+    "city": "Bucharest",
+    "address": "Strada Halelor 17, București, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/252898",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7041",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/8cmxKxEfxc/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:49:19.802839+00:00",
+    "updated_at": "2026-03-10T16:49:19.802839+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": null,
+    "iiko_config": {
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:31.994Z",
+      "excluded_product_name_patterns": [
+        "sushimaster",
+        "we love sushi",
+        "smash me",
+        "set by master",
+        "love roll",
+        "love set"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "d4c37445-8246-4b92-ad6a-e27992414654",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "Ikura Sushi Cluj-Napoca",
+    "city": "Cluj-Napoca",
+    "address": "Strada Emil Isac 15, Cluj-Napoca 400000, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/259744",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf703e",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/JS3WTjW9wO/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:49:19.802839+00:00",
+    "updated_at": "2026-03-10T16:49:19.802839+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": null,
+    "iiko_config": {
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:32.185Z",
+      "excluded_product_name_patterns": [
+        "sushimaster",
+        "we love sushi",
+        "smash me",
+        "set by master",
+        "love roll",
+        "love set"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "5defeb54-0db7-4abe-b1e4-fb3e0bb0acb3",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "Ikura Sushi Craiova",
+    "city": "Craiova",
+    "address": "Calea București 80, Craiova, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/427376",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7048",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/obs43XqY1X/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:49:19.802839+00:00",
+    "updated_at": "2026-03-10T16:49:19.802839+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "a7f99f17-1ded-4f6f-8920-931ace99b3e0",
+    "iiko_config": {
+      "organizationId": "a7f99f17-1ded-4f6f-8920-931ace99b3e0",
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:31.058Z",
+      "excluded_product_name_patterns": [
+        "sushimaster",
+        "we love sushi",
+        "smash me",
+        "set by master",
+        "love roll",
+        "love set"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "a750a7e3-7d3e-41f4-b8bb-1d02338f957b",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "Love Sushi Brasov",
+    "city": "Brasov",
+    "address": "Calea București 107 500299 Brașov Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/443734",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7053",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/XV6D2PYHte/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:36:10.93592+00:00",
+    "updated_at": "2026-03-10T16:36:10.93592+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "adddb5a0-26e5-4d50-b472-1c74726c3f72",
+    "iiko_config": {
+      "api_url": "https://api-eu.syrve.live",
+      "api_login": "56597d13165c49c49c10e351b5eac617",
+      "iiko_live_stops": [],
+      "organization_id": "adddb5a0-26e5-4d50-b472-1c74726c3f72",
+      "iiko_last_sync_time": "2026-04-02T10:40:30.533Z",
+      "excluded_product_name_patterns": [
+        "sushimaster",
+        "ikura",
+        "smash me",
+        "set by master"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "716ffc15-c0ee-46f2-b4cf-ace7a22b6a99",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "Love Sushi Bucharest",
+    "city": "Bucharest",
+    "address": "Strada Halelor 17, București, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/426935",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf704c",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/8T5Mh8r1qV/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:36:10.93592+00:00",
+    "updated_at": "2026-03-10T16:36:10.93592+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": null,
+    "iiko_config": {
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:31.245Z",
+      "excluded_product_name_patterns": [
+        "sushimaster",
+        "ikura",
+        "smash me",
+        "set by master"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "ac0c0d43-b518-4927-bcb7-d9e0b424a843",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "ORADEA",
+    "city": "ORADEA",
+    "address": "Centrul Comercial Lotus Retail Park, Strada Ștefan Octavian Iosif 7, Oradea 410230, România",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/120509",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7038",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/cs8T0zIBAX/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-04-02T12:36:53.435359+00:00",
+    "updated_at": "2026-04-02T12:36:53.435359+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "d1cb5d9d-6aeb-4b0c-adf9-5ce8648ce4e1",
+    "iiko_config": {
+      "organizationId": "d1cb5d9d-6aeb-4b0c-adf9-5ce8648ce4e1",
+      "excluded_product_name_patterns": [
+        "sushimaster",
+        "we love sushi",
+        "smash me",
+        "set by master",
+        "love roll",
+        "love set"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "2a627a0f-cee6-4934-ad6b-0c129bf4ad5c",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "ORADEA",
+    "city": "ORADEA",
+    "address": "Centrul Comercial Lotus Retail Park, Strada Ștefan Octavian Iosif 7, Oradea 410230, România",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/120509",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7038",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/cs8T0zIBAX/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-04-02T12:36:53.435359+00:00",
+    "updated_at": "2026-04-02T12:36:53.435359+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "f4742901-905f-4b4c-86ea-ce85dc09a041",
+    "iiko_config": {
+      "organizationId": "f4742901-905f-4b4c-86ea-ce85dc09a041",
+      "excluded_product_name_patterns": [
+        "we love sushi",
+        "ikura",
+        "smash me",
+        "love roll",
+        "love set",
+        "love phila",
+        "love maki",
+        "love nigiri",
+        "love tempura",
+        "love extra"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "9c519c57-70a5-4259-add9-99791b861b4d",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "ORADEA (Ikura Sushi)",
+    "city": "ORADEA",
+    "address": "Str. Nufărului 30, Oradea 410583, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/252890",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7045",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/Vt8eoTerYr/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "f4742901-905f-4b4c-86ea-ce85dc09a041",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "f4742901-905f-4b4c-86ea-ce85dc09a041"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "2134911b-b309-454c-950d-0c744c61c3e0",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "ORADEA (Ikura Sushi)",
+    "city": "ORADEA",
+    "address": "Str. Nufărului 30, Oradea 410583, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/252890",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7045",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/Vt8eoTerYr/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "d1cb5d9d-6aeb-4b0c-adf9-5ce8648ce4e1",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "d1cb5d9d-6aeb-4b0c-adf9-5ce8648ce4e1"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "cfb2c604-2491-4e2e-b02c-d97bf3d270bc",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "ORADEA (Love Sushi)",
+    "city": "ORADEA",
+    "address": "Str. Nufărului 30, Oradea 410583, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/448821",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7052",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/K7D33VcXQS/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "d1cb5d9d-6aeb-4b0c-adf9-5ce8648ce4e1",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "d1cb5d9d-6aeb-4b0c-adf9-5ce8648ce4e1"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "ea07e66d-9993-4920-9ef6-24258e8afba9",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "ORADEA (Love Sushi)",
+    "city": "ORADEA",
+    "address": "Str. Nufărului 30, Oradea 410583, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/448821",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7052",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/K7D33VcXQS/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "f4742901-905f-4b4c-86ea-ce85dc09a041",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "f4742901-905f-4b4c-86ea-ce85dc09a041"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "fb9b4059-35c7-4387-b927-7513c807140e",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "ORADEA (Poki Woki)",
+    "city": "ORADEA",
+    "address": "Str. Nufărului 30, Oradea 410583, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/oradea/stores/ikurasushi-ord",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7045",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/Vt8eoTerYr/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "f4742901-905f-4b4c-86ea-ce85dc09a041",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "f4742901-905f-4b4c-86ea-ce85dc09a041"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "9d3e94fb-113c-4178-9779-ea8424588f2d",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "ORADEA (Poki Woki)",
+    "city": "ORADEA",
+    "address": "Str. Nufărului 30, Oradea 410583, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/oradea/stores/ikurasushi-ord",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7045",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/Vt8eoTerYr/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "d1cb5d9d-6aeb-4b0c-adf9-5ce8648ce4e1",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "d1cb5d9d-6aeb-4b0c-adf9-5ce8648ce4e1"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "dfc3d38a-6141-4cef-9e27-c09dfde10818",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "ORADEA (Roll Master)",
+    "city": "ORADEA",
+    "address": "Centrul Comercial Lotus Retail Park, Strada Ștefan Octavian Iosif 7, Oradea 410230, România",
+    "glovo_url": "https://glovoapp.com/ro/ro/oradea/stores/sushi-masterord",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7038",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/cs8T0zIBAX/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "d1cb5d9d-6aeb-4b0c-adf9-5ce8648ce4e1",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "d1cb5d9d-6aeb-4b0c-adf9-5ce8648ce4e1"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "fd6651a5-0fdb-405f-84e6-a5e84a6d3eab",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "ORADEA (Roll Master)",
+    "city": "ORADEA",
+    "address": "Centrul Comercial Lotus Retail Park, Strada Ștefan Octavian Iosif 7, Oradea 410230, România",
+    "glovo_url": "https://glovoapp.com/ro/ro/oradea/stores/sushi-masterord",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7038",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/cs8T0zIBAX/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "f4742901-905f-4b4c-86ea-ce85dc09a041",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "f4742901-905f-4b4c-86ea-ce85dc09a041"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "3d73b36b-e05e-42b7-b2a2-29d8ecbddb3b",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "ORADEA (Sushi Master)",
+    "city": "ORADEA",
+    "address": "Centrul Comercial Lotus Retail Park, Strada Ștefan Octavian Iosif 7, Oradea 410230, România",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/120509",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7038",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/cs8T0zIBAX/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "f4742901-905f-4b4c-86ea-ce85dc09a041",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "f4742901-905f-4b4c-86ea-ce85dc09a041"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "f22caf9d-db5a-454b-8c09-569c2f7a063a",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "ORADEA (Sushi Master)",
+    "city": "ORADEA",
+    "address": "Centrul Comercial Lotus Retail Park, Strada Ștefan Octavian Iosif 7, Oradea 410230, România",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/120509",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7038",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/cs8T0zIBAX/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "d1cb5d9d-6aeb-4b0c-adf9-5ce8648ce4e1",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "d1cb5d9d-6aeb-4b0c-adf9-5ce8648ce4e1"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "ad7e4e51-d10b-4e3a-bba8-3673b55b99f7",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "PIATRA NEAMT (Ikura Sushi)",
+    "city": "PIATRA NEAMT",
+    "address": "Bulevardul Decebal 79 610046 Județul Neamț Piatra Neamț România",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/560183",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/698498a48570377538821886",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/855D2nnGAY/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "c54de781-08e4-4226-bea8-28565ab2b3d0",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "c54de781-08e4-4226-bea8-28565ab2b3d0"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "fdda9298-2f08-40c5-8fd3-277503c78712",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "PIATRA NEAMT (Love Sushi)",
+    "city": "PIATRA NEAMT",
+    "address": "Bulevardul Decebal 79 610046 Județul Neamț Piatra Neamț România",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/560180",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/69845d888570377538821636",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/QUpFcbqCje/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "c54de781-08e4-4226-bea8-28565ab2b3d0",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "c54de781-08e4-4226-bea8-28565ab2b3d0"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "98e778db-8630-4d49-982a-b225a72cd3d6",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "PIATRA NEAMT (Poki Woki)",
+    "city": "PIATRA NEAMT",
+    "address": "Bulevardul Decebal 79 610046 Județul Neamț Piatra Neamț România",
+    "glovo_url": "https://glovoapp.com/ro/ro/piatra-neamt/stores/ikura-sushi-ptn",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/698498a48570377538821886",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/855D2nnGAY/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "c54de781-08e4-4226-bea8-28565ab2b3d0",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "c54de781-08e4-4226-bea8-28565ab2b3d0"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "65b29088-bd75-4ed0-86b5-5fadc79cf19e",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "PIATRA NEAMT (Roll Master)",
+    "city": "PIATRA NEAMT",
+    "address": "Bulevardul Decebal 79 610046 Județul Neamț Piatra Neamț România",
+    "glovo_url": "https://glovoapp.com/ro/ro/piatra-neamt/stores/sushi-master-ptn",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/698459a82a9431729540cf0a",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/JGx6DEF9kJ/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "c54de781-08e4-4226-bea8-28565ab2b3d0",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "c54de781-08e4-4226-bea8-28565ab2b3d0"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "613d20f2-ef76-4aa3-9292-9af6b514f34c",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "PIATRA NEAMT (Sushi Master)",
+    "city": "PIATRA NEAMT",
+    "address": "Bulevardul Decebal 79 610046 Județul Neamț Piatra Neamț România",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/560026",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/698459a82a9431729540cf0a",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/JGx6DEF9kJ/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "c54de781-08e4-4226-bea8-28565ab2b3d0",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "c54de781-08e4-4226-bea8-28565ab2b3d0"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "1908602c-d7df-49c8-a964-064ec0ee3445",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "PITESTI (Ikura Sushi)",
+    "city": "PITESTI",
+    "address": "Strada Teilor 33 110030 Pitești Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/453431",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67db00593a31651eb80dec1c",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/tTaEA6SW3Q/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "f0454d67-586e-4a21-9fda-f0b0f6f601e9",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "f0454d67-586e-4a21-9fda-f0b0f6f601e9"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "c68ff1c3-263f-4ed3-915a-7bfdf3682b05",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "PITESTI (Love Sushi)",
+    "city": "PITESTI",
+    "address": "Strada Teilor 33 110030 Pitești Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/498846",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67db00593a31651eb80dec1d",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/PcBLx8M8yH/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "f0454d67-586e-4a21-9fda-f0b0f6f601e9",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "f0454d67-586e-4a21-9fda-f0b0f6f601e9"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "921e753d-d23f-4e17-ad06-c1a5726a20ef",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "PITESTI (Poki Woki)",
+    "city": "PITESTI",
+    "address": "Strada Teilor 33 110030 Pitești Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/pitesti/stores/ikura-sushi-pit",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67db00593a31651eb80dec1c",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/tTaEA6SW3Q/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "f0454d67-586e-4a21-9fda-f0b0f6f601e9",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "f0454d67-586e-4a21-9fda-f0b0f6f601e9"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "69a72aab-1549-4672-be7e-61cedad02c4e",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "PITESTI (Roll Master)",
+    "city": "PITESTI",
+    "address": "Strada Teilor 33 110030 Pitești Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/pitesti/stores/sushi-master-pit",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67db00593a31651eb80dec1b",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/PcBLx8M8yH/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "f0454d67-586e-4a21-9fda-f0b0f6f601e9",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "f0454d67-586e-4a21-9fda-f0b0f6f601e9"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "8b3933f5-93fa-4a2b-8c95-ebcdd5b34495",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "PITESTI (Sushi Master)",
+    "city": "PITESTI",
+    "address": "Strada Teilor 33 110030 Pitești Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/443276",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67db00593a31651eb80dec1b",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/PcBLx8M8yH/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "f0454d67-586e-4a21-9fda-f0b0f6f601e9",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "f0454d67-586e-4a21-9fda-f0b0f6f601e9"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "7425698c-9d04-4afe-86cf-2d82a14b00b2",
+    "brand_id": null,
+    "name": "RM TIMISOARA",
+    "city": "TIMISOARA",
+    "address": "Str. Mareșal Constantin Prezan 70-72, Timișoara 300744, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/104450",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dac56ea0d80030d679bc07",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/KrVAAh70Nz/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-07-01T15:05:57.098399+00:00",
+    "updated_at": "2026-07-01T15:05:57.098399+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "0af6b0d4-c56f-4264-9384-965d24c97e43",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "organizationId": "0af6b0d4-c56f-4264-9384-965d24c97e43"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": null
+  },
+  {
+    "id": "0123ce30-d79b-47cb-a715-fc5f9dd7ada7",
+    "brand_id": null,
+    "name": "RM TIMISOARA",
+    "city": "TIMISOARA",
+    "address": "Str. Mareșal Constantin Prezan 70-72, Timișoara 300744, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/104450",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dac56ea0d80030d679bc07",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/KrVAAh70Nz/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-07-01T15:06:06.018117+00:00",
+    "updated_at": "2026-07-01T15:06:06.018117+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "0af6b0d4-c56f-4264-9384-965d24c97e43",
+    "iiko_config": {},
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": null
+  },
+  {
+    "id": "520fe924-c0bb-4ec7-882f-847df5deff57",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "SIBIU (Ikura Sushi)",
+    "city": "SM SIBIU",
+    "address": "Bulevardul Mihai Viteazul 1a, Șelimbăr 550350, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/246189",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642503",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/OdQcqliEQZ/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "c45b986e-5297-47b7-b733-293bbc91da23",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "c45b986e-5297-47b7-b733-293bbc91da23"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "4def1d52-2c1c-47c3-b4b8-cc9106b30655",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "SIBIU (Love Sushi)",
+    "city": "SM SIBIU",
+    "address": "Bulevardul Mihai Viteazul 1a, Șelimbăr 550350, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/sibiu/stores/we-love-sushi-sibiu-sbz",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e64250b",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/ZRoH2wcCQh/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "c45b986e-5297-47b7-b733-293bbc91da23",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "c45b986e-5297-47b7-b733-293bbc91da23"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "6c692a12-c55c-45b4-8278-f960ec406e91",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "SIBIU (Poki Woki)",
+    "city": "SM SIBIU",
+    "address": "Bulevardul Mihai Viteazul 1a, Șelimbăr 550350, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/sibiu/stores/ikurasushi-sbu",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642503",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/OdQcqliEQZ/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-09-10T08:59:05.325+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "c45b986e-5297-47b7-b733-293bbc91da23",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "c45b986e-5297-47b7-b733-293bbc91da23"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "dad5dddb-88f0-49c3-a12c-c51c8ce659b8",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "SIBIU (Roll Master)",
+    "city": "SM SIBIU",
+    "address": "Bulevardul Mihai Viteazul 1a, Șelimbăr 550350, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/sibiu/stores/sushimaster",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642502",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/NcqsVG3C6i/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "c45b986e-5297-47b7-b733-293bbc91da23",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "c45b986e-5297-47b7-b733-293bbc91da23"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "79d2716a-c8a4-4740-a290-97fe768c4bfb",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "SIBIU (Sushi Master)",
+    "city": "SM SIBIU",
+    "address": "Bulevardul Mihai Viteazul 1a, Șelimbăr 550350, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/90307",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642502",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/NcqsVG3C6i/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "c45b986e-5297-47b7-b733-293bbc91da23",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "c45b986e-5297-47b7-b733-293bbc91da23"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "93adc853-0aa8-4659-8156-8e4ebe1a04ee",
+    "brand_id": "e1573ac5-bb30-4b88-9760-0d564053981b",
+    "name": "Smash Me Cluj (Crunch)",
+    "city": "CLUJ",
+    "address": "Strada Avram Iancu 492-500 407280 Cluj Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/cluj-napoca/stores/smash-me-clj",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dc3f5b2e58c74a8f351224",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/tU3uNoeqwE/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "9c63cff6-1d66-442d-a98d-2302656e3943",
+    "iiko_config": {
+      "api_login": "124d0880f4b44717b69ee21d45fc2656",
+      "categories": [
+        "Crunch",
+        "CRUNCH",
+        "CRUNCH CHICKEN BOX",
+        "CRUNCH SMART BOX",
+        "CHICKEN CRUNCH BURGERS",
+        "CRUNCH COMBO",
+        "HOT & CRUNCH",
+        "CRUNCH GARNITURI",
+        "CRUNCH SOS",
+        "CRUNCH BAUTURI"
+      ],
+      "organizationId": "9c63cff6-1d66-442d-a98d-2302656e3943"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Crunch",
+      "logo_url": "https://glovo.dhmedia.io/image/customer-assets-glovo/store_logos/8e7a7900419908dca6f9e29ce1dc151f67d4f039df00783803498f4543bb90ff?t=W3sicmVzaXplIjp7IndpZHRoIjo2NCwiaGVpZ2h0Ijo2NH19LHsid2VicCI6e319XQ=="
+    }
+  },
+  {
+    "id": "098d725e-5667-49e2-8e22-cff5db135584",
+    "brand_id": "c687a629-010e-432d-a06b-0dabe916f73f",
+    "name": "Smash Me Cluj (Smash Me)",
+    "city": "CLUJ",
+    "address": "Strada Avram Iancu 492-500 407280 Cluj Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/cluj-napoca/stores/smash-me-clj",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dc3f5b2e58c74a8f351224",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/tU3uNoeqwE/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "9c63cff6-1d66-442d-a98d-2302656e3943",
+    "iiko_config": {
+      "api_login": "124d0880f4b44717b69ee21d45fc2656",
+      "categories": [
+        "Smash Me Kiosk",
+        "Smash Me",
+        "Smash ME",
+        "SMASH ME",
+        "MENIU SMASH",
+        "SMASHED BURGERS",
+        "MENIU",
+        "NEXT LEVEL BURGERS",
+        "HOT & CRISPY"
+      ],
+      "organizationId": "9c63cff6-1d66-442d-a98d-2302656e3943"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Smash Me",
+      "logo_url": "https://smashme.ro/_next/static/images/logo-74a3f237651f86267ea01e953c616387.png"
+    }
+  },
+  {
+    "id": "f0699b18-549f-4765-a8ab-37e6d2ab881c",
+    "brand_id": "c687a629-010e-432d-a06b-0dabe916f73f",
+    "name": "Smash Me Cluj-Napoca",
+    "city": "Cluj-Napoca",
+    "address": "Strada Avram Iancu 492-500 407280 Cluj Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/cluj-napoca/stores/smash-me-clj",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dc3f5b2e58c74a8f351224",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/tU3uNoeqwE/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:28:04.63164+00:00",
+    "updated_at": "2026-03-10T16:28:04.63164+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "90296b11-9ba9-4279-a69b-1f84e193315e",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "organizationId": "90296b11-9ba9-4279-a69b-1f84e193315e",
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:31.158Z",
+      "excluded_product_name_patterns": [
+        "sushimaster",
+        "ikura",
+        "we love sushi",
+        "love roll",
+        "love set"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Smash Me",
+      "logo_url": "https://smashme.ro/_next/static/images/logo-74a3f237651f86267ea01e953c616387.png"
+    }
+  },
+  {
+    "id": "a27b9b97-d99b-4ce1-a8ec-41062aa626a2",
+    "brand_id": "c687a629-010e-432d-a06b-0dabe916f73f",
+    "name": "Smash Me Constanta",
+    "city": "Constanta",
+    "address": "Bulevardul Alexandru Lăpușneanu 116C, Unitatea F35, Centrul Comercial CITY PARK MALL 900419 Județul Constanța Constanța România",
+    "glovo_url": "https://glovoapp.com/ro/ro/constanta/stores/smash-me",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/690088cf9855699872d4fcd1",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/tUyH2OhMa1/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:28:04.63164+00:00",
+    "updated_at": "2026-03-10T16:28:04.63164+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "8ed15b53-e788-411b-8a06-96d0f9ee005a",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "organizationId": "8ed15b53-e788-411b-8a06-96d0f9ee005a",
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:30.417Z",
+      "excluded_product_name_patterns": [
+        "sushimaster",
+        "ikura",
+        "we love sushi",
+        "love roll",
+        "love set"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Smash Me",
+      "logo_url": "https://smashme.ro/_next/static/images/logo-74a3f237651f86267ea01e953c616387.png"
+    }
+  },
+  {
+    "id": "279e862d-9036-4843-9bcc-69580afe97e0",
+    "brand_id": "e1573ac5-bb30-4b88-9760-0d564053981b",
+    "name": "Smash Me Constanta (Crunch)",
+    "city": "CONSTANTA",
+    "address": "Bulevardul Alexandru Lăpușneanu 116C, Unitatea F35, Centrul Comercial CITY PARK MALL 900419 Județul Constanța Constanța România",
+    "glovo_url": "https://glovoapp.com/ro/ro/constanta/stores/smash-me",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/690088cf9855699872d4fcd1",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/tUyH2OhMa1/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "8308e796-8780-4d18-ae66-4e430178c778",
+    "iiko_config": {
+      "api_login": "124d0880f4b44717b69ee21d45fc2656",
+      "categories": [
+        "Crunch",
+        "CRUNCH",
+        "CRUNCH CHICKEN BOX",
+        "CRUNCH SMART BOX",
+        "CHICKEN CRUNCH BURGERS",
+        "CRUNCH COMBO",
+        "HOT & CRUNCH",
+        "CRUNCH GARNITURI",
+        "CRUNCH SOS",
+        "CRUNCH BAUTURI"
+      ],
+      "organizationId": "8308e796-8780-4d18-ae66-4e430178c778"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Crunch",
+      "logo_url": "https://glovo.dhmedia.io/image/customer-assets-glovo/store_logos/8e7a7900419908dca6f9e29ce1dc151f67d4f039df00783803498f4543bb90ff?t=W3sicmVzaXplIjp7IndpZHRoIjo2NCwiaGVpZ2h0Ijo2NH19LHsid2VicCI6e319XQ=="
+    }
+  },
+  {
+    "id": "55e49e60-2395-4b5b-ad24-6c9248e80234",
+    "brand_id": "c687a629-010e-432d-a06b-0dabe916f73f",
+    "name": "Smash Me Constanta (Smash Me)",
+    "city": "CONSTANTA",
+    "address": "Bulevardul Alexandru Lăpușneanu 116C, Unitatea F35, Centrul Comercial CITY PARK MALL 900419 Județul Constanța Constanța România",
+    "glovo_url": "https://glovoapp.com/ro/ro/constanta/stores/smash-me",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/690088cf9855699872d4fcd1",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/tUyH2OhMa1/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.321045+00:00",
+    "updated_at": "2026-06-29T09:15:13.321045+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "8308e796-8780-4d18-ae66-4e430178c778",
+    "iiko_config": {
+      "api_login": "124d0880f4b44717b69ee21d45fc2656",
+      "categories": [
+        "Smash Me Kiosk",
+        "Smash Me",
+        "Smash ME",
+        "SMASH ME",
+        "MENIU SMASH",
+        "SMASHED BURGERS",
+        "MENIU",
+        "NEXT LEVEL BURGERS",
+        "HOT & CRISPY"
+      ],
+      "organizationId": "8308e796-8780-4d18-ae66-4e430178c778"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Smash Me",
+      "logo_url": "https://smashme.ro/_next/static/images/logo-74a3f237651f86267ea01e953c616387.png"
+    }
+  },
+  {
+    "id": "b800f9e8-9909-484f-b586-f623d9576e02",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "SUCEAVA (Ikura Sushi)",
+    "city": "SUCEAVA",
+    "address": "Bulevardul George Enescu 38, Suceava 720253, România",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/305917",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642505",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/pE59njrg5s/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "502e619b-c6bf-47b9-8c93-75833c810deb",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "502e619b-c6bf-47b9-8c93-75833c810deb"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "ea80ef54-7c3d-4634-9bf1-30530dc63fce",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "SUCEAVA (Love Sushi)",
+    "city": "SUCEAVA",
+    "address": "Bulevardul George Enescu 38, Suceava 720253, România",
+    "glovo_url": "https://glovoapp.com/ro/ro/suceava/stores/we-love-sushi-suceava",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e64250d",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/gTmOSUWRoE/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "502e619b-c6bf-47b9-8c93-75833c810deb",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "502e619b-c6bf-47b9-8c93-75833c810deb"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "07734cfe-cde6-42ab-8887-6d00882ed970",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "SUCEAVA (Poki Woki)",
+    "city": "SUCEAVA",
+    "address": "Bulevardul George Enescu 38, Suceava 720253, România",
+    "glovo_url": "https://glovoapp.com/ro/ro/suceava/stores/ikura-sushi",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642505",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/pE59njrg5s/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "502e619b-c6bf-47b9-8c93-75833c810deb",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "502e619b-c6bf-47b9-8c93-75833c810deb"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "adaa67f8-deac-4e50-8cc3-13f62b8e1d1b",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "SUCEAVA (Roll Master)",
+    "city": "SUCEAVA",
+    "address": "Bulevardul George Enescu 38, Suceava, România",
+    "glovo_url": "https://glovoapp.com/ro/ro/suceava/stores/sushi-master-scv",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642506",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/0dpOgE7Y9N/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "502e619b-c6bf-47b9-8c93-75833c810deb",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "502e619b-c6bf-47b9-8c93-75833c810deb"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "a9e30b70-9057-4fd2-8812-23086036664c",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "SUCEAVA (Sushi Master)",
+    "city": "SUCEAVA",
+    "address": "Bulevardul George Enescu 38, Suceava, România",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/305887",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642506",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/0dpOgE7Y9N/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:13.058339+00:00",
+    "updated_at": "2026-06-29T09:15:13.058339+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "502e619b-c6bf-47b9-8c93-75833c810deb",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "502e619b-c6bf-47b9-8c93-75833c810deb"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "eb6e954e-e1ce-458d-90cf-c65618531492",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "Sushi Master Bacau",
+    "city": "Bacau",
+    "address": "Strada 9 Mai 600022 Bacău Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/390524",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dafe6e21bfd57729792a5d",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/7vSTG0gpJI/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:19:32.943324+00:00",
+    "updated_at": "2026-03-10T16:19:32.943324+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "d0ca9d11-a38e-48e1-ae02-54ce627f8419",
+    "iiko_config": {
+      "organizationId": "d0ca9d11-a38e-48e1-ae02-54ce627f8419",
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:30.157Z",
+      "excluded_product_name_patterns": [
+        "we love sushi",
+        "ikura",
+        "smash me",
+        "love roll",
+        "love set",
+        "love phila",
+        "love maki",
+        "love nigiri",
+        "love tempura",
+        "love extra"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "93437a40-07c8-42e7-a695-3509ac09740e",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "Sushi Master Baia Mare",
+    "city": "Baia Mare",
+    "address": "Bulevardul Unirii 11, Baia Mare",
+    "glovo_url": "https://glovoapp.com/ro/ro/baia-mare/search/?q=Roll%20Master",
+    "wolt_url": "https://wolt.com/ro/rou/baia-mare/search?q=Roll%20Master",
+    "bolt_url": "https://food.bolt.eu/ro-RO/search?q=Roll%20Master%20Baia%20Mare",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:19:32.943324+00:00",
+    "updated_at": "2026-03-10T16:19:32.943324+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": null,
+    "iiko_config": {
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:30.932Z",
+      "excluded_product_name_patterns": [
+        "we love sushi",
+        "ikura",
+        "smash me",
+        "love roll",
+        "love set",
+        "love phila",
+        "love maki",
+        "love nigiri",
+        "love tempura",
+        "love extra"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "4384c323-67a2-468b-aea3-9fc925787868",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "Sushi Master Braila",
+    "city": "Braila",
+    "address": "Strada Școlilor 2 810009 Județul Brăila Brăila România",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/552379",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/6932b4cea15d3673ed37b9ec",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/ybjyyTEM4v/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:19:32.943324+00:00",
+    "updated_at": "2026-03-10T16:19:32.943324+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "effc9518-ceef-4eec-8ad5-9b48ae84c540",
+    "iiko_config": {
+      "organizationId": "effc9518-ceef-4eec-8ad5-9b48ae84c540",
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:30.626Z",
+      "excluded_product_name_patterns": [
+        "we love sushi",
+        "ikura",
+        "smash me",
+        "love roll",
+        "love set",
+        "love phila",
+        "love maki",
+        "love nigiri",
+        "love tempura",
+        "love extra"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "17920381-c966-4f7e-b676-671eee4aa13f",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "Sushi Master Brasov",
+    "city": "Brasov",
+    "address": "Calea București 107 500299 Brașov Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/45153",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7035",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/2OWdyDgsmj/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:19:32.943324+00:00",
+    "updated_at": "2026-03-10T16:19:32.943324+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "adddb5a0-26e5-4d50-b472-1c74726c3f72",
+    "iiko_config": {
+      "organizationId": "adddb5a0-26e5-4d50-b472-1c74726c3f72",
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:30.291Z",
+      "excluded_product_name_patterns": [
+        "we love sushi",
+        "ikura",
+        "smash me",
+        "love roll",
+        "love set",
+        "love phila",
+        "love maki",
+        "love nigiri",
+        "love tempura",
+        "love extra"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "1bae061b-8d52-46dd-8047-89044f08250f",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "Sushi Master Bucharest",
+    "city": "Bucharest",
+    "address": "Bulevardul 1 Decembrie 1918 33a, București 032455, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/bucharest/stores/sushi-master",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7036",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/9ruScaYgxd/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:19:32.943324+00:00",
+    "updated_at": "2026-03-10T16:19:32.943324+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": null,
+    "iiko_config": {
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:32.109Z",
+      "excluded_product_name_patterns": [
+        "we love sushi",
+        "ikura",
+        "smash me",
+        "love roll",
+        "love set",
+        "love phila",
+        "love maki",
+        "love nigiri",
+        "love tempura",
+        "love extra"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "d87988ff-de95-4ff3-abdf-bd8fa3014ec9",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "Sushi Master Cluj-Napoca",
+    "city": "Cluj-Napoca",
+    "address": "Strada Emil Isac 15, Cluj-Napoca 400000, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/237723",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf703c",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/SfiSn42p6o/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:19:32.943324+00:00",
+    "updated_at": "2026-03-10T16:19:32.943324+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": null,
+    "iiko_config": {
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:30.725Z",
+      "excluded_product_name_patterns": [
+        "we love sushi",
+        "ikura",
+        "smash me",
+        "love roll",
+        "love set",
+        "love phila",
+        "love maki",
+        "love nigiri",
+        "love tempura",
+        "love extra"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "1bcc73d8-3f03-4b33-9f8f-4e1413525f70",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "Sushi Master Constanta",
+    "city": "Constanta",
+    "address": "Bulevardul Tomis 56, Constanța 900178, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/395199",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7046",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/fORQSGWvmf/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:19:32.943324+00:00",
+    "updated_at": "2026-03-10T16:19:32.943324+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "8ed15b53-e788-411b-8a06-96d0f9ee005a",
+    "iiko_config": {
+      "api_url": "https://api-eu.syrve.live",
+      "api_login": "56597d13165c49c49c10e351b5eac617",
+      "iiko_live_stops": [],
+      "organization_id": "8ed15b53-e788-411b-8a06-96d0f9ee005a",
+      "iiko_last_sync_time": "2026-04-02T10:40:31.750Z",
+      "excluded_product_name_patterns": [
+        "we love sushi",
+        "ikura",
+        "smash me",
+        "love roll",
+        "love set",
+        "love phila",
+        "love maki",
+        "love nigiri",
+        "love tempura",
+        "love extra"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "4934372a-dfc0-45ee-8e72-ea71a8f6c2fe",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "Sushi Master Galati",
+    "city": "Galati",
+    "address": "Strada Brașov 91, Galați 800402, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/212596",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67db00593a31651eb80dec18",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/fKEZVLqzbG/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:19:32.943324+00:00",
+    "updated_at": "2026-03-10T16:19:32.943324+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "37512ec4-ce69-4ce7-91f8-76d7a4216091",
+    "iiko_config": {
+      "organizationId": "37512ec4-ce69-4ce7-91f8-76d7a4216091",
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:31.581Z",
+      "excluded_product_name_patterns": [
+        "we love sushi",
+        "ikura",
+        "smash me",
+        "love roll",
+        "love set",
+        "love phila",
+        "love maki",
+        "love nigiri",
+        "love tempura",
+        "love extra"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "832402ab-5051-4462-8f63-351b8476d073",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "Sushi Master Iasi",
+    "city": "Iasi",
+    "address": "Piața Voievozilor a9, Iași, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/45746",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642501",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/iPmz2mw5At/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:19:32.943324+00:00",
+    "updated_at": "2026-03-10T16:19:32.943324+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "9f260bf3-b6d8-42db-b2f1-ee8bb01cc7aa",
+    "iiko_config": {
+      "organizationId": "9f260bf3-b6d8-42db-b2f1-ee8bb01cc7aa",
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:31.438Z",
+      "excluded_product_name_patterns": [
+        "we love sushi",
+        "ikura",
+        "smash me",
+        "love roll",
+        "love set",
+        "love phila",
+        "love maki",
+        "love nigiri",
+        "love tempura",
+        "love extra"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "474ea4ba-779d-4168-803c-2b9c4e953410",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "Sushi Master Pitesti",
+    "city": "Pitesti",
+    "address": "Strada Teilor 33 110030 Pitești Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/443276",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67db00593a31651eb80dec1b",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/PcBLx8M8yH/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:19:32.943324+00:00",
+    "updated_at": "2026-03-10T16:19:32.943324+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "f0454d67-586e-4a21-9fda-f0b0f6f601e9",
+    "iiko_config": {
+      "organizationId": "f0454d67-586e-4a21-9fda-f0b0f6f601e9",
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:31.358Z",
+      "excluded_product_name_patterns": [
+        "we love sushi",
+        "ikura",
+        "smash me",
+        "love roll",
+        "love set",
+        "love phila",
+        "love maki",
+        "love nigiri",
+        "love tempura",
+        "love extra"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "ad36618f-5bae-4bcc-870e-7ccbcdef251f",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "Sushi Master Ploiesti",
+    "city": "Ploiesti",
+    "address": "Bulevardul Republicii 146, Ploiești",
+    "glovo_url": "https://glovoapp.com/ro/ro/ploiesti/search/?q=Roll%20Master",
+    "wolt_url": "https://wolt.com/ro/rou/ploiesti/restaurant/sushi-master-ploiesti-67caabf2a971d62483da599f",
+    "bolt_url": "https://food.bolt.eu/ro-RO/search?q=Roll%20Master%20Ploiesti",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:19:32.943324+00:00",
+    "updated_at": "2026-03-10T16:19:32.943324+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": null,
+    "iiko_config": {
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:30.824Z",
+      "excluded_product_name_patterns": [
+        "we love sushi",
+        "ikura",
+        "smash me",
+        "love roll",
+        "love set",
+        "love phila",
+        "love maki",
+        "love nigiri",
+        "love tempura",
+        "love extra"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "edac77b7-e739-49db-942a-d9b1b538076f",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "Sushi Master Sibiu",
+    "city": "Sibiu",
+    "address": "Bulevardul Mihai Viteazul 1a, Șelimbăr 550350, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/sibiu/stores/sushimaster",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642502",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/NcqsVG3C6i/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:19:32.943324+00:00",
+    "updated_at": "2026-03-10T16:19:32.943324+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "c45b986e-5297-47b7-b733-293bbc91da23",
+    "iiko_config": {
+      "organizationId": "c45b986e-5297-47b7-b733-293bbc91da23",
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:32.269Z",
+      "excluded_product_name_patterns": [
+        "we love sushi",
+        "ikura",
+        "smash me",
+        "love roll",
+        "love set",
+        "love phila",
+        "love maki",
+        "love nigiri",
+        "love tempura",
+        "love extra"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "b5eef478-db48-4256-862f-dd49f8b27565",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "Sushi Master Suceava",
+    "city": "Suceava",
+    "address": "Bulevardul George Enescu 38, Suceava, România",
+    "glovo_url": "https://glovoapp.com/ro/ro/suceava/stores/sushi-master-scv",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642506",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/0dpOgE7Y9N/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:19:32.943324+00:00",
+    "updated_at": "2026-03-10T16:19:32.943324+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "502e619b-c6bf-47b9-8c93-75833c810deb",
+    "iiko_config": {
+      "organizationId": "502e619b-c6bf-47b9-8c93-75833c810deb",
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:31.913Z",
+      "excluded_product_name_patterns": [
+        "we love sushi",
+        "ikura",
+        "smash me",
+        "love roll",
+        "love set",
+        "love phila",
+        "love maki",
+        "love nigiri",
+        "love tempura",
+        "love extra"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "b08ffa89-6897-4d07-96cb-1cd21065cc5f",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "Sushi Master Targu Mures",
+    "city": "Targu Mures",
+    "address": "Bulevardul 1 Decembrie 1918 157 540445 Județul Mureș Târgu Mureș România",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/290766",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dac8733d53c710973955d6",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/8y17CpRRQp/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:19:32.943324+00:00",
+    "updated_at": "2026-03-10T16:19:32.943324+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "958aefef-28b5-4f25-9f4d-97fb02d2bf9d",
+    "iiko_config": {
+      "organizationId": "958aefef-28b5-4f25-9f4d-97fb02d2bf9d",
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:31.665Z",
+      "excluded_product_name_patterns": [
+        "we love sushi",
+        "ikura",
+        "smash me",
+        "love roll",
+        "love set",
+        "love phila",
+        "love maki",
+        "love nigiri",
+        "love tempura",
+        "love extra"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "0bebd05c-af98-421a-9f47-a3b46f21cdb0",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "Sushi Master Timisoara",
+    "city": "Timisoara",
+    "address": "Str. Mareșal Constantin Prezan 70-72, Timișoara 300744, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/104450",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dac56ea0d80030d679bc07",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/KrVAAh70Nz/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-03-10T16:19:32.943324+00:00",
+    "updated_at": "2026-03-10T16:19:32.943324+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "0af6b0d4-c56f-4264-9384-965d24c97e43",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "organizationId": "0af6b0d4-c56f-4264-9384-965d24c97e43",
+      "iiko_live_stops": [],
+      "iiko_last_sync_time": "2026-04-02T10:40:31.836Z",
+      "excluded_product_name_patterns": [
+        "we love sushi",
+        "ikura",
+        "smash me",
+        "love roll",
+        "love set",
+        "love phila",
+        "love maki",
+        "love nigiri",
+        "love tempura",
+        "love extra"
+      ]
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "8315cf3e-c091-4775-924d-1191a8db6ef3",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "TARGU MURES (Ikura Sushi)",
+    "city": "TARGU MURES",
+    "address": "Bulevardul 1 Decembrie 1918 157 540445 Targu Mures Targu-Mures Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/346362",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dac8733d53c710973955d7",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/c2hGI6lht0/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "958aefef-28b5-4f25-9f4d-97fb02d2bf9d",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "958aefef-28b5-4f25-9f4d-97fb02d2bf9d"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "9621ecd0-e75f-4298-878d-db66ce5ace81",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "TARGU MURES (Love Sushi)",
+    "city": "TARGU MURES",
+    "address": "Bulevardul 1 Decembrie 1918 157, 540445 Județul Mureș Târgu Mureș, România",
+    "glovo_url": "https://glovoapp.com/ro/ro/targu-mures/stores/we-love-sushi-mures-targu-mures",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/698f3fff92a7032ac15f1416",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/2ucNAPORwe/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "958aefef-28b5-4f25-9f4d-97fb02d2bf9d",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "958aefef-28b5-4f25-9f4d-97fb02d2bf9d"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "3ebb63ac-0036-4ad3-ae86-91be5541ab19",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "TARGU MURES (Poki Woki)",
+    "city": "TARGU MURES",
+    "address": "Bulevardul 1 Decembrie 1918 157 540445 Targu Mures Targu-Mures Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/targu-mures/stores/ikura-sushi-targu-mures",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dac8733d53c710973955d7",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/c2hGI6lht0/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "958aefef-28b5-4f25-9f4d-97fb02d2bf9d",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "958aefef-28b5-4f25-9f4d-97fb02d2bf9d"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "18154536-07e1-47bd-9cbf-af01830aecee",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "TARGU MURES (Roll Master)",
+    "city": "TARGU MURES",
+    "address": "Bulevardul 1 Decembrie 1918 157 540445 Județul Mureș Târgu Mureș România",
+    "glovo_url": "https://glovoapp.com/ro/ro/targu-mures/stores/sushi-master-tgm",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dac8733d53c710973955d6",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/8y17CpRRQp/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "958aefef-28b5-4f25-9f4d-97fb02d2bf9d",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "958aefef-28b5-4f25-9f4d-97fb02d2bf9d"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "92e82fbd-baed-40b0-a0b9-f9b8d31b1315",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "TARGU MURES (Sushi Master)",
+    "city": "TARGU MURES",
+    "address": "Bulevardul 1 Decembrie 1918 157 540445 Județul Mureș Târgu Mureș România",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/290766",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dac8733d53c710973955d6",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/8y17CpRRQp/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "958aefef-28b5-4f25-9f4d-97fb02d2bf9d",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "958aefef-28b5-4f25-9f4d-97fb02d2bf9d"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "232fcfc7-9db2-482a-b981-0ead631767e1",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "TIMISOARA (Ikura Sushi)",
+    "city": "TIMISOARA",
+    "address": "Str. Mareșal Constantin Prezan 70-72, Timișoara 300744, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/598347",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/6a54b66c03a39aad721f93ec",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/I7u1vcBxRP/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "0af6b0d4-c56f-4264-9384-965d24c97e43",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "0af6b0d4-c56f-4264-9384-965d24c97e43"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "b2658e62-14cc-4e1e-9e92-64799c21d2e0",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "TIMISOARA (Love Sushi)",
+    "city": "TIMISOARA",
+    "address": "Str. Mareșal Constantin Prezan 70-72, Timișoara 300744, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/472808",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dac56ea0d80030d679bc08",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/v4V1sHXAse/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "0af6b0d4-c56f-4264-9384-965d24c97e43",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "0af6b0d4-c56f-4264-9384-965d24c97e43"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "95aedaf8-fc3e-4999-addf-992367d0735d",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "TIMISOARA (Poki Woki)",
+    "city": "TIMISOARA",
+    "address": "Str. Mareșal Constantin Prezan 70-72, Timișoara 300744, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/timisoara/stores/poki-woki-tim",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/6a54b66c03a39aad721f93ec",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/I7u1vcBxRP/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "0af6b0d4-c56f-4264-9384-965d24c97e43",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "0af6b0d4-c56f-4264-9384-965d24c97e43"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "ae9a969c-e80f-4cbe-ac5c-7069c97e222a",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "TIMISOARA (Roll Master)",
+    "city": "TIMISOARA",
+    "address": "Str. Mareșal Constantin Prezan 70-72, Timișoara 300744, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/timisoara/stores/sushi-master-tim",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dac56ea0d80030d679bc07",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/KrVAAh70Nz/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "0af6b0d4-c56f-4264-9384-965d24c97e43",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "0af6b0d4-c56f-4264-9384-965d24c97e43"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "1aad51d8-b46f-48b5-a1a7-0a1c13e4de43",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "TIMISOARA (Sushi Master)",
+    "city": "TIMISOARA",
+    "address": "Str. Mareșal Constantin Prezan 70-72, Timișoara 300744, Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/104450",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dac56ea0d80030d679bc07",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/KrVAAh70Nz/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "0af6b0d4-c56f-4264-9384-965d24c97e43",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "0af6b0d4-c56f-4264-9384-965d24c97e43"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
+    "id": "58441f1b-7e60-4a3d-a8d8-e5cd6b9ad489",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "name": "TULCEA (Ikura Sushi)",
+    "city": "TULCEA",
+    "address": "Strada Isaccei 57 bis 820241 Tulcea Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/527494",
+    "wolt_url": "https://wolt.com/ro/rou/tulcea/search?q=Poki%20Woki",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/9NET3qPz6L/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "5989edaa-038d-4407-8d98-be180b5b5b65",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Ikura",
+        "IKURA",
+        "Ikura Sushi"
+      ],
+      "organizationId": "5989edaa-038d-4407-8d98-be180b5b5b65"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
+    "id": "73fc4a93-db00-4cd6-bcce-2d3683cbd399",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "name": "TULCEA (Love Sushi)",
+    "city": "TULCEA",
+    "address": "Strada Isaccei 57 bis 820241 Tulcea Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/527488",
+    "wolt_url": "https://wolt.com/ro/rou/tulcea/restaurant/we-love-sushi",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/rEkv2uPQjA/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "5989edaa-038d-4407-8d98-be180b5b5b65",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "WLS",
+        "Love Sushi",
+        "WE LOVE SUSHI",
+        "We Love Sushi"
+      ],
+      "organizationId": "5989edaa-038d-4407-8d98-be180b5b5b65"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
+    "id": "c31eb332-e506-4461-af39-bcff1e3664c7",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "name": "TULCEA (Poki Woki)",
+    "city": "TULCEA",
+    "address": "Strada Isaccei 57 bis 820241 Tulcea Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/tulcea/stores/ikura-sushi-tul",
+    "wolt_url": "https://wolt.com/ro/rou/tulcea/search?q=Poki%20Woki",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/9NET3qPz6L/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "5989edaa-038d-4407-8d98-be180b5b5b65",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "POKI WOKI",
+        "Poki Woki Platforme",
+        "Poki-Woki"
+      ],
+      "organizationId": "5989edaa-038d-4407-8d98-be180b5b5b65"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "430213a0-efef-49bc-89b7-902328a163e3",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "name": "TULCEA (Roll Master)",
+    "city": "TULCEA",
+    "address": "Strada Isaccei 57 bis 820241 Tulcea Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/tulcea/stores/sushi-master-tul",
+    "wolt_url": "https://wolt.com/ro/rou/tulcea/search?q=Roll%20Master",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/3xKLgZLFAI/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": true,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "5989edaa-038d-4407-8d98-be180b5b5b65",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "Roll Master",
+        "ROLL MASTER",
+        "RollMaster",
+        "rollmaster"
+      ],
+      "organizationId": "5989edaa-038d-4407-8d98-be180b5b5b65"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
+    "id": "ccd868e5-846e-40f5-ade2-71ab94a806e3",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "name": "TULCEA (Sushi Master)",
+    "city": "TULCEA",
+    "address": "Strada Isaccei 57 bis 820241 Tulcea Romania",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/514163",
+    "wolt_url": "https://wolt.com/ro/rou/tulcea/search?q=Roll%20Master",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/3xKLgZLFAI/",
+    "working_hours": {},
+    "normal_radius_km": null,
+    "is_active": false,
+    "created_at": "2026-06-29T09:15:12.825985+00:00",
+    "updated_at": "2026-06-29T09:15:12.825985+00:00",
+    "revenue_per_hour": 100,
+    "iiko_restaurant_id": "5989edaa-038d-4407-8d98-be180b5b5b65",
+    "iiko_config": {
+      "api_login": "93a34e75123e47b897e390f31ecfa4cb",
+      "categories": [
+        "SUSHI MASTER",
+        "Sushi Master"
+      ],
+      "organizationId": "5989edaa-038d-4407-8d98-be180b5b5b65"
+    },
+    "allowed_stop_categories": [],
+    "max_stop_percent": 30,
+    "is_competitor": false,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  }
+]

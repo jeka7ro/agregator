@@ -2,7 +2,7 @@
   {
     "restaurant_id": "6c692a12-c55c-45b4-8278-f960ec406e91",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:00:43.694Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -82,7 +82,7 @@
   {
     "restaurant_id": "46e6b5a3-8537-46e6-8f5a-6eff4db84979",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:00:26.918Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -126,7 +126,7 @@
   {
     "restaurant_id": "46e6b5a3-8537-46e6-8f5a-6eff4db84979",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:00:34.891Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -154,12 +154,12 @@
   {
     "restaurant_id": "14adb9aa-a9aa-4b71-9846-41f367f98c24",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:00:59.708Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -198,12 +198,12 @@
   {
     "restaurant_id": "7990f9b6-9fa0-46d4-9ec5-219d10458ecc",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:01:34.832Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -242,7 +242,7 @@
   {
     "restaurant_id": "dad5dddb-88f0-49c3-a12c-c51c8ce659b8",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:02:10.079Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -348,12 +348,12 @@
   {
     "restaurant_id": "dad5dddb-88f0-49c3-a12c-c51c8ce659b8",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:02:16.780Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -382,7 +382,7 @@
   {
     "restaurant_id": "1c2b8519-107d-4f6a-a644-22ec53f54b60",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:00:07.706Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -426,12 +426,12 @@
   {
     "restaurant_id": "1c2b8519-107d-4f6a-a644-22ec53f54b60",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:00:15.856Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -460,7 +460,7 @@
   {
     "restaurant_id": "1c2b8519-107d-4f6a-a644-22ec53f54b60",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:00:17.305Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -488,7 +488,7 @@
   {
     "restaurant_id": "3ebb63ac-0036-4ad3-ae86-91be5541ab19",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:12:55.305Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -566,12 +566,12 @@
   {
     "restaurant_id": "3ebb63ac-0036-4ad3-ae86-91be5541ab19",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:13:01.838Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -600,7 +600,7 @@
   {
     "restaurant_id": "3ebb63ac-0036-4ad3-ae86-91be5541ab19",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:13:02.669Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -628,7 +628,7 @@
   {
     "restaurant_id": "c31eb332-e506-4461-af39-bcff1e3664c7",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:03:32.841Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -707,7 +707,7 @@
   {
     "restaurant_id": "fa546232-e9f3-490c-8c57-425f91742efc",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:04:07.115Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -785,12 +785,12 @@
   {
     "restaurant_id": "fa546232-e9f3-490c-8c57-425f91742efc",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:04:13.842Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -819,7 +819,7 @@
   {
     "restaurant_id": "fa546232-e9f3-490c-8c57-425f91742efc",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:04:14.905Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -847,7 +847,7 @@
   {
     "restaurant_id": "430213a0-efef-49bc-89b7-902328a163e3",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:02:26.835Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -952,12 +952,12 @@
   {
     "restaurant_id": "bdacab4f-9150-495e-ba53-9ce470ce4da7",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:03:49.248Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -996,7 +996,7 @@
   {
     "restaurant_id": "95aedaf8-fc3e-4999-addf-992367d0735d",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:04:24.785Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -1068,7 +1068,7 @@
   {
     "restaurant_id": "9df5b824-8e4e-4ac2-b54f-1459417ed9b7",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:02:44.058Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -1169,12 +1169,12 @@
   {
     "restaurant_id": "9df5b824-8e4e-4ac2-b54f-1459417ed9b7",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:02:50.581Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -1203,12 +1203,12 @@
   {
     "restaurant_id": "5de3d519-c566-4e04-9129-770dcb72b5fa",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:02:59.414Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -1247,12 +1247,12 @@
   {
     "restaurant_id": "5de3d519-c566-4e04-9129-770dcb72b5fa",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:03:06.177Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -1281,7 +1281,7 @@
   {
     "restaurant_id": "18154536-07e1-47bd-9cbf-af01830aecee",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:03:16.374Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -1385,12 +1385,12 @@
   {
     "restaurant_id": "18154536-07e1-47bd-9cbf-af01830aecee",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:03:22.881Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -1419,7 +1419,7 @@
   {
     "restaurant_id": "ae9a969c-e80f-4cbe-ac5c-7069c97e222a",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:05:19.578Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -1525,12 +1525,12 @@
   {
     "restaurant_id": "ae9a969c-e80f-4cbe-ac5c-7069c97e222a",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:05:25.876Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -1559,7 +1559,7 @@
   {
     "restaurant_id": "69a72aab-1549-4672-be7e-61cedad02c4e",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:05:00.828Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -1663,12 +1663,12 @@
   {
     "restaurant_id": "69a72aab-1549-4672-be7e-61cedad02c4e",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:05:07.940Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -1697,7 +1697,7 @@
   {
     "restaurant_id": "921e753d-d23f-4e17-ad06-c1a5726a20ef",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:04:43.236Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -1776,12 +1776,12 @@
   {
     "restaurant_id": "921e753d-d23f-4e17-ad06-c1a5726a20ef",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:04:50.220Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -1810,7 +1810,7 @@
   {
     "restaurant_id": "921e753d-d23f-4e17-ad06-c1a5726a20ef",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:04:51.501Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -1838,7 +1838,7 @@
   {
     "restaurant_id": "fb9b4059-35c7-4387-b927-7513c807140e",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:05:51.454Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -1931,12 +1931,12 @@
   {
     "restaurant_id": "67aec385-594f-4e25-bd29-d67552b95ca4",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:06:58.146Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -1975,12 +1975,12 @@
   {
     "restaurant_id": "8691a9d3-9197-4602-94fd-7bd7e042ca23",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:06:07.302Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -2019,12 +2019,12 @@
   {
     "restaurant_id": "d22a3ec7-f23b-4711-a069-45d42197c7e5",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:07:32.031Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -2063,12 +2063,12 @@
   {
     "restaurant_id": "ff89718b-d1d7-4b54-b67e-4bc50b5ea80f",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:05:34.873Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -2107,7 +2107,7 @@
   {
     "restaurant_id": "07734cfe-cde6-42ab-8887-6d00882ed970",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:13:28.741Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -2184,12 +2184,12 @@
   {
     "restaurant_id": "bc13fc1f-2dd8-4b68-9acb-6b1652c49dda",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:08:14.316Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -2218,7 +2218,7 @@
   {
     "restaurant_id": "bc13fc1f-2dd8-4b68-9acb-6b1652c49dda",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:08:15.590Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -2246,12 +2246,12 @@
   {
     "restaurant_id": "f40e312b-5fca-4178-9f27-dbfe2837c721",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:08:48.249Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -2280,7 +2280,7 @@
   {
     "restaurant_id": "f40e312b-5fca-4178-9f27-dbfe2837c721",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:08:49.115Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -2308,12 +2308,12 @@
   {
     "restaurant_id": "6d18f13f-736d-44fd-87c7-928c875dff3d",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:09:38.074Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -2342,7 +2342,7 @@
   {
     "restaurant_id": "6d18f13f-736d-44fd-87c7-928c875dff3d",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:09:39.101Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -2370,7 +2370,7 @@
   {
     "restaurant_id": "c1392719-078e-4737-9774-ba7137a0c054",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:08:32.302Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -2398,12 +2398,12 @@
   {
     "restaurant_id": "758d0120-d3b4-4c5c-9baf-f6dcc52c615e",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:07:55.820Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -2432,7 +2432,7 @@
   {
     "restaurant_id": "adaa67f8-deac-4e50-8cc3-13f62b8e1d1b",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:09:14.866Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -2537,12 +2537,12 @@
   {
     "restaurant_id": "adaa67f8-deac-4e50-8cc3-13f62b8e1d1b",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:09:21.604Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -2571,12 +2571,12 @@
   {
     "restaurant_id": "81539556-80ec-4fa5-9401-4fc6e0b30bdb",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:10:48.219Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -2605,12 +2605,12 @@
   {
     "restaurant_id": "1f75ded4-f726-45c1-a1f3-eca4f9116e08",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:10:29.960Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -2639,12 +2639,12 @@
   {
     "restaurant_id": "4ccbadbe-e543-4b46-bb97-493b12373f91",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:11:04.260Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -2673,7 +2673,7 @@
   {
     "restaurant_id": "4ccbadbe-e543-4b46-bb97-493b12373f91",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:11:05.361Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -2701,12 +2701,12 @@
   {
     "restaurant_id": "c6587b6a-62bf-4202-a29b-dfe44467a4a0",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:11:22.063Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -2735,7 +2735,7 @@
   {
     "restaurant_id": "c6587b6a-62bf-4202-a29b-dfe44467a4a0",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:11:23.085Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -2763,7 +2763,7 @@
   {
     "restaurant_id": "65b29088-bd75-4ed0-86b5-5fadc79cf19e",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:11:48.819Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -2863,12 +2863,12 @@
   {
     "restaurant_id": "65b29088-bd75-4ed0-86b5-5fadc79cf19e",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:11:55.198Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -2897,12 +2897,12 @@
   {
     "restaurant_id": "098d725e-5667-49e2-8e22-cff5db135584",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:13:50.938Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -2931,12 +2931,12 @@
   {
     "restaurant_id": "93adc853-0aa8-4659-8156-8e4ebe1a04ee",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:12:28.974Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -2965,12 +2965,12 @@
   {
     "restaurant_id": "55e49e60-2395-4b5b-ad24-6c9248e80234",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:14:24.322Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -2999,12 +2999,12 @@
   {
     "restaurant_id": "279e862d-9036-4843-9bcc-69580afe97e0",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:12:45.969Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -3033,7 +3033,7 @@
   {
     "restaurant_id": "3d73b36b-e05e-42b7-b2a2-29d8ecbddb3b",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:13.550Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3051,7 +3051,7 @@
   {
     "restaurant_id": "dad5dddb-88f0-49c3-a12c-c51c8ce659b8",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:02:19.749Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3071,7 +3071,7 @@
   {
     "restaurant_id": "14adb9aa-a9aa-4b71-9846-41f367f98c24",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:01:11.478Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3091,7 +3091,7 @@
   {
     "restaurant_id": "7990f9b6-9fa0-46d4-9ec5-219d10458ecc",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:01:44.824Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3111,7 +3111,7 @@
   {
     "restaurant_id": "1c2b8519-107d-4f6a-a644-22ec53f54b60",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:00:19.453Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3131,7 +3131,7 @@
   {
     "restaurant_id": "59cea0af-5fe2-4fb0-b59a-1e3bb0fa34d2",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:20.102Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3149,7 +3149,7 @@
   {
     "restaurant_id": "f27c7fba-ecdf-4f44-a752-195d5caf9561",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:01:28.597Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3169,7 +3169,7 @@
   {
     "restaurant_id": "6c692a12-c55c-45b4-8278-f960ec406e91",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:00:53.514Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3189,7 +3189,7 @@
   {
     "restaurant_id": "10049ce8-3358-425f-9dc6-543ca4a40f7c",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:02:02.555Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3209,7 +3209,7 @@
   {
     "restaurant_id": "46e6b5a3-8537-46e6-8f5a-6eff4db84979",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:00:36.805Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3229,7 +3229,7 @@
   {
     "restaurant_id": "73fc4a93-db00-4cd6-bcce-2d3683cbd399",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:26.552Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3247,7 +3247,7 @@
   {
     "restaurant_id": "fa546232-e9f3-490c-8c57-425f91742efc",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:04:16.932Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3267,7 +3267,7 @@
   {
     "restaurant_id": "b2658e62-14cc-4e1e-9e92-64799c21d2e0",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:28.207Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3285,7 +3285,7 @@
   {
     "restaurant_id": "430213a0-efef-49bc-89b7-902328a163e3",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:02:36.751Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3305,7 +3305,7 @@
   {
     "restaurant_id": "bdacab4f-9150-495e-ba53-9ce470ce4da7",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:03:59.080Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3329,7 +3329,7 @@
   {
     "restaurant_id": "3ebb63ac-0036-4ad3-ae86-91be5541ab19",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:13:04.515Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3349,7 +3349,7 @@
   {
     "restaurant_id": "95aedaf8-fc3e-4999-addf-992367d0735d",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:04:36.064Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3369,7 +3369,7 @@
   {
     "restaurant_id": "9df5b824-8e4e-4ac2-b54f-1459417ed9b7",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:02:53.169Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3389,7 +3389,7 @@
   {
     "restaurant_id": "5de3d519-c566-4e04-9129-770dcb72b5fa",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:03:09.377Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3413,7 +3413,7 @@
   {
     "restaurant_id": "3537819e-fa0b-42c8-a937-4388c263c7b4",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:35.515Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3435,7 +3435,7 @@
   {
     "restaurant_id": "4def1d52-2c1c-47c3-b4b8-cc9106b30655",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:36.838Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3453,7 +3453,7 @@
   {
     "restaurant_id": "9621ecd0-e75f-4298-878d-db66ce5ace81",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:37.578Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3471,7 +3471,7 @@
   {
     "restaurant_id": "18154536-07e1-47bd-9cbf-af01830aecee",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:03:25.711Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3491,7 +3491,7 @@
   {
     "restaurant_id": "c31eb332-e506-4461-af39-bcff1e3664c7",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:03:42.399Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3511,7 +3511,7 @@
   {
     "restaurant_id": "69a72aab-1549-4672-be7e-61cedad02c4e",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:05:11.365Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3531,7 +3531,7 @@
   {
     "restaurant_id": "1eb2dcff-33ba-42f2-a199-331d64a9af88",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:40.817Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3549,7 +3549,7 @@
   {
     "restaurant_id": "921e753d-d23f-4e17-ad06-c1a5726a20ef",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:04:53.520Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3569,7 +3569,7 @@
   {
     "restaurant_id": "ddc86244-d00a-481f-afeb-8c52482ee70a",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:42.028Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3587,7 +3587,7 @@
   {
     "restaurant_id": "ae9a969c-e80f-4cbe-ac5c-7069c97e222a",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:05:28.686Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3607,7 +3607,7 @@
   {
     "restaurant_id": "c68ff1c3-263f-4ed3-915a-7bfdf3682b05",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:43.251Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3625,7 +3625,7 @@
   {
     "restaurant_id": "1aad51d8-b46f-48b5-a1a7-0a1c13e4de43",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:43.549Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3643,7 +3643,7 @@
   {
     "restaurant_id": "d4c4f7d2-58fa-4a53-9445-8186aa2679c3",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:06:34.415Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3663,7 +3663,7 @@
   {
     "restaurant_id": "fd6651a5-0fdb-405f-84e6-a5e84a6d3eab",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:07:26.035Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3683,7 +3683,7 @@
   {
     "restaurant_id": "d22a3ec7-f23b-4711-a069-45d42197c7e5",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:07:41.782Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3703,7 +3703,7 @@
   {
     "restaurant_id": "ea07e66d-9993-4920-9ef6-24258e8afba9",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:45.857Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3721,7 +3721,7 @@
   {
     "restaurant_id": "8691a9d3-9197-4602-94fd-7bd7e042ca23",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:06:18.018Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3741,7 +3741,7 @@
   {
     "restaurant_id": "ff89718b-d1d7-4b54-b67e-4bc50b5ea80f",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:05:44.515Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3761,7 +3761,7 @@
   {
     "restaurant_id": "fb9b4059-35c7-4387-b927-7513c807140e",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:06:00.642Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3781,7 +3781,7 @@
   {
     "restaurant_id": "e3a2c0c3-654d-4c52-8d6e-1dfa2ba9ab36",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:06:52.004Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3801,7 +3801,7 @@
   {
     "restaurant_id": "67aec385-594f-4e25-bd29-d67552b95ca4",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:07:08.288Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3821,7 +3821,7 @@
   {
     "restaurant_id": "a6912d55-8d9d-4fcf-acd6-8585a9807f61",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:47.858Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3839,7 +3839,7 @@
   {
     "restaurant_id": "ea80ef54-7c3d-4634-9bf1-30530dc63fce",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:48.156Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3857,7 +3857,7 @@
   {
     "restaurant_id": "f40e312b-5fca-4178-9f27-dbfe2837c721",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:08:50.748Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3877,7 +3877,7 @@
   {
     "restaurant_id": "6d18f13f-736d-44fd-87c7-928c875dff3d",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:09:41.042Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3897,7 +3897,7 @@
   {
     "restaurant_id": "c1392719-078e-4737-9774-ba7137a0c054",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:08:34.195Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3917,7 +3917,7 @@
   {
     "restaurant_id": "07734cfe-cde6-42ab-8887-6d00882ed970",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:13:37.869Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3937,7 +3937,7 @@
   {
     "restaurant_id": "758d0120-d3b4-4c5c-9baf-f6dcc52c615e",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:07:58.617Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3957,7 +3957,7 @@
   {
     "restaurant_id": "038c6b5c-f730-43d9-954f-7d672c5363b1",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:09:57.179Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3977,7 +3977,7 @@
   {
     "restaurant_id": "bc13fc1f-2dd8-4b68-9acb-6b1652c49dda",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:08:17.624Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -3997,7 +3997,7 @@
   {
     "restaurant_id": "adaa67f8-deac-4e50-8cc3-13f62b8e1d1b",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:09:24.424Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4017,7 +4017,7 @@
   {
     "restaurant_id": "b27e37d9-4d3f-4689-93e4-e0048c216b27",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:51.098Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4035,7 +4035,7 @@
   {
     "restaurant_id": "bd642ea8-c8a5-440b-98ad-4b564e2c6e3a",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:51.466Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4053,7 +4053,7 @@
   {
     "restaurant_id": "76e6a6e9-b8eb-43a7-a66d-cf9959ccda97",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:51.752Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4071,7 +4071,7 @@
   {
     "restaurant_id": "df4abf0a-d988-4edb-bd26-2252f3bb9e43",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:52.101Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4089,7 +4089,7 @@
   {
     "restaurant_id": "2fb07d2d-5065-43d4-9edf-51fe400f917d",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:09:07.336Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4109,7 +4109,7 @@
   {
     "restaurant_id": "81539556-80ec-4fa5-9401-4fc6e0b30bdb",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:10:50.929Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4129,7 +4129,7 @@
   {
     "restaurant_id": "1f75ded4-f726-45c1-a1f3-eca4f9116e08",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:10:33.390Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4149,7 +4149,7 @@
   {
     "restaurant_id": "616ae53c-d298-4b6b-a51d-dccad6f5cf04",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:53.383Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4167,7 +4167,7 @@
   {
     "restaurant_id": "8860ef11-e9cd-486f-92cd-aa5f3a93ad0f",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:53.721Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4185,7 +4185,7 @@
   {
     "restaurant_id": "b2a259bd-5925-40ff-a1ba-9b49afa19740",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:54.093Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4203,7 +4203,7 @@
   {
     "restaurant_id": "a22ba2c4-46ea-4162-82bb-4b38b9c5d226",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:54.406Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4221,25 +4221,26 @@
   {
     "restaurant_id": "a750a7e3-7d3e-41f4-b8bb-1d02338f957b",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:54.612Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "backend_is_open": false,
     "backend_status": "offline",
-    "final_status": "error",
+    "final_status": "available",
     "missing_products": [],
     "raw_data": {
       "response_time_ms": 52,
       "api_url": "https://api-eu.syrve.live",
       "is_configured": true,
       "active_products_count": 0
-    }
+    },
+    "ui_error_message": null
   },
   {
     "restaurant_id": "fdda9298-2f08-40c5-8fd3-277503c78712",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:54.892Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4257,7 +4258,7 @@
   {
     "restaurant_id": "f459268b-1675-41c7-8b54-3453385a0fa6",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:55.248Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4275,7 +4276,7 @@
   {
     "restaurant_id": "19464d1f-b271-43c5-a0d1-06b1a7282bd5",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:10:14.291Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4295,7 +4296,7 @@
   {
     "restaurant_id": "a4ff6db8-16ef-4f90-bfd1-718df590caea",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:55.891Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4313,7 +4314,7 @@
   {
     "restaurant_id": "e670608e-7341-496a-bd4a-e493d5ed5312",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:56.256Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4331,7 +4332,7 @@
   {
     "restaurant_id": "cfb2c604-2491-4e2e-b02c-d97bf3d270bc",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:56.550Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4349,7 +4350,7 @@
   {
     "restaurant_id": "9d3e94fb-113c-4178-9779-ea8424588f2d",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:12:15.084Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4369,7 +4370,7 @@
   {
     "restaurant_id": "dfc3d38a-6141-4cef-9e27-c09dfde10818",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:11:41.787Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4389,7 +4390,7 @@
   {
     "restaurant_id": "b13a23fa-638f-41ec-9e14-46c8a71b4dd8",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:57.514Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4407,7 +4408,7 @@
   {
     "restaurant_id": "4ccbadbe-e543-4b46-bb97-493b12373f91",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:11:07.418Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4427,7 +4428,7 @@
   {
     "restaurant_id": "65b29088-bd75-4ed0-86b5-5fadc79cf19e",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:11:57.888Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4447,7 +4448,7 @@
   {
     "restaurant_id": "c6587b6a-62bf-4202-a29b-dfe44467a4a0",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:11:25.105Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4467,7 +4468,7 @@
   {
     "restaurant_id": "8b88886e-7be4-4414-97a2-c353c7fd7702",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:58.920Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4485,7 +4486,7 @@
   {
     "restaurant_id": "d7f2b3d3-c7dd-4758-8e20-9f2cb32bf12c",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:59.279Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4503,7 +4504,7 @@
   {
     "restaurant_id": "98e778db-8630-4d49-982a-b225a72cd3d6",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:13:21.932Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4523,7 +4524,7 @@
   {
     "restaurant_id": "a0da8c43-d7ca-4a34-af5c-d6a009b2f91d",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:56:59.913Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4541,7 +4542,7 @@
   {
     "restaurant_id": "3c1ae0d7-9588-44d0-8bdb-3180d9f9f5a6",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:01.124Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4559,7 +4560,7 @@
   {
     "restaurant_id": "c72bd8f7-b064-4093-8c34-3604e6b384a2",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:14:10.686Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4579,7 +4580,7 @@
   {
     "restaurant_id": "098d725e-5667-49e2-8e22-cff5db135584",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:13:53.606Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4599,7 +4600,7 @@
   {
     "restaurant_id": "93adc853-0aa8-4659-8156-8e4ebe1a04ee",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:12:31.764Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4619,7 +4620,7 @@
   {
     "restaurant_id": "8b02140e-a340-41ca-9a83-b4950016ee15",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:14:43.069Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4639,7 +4640,7 @@
   {
     "restaurant_id": "613d20f2-ef76-4aa3-9292-9af6b514f34c",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:07.488Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4657,7 +4658,7 @@
   {
     "restaurant_id": "55e49e60-2395-4b5b-ad24-6c9248e80234",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:14:27.252Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4677,7 +4678,7 @@
   {
     "restaurant_id": "279e862d-9036-4843-9bcc-69580afe97e0",
     "platform": "iiko",
-    "checked_at": "2026-11-03T17:12:48.606Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4697,7 +4698,7 @@
   {
     "restaurant_id": "ad7e4e51-d10b-4e3a-bba8-3673b55b99f7",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:11.040Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4715,7 +4716,7 @@
   {
     "restaurant_id": "314b6ada-d86d-46e4-96a7-90c0365664ed",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:12.277Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4733,7 +4734,7 @@
   {
     "restaurant_id": "6d689def-81e6-4887-a026-62aa578c7d42",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:13.569Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4751,7 +4752,7 @@
   {
     "restaurant_id": "316244eb-ede6-437c-a08c-ad61d58b8a47",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:14.849Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4769,7 +4770,7 @@
   {
     "restaurant_id": "a722680a-0e21-48c8-8823-b379da36d866",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:16.176Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4787,7 +4788,7 @@
   {
     "restaurant_id": "548f1b5e-524d-4fbb-86e7-d6ec07d1ea58",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:17.413Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4805,7 +4806,7 @@
   {
     "restaurant_id": "d51021d7-d284-445f-bc21-feb4d89cff94",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:18.728Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4823,7 +4824,7 @@
   {
     "restaurant_id": "79d2716a-c8a4-4740-a290-97fe768c4bfb",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:19.979Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4841,7 +4842,7 @@
   {
     "restaurant_id": "520fe924-c0bb-4ec7-882f-847df5deff57",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:21.148Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4859,7 +4860,7 @@
   {
     "restaurant_id": "8315cf3e-c091-4775-924d-1191a8db6ef3",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:22.437Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4877,7 +4878,7 @@
   {
     "restaurant_id": "65a9e7e5-7f9f-4561-8edb-8db04bffe40e",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:23.616Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4895,7 +4896,7 @@
   {
     "restaurant_id": "da86444c-6f9c-4adb-b46a-c7fa1150bf51",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:24.877Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4917,7 +4918,7 @@
   {
     "restaurant_id": "232fcfc7-9db2-482a-b981-0ead631767e1",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:25.223Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4935,7 +4936,7 @@
   {
     "restaurant_id": "8b3933f5-93fa-4a2b-8c95-ebcdd5b34495",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:26.649Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4953,7 +4954,7 @@
   {
     "restaurant_id": "1908602c-d7df-49c8-a964-064ec0ee3445",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:27.421Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4971,7 +4972,7 @@
   {
     "restaurant_id": "ccd868e5-846e-40f5-ade2-71ab94a806e3",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:28.761Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -4989,7 +4990,7 @@
   {
     "restaurant_id": "58441f1b-7e60-4a3d-a8d8-e5cd6b9ad489",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:29.512Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5007,7 +5008,7 @@
   {
     "restaurant_id": "92e82fbd-baed-40b0-a0b9-f9b8d31b1315",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:30.416Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5025,7 +5026,7 @@
   {
     "restaurant_id": "dc10558d-2f4a-4bd8-9ca4-b5c662859724",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:31.311Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5043,7 +5044,7 @@
   {
     "restaurant_id": "e8ca1d27-9a56-46a8-9583-db89002bb3f1",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:32.061Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5065,7 +5066,7 @@
   {
     "restaurant_id": "f4d1c834-105c-4f13-9c76-adab4b1a7178",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:32.879Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5083,7 +5084,7 @@
   {
     "restaurant_id": "51b2333b-fc27-4e9a-8180-91592652e7c0",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:33.666Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5101,7 +5102,7 @@
   {
     "restaurant_id": "5d28adc5-3f9d-4164-8bf4-efc6bead0da2",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:34.503Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5119,7 +5120,7 @@
   {
     "restaurant_id": "239b5d9c-e93e-463a-a9cd-0544ea9a8186",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:34.801Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5137,7 +5138,7 @@
   {
     "restaurant_id": "816891c7-847c-4062-bf1e-a334850ca934",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:35.710Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5155,7 +5156,7 @@
   {
     "restaurant_id": "aa3745e2-8381-425b-9fa2-096f6ea7d70b",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:36.092Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5173,7 +5174,7 @@
   {
     "restaurant_id": "a9e30b70-9057-4fd2-8812-23086036664c",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:36.381Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5191,7 +5192,7 @@
   {
     "restaurant_id": "b800f9e8-9909-484f-b586-f623d9576e02",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:36.715Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5209,7 +5210,7 @@
   {
     "restaurant_id": "29b219c2-b5ae-481f-a812-688140adde58",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:37.077Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5227,7 +5228,7 @@
   {
     "restaurant_id": "ee1151fa-2bf8-4238-af5c-f7b7e24b6c7f",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:37.368Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5245,7 +5246,7 @@
   {
     "restaurant_id": "31a8f277-914f-4997-9253-f4e5b0d9b63e",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:37.712Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5263,7 +5264,7 @@
   {
     "restaurant_id": "43b05af8-bcc3-4b6e-a266-dd14d92624fd",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:38.074Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5281,7 +5282,7 @@
   {
     "restaurant_id": "a9af3fe4-fdb2-400e-85ff-a28a38d81de2",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:38.364Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5299,7 +5300,7 @@
   {
     "restaurant_id": "90d5a50a-33c5-474b-b712-7f2dbb8413d2",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:38.712Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5317,7 +5318,7 @@
   {
     "restaurant_id": "ee3fb355-6c6e-497c-8f9d-bdd1d9a29350",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:38.993Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5335,7 +5336,7 @@
   {
     "restaurant_id": "072454b0-fb31-4c33-89fa-022ac5fa71e1",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:39.335Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5353,7 +5354,7 @@
   {
     "restaurant_id": "f22caf9d-db5a-454b-8c09-569c2f7a063a",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:39.699Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5371,7 +5372,7 @@
   {
     "restaurant_id": "9c519c57-70a5-4259-add9-99791b861b4d",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:39.978Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5389,7 +5390,7 @@
   {
     "restaurant_id": "2134911b-b309-454c-950d-0c744c61c3e0",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:40.333Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -5407,30 +5408,31 @@
   {
     "restaurant_id": "1bcc73d8-3f03-4b33-9f8f-4e1413525f70",
     "platform": "iiko",
-    "checked_at": "2026-07-31T11:57:40.455Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "backend_is_open": false,
     "backend_status": "offline",
-    "final_status": "error",
+    "final_status": "available",
     "missing_products": [],
     "raw_data": {
       "response_time_ms": 48,
       "api_url": "https://api-eu.syrve.live",
       "is_configured": true,
       "active_products_count": 0
-    }
+    },
+    "ui_error_message": null
   },
   {
     "restaurant_id": "10049ce8-3358-425f-9dc6-543ca4a40f7c",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:01:59.555Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -5459,12 +5461,12 @@
   {
     "restaurant_id": "14adb9aa-a9aa-4b71-9846-41f367f98c24",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:01:06.575Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -5493,12 +5495,12 @@
   {
     "restaurant_id": "7990f9b6-9fa0-46d4-9ec5-219d10458ecc",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:01:42.001Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -5527,12 +5529,12 @@
   {
     "restaurant_id": "46e6b5a3-8537-46e6-8f5a-6eff4db84979",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:00:33.953Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -5561,12 +5563,12 @@
   {
     "restaurant_id": "bdacab4f-9150-495e-ba53-9ce470ce4da7",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:03:56.483Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -5595,12 +5597,12 @@
   {
     "restaurant_id": "d22a3ec7-f23b-4711-a069-45d42197c7e5",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:07:38.867Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -5629,12 +5631,12 @@
   {
     "restaurant_id": "e3a2c0c3-654d-4c52-8d6e-1dfa2ba9ab36",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:06:48.975Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -5663,12 +5665,12 @@
   {
     "restaurant_id": "67aec385-594f-4e25-bd29-d67552b95ca4",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:07:04.960Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -5697,12 +5699,12 @@
   {
     "restaurant_id": "8691a9d3-9197-4602-94fd-7bd7e042ca23",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:06:14.631Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -5731,12 +5733,12 @@
   {
     "restaurant_id": "fd6651a5-0fdb-405f-84e6-a5e84a6d3eab",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:07:22.502Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -5765,12 +5767,12 @@
   {
     "restaurant_id": "ff89718b-d1d7-4b54-b67e-4bc50b5ea80f",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:05:41.601Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -5799,12 +5801,12 @@
   {
     "restaurant_id": "fb9b4059-35c7-4387-b927-7513c807140e",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:05:57.708Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -5833,12 +5835,12 @@
   {
     "restaurant_id": "038c6b5c-f730-43d9-954f-7d672c5363b1",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:09:54.401Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -5867,12 +5869,12 @@
   {
     "restaurant_id": "c1392719-078e-4737-9774-ba7137a0c054",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:08:31.470Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -5901,12 +5903,12 @@
   {
     "restaurant_id": "2fb07d2d-5065-43d4-9edf-51fe400f917d",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:09:03.807Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -5935,12 +5937,12 @@
   {
     "restaurant_id": "19464d1f-b271-43c5-a0d1-06b1a7282bd5",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:10:10.784Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -5969,12 +5971,12 @@
   {
     "restaurant_id": "9d3e94fb-113c-4178-9779-ea8424588f2d",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:12:11.967Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -6003,12 +6005,12 @@
   {
     "restaurant_id": "dfc3d38a-6141-4cef-9e27-c09dfde10818",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:11:38.645Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -6037,12 +6039,12 @@
   {
     "restaurant_id": "c72bd8f7-b064-4093-8c34-3604e6b384a2",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:14:07.388Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -6071,12 +6073,12 @@
   {
     "restaurant_id": "8b02140e-a340-41ca-9a83-b4950016ee15",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:14:40.236Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -6105,12 +6107,12 @@
   {
     "restaurant_id": "98e778db-8630-4d49-982a-b225a72cd3d6",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:13:18.469Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -6139,7 +6141,7 @@
   {
     "restaurant_id": "f27c7fba-ecdf-4f44-a752-195d5caf9561",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:01:18.762Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -6218,7 +6220,7 @@
   {
     "restaurant_id": "10049ce8-3358-425f-9dc6-543ca4a40f7c",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:01:52.868Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -6325,7 +6327,7 @@
   {
     "restaurant_id": "e3a2c0c3-654d-4c52-8d6e-1dfa2ba9ab36",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:06:42.563Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -6432,7 +6434,7 @@
   {
     "restaurant_id": "fd6651a5-0fdb-405f-84e6-a5e84a6d3eab",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:07:15.754Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -6536,7 +6538,7 @@
   {
     "restaurant_id": "6d18f13f-736d-44fd-87c7-928c875dff3d",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:09:31.650Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -6639,7 +6641,7 @@
   {
     "restaurant_id": "038c6b5c-f730-43d9-954f-7d672c5363b1",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:09:47.895Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -6718,7 +6720,7 @@
   {
     "restaurant_id": "758d0120-d3b4-4c5c-9baf-f6dcc52c615e",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:07:49.307Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -6823,7 +6825,7 @@
   {
     "restaurant_id": "bc13fc1f-2dd8-4b68-9acb-6b1652c49dda",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:08:07.392Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -6925,7 +6927,7 @@
   {
     "restaurant_id": "c1392719-078e-4737-9774-ba7137a0c054",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:08:25.178Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -7003,7 +7005,7 @@
   {
     "restaurant_id": "4ccbadbe-e543-4b46-bb97-493b12373f91",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:10:57.746Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -7081,7 +7083,7 @@
   {
     "restaurant_id": "9d3e94fb-113c-4178-9779-ea8424588f2d",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:12:05.055Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -7174,7 +7176,7 @@
   {
     "restaurant_id": "dfc3d38a-6141-4cef-9e27-c09dfde10818",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:11:31.826Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -7278,7 +7280,7 @@
   {
     "restaurant_id": "93adc853-0aa8-4659-8156-8e4ebe1a04ee",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:12:21.844Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -7357,7 +7359,7 @@
   {
     "restaurant_id": "d4c4f7d2-58fa-4a53-9445-8186aa2679c3",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:06:25.117Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -7436,7 +7438,7 @@
   {
     "restaurant_id": "098d725e-5667-49e2-8e22-cff5db135584",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:13:44.469Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -7515,12 +7517,12 @@
   {
     "restaurant_id": "c72bd8f7-b064-4093-8c34-3604e6b384a2",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:13:59.677Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -7559,7 +7561,7 @@
   {
     "restaurant_id": "98e778db-8630-4d49-982a-b225a72cd3d6",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:13:11.966Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -7636,7 +7638,7 @@
   {
     "restaurant_id": "f40e312b-5fca-4178-9f27-dbfe2837c721",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:08:41.793Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -7713,7 +7715,7 @@
   {
     "restaurant_id": "2fb07d2d-5065-43d4-9edf-51fe400f917d",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:08:57.460Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -7790,7 +7792,7 @@
   {
     "restaurant_id": "1f75ded4-f726-45c1-a1f3-eca4f9116e08",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:10:22.730Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -7896,7 +7898,7 @@
   {
     "restaurant_id": "c6587b6a-62bf-4202-a29b-dfe44467a4a0",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:11:15.197Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8001,12 +8003,12 @@
   {
     "restaurant_id": "8b02140e-a340-41ca-9a83-b4950016ee15",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:14:33.408Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -8045,12 +8047,12 @@
   {
     "restaurant_id": "55e49e60-2395-4b5b-ad24-6c9248e80234",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:14:17.386Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -8089,12 +8091,12 @@
   {
     "restaurant_id": "279e862d-9036-4843-9bcc-69580afe97e0",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:12:37.785Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -8133,7 +8135,7 @@
   {
     "restaurant_id": "7990f9b6-9fa0-46d4-9ec5-219d10458ecc",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:01:42.844Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8161,7 +8163,7 @@
   {
     "restaurant_id": "10049ce8-3358-425f-9dc6-543ca4a40f7c",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:02:00.449Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8189,12 +8191,12 @@
   {
     "restaurant_id": "6c692a12-c55c-45b4-8278-f960ec406e91",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:00:50.935Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -8223,7 +8225,7 @@
   {
     "restaurant_id": "6c692a12-c55c-45b4-8278-f960ec406e91",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:00:51.757Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8251,7 +8253,7 @@
   {
     "restaurant_id": "14adb9aa-a9aa-4b71-9846-41f367f98c24",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:01:08.970Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8279,12 +8281,12 @@
   {
     "restaurant_id": "f27c7fba-ecdf-4f44-a752-195d5caf9561",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:01:25.406Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -8313,7 +8315,7 @@
   {
     "restaurant_id": "f27c7fba-ecdf-4f44-a752-195d5caf9561",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:01:26.408Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8341,7 +8343,7 @@
   {
     "restaurant_id": "dad5dddb-88f0-49c3-a12c-c51c8ce659b8",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:02:17.778Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8369,12 +8371,12 @@
   {
     "restaurant_id": "430213a0-efef-49bc-89b7-902328a163e3",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:02:33.902Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
-    "ui_error_message": "Se deschide mâine 09:15",
-    "final_status": "closed",
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
+    "ui_error_message": null,
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -8406,7 +8408,7 @@
   {
     "restaurant_id": "430213a0-efef-49bc-89b7-902328a163e3",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:02:34.854Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8434,7 +8436,7 @@
   {
     "restaurant_id": "9df5b824-8e4e-4ac2-b54f-1459417ed9b7",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:02:51.394Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8462,7 +8464,7 @@
   {
     "restaurant_id": "5de3d519-c566-4e04-9129-770dcb72b5fa",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:03:07.461Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8490,7 +8492,7 @@
   {
     "restaurant_id": "18154536-07e1-47bd-9cbf-af01830aecee",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:03:23.710Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8518,7 +8520,7 @@
   {
     "restaurant_id": "c31eb332-e506-4461-af39-bcff1e3664c7",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:03:39.799Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8555,7 +8557,7 @@
   {
     "restaurant_id": "c31eb332-e506-4461-af39-bcff1e3664c7",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:03:40.490Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8583,7 +8585,7 @@
   {
     "restaurant_id": "bdacab4f-9150-495e-ba53-9ce470ce4da7",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:03:57.362Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8611,12 +8613,12 @@
   {
     "restaurant_id": "95aedaf8-fc3e-4999-addf-992367d0735d",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:04:32.101Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -8645,7 +8647,7 @@
   {
     "restaurant_id": "95aedaf8-fc3e-4999-addf-992367d0735d",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:04:33.968Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8673,7 +8675,7 @@
   {
     "restaurant_id": "ae9a969c-e80f-4cbe-ac5c-7069c97e222a",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:05:26.724Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8701,7 +8703,7 @@
   {
     "restaurant_id": "69a72aab-1549-4672-be7e-61cedad02c4e",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:05:09.239Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8729,7 +8731,7 @@
   {
     "restaurant_id": "ff89718b-d1d7-4b54-b67e-4bc50b5ea80f",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:05:42.447Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8757,7 +8759,7 @@
   {
     "restaurant_id": "fb9b4059-35c7-4387-b927-7513c807140e",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:05:58.672Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8785,7 +8787,7 @@
   {
     "restaurant_id": "8691a9d3-9197-4602-94fd-7bd7e042ca23",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:06:15.908Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8813,12 +8815,12 @@
   {
     "restaurant_id": "d4c4f7d2-58fa-4a53-9445-8186aa2679c3",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:06:31.562Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -8847,7 +8849,7 @@
   {
     "restaurant_id": "d4c4f7d2-58fa-4a53-9445-8186aa2679c3",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:06:32.457Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8875,7 +8877,7 @@
   {
     "restaurant_id": "d22a3ec7-f23b-4711-a069-45d42197c7e5",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:07:39.982Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8903,7 +8905,7 @@
   {
     "restaurant_id": "e3a2c0c3-654d-4c52-8d6e-1dfa2ba9ab36",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:06:50.007Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8931,7 +8933,7 @@
   {
     "restaurant_id": "67aec385-594f-4e25-bd29-d67552b95ca4",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:07:06.125Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8959,7 +8961,7 @@
   {
     "restaurant_id": "fd6651a5-0fdb-405f-84e6-a5e84a6d3eab",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:07:23.846Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -8987,7 +8989,7 @@
   {
     "restaurant_id": "758d0120-d3b4-4c5c-9baf-f6dcc52c615e",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:07:56.645Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -9015,7 +9017,7 @@
   {
     "restaurant_id": "2fb07d2d-5065-43d4-9edf-51fe400f917d",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:09:04.860Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -9043,7 +9045,7 @@
   {
     "restaurant_id": "adaa67f8-deac-4e50-8cc3-13f62b8e1d1b",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:09:22.539Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -9071,7 +9073,7 @@
   {
     "restaurant_id": "038c6b5c-f730-43d9-954f-7d672c5363b1",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:09:55.119Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -9099,7 +9101,7 @@
   {
     "restaurant_id": "19464d1f-b271-43c5-a0d1-06b1a7282bd5",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:10:04.380Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -9178,7 +9180,7 @@
   {
     "restaurant_id": "19464d1f-b271-43c5-a0d1-06b1a7282bd5",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:10:11.954Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -9206,7 +9208,7 @@
   {
     "restaurant_id": "1f75ded4-f726-45c1-a1f3-eca4f9116e08",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:10:31.279Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -9234,7 +9236,7 @@
   {
     "restaurant_id": "81539556-80ec-4fa5-9401-4fc6e0b30bdb",
     "platform": "glovo",
-    "checked_at": "2026-11-03T17:10:41.750Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -9337,7 +9339,7 @@
   {
     "restaurant_id": "81539556-80ec-4fa5-9401-4fc6e0b30bdb",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:10:49.126Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -9365,7 +9367,7 @@
   {
     "restaurant_id": "dfc3d38a-6141-4cef-9e27-c09dfde10818",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:11:39.705Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -9393,7 +9395,7 @@
   {
     "restaurant_id": "65b29088-bd75-4ed0-86b5-5fadc79cf19e",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:11:56.201Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -9421,7 +9423,7 @@
   {
     "restaurant_id": "9d3e94fb-113c-4178-9779-ea8424588f2d",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:12:13.119Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -9449,7 +9451,7 @@
   {
     "restaurant_id": "93adc853-0aa8-4659-8156-8e4ebe1a04ee",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:12:29.808Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -9477,7 +9479,7 @@
   {
     "restaurant_id": "55e49e60-2395-4b5b-ad24-6c9248e80234",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:14:25.369Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -9505,7 +9507,7 @@
   {
     "restaurant_id": "279e862d-9036-4843-9bcc-69580afe97e0",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:12:46.800Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -9533,7 +9535,7 @@
   {
     "restaurant_id": "98e778db-8630-4d49-982a-b225a72cd3d6",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:13:19.687Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -9561,12 +9563,12 @@
   {
     "restaurant_id": "07734cfe-cde6-42ab-8887-6d00882ed970",
     "platform": "wolt",
-    "checked_at": "2026-11-03T17:13:35.232Z",
-    "ui_is_open": false,
-    "ui_can_order": false,
-    "ui_is_greyed": true,
+    "checked_at": "2026-11-04T11:13:29.805Z",
+    "ui_is_open": true,
+    "ui_can_order": true,
+    "ui_is_greyed": false,
     "ui_error_message": null,
-    "final_status": "unavailable",
+    "final_status": "available",
     "missing_products": [],
     "disabled_categories": [],
     "raw_data": {
@@ -9595,7 +9597,7 @@
   {
     "restaurant_id": "07734cfe-cde6-42ab-8887-6d00882ed970",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:13:36.083Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -9623,7 +9625,7 @@
   {
     "restaurant_id": "098d725e-5667-49e2-8e22-cff5db135584",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:13:51.839Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -9651,7 +9653,7 @@
   {
     "restaurant_id": "c72bd8f7-b064-4093-8c34-3604e6b384a2",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:14:08.768Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,
@@ -9679,7 +9681,7 @@
   {
     "restaurant_id": "8b02140e-a340-41ca-9a83-b4950016ee15",
     "platform": "bolt",
-    "checked_at": "2026-11-03T17:14:41.095Z",
+    "checked_at": "2026-11-04T11:13:29.805Z",
     "ui_is_open": true,
     "ui_can_order": true,
     "ui_is_greyed": false,

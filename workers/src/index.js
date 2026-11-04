@@ -383,75 +383,13 @@ console.log('Next check will run at the next scheduled hour (11:00, 13:00, 17:00
 // Daily summary cron preserved below...
 // (Skipping integration with the new module here since new module handles atomic incidents, not daily aggregates yet)
 
-// ─── Competitive Intelligence: zilnic la 10:15 (în afara pauzei 22:00-10:00) ───
-const competitorScraper = new CompetitorScraper()
-cron.schedule('15 10 * * *', async () => {
-    if (!isWithinActiveHours()) return
-    console.log('\n🔍 [CRON] Starting daily competitive intelligence scan...')
-    try {
-        await competitorScraper.runAllSearches()
-        console.log('✅ [CRON] Competitive scan complete')
-    } catch (err) {
-        console.error('❌ [CRON] Competitive scan error:', err.message)
-    }
-})
+// ─── Competitive Intelligence & Dynamic Stop Scan: DEZACTIVATE AUTOMAT (pentru a nu bloca Disk IO și tabelele în Supabase) ───
+// Scanările de concurență și regulile dinamice se rulează doar la cerere manuală.
 
-// ─── BRAND REPUTATION: DEZACTIVAT ───
-// Glovo/Wolt portale necesită autentificare manuală — scraping-ul automat nu funcționează.
-// De reactivat dacă se implementează cookie-based session sau API oficial.
-
-// ─── DYNAMIC STOP SCAN SCHEDULER (Verificare Produse) ───
-cron.schedule('* * * * *', async () => {
-    // Oprit complet între 22:00 și 10:00 (fără interogări Supabase noaptea)
-    if (!isWithinActiveHours()) return
-    try {
-        const now = new Date()
-        const currentHHMM = now.toTimeString().slice(0, 5) // "14:15"
-        
-        // Fetch rules that match the current time
-        const { data: rules, error } = await supabase
-            .from('stop_scan_rules')
-            .select('*')
-            .eq('is_active', true)
-            .eq('schedule_time', currentHHMM)
-
-        if (error || !rules || rules.length === 0) return
-
-        for (const rule of rules) {
-            console.log(`\n⏰ [SCHEDULER] Triggering rule "${rule.name}" for time ${currentHHMM}`)
-            
-            // Build query based on scope
-            let query = supabase.from('restaurants').select('id, name, city, brand_id, wolt_url, glovo_url, bolt_url, brands(name, logo_url)').eq('is_active', true)
-            
-            if (rule.scope_type === 'brand' && rule.brand_ids?.length) {
-                query = query.in('brand_id', rule.brand_ids)
-            } else if (rule.scope_type === 'restaurant' && rule.restaurant_ids?.length) {
-                query = query.in('id', rule.restaurant_ids)
-            }
-            
-            const { data: restaurants } = await query
-            if (!restaurants || restaurants.length === 0) {
-                console.log(`  [SCHEDULER] No active restaurants matched rule "${rule.name}"`)
-                continue
-            }
-            
-            console.log(`  [SCHEDULER] Scanning ${restaurants.length} restaurants...`)
-            for (const restaurant of restaurants) {
-                await ownBrandScraper.scrapeRestaurant(restaurant)
-            }
-        }
-    } catch (err) {
-        console.error('❌ [SCHEDULER] Error processing dynamic stop_scan_rules:', err.message)
-    }
-})
-
-
-// ─── ANTIGRAVITY SPRINT 4: MAIN TELEGRAM NOTIFIER LOOP ───
-// Triggers the generalized notification engine to look for new aggregator_incidents
-cron.schedule('*/3 * * * *', async () => {
+// ─── ANTIGRAVITY SPRINT 4: MAIN TELEGRAM NOTIFIER LOOP (la 15 minute, doar 10:00 - 22:00) ───
+cron.schedule('*/15 * * * *', async () => {
     // Oprit complet între 22:00 și 10:00 (0 trafic noaptea)
     if (!isWithinActiveHours()) return
-    console.log('\n🔔 [SCHEDULER] Running Antigravity Telegram processAndNotify...')
     try {
         await processAndNotify()
     } catch (e) {
