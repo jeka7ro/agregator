@@ -16,7 +16,10 @@ import {
   User,
   CheckCircle2,
   AlertTriangle,
-  ShieldAlert
+  ShieldAlert,
+  Maximize2,
+  Minimize2,
+  LocateFixed
 } from 'lucide-react'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
@@ -774,6 +777,7 @@ export default function CouriersMap() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedOrderId, setSelectedOrderId] = useState(null)
   const [modalOrder, setModalOrder] = useState(null)
+  const [isMapFullscreen, setIsMapFullscreen] = useState(false)
 
   const [isBrandPickerOpen, setIsBrandPickerOpen] = useState(false)
   const brandPickerRef = useRef(null)
@@ -1165,6 +1169,40 @@ export default function CouriersMap() {
       leafletMapRef.current.flyTo([c.lat, c.lng], c.zoom, { duration: 0.8 })
     }
   }, [selectedCity])
+
+  const recenterMainMap = () => {
+    if (!leafletMapRef.current) return
+    leafletMapRef.current.invalidateSize()
+    if (selectedCity !== 'all' && CITY_COORDS[selectedCity]) {
+      const c = CITY_COORDS[selectedCity]
+      leafletMapRef.current.flyTo([c.lat, c.lng], c.zoom, { duration: 0.5 })
+    } else {
+      leafletMapRef.current.flyTo([ROMANIA_CENTER.lat, ROMANIA_CENTER.lng], ROMANIA_CENTER.zoom, { duration: 0.5 })
+    }
+  }
+
+  useEffect(() => {
+    if (!leafletMapRef.current) return
+    const t1 = setTimeout(() => {
+      if (leafletMapRef.current) leafletMapRef.current.invalidateSize()
+    }, 60)
+    const t2 = setTimeout(() => {
+      if (leafletMapRef.current) leafletMapRef.current.invalidateSize()
+    }, 240)
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+    }
+  }, [isMapFullscreen])
+
+  useEffect(() => {
+    if (!isMapFullscreen) return
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') setIsMapFullscreen(false)
+    }
+    window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [isMapFullscreen])
 
   // Randare pini și trasee stradale pe hartă
   useEffect(() => {
@@ -1771,63 +1809,121 @@ export default function CouriersMap() {
           })}
         </div>
 
-        {/* Căutare rapidă pe același rând */}
-        <div className="relative w-56 shrink-0">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
-          <input
-            type="text"
-            placeholder={ui.searchPlaceholder}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={`w-full pl-8 pr-7 py-1 text-[11px] font-medium rounded-full border outline-none ${
-              isDark
-                ? 'bg-slate-900 border-slate-800 text-white placeholder-slate-500 focus:border-emerald-500'
-                : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-emerald-500'
+        {/* Căutare rapidă + Buton Fullscreen pe același rând */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="relative w-56 shrink-0">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+            <input
+              type="text"
+              placeholder={ui.searchPlaceholder}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={`w-full pl-8 pr-7 py-1 text-[11px] font-medium rounded-full border outline-none ${
+                isDark
+                  ? 'bg-slate-900 border-slate-800 text-white placeholder-slate-500 focus:border-emerald-500'
+                  : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-emerald-500'
+              }`}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsMapFullscreen(prev => !prev)}
+            className={`px-3 py-1 rounded-full text-[11px] font-extrabold border inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shrink-0 ${
+              isMapFullscreen
+                ? 'bg-rose-600 hover:bg-rose-700 border-rose-500 text-white'
+                : isDark
+                  ? 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-emerald-400'
+                  : 'bg-white hover:bg-slate-50 border-slate-200 text-emerald-600 shadow-2xs'
             }`}
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            >
-              <X size={12} />
-            </button>
-          )}
+          >
+            {isMapFullscreen ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+            <span>{isMapFullscreen ? (language === 'ru' ? 'Свернуть карту' : language === 'en' ? 'Exit Fullscreen' : 'Ieșire Fullscreen') : 'Fullscreen'}</span>
+          </button>
         </div>
       </div>
 
       {/* ─── 4. SPLIT VIEW: HARTA INTERACTIVĂ (STÂNGA) + LISTA CURIERI LIVE (DREAPTA) ─── */}
+      {isMapFullscreen && (
+        <div
+          className="fixed inset-0 z-[9985] bg-slate-950/75 backdrop-blur-xs"
+          onClick={() => setIsMapFullscreen(false)}
+        />
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         {/* Harta Leaflet */}
-        <div className={`lg:col-span-8 rounded-2xl border overflow-hidden relative min-h-[540px] flex flex-col ${
+        <div className={`${
+          isMapFullscreen
+            ? 'fixed inset-3 sm:inset-5 z-[9990] shadow-2xl'
+            : 'lg:col-span-8 min-h-[540px]'
+        } rounded-2xl border overflow-hidden relative flex flex-col ${
           isDark ? 'bg-slate-900 border-slate-800 couriers-map-dark' : 'bg-white border-slate-200 shadow-xs'
         }`}>
           <div ref={mapContainerRef} className="w-full flex-1 min-h-[540px] z-10" />
 
-          {/* Buton flotant când o singură comandă este izolată pe hartă */}
-          {selectedOrderId && (() => {
-            const selOrd = filteredDeliveries.find(o => o.id === selectedOrderId) || deliveryOrders.find(o => o.id === selectedOrderId)
-            if (!selOrd) return null
-            return (
-              <div className={`absolute top-3 right-3 z-20 px-3 py-1.5 rounded-xl border backdrop-blur-md text-xs flex items-center gap-2.5 shadow-lg ${
-                isDark ? 'bg-slate-900/95 border-emerald-500/50 text-white' : 'bg-white/95 border-emerald-500/50 text-slate-900'
-              }`}>
-                <span className="font-bold text-slate-500 dark:text-slate-300">
-                  {ui.selectedOrderBadge}
-                </span>
-                <span className="font-mono font-black text-emerald-500">
-                  {getCleanOrderNumber(selOrd)}
-                </span>
-                <button
-                  onClick={() => setSelectedOrderId(null)}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
-                >
-                  <X size={12} />
-                  <span>{ui.showAllOrdersBtn} ({filteredDeliveries.length})</span>
-                </button>
-              </div>
-            )
-          })()}
+          {/* Controale Flotante Dreapta-Sus pe Hartă: Izolare Comandă + Recentrare + Fullscreen */}
+          <div className="absolute top-3 right-3 z-20 flex items-center gap-2 flex-wrap justify-end">
+            {selectedOrderId && (() => {
+              const selOrd = filteredDeliveries.find(o => o.id === selectedOrderId) || deliveryOrders.find(o => o.id === selectedOrderId)
+              if (!selOrd) return null
+              return (
+                <div className={`px-3 py-1.5 rounded-xl border backdrop-blur-md text-xs flex items-center gap-2.5 shadow-lg ${
+                  isDark ? 'bg-slate-900/95 border-emerald-500/50 text-white' : 'bg-white/95 border-emerald-500/50 text-slate-900'
+                }`}>
+                  <span className="font-bold text-slate-500 dark:text-slate-300">
+                    {ui.selectedOrderBadge}
+                  </span>
+                  <span className="font-mono font-black text-emerald-500">
+                    {getCleanOrderNumber(selOrd)}
+                  </span>
+                  <button
+                    onClick={() => setSelectedOrderId(null)}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <X size={12} />
+                    <span>{ui.showAllOrdersBtn} ({filteredDeliveries.length})</span>
+                  </button>
+                </div>
+              )
+            })()}
+
+            <button
+              type="button"
+              onClick={recenterMainMap}
+              title={language === 'ru' ? 'Центрировать карту' : language === 'en' ? 'Recenter Map' : 'Recentrează Harta'}
+              className={`p-2 rounded-xl border backdrop-blur-md shadow-lg cursor-pointer transition-colors ${
+                isDark
+                  ? 'bg-slate-900/95 hover:bg-slate-800 border-slate-700 text-slate-200'
+                  : 'bg-white/95 hover:bg-slate-100 border-slate-200 text-slate-700'
+              }`}
+            >
+              <LocateFixed size={15} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsMapFullscreen(prev => !prev)}
+              title={isMapFullscreen ? (language === 'ru' ? 'Свернуть карту (ESC)' : language === 'en' ? 'Exit Fullscreen (ESC)' : 'Ieșire Fullscreen (ESC)') : 'Fullscreen'}
+              className={`px-3 py-1.5 rounded-xl border backdrop-blur-md shadow-lg text-xs font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
+                isMapFullscreen
+                  ? 'bg-rose-600 hover:bg-rose-700 border-rose-500 text-white'
+                  : isDark
+                    ? 'bg-slate-900/95 hover:bg-slate-800 border-slate-700 text-white'
+                    : 'bg-white/95 hover:bg-slate-100 border-slate-200 text-slate-800'
+              }`}
+            >
+              {isMapFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+              <span>{isMapFullscreen ? (language === 'ru' ? 'Закрыть (ESC)' : language === 'en' ? 'Close (ESC)' : 'Închide (ESC)') : 'Fullscreen'}</span>
+            </button>
+          </div>
 
           {/* Legendă flotantă pe hartă (Pini + Traseu Verde Parcurs vs. Roșu Rămas) */}
           <div className={`absolute bottom-3 left-3 z-20 px-3 py-2 rounded-xl border backdrop-blur-md text-[11px] flex flex-wrap items-center gap-3 ${
