@@ -7,7 +7,6 @@ import { useLiveChecks } from '../hooks/useLiveChecks'
 import { BUILD_INFO } from '../lib/buildInfo'
 import LanguageToggle from '../components/LanguageToggle'
 import AppLogo from '../components/AppLogo'
-import LogoSelectorModal from '../components/LogoSelectorModal'
 import UserAvatar from '../components/UserAvatar'
 import UserProfileModal from '../components/UserProfileModal'
 import { 
@@ -39,14 +38,6 @@ export default function MainLayout() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const [logoVariant, setLogoVariant] = useState(() => {
-    try {
-      return localStorage.getItem('app_logo_variant') || 'radar'
-    } catch (_) {
-      return 'radar'
-    }
-  })
-  const [isLogoModalOpen, setIsLogoModalOpen] = useState(false)
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const userMenuRef = useRef(null)
@@ -81,13 +72,6 @@ export default function MainLayout() {
       } catch (_) {}
       return next
     })
-  }
-
-  const handleSelectLogo = (variant) => {
-    setLogoVariant(variant)
-    try {
-      localStorage.setItem('app_logo_variant', variant)
-    } catch (_) {}
   }
 
   const allNavItems = [
@@ -145,11 +129,11 @@ export default function MainLayout() {
             isDark ? 'border-slate-800' : 'border-slate-200'
           }`}>
             <AppLogo
-              variant={logoVariant}
+              variant="radar"
               size={isSidebarCollapsed ? 32 : 36}
               showText={!isSidebarCollapsed}
               isDark={isDark}
-              onClick={() => setIsLogoModalOpen(true)}
+              onClick={() => navigate(navItems[0]?.path || '/dashboard')}
             />
           </div>
 
@@ -409,15 +393,6 @@ export default function MainLayout() {
           <Outlet />
         </div>
       </main>
-
-      {/* Modal alegere Logo Reprezentativ */}
-      <LogoSelectorModal
-        isOpen={isLogoModalOpen}
-        onClose={() => setIsLogoModalOpen(false)}
-        selectedLogo={logoVariant}
-        onSelectLogo={handleSelectLogo}
-        isDark={isDark}
-      />
 
       {/* Modal Editare Profil, Poză Avatar & Schimbare Parolă */}
       <UserProfileModal

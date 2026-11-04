@@ -356,8 +356,7 @@ export default function AppLogo({
   return (
     <div 
       onClick={onClick}
-      className={`flex items-center gap-3 select-none ${onClick ? 'cursor-pointer group' : ''} ${className}`}
-      title={onClick ? 'Click pentru a alege un alt logo' : undefined}
+      className={`flex items-center gap-3 select-none ${onClick ? 'cursor-pointer' : ''} ${className}`}
     >
       <LogoIcon variant={variant} size={size} />
 
@@ -367,11 +366,6 @@ export default function AppLogo({
             <h1 className={`text-sm font-black tracking-tight leading-none uppercase truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
               MONITORING <span className="text-emerald-500 font-black">2.0</span>
             </h1>
-            {onClick && (
-              <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[9px] px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
-                Alege
-              </span>
-            )}
           </div>
           <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-1 truncate">
             OPERATIONS SUITE
