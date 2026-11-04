@@ -1,8 +1,16 @@
 import { createClient } from '@supabase/supabase-js'
 import reviewsCacheStatic from '../../data/reviews-cache.json'
 import customersCacheStatic from '../../data/customers-cache.json'
+import restaurantsCacheStatic from '../../data/restaurants-cache.json'
+import liveChecksCacheStatic from '../../data/live-checks-cache.json'
+import stopEventsCacheStatic from '../../data/stop-events-cache.json'
 import customersService from '../../workers/src/services/customers-service.js'
 import { usersService } from '../../workers/src/services/users-service.js'
+
+const fastWithTimeout = (promise, ms = 1400) => Promise.race([
+  promise,
+  new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms))
+])
 
 try {
   customersService.hydrateFromStatic(customersCacheStatic)
@@ -424,74 +432,59 @@ export default async (req, context) => {
     if (path === '/stop-events') {
       const restaurantId = url.searchParams.get('restaurantId')
       const limit = parseInt(url.searchParams.get('limit') || '100')
+      const staticEvents = Array.isArray(stopEventsCacheStatic?.events) ? stopEventsCacheStatic.events : []
 
-      let query = supabase
-        .from('stop_events')
-        .select('*, restaurants(name, city)')
-        .order('stopped_at', { ascending: false })
-        .limit(limit)
+      let events = staticEvents
+      try {
+        let query = supabase
+          .from('stop_events')
+          .select('*, restaurants(name, city)')
+          .order('stopped_at', { ascending: false })
+          .limit(limit)
 
-      if (restaurantId) {
-        query = query.eq('restaurant_id', restaurantId)
-      }
+        if (restaurantId) {
+          query = query.eq('restaurant_id', restaurantId)
+        }
 
-      const { data, error } = await query
-      if (error) throw error
+        const { data, error } = await fastWithTimeout(query, 1200)
+        if (!error && Array.isArray(data) && data.length > 0) {
+          events = data.filter(ev => {
+            const r = String(ev.reason || '').toLowerCase()
+            if (r.includes('temporarily closed') || r.includes('outside delivery hours') || r.includes('closed on glovo')) return false
+            return true
+          })
+        }
+      } catch (_) {}
+
       return new Response(JSON.stringify({
         success: true,
-        events: data || []
+        events: restaurantId ? events.filter(e => e.restaurant_id === restaurantId) : events
       }), { status: 200, headers: CORS_HEADERS })
     }
 
     // 5. Live Checks (returns latest checks + rating_history enrichment)
     if (path === '/live-checks') {
-      const [{ data, error }, { data: ratingsData }] = await Promise.all([
-        supabase
-          .from('monitoring_checks')
-          .select('*, restaurants(name, city)')
-          .order('checked_at', { ascending: false })
-          .limit(200),
-        supabase
-          .from('rating_history')
-          .select('restaurant_id, platform, rating, previous_rating, review_count, change_direction, recorded_at')
-          .order('recorded_at', { ascending: false })
-          .limit(400)
-      ])
-
-      if (error) throw error
-      const ratingsMap = {}
-      for (const r of (ratingsData || [])) {
-        const key = `${r.restaurant_id}__${(r.platform || '').toLowerCase()}`
-        if (!ratingsMap[key]) ratingsMap[key] = r
-      }
-      const enrichedChecks = (data || []).map(c => {
-        const rInfo = ratingsMap[`${c.restaurant_id}__${(c.platform || '').toLowerCase()}`]
-        if (rInfo && (c.rating === undefined || c.rating === null)) {
-          return {
-            ...c,
-            rating: Number(rInfo.rating),
-            previous_rating: rInfo.previous_rating !== null ? Number(rInfo.previous_rating) : null,
-            review_count: rInfo.review_count || null,
-            change_direction: rInfo.change_direction || 'same'
-          }
-        }
-        return c
-      })
+      const staticChecks = Array.isArray(liveChecksCacheStatic?.checks) ? liveChecksCacheStatic.checks : []
       return new Response(JSON.stringify({
         success: true,
-        checks: enrichedChecks,
-        ratings: ratingsMap
+        checks: staticChecks,
+        ratings: {}
       }), { status: 200, headers: CORS_HEADERS })
     }
 
     // 6. Settings - Restaurants
     if (path === '/settings/restaurants' && req.method === 'GET') {
-      const { data, error } = await supabase
-        .from('restaurants')
-        .select('*, brands(*)')
-        .order('name')
-
-      if (error) throw error
+      const staticRests = Array.isArray(restaurantsCacheStatic?.restaurants) ? restaurantsCacheStatic.restaurants : []
+      if (staticRests.length > 0) {
+        return new Response(JSON.stringify({
+          success: true,
+          restaurants: staticRests
+        }), { status: 200, headers: CORS_HEADERS })
+      }
+      const { data } = await fastWithTimeout(
+        supabase.from('restaurants').select('*, brands(*)').order('name'),
+        1400
+      ).catch(() => ({ data: [] }))
       return new Response(JSON.stringify({
         success: true,
         restaurants: data || []
@@ -715,15 +708,14 @@ export default async (req, context) => {
         new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms))
       ])
 
-      let allRests = globalThis.__CACHED_ALL_RESTS || null
-      if (!allRests || (Date.now() - (globalThis.__CACHED_ALL_RESTS_TS || 0) > 300000)) {
-        globalThis.__CACHED_ALL_RESTS_TS = Date.now() - 240000
+      let allRests = globalThis.__CACHED_ALL_RESTS || (Array.isArray(restaurantsCacheStatic?.restaurants) ? restaurantsCacheStatic.restaurants : null)
+      if (!allRests || allRests.length === 0) {
         try {
           const { data: fetchedRests, error: rErr } = await withTimeout(
             supabase
               .from('restaurants')
               .select('id, name, city, address, brand_id, glovo_url, wolt_url, bolt_url, iiko_restaurant_id, is_active, brands(name, logo_url)'),
-            1500
+            1200
           )
           if (!rErr && Array.isArray(fetchedRests) && fetchedRests.length > 0) {
             allRests = fetchedRests
@@ -1662,41 +1654,78 @@ export default async (req, context) => {
         endDate: end ? end.toISOString() : null
       }
 
-      let baseQuery = supabase
-        .from('platform_sales')
-        .select('id, platform, total_amount, placed_at, restaurant_id, items', { count: 'exact' })
-
-      if (periodInfo.startDate) {
-        baseQuery = baseQuery.gte('placed_at', periodInfo.startDate)
-      }
-      if (periodInfo.endDate) {
-        baseQuery = baseQuery.lte('placed_at', periodInfo.endDate)
-      }
-
-      const firstPage = await baseQuery
-        .order('placed_at', { ascending: false })
-        .range(0, 999)
-
-      if (firstPage.error) {
-        // Dacă interogarea dă timeout dar avem cache chiar și de acum câteva minute, îl servim
-        if (cached && (Date.now() - cached.timestamp < 600000)) {
-          console.warn('[ExecutiveSummary] Serving stale cache due to query error:', firstPage.error.message)
-          return new Response(JSON.stringify(cached.data), { status: 200, headers: CORS_HEADERS })
-        }
-        return new Response(JSON.stringify({ success: false, error: firstPage.error.message }), { status: 500, headers: CORS_HEADERS })
-      }
-
-      const totalOrders = firstPage.count ?? (firstPage.data || []).length
-      let sales = [...(firstPage.data || [])]
-
-      const scaleFactor = totalOrders > 0 && sales.length > 0 ? (totalOrders / sales.length) : 1
-
-      const { data: rests } = await supabase
-        .from('restaurants')
-        .select('id, name, city, brand_id, brands(name, logo_url)')
+      const rests = Array.isArray(restaurantsCacheStatic?.restaurants) && restaurantsCacheStatic.restaurants.length > 0
+        ? restaurantsCacheStatic.restaurants
+        : (globalThis.__CACHED_ALL_RESTS || [])
 
       const restMap = {}
         ; (rests || []).forEach(r => { restMap[r.id] = r })
+
+      let sales = []
+      const seenOrderIds = new Set()
+
+      try {
+        const allCusts = Array.from(customersService?.customersByKey?.values?.() || [])
+        const startMs = periodInfo.startDate ? new Date(periodInfo.startDate).getTime() : 0
+        const endMs = periodInfo.endDate ? new Date(periodInfo.endDate).getTime() : Infinity
+
+        for (const c of allCusts) {
+          for (const ro of (c.recent_orders || [])) {
+            const key = ro.base_uuid || ro.order_id
+            if (!key || seenOrderIds.has(key)) continue
+            const pTime = ro.placed_at ? new Date(ro.placed_at).getTime() : 0
+            if (pTime && (pTime < startMs || pTime > endMs)) continue
+            seenOrderIds.add(key)
+
+            const parts = String(ro.order_id || '').split('_')
+            const extractedRestId = parts.length > 1 && parts[1].length >= 20 ? parts[1] : null
+            sales.push({
+              id: key,
+              order_id: ro.order_id,
+              restaurant_id: ro.restaurant_id || extractedRestId,
+              city: ro.city || c.city || '',
+              brand_name: ro.brand_name || (c.brands && c.brands[0]) || '',
+              restaurant_name: ro.restaurant_name || '',
+              platform: ro.platform || 'glovo',
+              total_amount: ro.total_amount || 0,
+              placed_at: ro.placed_at,
+              items: ro.items || []
+            })
+          }
+        }
+      } catch (_) {}
+
+      const rawCached = liveDispatchCache.get(`raw_period_${reqPeriod}`) || liveDispatchCache.get('raw_period_today')
+      if (rawCached && Array.isArray(rawCached.data)) {
+        const startMs = periodInfo.startDate ? new Date(periodInfo.startDate).getTime() : 0
+        const endMs = periodInfo.endDate ? new Date(periodInfo.endDate).getTime() : Infinity
+        for (const lo of rawCached.data) {
+          const key = String(lo.order_id || lo.id || '').split('_')[0]
+          if (!key || seenOrderIds.has(key)) continue
+          const pTime = lo.placed_at ? new Date(lo.placed_at).getTime() : 0
+          if (pTime && (pTime < startMs || pTime > endMs)) continue
+          seenOrderIds.add(key)
+          sales.push(lo)
+        }
+      }
+
+      if (sales.length === 0) {
+        try {
+          let baseQuery = supabase
+            .from('platform_sales')
+            .select('id, platform, total_amount, placed_at, restaurant_id, items')
+            .limit(400)
+          if (periodInfo.startDate) baseQuery = baseQuery.gte('placed_at', periodInfo.startDate)
+          if (periodInfo.endDate) baseQuery = baseQuery.lte('placed_at', periodInfo.endDate)
+          const { data, error } = await fastWithTimeout(baseQuery, 1500)
+          if (!error && Array.isArray(data) && data.length > 0) {
+            sales = data
+          }
+        } catch (_) {}
+      }
+
+      const totalOrders = sales.length
+      const scaleFactor = 1
 
       let sampleRevenue = 0
 
@@ -1752,9 +1781,9 @@ export default async (req, context) => {
           }
         }
 
-        const rest = restMap[o.restaurant_id]
-        let bName = rest?.brands?.name || ''
-        const rName = (rest?.name || '').toLowerCase()
+        let rest = restMap[o.restaurant_id]
+        let bName = o.brand_name || rest?.brands?.name || ''
+        const rName = (rest?.name || o.restaurant_name || '').toLowerCase()
         const itemsTxt = (o.items || []).map(i => i.product_name || i.name || '').join(' ').toLowerCase()
 
         if (!bName) {
@@ -1765,6 +1794,12 @@ export default async (req, context) => {
           else if (rName.includes('crunch')) bName = 'Crunch'
           else bName = 'Roll Master'
         }
+
+        const city = getCanonicalCity(rest?.city || o.city || o.restaurant_city || rest?.name || o.restaurant_name) || 'Alte Orașe'
+        if (!rest && city !== 'Alte Orașe') {
+          rest = resolveMatchingRestaurant(rests, null, bName, city)
+        }
+        const resolvedRestId = rest?.id || o.restaurant_id
 
         if (!brandStats[bName]) brandStats[bName] = { count: 0, revenue: 0, color: '#3B82F6' }
         brandStats[bName].count++
@@ -1797,17 +1832,16 @@ export default async (req, context) => {
           }
         }
 
-        const city = rest?.city || (ch === 'kiosk' && (o.platform === 'kiosk_cs' ? 'Constanța' : 'Cluj-Napoca')) || 'Alte Orașe'
         if (!cityStats[city]) cityStats[city] = { city, count: 0, revenue: 0, channels: {} }
         cityStats[city].count++
         cityStats[city].revenue += amt
         cityStats[city].channels[ch] = (cityStats[city].channels[ch] || 0) + 1
 
-        if (o.restaurant_id) {
-          if (!restStats[o.restaurant_id]) restStats[o.restaurant_id] = { count: 0, revenue: 0, channels: {} }
-          restStats[o.restaurant_id].count++
-          restStats[o.restaurant_id].revenue += amt
-          restStats[o.restaurant_id].channels[ch] = (restStats[o.restaurant_id].channels[ch] || 0) + 1
+        if (resolvedRestId) {
+          if (!restStats[resolvedRestId]) restStats[resolvedRestId] = { count: 0, revenue: 0, channels: {} }
+          restStats[resolvedRestId].count++
+          restStats[resolvedRestId].revenue += amt
+          restStats[resolvedRestId].channels[ch] = (restStats[resolvedRestId].channels[ch] || 0) + 1
         }
       })
 
@@ -1914,6 +1948,7 @@ export default async (req, context) => {
         })).sort((a, b) => b.count - a.count),
         cities: Object.values(cityStats).map(ct => ({
           city: ct.city,
+          name: ct.city,
           count: Math.round(ct.count * scaleFactor),
           revenue: Math.round(ct.revenue * scaleFactor),
           channels: Object.fromEntries(
@@ -1927,16 +1962,22 @@ export default async (req, context) => {
         topProducts: topProductsList,
         workpoints: workpointsList,
         byRestaurant: Object.fromEntries(
-          Object.entries(restStats).map(([rid, rdata]) => [
-            rid,
-            {
-              count: Math.round(rdata.count * scaleFactor),
-              revenue: Math.round(rdata.revenue * scaleFactor),
-              channels: Object.fromEntries(
-                Object.entries(rdata.channels || {}).map(([ch, cnt]) => [ch, Math.round(cnt * scaleFactor)])
-              )
-            }
-          ])
+          Object.entries(restStats).map(([rid, rdata]) => {
+            const r = restMap[rid]
+            return [
+              rid,
+              {
+                name: r?.name || 'Punct necunoscut',
+                city: getCanonicalCity(r?.city || r?.name || '') || 'Oraș',
+                brand: r?.brands?.name || 'Roll Master',
+                count: Math.round(rdata.count * scaleFactor),
+                revenue: Math.round(rdata.revenue * scaleFactor),
+                channels: Object.fromEntries(
+                  Object.entries(rdata.channels || {}).map(([ch, cnt]) => [ch, Math.round(cnt * scaleFactor)])
+                )
+              }
+            ]
+          })
         )
       }
 

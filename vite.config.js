@@ -9,7 +9,7 @@ function getBuildInfo() {
   const time = `${pad(now.getHours())}:${pad(now.getMinutes())}`
   return {
     version: '2.0',
-    buildNumber: '#249',
+    buildNumber: '#252',
     date,
     time,
     formatted: `${date} • ${time}`

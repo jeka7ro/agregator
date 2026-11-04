@@ -108,7 +108,7 @@ export function AuthProvider({ children }) {
         }
       }
     } catch (_) {}
-    return DEFAULT_ADMIN_USER
+    return null
   })
 
   const [pendingFirstLoginUser, setPendingFirstLoginUser] = useState(null)
