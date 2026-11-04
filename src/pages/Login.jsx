@@ -43,9 +43,19 @@ export default function Login() {
   // Views: 'login' | 'first_login' | 'forgot_request' | 'forgot_confirm'
   const [view, setView] = useState('login')
 
-  // Login form state
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  // Login form state (initialized from remembered credentials if saved)
+  const savedCreds = (() => {
+    try {
+      const raw = localStorage.getItem('monitoring_remember_creds')
+      return raw ? JSON.parse(raw) : null
+    } catch (_) {
+      return null
+    }
+  })()
+
+  const [email, setEmail] = useState(savedCreds?.email || '')
+  const [password, setPassword] = useState(savedCreds?.password || '')
+  const [rememberMe, setRememberMe] = useState(savedCreds ? Boolean(savedCreds.rememberMe) : true)
   const [showPass, setShowPass] = useState(false)
 
   // First login form state
@@ -83,6 +93,23 @@ export default function Login() {
     }
   }, [user, pendingFirstLoginUser, navigate])
 
+  const persistRememberedCredentials = (targetEmail, targetPassword, shouldRemember = rememberMe) => {
+    try {
+      if (shouldRemember && targetEmail && targetPassword) {
+        localStorage.setItem(
+          'monitoring_remember_creds',
+          JSON.stringify({
+            email: targetEmail.trim(),
+            password: targetPassword,
+            rememberMe: true
+          })
+        )
+      } else {
+        localStorage.removeItem('monitoring_remember_creds')
+      }
+    } catch (_) {}
+  }
+
   const handleLoginSubmit = async (e) => {
     e.preventDefault()
     setFeedback(null)
@@ -96,6 +123,7 @@ export default function Login() {
     setLoading(true)
     try {
       const res = await login(email.trim(), password)
+      persistRememberedCredentials(email.trim(), password, rememberMe)
       if (res.mustChangePassword) {
         setView('first_login')
         setFeedback({
@@ -137,14 +165,16 @@ export default function Login() {
     }
     setLoading(true)
     try {
+      const targetEmail = pendingFirstLoginUser?.email || email
       await completeFirstLogin({
         userId: pendingFirstLoginUser?.id,
-        email: pendingFirstLoginUser?.email || email,
+        email: targetEmail,
         newPassword: newPassword.trim(),
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         avatarUrl
       })
+      persistRememberedCredentials(targetEmail, newPassword.trim(), rememberMe)
     } catch (err) {
       setFeedback({ type: 'error', text: err.message })
     } finally {
@@ -215,6 +245,7 @@ export default function Login() {
         code: resetCode.trim(),
         newPassword: resetNewPass.trim()
       })
+      persistRememberedCredentials(resetEmail.trim(), resetNewPass.trim(), rememberMe)
     } catch (err) {
       setFeedback({ type: 'error', text: err.message })
     } finally {
@@ -308,15 +339,18 @@ export default function Login() {
                 </p>
               </div>
 
-              <form onSubmit={handleLoginSubmit} className="space-y-4">
+              <form onSubmit={handleLoginSubmit} autoComplete="on" className="space-y-4">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label htmlFor="login-email" className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
                     {tr('Adresă de Email', 'Email Address', 'Email адрес')}
                   </label>
                   <div className="relative">
                     <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
+                      id="login-email"
+                      name="email"
                       type="email"
+                      autoComplete="username email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder={tr('nume@companie.ro', 'name@company.com', 'name@company.com')}
@@ -331,7 +365,7 @@ export default function Login() {
 
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    <label htmlFor="login-password" className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
                       {tr('Parolă', 'Password', 'Пароль')}
                     </label>
                     <button
@@ -349,7 +383,10 @@ export default function Login() {
                   <div className="relative">
                     <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
+                      id="login-password"
+                      name="password"
                       type={showPass ? 'text' : 'password'}
+                      autoComplete="current-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
@@ -367,6 +404,29 @@ export default function Login() {
                       {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
                   </div>
+                </div>
+
+                {/* Remember Password Checkbox */}
+                <div className="flex items-center justify-between pt-0.5">
+                  <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => {
+                        const checked = e.target.checked
+                        setRememberMe(checked)
+                        if (!checked) {
+                          try {
+                            localStorage.removeItem('monitoring_remember_creds')
+                          } catch (_) {}
+                        }
+                      }}
+                      className="w-4 h-4 rounded accent-emerald-600 cursor-pointer"
+                    />
+                    <span>
+                      {tr('Memorează parola', 'Remember password', 'Запомнить пароль')}
+                    </span>
+                  </label>
                 </div>
 
                 {feedback && (
