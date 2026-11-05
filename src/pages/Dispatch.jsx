@@ -620,6 +620,10 @@ export default function Dispatch() {
     return baseFilteredOrders.reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0)
   }, [baseFilteredOrders])
 
+  const calculatedTodayGrossSales = useMemo(() => {
+    return baseFilteredOrders.reduce((sum, o) => sum + (Number(o.gross_amount) || Number(o.total_amount) || 0), 0)
+  }, [baseFilteredOrders])
+
   const calculatedOrdersCount = useMemo(() => {
     return baseFilteredOrders.length
   }, [baseFilteredOrders])
@@ -1256,6 +1260,11 @@ export default function Dispatch() {
             <div className={`text-lg font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
               {formatMoney(calculatedTodaySales)}
             </div>
+            {calculatedTodayGrossSales > calculatedTodaySales + 1 && (
+              <div className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5 whitespace-nowrap">
+                {formatMoney(calculatedTodayGrossSales, 0)} {language === 'ru' ? 'без учета скидки' : language === 'en' ? 'without discount' : 'fără reducere'}
+              </div>
+            )}
             <div className="text-[10px] font-bold text-slate-400 mt-0.5">
               {selectedPeriod === 'today'
                 ? t('dispatch.orders_count_today', `${calculatedOrdersCount} bonuri`, { count: calculatedOrdersCount })
@@ -1547,26 +1556,26 @@ export default function Dispatch() {
 
         {/* Tabel Comenzi */}
         <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full text-left border-collapse text-xs min-w-[960px]">
+          <table className="w-full text-left border-collapse text-xs min-w-[740px]">
             <thead>
               <tr className={`border-b text-[11px] font-bold uppercase tracking-wider select-none ${
                 isDark ? 'border-slate-800 text-slate-400 bg-slate-800/40' : 'border-slate-200 text-slate-500 bg-slate-50'
               }`}>
                 <th className="py-2 px-2 w-10 text-center">{t('dispatch.th_crt', 'Nr.')}</th>
                 <th className="py-2 px-2 w-28 whitespace-nowrap">{t('dispatch.th_order_num', 'Nr. Bon & Oră')}</th>
-                <th className="py-2 px-2 w-48 min-w-[160px] max-w-[200px]">{t('dispatch.th_brand_location', 'Brand & Punct Lucru')}</th>
-                <th className="py-2 px-2 w-24 whitespace-nowrap">{t('dispatch.th_platform', 'Canal')}</th>
-                <th className="py-2 px-2 w-44 whitespace-nowrap">{t('dispatch.th_stage_timer', 'Etapă & Cronometru')}</th>
-                <th className="py-2 px-2 w-44 min-w-[150px] max-w-[190px]">{t('dispatch.th_customer', 'Client & Adresă')}</th>
-                <th className="py-2 px-2 w-48 min-w-[160px] max-w-[200px]">{t('dispatch.th_courier', 'Curier & AWB')}</th>
-                <th className="py-2 px-2 w-28 text-right whitespace-nowrap">{t('dispatch.th_total', 'Total')}</th>
-                <th className="py-2 px-1.5 w-16 text-center whitespace-nowrap">{t('dispatch.th_actions', 'Acțiuni')}</th>
+                <th className="py-2 px-2 w-44 min-w-[145px] max-w-[185px]">{t('dispatch.th_brand_location', 'Brand & Punct Lucru')}</th>
+                <th className="py-2 px-2 w-40 min-w-[140px] max-w-[180px] whitespace-nowrap">
+                  {language === 'ru' ? 'Канал и Курьер' : language === 'en' ? 'Channel & Courier' : 'Canal & Curier'}
+                </th>
+                <th className="py-2 px-2 w-40 whitespace-nowrap">{t('dispatch.th_stage_timer', 'Etapă & Cronometru')}</th>
+                <th className="py-2 px-2 w-52 min-w-[175px] max-w-[230px]">{t('dispatch.th_customer', 'Client & Adresă')}</th>
+                <th className="py-2 px-2.5 w-24 text-right whitespace-nowrap">{t('dispatch.th_total', 'Total')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {paginatedOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400">
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
                     {t('dispatch.no_orders_found', 'Nu s-au găsit comenzi conform filtrelor selectate.')}
                   </td>
                 </tr>
@@ -1582,14 +1591,14 @@ export default function Dispatch() {
                           ? isDark ? 'bg-rose-950/20 hover:bg-rose-950/40' : 'bg-rose-50/50 hover:bg-rose-100'
                           : isDark ? 'hover:bg-slate-800/70' : 'hover:bg-slate-100/90'
                       }`}
-                      title="Apasă pentru detalii complete bon, produse și preparate"
+                      title="Apasă pentru detalii complete bon, adresă completă și produse"
                     >
                       {/* Nr. Crt. */}
                       <td className="py-2 px-2 w-10 font-semibold text-slate-400 text-center">
                         {startIndex + idx + 1}
                       </td>
 
-                      {/* Nr. Bon & Oră */}
+                      {/* Nr. Bon & Oră (2 rânduri) */}
                       <td className="py-2 px-2 w-28 whitespace-nowrap">
                         {(() => {
                           const orderDT = parseOrderDateTime(ord.placed_at || ord.created_at)
@@ -1610,7 +1619,7 @@ export default function Dispatch() {
                                   </span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-1 text-[11px] font-mono text-slate-500 dark:text-slate-400 pl-0.5">
+                              <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 pl-0.5">
                                 {orderDT.date ? (
                                   <>
                                     <span>{orderDT.date}</span>
@@ -1624,8 +1633,8 @@ export default function Dispatch() {
                         })()}
                       </td>
 
-                      {/* Brand & Locație */}
-                      <td className="py-2 px-2 w-48 min-w-[160px] max-w-[200px]">
+                      {/* Brand & Locație (2 rânduri) */}
+                      <td className="py-2 px-2 w-44 min-w-[145px] max-w-[185px]">
                         <div className="flex items-center gap-2 min-w-0">
                           <BrandAvatar brand={ord.brand_name || ord.brand} name={ord.restaurant_name} size={22} />
                           <div className="min-w-0">
@@ -1639,35 +1648,96 @@ export default function Dispatch() {
                         </div>
                       </td>
 
-                      {/* Canal / Platformă */}
-                      <td className="py-2 px-2 w-24 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          <PlatformLogo 
-                            platform={
-                              ord.channel_type === 'casierie' || ord.platform === 'casierie' || ord.platform === 'IN-STORE'
-                                ? 'casierie'
-                                : ord.channel_type === 'kiosk' || ord.platform === 'kiosk'
-                                  ? 'kiosk'
-                                  : ord.channel_type === 'own_delivery'
-                                    ? 'own'
-                                    : ord.platform
-                            } 
-                            size={18} 
-                          />
-                          <span className="font-extrabold text-slate-800 dark:text-slate-200 uppercase text-[11px] tracking-tight">
-                            {ord.channel_type === 'casierie' || ord.platform === 'casierie' || ord.platform === 'IN-STORE'
-                              ? (language === 'ru' ? 'КАССА' : language === 'en' ? 'CASHIER' : 'CASIERIE')
-                              : ord.channel_type === 'kiosk' || ord.platform === 'kiosk'
-                                ? 'KIOSK'
-                                : ord.channel_type === 'own_delivery'
-                                  ? (language === 'ru' ? 'СОБСТВ.' : language === 'en' ? 'OWN' : 'PROPRIU')
-                                  : (ord.channel_label || ord.platform)}
-                          </span>
+                      {/* Canal & Curier pe o singură coloană (maxim 2 rânduri) */}
+                      <td className="py-2 px-2 w-40 min-w-[140px] max-w-[180px]">
+                        <div className="min-w-0">
+                          {/* Rând 1: Canal + eventual link Tracking Live */}
+                          <div className="flex items-center justify-between gap-1.5 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <PlatformLogo 
+                                platform={
+                                  ord.channel_type === 'casierie' || ord.platform === 'casierie' || ord.platform === 'IN-STORE'
+                                    ? 'casierie'
+                                    : ord.channel_type === 'kiosk' || ord.platform === 'kiosk'
+                                      ? 'kiosk'
+                                      : ord.channel_type === 'own_delivery'
+                                        ? 'own'
+                                        : ord.platform
+                                } 
+                                size={15} 
+                              />
+                              <span className="font-extrabold text-slate-800 dark:text-slate-200 uppercase text-[11px] tracking-tight truncate">
+                                {ord.channel_type === 'casierie' || ord.platform === 'casierie' || ord.platform === 'IN-STORE'
+                                  ? (language === 'ru' ? 'КАССА' : language === 'en' ? 'CASHIER' : 'CASIERIE')
+                                  : ord.channel_type === 'kiosk' || ord.platform === 'kiosk'
+                                    ? 'KIOSK'
+                                    : ord.channel_type === 'own_delivery'
+                                      ? (language === 'ru' ? 'СОБСТВ.' : language === 'en' ? 'OWN' : 'PROPRIU')
+                                      : (ord.channel_label || ord.platform)}
+                              </span>
+                            </div>
+                            {ord.courier?.trackingUrl && (
+                              <a
+                                href={ord.courier.trackingUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-[10px] font-bold text-sky-600 dark:text-sky-400 hover:underline shrink-0"
+                                title="Tracking Live Curier"
+                              >
+                                Live ↗
+                              </a>
+                            )}
+                          </div>
+
+                          {/* Rând 2: Curier pe o singură linie trunchiată */}
+                          <div className="mt-0.5 truncate text-[10px]">
+                            {ord.channel_type === 'kiosk' || ord.platform === 'kiosk' ? (
+                              <span className="text-slate-500 dark:text-slate-400 font-medium inline-flex items-center gap-1 truncate">
+                                <Store size={10} className="shrink-0" />
+                                <span className="truncate">{t('dispatch.dine_in_only', 'Servire Restaurant')}</span>
+                              </span>
+                            ) : ord.channel_type === 'casierie' || ord.platform === 'casierie' || ord.platform === 'IN-STORE' ? (
+                              <span className="text-slate-500 dark:text-slate-400 font-medium inline-flex items-center gap-1 truncate">
+                                <Store size={10} className="shrink-0" />
+                                <span className="truncate">{t('dispatch.takeaway_pos', 'Ridicare Pe Loc')}</span>
+                              </span>
+                            ) : ord.courier ? (
+                              <div className="font-semibold text-slate-700 dark:text-slate-300 truncate flex items-center gap-1" title={`${ord.courier.name}${ord.courier.phone ? ` · ${ord.courier.phone}` : ''}`}>
+                                <Bike size={10} className="text-emerald-500 shrink-0" />
+                                <span className="truncate">
+                                  {ord.courier.name}
+                                  {ord.courier.phone
+                                    ? ` · ${gdprMasked ? maskPhone(ord.courier.phone) : ord.courier.phone}`
+                                    : (ord.courier.awb || ord.courier.orderId)
+                                      ? ` · ${ord.courier.awb || ord.courier.orderId}`
+                                      : ''}
+                                </span>
+                              </div>
+                            ) : ord.platform === 'bolt' ? (
+                              <span className="text-emerald-600 dark:text-emerald-400 font-semibold inline-flex items-center gap-1 truncate">
+                                <Bike size={10} className="shrink-0" />
+                                <span className="truncate">{t('dispatch.bolt_waiting', 'Bolt (Așteaptă curier)')}</span>
+                              </span>
+                            ) : ord.platform === 'glovo' ? (
+                              <span className="text-slate-400 truncate block" title={t('dispatch.glovo_no_data', 'Curier Glovo (Fără acces date)')}>
+                                {language === 'ru' ? 'Курьер Glovo' : language === 'en' ? 'Glovo Courier' : 'Curier Glovo'}
+                              </span>
+                            ) : ord.platform === 'wolt' ? (
+                              <span className="text-slate-400 truncate block" title={t('dispatch.wolt_no_data', 'Curier Wolt (Fără acces date)')}>
+                                {language === 'ru' ? 'Курьер Wolt' : language === 'en' ? 'Wolt Courier' : 'Curier Wolt'}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 truncate block">
+                                {t('dispatch.aggregator_courier', 'Curier Agregator')}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
 
-                      {/* Etapă & Cronometru Live */}
-                      <td className="py-2 px-2 w-44 whitespace-nowrap">
+                      {/* Etapă & Cronometru Live (2 rânduri) */}
+                      <td className="py-2 px-2 w-40 whitespace-nowrap">
                         {(() => {
                           const displayElapsed = (typeof ord.elapsed_minutes === 'number' && ord.elapsed_minutes >= 0) 
                             ? ord.elapsed_minutes 
@@ -1676,15 +1746,14 @@ export default function Dispatch() {
 
                           return (
                             <div>
-                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border shadow-xs ${stageInfo.classes}`}>
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border shadow-xs whitespace-nowrap shrink-0 ${stageInfo.classes}`}>
                                 {stageInfo.icon}
                                 <span>{stageInfo.label}</span>
                               </span>
 
-                              {/* Finalizat: durată de la primire până la predare + ora livrării. În lucru: cronometru live */}
                               {stageInfo.isFinalized ? (
-                                <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5 flex items-center gap-1">
-                                  <CheckCircle2 size={11} className="text-emerald-500 shrink-0" />
+                                <div className="text-[10.5px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5 flex items-center gap-1">
+                                  <CheckCircle2 size={10} className="text-emerald-500 shrink-0" />
                                   <span>
                                     {ord.timings?.delivered_short_time ? (
                                       <>Livrat la <b>{ord.timings.delivered_short_time}</b> · ({formatElapsed(leadTime)})</>
@@ -1710,12 +1779,12 @@ export default function Dispatch() {
                         })()}
                       </td>
 
-                      {/* Client & Adresă (GDPR Protected) */}
-                      <td className="py-2 px-2 w-44 min-w-[150px] max-w-[190px]">
+                      {/* Client & Adresă restrânsă (maxim 2 rânduri; detaliile complete se văd în modal la click) */}
+                      <td className="py-2 px-2 w-52 min-w-[175px] max-w-[230px]">
                         {ord.channel_type === 'kiosk' || ord.platform === 'kiosk' ? (
                           <div>
-                            <div className="font-bold text-purple-700 dark:text-purple-300 truncate flex items-center gap-1 text-xs">
-                              <Monitor size={12} className="text-purple-600 shrink-0" />
+                            <div className="font-bold text-slate-800 dark:text-slate-200 truncate flex items-center gap-1 text-xs">
+                              <Monitor size={12} className="text-slate-500 shrink-0" />
                               <span className="truncate">{ord.kiosk_id || ord.customer?.name || (ord.table_number ? `Masa #${ord.table_number}` : t('dispatch.channel_kiosk', 'Comandă Kiosk'))}</span>
                             </div>
                             <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium truncate">
@@ -1724,8 +1793,8 @@ export default function Dispatch() {
                           </div>
                         ) : ord.channel_type === 'casierie' || ord.platform === 'casierie' || ord.platform === 'IN-STORE' ? (
                           <div>
-                            <div className="font-bold text-blue-700 dark:text-blue-300 truncate flex items-center gap-1 text-xs">
-                              <Receipt size={12} className="text-blue-600 shrink-0" />
+                            <div className="font-bold text-slate-800 dark:text-slate-200 truncate flex items-center gap-1 text-xs">
+                              <Receipt size={12} className="text-slate-500 shrink-0" />
                               <span className="truncate">
                                 {(!ord.customer?.name || ord.customer?.name === 'Casierie (POS)' || ord.customer?.name === 'Client Casierie (POS)')
                                   ? (language === 'ru' ? 'Касса (POS)' : language === 'en' ? 'Cashier (POS)' : 'Casierie (POS)')
@@ -1744,139 +1813,57 @@ export default function Dispatch() {
                           }
                           const parsedTableAddr = parseDeliveryAddress(ord.customer?.address, language)
                           const custName = isUnmasked ? rawName : maskCustomerName(rawName)
+                          const hasRealPhone = ord.customer?.phone && !String(ord.customer.phone).includes('00000000')
                           const custPhone = isUnmasked ? ord.customer?.phone : maskPhone(ord.customer?.phone)
-                          const custAddr = isUnmasked ? parsedTableAddr.streetAddress : maskAddress(parsedTableAddr.streetAddress)
+                          const baseShortStreet = parsedTableAddr.shortStreet || parsedTableAddr.streetAddress
+                          const custAddr = isUnmasked ? baseShortStreet : maskAddress(baseShortStreet)
+                          const hasExtraDetails = Boolean(parsedTableAddr.instructions || (parsedTableAddr.buildingDetails && parsedTableAddr.buildingDetails.length > 0))
 
                           return (
-                            <div>
-                              <div className="font-bold text-slate-900 dark:text-white truncate flex items-center justify-between gap-1">
+                            <div className="min-w-0">
+                              {/* Rând 1: Nume Client + Telefon pe aceeași linie */}
+                              <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1 min-w-0 truncate">
                                 <button
                                   type="button"
                                   onClick={(e) => openCustomerDossier(ord, e)}
-                                  className="truncate text-left hover:text-sky-500 dark:hover:text-sky-400 hover:underline flex items-center gap-1 cursor-pointer"
+                                  className="truncate text-left hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer min-w-0"
                                   title={language === 'ru' ? 'Открыть досье клиента 360°' : language === 'en' ? 'Open Customer 360° Dossier' : 'Deschide Dosar Client 360°'}
                                 >
-                                  <User size={11} className="text-sky-500 shrink-0" />
+                                  <User size={11} className="text-slate-400 shrink-0" />
                                   <span className="truncate">{custName}</span>
                                 </button>
-                                {ord.customer?.phone && (
-                                  <button
-                                    onClick={(e) => toggleUnmaskRow(ord.id || ord.order_id, e)}
-                                    title={isUnmasked ? 'Mascati datele GDPR' : 'Afișați datele complete'}
-                                    className="p-0.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                                  >
-                                    {isUnmasked ? <EyeOff size={10} /> : <Eye size={10} />}
-                                  </button>
+                                {hasRealPhone && (
+                                  <span className="text-[10px] font-normal text-slate-400 dark:text-slate-500 shrink-0">
+                                    · {custPhone}
+                                  </span>
                                 )}
                               </div>
-                              {ord.customer?.phone && (
-                                <div className="text-[10px] text-slate-400 truncate flex items-center gap-1 mt-0.5 font-mono">
-                                  <Phone size={10} />
-                                  <span>{custPhone}</span>
-                                </div>
-                              )}
-                              <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5" title={isUnmasked ? parsedTableAddr.streetAddress : ''}>
-                                {custAddr || t('dispatch.delivery_courier', 'Livrare Curier')}
+
+                              {/* Rând 2: Adresă scurtă pe un singur rând (detaliile bloc/scară/apartament sunt în modal) */}
+                              <div className="text-[10.5px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5 min-w-0">
+                                <MapPin size={10} className="text-slate-400 shrink-0" />
+                                <span className="truncate">
+                                  {custAddr || t('dispatch.delivery_courier', 'Livrare Curier')}
+                                </span>
+                                {hasExtraDetails && (
+                                  <span className="text-[9px] font-semibold px-1 py-0 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0">
+                                    +detalii
+                                  </span>
+                                )}
                               </div>
-                              {isUnmasked && parsedTableAddr.instructions && (
-                                <div className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold truncate mt-0.5" title={parsedTableAddr.instructions}>
-                                  {parsedTableAddr.instructions}
-                                </div>
-                              )}
                             </div>
                           )
                         })()}
                       </td>
 
-                      {/* Curier & AWB */}
-                      <td className="py-2 px-2 w-48 min-w-[160px] max-w-[200px]">
-                        {ord.channel_type === 'kiosk' || ord.platform === 'kiosk' ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                            <Store size={10} />
-                            {t('dispatch.dine_in_only', 'Servire Restaurant')}
-                          </span>
-                        ) : ord.channel_type === 'casierie' || ord.platform === 'casierie' || ord.platform === 'IN-STORE' ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                            <Store size={10} />
-                            {t('dispatch.takeaway_pos', 'Ridicare Pe Loc')}
-                          </span>
-                        ) : ord.courier ? (
-                          <div>
-                            <div className="font-bold text-slate-900 dark:text-white truncate flex items-center gap-1">
-                              <Bike size={12} className="text-emerald-500" />
-                              <span className="truncate">{ord.courier.name}</span>
-                              {ord.platform === 'bolt' && (
-                                <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold shrink-0">Bolt</span>
-                              )}
-                            </div>
-                            {(ord.courier.awb || ord.courier.orderId) && (
-                              <div className="text-[10px] font-mono text-slate-400 truncate">
-                                AWB: {ord.courier.awb || ord.courier.orderId}
-                              </div>
-                            )}
-                            {ord.courier.trackingUrl && (
-                              <a
-                                href={ord.courier.trackingUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-1 text-[10px] font-bold text-sky-600 dark:text-sky-400 hover:underline mt-0.5"
-                              >
-                                Tracking Live ↗
-                              </a>
-                            )}
-                            {ord.courier.phone && (
-                              <div className="text-[10px] font-mono text-slate-400">
-                                {gdprMasked ? maskPhone(ord.courier.phone) : ord.courier.phone}
-                              </div>
-                            )}
-                          </div>
-                        ) : ord.platform === 'bolt' ? (
-                          <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                            <Bike size={11} />
-                            <span>{t('dispatch.bolt_waiting', 'Bolt (Așteaptă curier)')}</span>
-                          </div>
-                        ) : ord.platform === 'glovo' ? (
-                          <div className="text-[11px] text-slate-400 italic" title="Glovo nu furnizează datele de contact ale curierului prin integrarea iiko">
-                            {t('dispatch.glovo_no_data', 'Curier Glovo (Fără acces date)')}
-                          </div>
-                        ) : ord.platform === 'wolt' ? (
-                          <div className="text-[11px] text-slate-400 italic" title="Wolt nu furnizează datele de contact ale curierului prin integrarea iiko">
-                            {t('dispatch.wolt_no_data', 'Curier Wolt (Fără acces date)')}
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 italic text-[11px]">
-                            {t('dispatch.aggregator_courier', 'Curier Agregator')}
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Total */}
-                      <td className="py-2 px-2 w-28 text-right font-black text-slate-900 dark:text-white whitespace-nowrap font-mono">
+                      {/* Total (2 rânduri) */}
+                      <td className="py-2 px-2.5 w-24 text-right font-black text-slate-900 dark:text-white whitespace-nowrap">
                         <div>{formatMoney(ord.total_amount)}</div>
                         {(ord.channel_type === 'kiosk' || ord.platform === 'kiosk' || ord.payment_method) && (
-                          <div className="text-[10px] text-slate-400 font-sans font-medium uppercase mt-0.5">
+                          <div className="text-[10px] text-slate-400 font-medium uppercase mt-0.5">
                             {formatPaymentMethod(ord.payment_method, ord.is_cash, ord.is_card, language)}
                           </div>
                         )}
-                      </td>
-
-                      {/* Acțiuni */}
-                      <td className="py-2 px-1.5 w-16 text-center whitespace-nowrap">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectedOrder(ord)
-                          }}
-                          className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                            isDark 
-                              ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700' 
-                              : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
-                          }`}
-                          title="Vezi bonul de comandă complet"
-                        >
-                          <Eye size={13} />
-                        </button>
                       </td>
                     </tr>
                   )
@@ -1902,7 +1889,7 @@ export default function Dispatch() {
                 </td>
 
                 {/* Col 3: Brand & Locație - număr comenzi */}
-                <td className="py-2 px-2 w-48 min-w-[160px] max-w-[200px]">
+                <td className="py-2 px-2 w-44 min-w-[145px] max-w-[185px]">
                   <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
                     {paginatedOrders.length} {t('common.records', 'înregistrări')}
                     {totalPages > 1 && (
@@ -1913,13 +1900,13 @@ export default function Dispatch() {
                   </div>
                 </td>
 
-                {/* Col 4: Canal */}
-                <td className="py-2 px-2 w-24 whitespace-nowrap text-slate-400">
+                {/* Col 4: Canal & Curier */}
+                <td className="py-2 px-2 w-40 min-w-[140px] max-w-[180px] whitespace-nowrap text-slate-400">
                   —
                 </td>
 
                 {/* Col 5: Etapă - Breakdown */}
-                <td className="py-2 px-2 w-44 whitespace-nowrap text-xs">
+                <td className="py-2 px-2 w-40 whitespace-nowrap text-xs">
                   {(() => {
                     const inProgress = paginatedOrders.filter(o => o.stage !== 'delivered').length
                     const delivered = paginatedOrders.filter(o => o.stage === 'delivered').length
@@ -1940,33 +1927,23 @@ export default function Dispatch() {
                   })()}
                 </td>
 
-                {/* Col 6: Client */}
-                <td className="py-2 px-2 w-44 min-w-[150px] max-w-[190px] text-xs text-slate-400">
-                  —
-                </td>
-
-                {/* Col 7: Curier */}
-                <td className="py-2 px-2 w-48 min-w-[160px] max-w-[200px] text-xs text-right font-bold text-slate-500 dark:text-slate-400">
+                {/* Col 6: Client & Adresă */}
+                <td className="py-2 px-2 w-52 min-w-[175px] max-w-[230px] text-xs text-right font-bold text-slate-500 dark:text-slate-400">
                   {totalPages > 1 ? (
                     <span className="text-[11px] block">{t('dispatch.total_page', 'Total Pagină:')}</span>
-                  ) : null}
+                  ) : '—'}
                 </td>
 
-                {/* Col 8: Total sumă (RON) */}
-                <td className="py-2 px-2 w-28 text-right whitespace-nowrap">
-                  <div className="text-xs font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                {/* Col 7: Total sumă (RON) */}
+                <td className="py-2 px-2.5 w-24 text-right whitespace-nowrap">
+                  <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">
                     {formatMoney(pageTotalSales)}
                   </div>
                   {totalPages > 1 && (
-                    <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 font-mono mt-0.5" title="Total general pentru toate comenzile filtrate">
+                    <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-0.5" title="Total general pentru toate comenzile filtrate">
                       {t('dispatch.total_general', 'Gen:')} {formatMoney(filteredTotalSales)}
                     </div>
                   )}
-                </td>
-
-                {/* Col 9: Acțiuni */}
-                <td className="py-2 px-1.5 w-16 text-center text-slate-400">
-                  —
                 </td>
               </tr>
             </tfoot>

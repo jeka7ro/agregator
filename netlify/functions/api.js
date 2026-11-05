@@ -180,12 +180,55 @@ function getCanonicalCity(cityName = '') {
   return c
 }
 
+function extractBaseOrderUuid(orderId) {
+  const s = String(orderId || '').trim()
+  if (!s) return ''
+  const parts = s.split('_')
+  if (parts[0] === 'wh' && /^\d{4}-\d{2}-\d{2}$/.test(parts[1] || '')) {
+    return parts[2] || s
+  }
+  return parts[0] || s
+}
+
+function computeOrderGrossAmount(orderObj) {
+  const net = Number(orderObj?.total_amount) || 0
+  const items = Array.isArray(orderObj?.items) ? orderObj.items : []
+  const metaGross = Number(items[0]?._order_meta?.grossSum || 0)
+  if (metaGross > 0 && metaGross >= net) return metaGross
+  let sumPriceQty = 0
+  for (const it of items) {
+    const p = Number(it?.price) || 0
+    const q = Number(it?.amount || it?.quantity || 1)
+    if (p > 0) sumPriceQty += p * q
+  }
+  if (sumPriceQty > net) return Math.round(sumPriceQty * 100) / 100
+  return net
+}
+
 function detectBrandFromItems(items, rawRest) {
   const itemNames = (items || []).map(i => (i.product_name || i.name || i.title || '').trim())
   const allText = itemNames.join(' ').toLowerCase()
+  const meta = (items || [])[0]?._order_meta || {}
+  const orderTypeLower = String(meta.orderType || '').toLowerCase()
+  const conceptionLower = String(meta.conception || '').toLowerCase()
+
+  // 0. Explicit Syrve orderType suffix or brand tag
+  if (orderTypeLower.includes('_pw') || orderTypeLower.includes('poki')) {
+    return 'Poki Woki'
+  }
+  if (orderTypeLower.includes('_ls') || orderTypeLower.includes('love sushi')) {
+    return 'Love Sushi'
+  }
+  if (orderTypeLower.includes('_cr') || orderTypeLower.includes('crunch')) {
+    return 'Crunch'
+  }
 
   // 1. Explicit Syrve PW_ prefix -> Poki Woki 100%
   if (itemNames.some(n => n.startsWith('PW_') || n.toLowerCase().startsWith('pw '))) {
+    return 'Poki Woki'
+  }
+
+  if (conceptionLower.includes('poki-woki') || conceptionLower.includes('poki woki')) {
     return 'Poki Woki'
   }
 
@@ -274,6 +317,244 @@ function resolveMatchingRestaurant(allRests, rawRest, detectedBrand, canonicalCi
   })
 
   return match || rawRest
+}
+
+async function fetchLiveAndWebhookOrdersForDay(dayStr, allRests = []) {
+  if (!dayStr) return []
+  const cacheKey = `raw_syrve_day_${dayStr}`
+  if (typeof liveDispatchCache !== 'undefined') {
+    const cached = liveDispatchCache.get(cacheKey)
+    if (cached && (Date.now() - cached.timestamp < 15000) && Array.isArray(cached.data) && cached.data.length > 0) {
+      return cached.data
+    }
+  }
+
+  const withTimeout = (promise, ms) => Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms))
+  ])
+
+  const restByOrgId = {}
+    ; (allRests || []).forEach(r => {
+      if (r.iiko_restaurant_id && !restByOrgId[r.iiko_restaurant_id]) {
+        restByOrgId[r.iiko_restaurant_id] = r
+      }
+    })
+
+  const fetchSyrve = async () => {
+    globalThis.__SYRVE_TOKEN_CACHE = globalThis.__SYRVE_TOKEN_CACHE || new Map()
+    globalThis.__SYRVE_ORGS_CACHE = globalThis.__SYRVE_ORGS_CACHE || new Map()
+    const apiKey = '93a34e75123e47b897e390f31ecfa4cb'
+    const rows = []
+    try {
+      let tokenObj = globalThis.__SYRVE_TOKEN_CACHE.get(apiKey)
+      if (!tokenObj || Date.now() - tokenObj.ts > 900000) {
+        const authRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/access_token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apiLogin: apiKey })
+        }), 3000)
+        if (!authRes.ok) return []
+        const authJson = await authRes.json()
+        if (!authJson.token) return []
+        tokenObj = { token: authJson.token, ts: Date.now() }
+        globalThis.__SYRVE_TOKEN_CACHE.set(apiKey, tokenObj)
+      }
+
+      let orgs = globalThis.__SYRVE_ORGS_CACHE.get(apiKey)
+      if (!orgs) {
+        const orgRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/organizations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenObj.token}` },
+          body: JSON.stringify({})
+        }), 3000)
+        if (!orgRes.ok) return []
+        const orgJson = await orgRes.json()
+        orgs = orgJson.organizations || []
+        globalThis.__SYRVE_ORGS_CACHE.set(apiKey, orgs)
+      }
+      if (!orgs.length) return []
+
+      const orgNameById = {}
+      orgs.forEach(o => { orgNameById[o.id] = o.name || '' })
+
+      const delivRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/deliveries/by_delivery_date_and_status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenObj.token}` },
+        body: JSON.stringify({
+          organizationIds: orgs.map(o => o.id),
+          deliveryDateFrom: `${dayStr} 00:00:00.000`,
+          deliveryDateTo: `${dayStr} 23:59:59.999`
+        })
+      }), 4500)
+      if (!delivRes.ok) return []
+      const delivData = await delivRes.json()
+
+      for (const grp of (delivData.ordersByOrganizations || [])) {
+        const orgId = grp.organizationId
+        const matchedRest = restByOrgId[orgId] || null
+        const orgName = orgNameById[orgId] || matchedRest?.city || matchedRest?.name || ''
+        const cityCanon = getCanonicalCity(orgName || matchedRest?.city || matchedRest?.name || '')
+        for (const item of (grp.orders || [])) {
+          const ord = item.order
+          if (!ord) continue
+          const stLow = String(ord.status || '').toLowerCase()
+          if (stLow.includes('cancel') || stLow.includes('delet')) continue
+
+          const baseId = item.id || ord.id || `ord_${ord.number}`
+          const rawSource = (ord.sourceKey || '').toLowerCase()
+          const orderTypeName = (ord.orderType?.name || '').toLowerCase()
+          const operatorName = (ord.operator?.name || '').toLowerCase()
+          const conceptionName = (ord.conception?.name || '').toLowerCase()
+          const customerNameLower = (ord.customer?.name || '').toLowerCase()
+          const isKiosk = rawSource.includes('kiosk') || orderTypeName.includes('kiosk') || operatorName.includes('kiosk') || conceptionName.includes('kiosk') || customerNameLower.includes('kiosk')
+
+          let platform = 'casierie'
+          if (rawSource.includes('glovo') || orderTypeName.includes('glovo')) platform = 'glovo'
+          else if (rawSource.includes('wolt') || orderTypeName.includes('wolt')) platform = 'wolt'
+          else if (rawSource.includes('bolt') || orderTypeName.includes('bolt')) platform = 'bolt'
+          else if (isKiosk) platform = 'kiosk'
+          else if (orderTypeName.includes('livrare') || orderTypeName.includes('delivery')) platform = 'ecosystem'
+
+          const ds = ord.whenCreated || ord.whenClosed
+          const placedAt = ds ? new Date(ds.replace(' ', 'T') + 'Z').toISOString() : new Date().toISOString()
+
+          const rawCustName = [ord.customer?.name, ord.customer?.surname].filter(Boolean).join(' ').trim() || null
+          const custComment = ord.customer?.comment || ''
+          const phoneFromComment = custComment.match(/Phone:\s*([^;]+)/i)?.[1]?.trim() || null
+          const pickUpCode = custComment.match(/Pick Up Code:\s*([^;]+)/i)?.[1]?.trim() || null
+          const extOrderId = custComment.match(/OrderId:\s*([^;]+)/i)?.[1]?.trim() || ord.externalNumber || null
+          const courierPhoneFromComment = custComment.match(/Courier Phone:\s*([^;]+)/i)?.[1]?.trim() || null
+          const rawCourierFromComment = custComment.match(/Courier:\s*([^;]+)/i)?.[1]?.trim() || null
+          const cleanCourierFromComment = (rawCourierFromComment && !rawCourierFromComment.includes('IikoMiddleware')) ? rawCourierFromComment : null
+
+          const custPhone = ord.phone || ord.customer?.phone || phoneFromComment || null
+          const custAddress = ord.deliveryPoint?.comment || ord.deliveryPoint?.address?.line1 || ord.deliveryPoint?.address?.street?.name || null
+          const rawCourierObj = ord.courierInfo?.courier || null
+          const courierName = rawCourierObj?.name || cleanCourierFromComment || null
+          const courierPhone = rawCourierObj?.phone || courierPhoneFromComment || null
+
+          const extractedCourier = courierName ? {
+            name: courierName,
+            phone: courierPhone || '',
+            company: platform === 'glovo' ? 'Glovo' : platform === 'wolt' ? 'Wolt' : platform === 'bolt' ? 'Bolt Food' : 'Livrator Propriu',
+            isManual: Boolean(ord.courierInfo?.isCourierSelectedManually)
+          } : null
+
+          const extractedCustomer = (rawCustName || custPhone || custAddress) ? {
+            name: rawCustName || 'Client',
+            phone: custPhone,
+            address: custAddress,
+            pickUpCode,
+            externalOrderId: extOrderId
+          } : null
+
+          const extractedTimings = {
+            whenCreated: ord.whenCreated || null,
+            whenConfirmed: ord.whenConfirmed || null,
+            whenPrinted: ord.whenPrinted || null,
+            whenCookingCompleted: ord.whenCookingCompleted || null,
+            whenSended: ord.whenSended || null,
+            whenDelivered: ord.whenDelivered || null,
+            whenClosed: ord.whenClosed || null,
+            completeBefore: ord.completeBefore || null
+          }
+
+          const items = []
+          let orderSum = 0
+          let orderGrossSum = 0
+          for (const it of (ord.items || [])) {
+            if (it.product) {
+              const qty = Number(it.amount) || 1
+              const unitPrice = Number(it.price) || 0
+              const itemSum = Number(it.resultSum ?? (unitPrice * qty)) || 0
+              orderSum += itemSum
+              orderGrossSum += unitPrice * qty
+              items.push({
+                product_name: it.product.name,
+                price: unitPrice,
+                amount: qty,
+                quantity: qty,
+                sum: itemSum,
+                _order_meta: items.length === 0 ? {
+                  orderNumber: ord.number ? String(ord.number) : (ord.externalNumber || null),
+                  city: orgName,
+                  conception: ord.conception?.name || orgName,
+                  customer: extractedCustomer,
+                  customerName: rawCustName,
+                  customerPhone: custPhone,
+                  customerAddress: custAddress,
+                  courier: extractedCourier,
+                  courierName,
+                  courierPhone,
+                  pickUpCode,
+                  externalOrderId: extOrderId,
+                  orderType: ord.orderType?.name || (isKiosk ? 'Smart Kiosk' : (platform === 'casierie' ? 'Casierie (POS)' : 'Livrare')),
+                  status: ord.status || 'Closed',
+                  stage: ord.status || 'Closed',
+                  timings: extractedTimings
+                } : undefined
+              })
+            }
+          }
+          if (items.length === 0) continue
+
+          const netAmount = Number(ord.sum) || Math.round(orderSum * 100) / 100
+          const grossAmount = orderGrossSum > 0 ? Math.round(orderGrossSum * 100) / 100 : netAmount
+          if (items[0]?._order_meta) {
+            items[0]._order_meta.grossSum = grossAmount
+            items[0]._order_meta.discountSum = Math.max(0, Math.round((grossAmount - netAmount) * 100) / 100)
+          }
+
+          const detectedBrand = detectBrandFromItems(items, matchedRest)
+          const resolvedRest = resolveMatchingRestaurant(allRests, matchedRest, detectedBrand, cityCanon) || matchedRest
+
+          rows.push({
+            id: baseId,
+            order_id: resolvedRest ? `${baseId}_${resolvedRest.id}` : baseId,
+            restaurant_id: resolvedRest?.id || null,
+            restaurant_city: cityCanon,
+            brand_name: detectedBrand,
+            platform,
+            total_amount: netAmount,
+            gross_amount: grossAmount,
+            placed_at: placedAt,
+            created_at: placedAt,
+            items
+          })
+        }
+      }
+    } catch (sErr) {
+      console.warn('[SyrveDirect] Key fetch warning:', sErr.message)
+    }
+    return rows
+  }
+
+  const fetchWebhookIndexed = async () => {
+    const prefix = `wh_${dayStr}_`
+    try {
+      const { data, error } = await withTimeout(
+        supabase
+          .from('platform_sales')
+          .select('id, restaurant_id, order_id, platform, total_amount, placed_at, created_at, items')
+          .gte('order_id', prefix)
+          .lte('order_id', `${prefix}zzzzzzzz`)
+          .limit(1000),
+        2200
+      )
+      if (!error && Array.isArray(data)) return data
+    } catch (_) {}
+    return []
+  }
+
+  const [syrveRows, whRows] = await Promise.all([fetchSyrve(), fetchWebhookIndexed()])
+  const combined = [...(syrveRows || []), ...(whRows || [])]
+  combined.sort((a, b) => new Date(b.placed_at || b.created_at || 0) - new Date(a.placed_at || a.created_at || 0))
+
+  if (combined.length > 0 && typeof liveDispatchCache !== 'undefined') {
+    liveDispatchCache.set(cacheKey, { timestamp: Date.now(), data: combined })
+  }
+  return combined
 }
 
 export default async (req, context) => {
@@ -751,214 +1032,43 @@ export default async (req, context) => {
           }
         })
 
-      async function fetchLiveOrdersFromSyrveCloud(dayStr) {
-        if (!dayStr) return []
-        globalThis.__SYRVE_TOKEN_CACHE = globalThis.__SYRVE_TOKEN_CACHE || new Map()
-        globalThis.__SYRVE_ORGS_CACHE = globalThis.__SYRVE_ORGS_CACHE || new Map()
-        const apiKeys = [
-          '93a34e75123e47b897e390f31ecfa4cb',
-          '124d0880f4b44717b69ee21d45fc2656',
-          '78a2206d3b9c4e93b9b5a5ee774f69aa'
-        ]
-        const rows = []
-        await Promise.all(apiKeys.map(async (apiKey) => {
-          try {
-            let tokenObj = globalThis.__SYRVE_TOKEN_CACHE.get(apiKey)
-            if (!tokenObj || Date.now() - tokenObj.ts > 900000) {
-              const authRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/access_token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ apiLogin: apiKey })
-              }), 3000)
-              if (!authRes.ok) return
-              const authJson = await authRes.json()
-              if (!authJson.token) return
-              tokenObj = { token: authJson.token, ts: Date.now() }
-              globalThis.__SYRVE_TOKEN_CACHE.set(apiKey, tokenObj)
-            }
-
-            let orgs = globalThis.__SYRVE_ORGS_CACHE.get(apiKey)
-            if (!orgs) {
-              const orgRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/organizations', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenObj.token}` },
-                body: JSON.stringify({})
-              }), 3000)
-              if (!orgRes.ok) return
-              const orgJson = await orgRes.json()
-              orgs = orgJson.organizations || []
-              globalThis.__SYRVE_ORGS_CACHE.set(apiKey, orgs)
-            }
-            if (!orgs.length) return
-
-            const orgNameById = {}
-            orgs.forEach(o => { orgNameById[o.id] = o.name || '' })
-
-            const delivRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/deliveries/by_delivery_date_and_status', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenObj.token}` },
-              body: JSON.stringify({
-                organizationIds: orgs.map(o => o.id),
-                deliveryDateFrom: `${dayStr} 00:00:00.000`,
-                deliveryDateTo: `${dayStr} 23:59:59.999`
-              })
-            }), 4500)
-            if (!delivRes.ok) return
-            const delivData = await delivRes.json()
-
-            for (const grp of (delivData.ordersByOrganizations || [])) {
-              const orgId = grp.organizationId
-              const matchedRest = restByOrgId[orgId] || null
-              const orgName = orgNameById[orgId] || matchedRest?.city || matchedRest?.name || ''
-              for (const item of (grp.orders || [])) {
-                const ord = item.order
-                if (!ord) continue
-                const baseId = item.id || ord.id || `ord_${ord.number}`
-                const rawSource = (ord.sourceKey || '').toLowerCase()
-                const orderTypeName = (ord.orderType?.name || '').toLowerCase()
-                const operatorName = (ord.operator?.name || '').toLowerCase()
-                const conceptionName = (ord.conception?.name || '').toLowerCase()
-                const customerNameLower = (ord.customer?.name || '').toLowerCase()
-                const isKiosk = rawSource.includes('kiosk') || orderTypeName.includes('kiosk') || operatorName.includes('kiosk') || conceptionName.includes('kiosk') || customerNameLower.includes('kiosk')
-
-                let platform = 'casierie'
-                if (rawSource.includes('glovo') || orderTypeName.includes('glovo')) platform = 'glovo'
-                else if (rawSource.includes('wolt') || orderTypeName.includes('wolt')) platform = 'wolt'
-                else if (rawSource.includes('bolt') || orderTypeName.includes('bolt')) platform = 'bolt'
-                else if (isKiosk) platform = 'kiosk'
-                else if (orderTypeName.includes('livrare') || orderTypeName.includes('delivery')) platform = 'ecosystem'
-
-                const ds = ord.whenCreated || ord.whenClosed
-                const placedAt = ds ? new Date(ds.replace(' ', 'T') + 'Z').toISOString() : new Date().toISOString()
-
-                const rawCustName = [ord.customer?.name, ord.customer?.surname].filter(Boolean).join(' ').trim() || null
-                const custComment = ord.customer?.comment || ''
-                const phoneFromComment = custComment.match(/Phone:\s*([^;]+)/i)?.[1]?.trim() || null
-                const pickUpCode = custComment.match(/Pick Up Code:\s*([^;]+)/i)?.[1]?.trim() || null
-                const extOrderId = custComment.match(/OrderId:\s*([^;]+)/i)?.[1]?.trim() || ord.externalNumber || null
-                const courierPhoneFromComment = custComment.match(/Courier Phone:\s*([^;]+)/i)?.[1]?.trim() || null
-                const rawCourierFromComment = custComment.match(/Courier:\s*([^;]+)/i)?.[1]?.trim() || null
-                const cleanCourierFromComment = (rawCourierFromComment && !rawCourierFromComment.includes('IikoMiddleware')) ? rawCourierFromComment : null
-
-                const custPhone = ord.phone || ord.customer?.phone || phoneFromComment || null
-                const custAddress = ord.deliveryPoint?.comment || ord.deliveryPoint?.address?.line1 || ord.deliveryPoint?.address?.street?.name || null
-                const rawCourierObj = ord.courierInfo?.courier || null
-                const courierName = rawCourierObj?.name || cleanCourierFromComment || null
-                const courierPhone = rawCourierObj?.phone || courierPhoneFromComment || null
-
-                const extractedCourier = courierName ? {
-                  name: courierName,
-                  phone: courierPhone || '',
-                  company: platform === 'glovo' ? 'Glovo' : platform === 'wolt' ? 'Wolt' : platform === 'bolt' ? 'Bolt Food' : 'Livrator Propriu',
-                  isManual: Boolean(ord.courierInfo?.isCourierSelectedManually)
-                } : null
-
-                const extractedCustomer = (rawCustName || custPhone || custAddress) ? {
-                  name: rawCustName || 'Client',
-                  phone: custPhone,
-                  address: custAddress,
-                  pickUpCode,
-                  externalOrderId: extOrderId
-                } : null
-
-                const extractedTimings = {
-                  whenCreated: ord.whenCreated || null,
-                  whenConfirmed: ord.whenConfirmed || null,
-                  whenPrinted: ord.whenPrinted || null,
-                  whenCookingCompleted: ord.whenCookingCompleted || null,
-                  whenSended: ord.whenSended || null,
-                  whenDelivered: ord.whenDelivered || null,
-                  whenClosed: ord.whenClosed || null,
-                  completeBefore: ord.completeBefore || null
-                }
-
-                const items = []
-                let orderSum = 0
-                for (const it of (ord.items || [])) {
-                  if (it.product) {
-                    const itemSum = it.resultSum || it.price || 0
-                    orderSum += itemSum
-                    items.push({
-                      product_name: it.product.name,
-                      price: it.price,
-                      amount: it.amount,
-                      quantity: it.amount || 1,
-                      sum: itemSum,
-                      _order_meta: items.length === 0 ? {
-                        orderNumber: ord.number ? String(ord.number) : (ord.externalNumber || null),
-                        city: orgName,
-                        conception: ord.conception?.name || orgName,
-                        customer: extractedCustomer,
-                        customerName: rawCustName,
-                        customerPhone: custPhone,
-                        customerAddress: custAddress,
-                        courier: extractedCourier,
-                        courierName,
-                        courierPhone,
-                        pickUpCode,
-                        externalOrderId: extOrderId,
-                        orderType: ord.orderType?.name || (isKiosk ? 'Smart Kiosk' : (platform === 'casierie' ? 'Casierie (POS)' : 'Livrare')),
-                        status: ord.status || 'Closed',
-                        stage: ord.status || 'Closed',
-                        timings: extractedTimings
-                      } : undefined
-                    })
-                  }
-                }
-                if (items.length === 0) continue
-
-                rows.push({
-                  id: baseId,
-                  order_id: matchedRest ? `${baseId}_${matchedRest.id}` : baseId,
-                  restaurant_id: matchedRest?.id || null,
-                  restaurant_city: getCanonicalCity(orgName),
-                  platform,
-                  total_amount: ord.sum || Math.round(orderSum * 100) / 100,
-                  placed_at: placedAt,
-                  created_at: placedAt,
-                  items
-                })
-              }
-            }
-          } catch (sErr) {
-            console.warn('[SyrveDirect] Key fetch warning:', sErr.message)
-          }
-        }))
-        return rows
-      }
-
       let rawOrders = []
       const basePeriodCacheKey = `raw_period_${periodFilter}`
       const cachedRawPeriod = liveDispatchCache.get(basePeriodCacheKey)
 
       if (cachedRawPeriod && (Date.now() - cachedRawPeriod.timestamp < 15000)) {
         rawOrders = cachedRawPeriod.data
+      } else if (targetSyrveDay) {
+        rawOrders = await fetchLiveAndWebhookOrdersForDay(targetSyrveDay, allRests)
+        if (rawOrders.length > 0) {
+          liveDispatchCache.set(basePeriodCacheKey, {
+            timestamp: Date.now(),
+            data: rawOrders
+          })
+        } else if (cachedRawPeriod && Array.isArray(cachedRawPeriod.data)) {
+          rawOrders = cachedRawPeriod.data
+        }
       } else {
-        const [syrveDirectRows, dbFetchedRows] = await Promise.all([
-          targetSyrveDay ? fetchLiveOrdersFromSyrveCloud(targetSyrveDay) : Promise.resolve([]),
-          (async () => {
-            const candidateLimits = (periodFilter === 'today' || periodFilter === 'yesterday') ? [300] : [500, 200]
-            for (const tryLim of candidateLimits) {
-              try {
-                let salesQuery = supabase
-                  .from('platform_sales')
-                  .select('id, platform, restaurant_id, order_id, total_amount, placed_at, created_at, items')
-                  .limit(tryLim)
+        const candidateLimits = [500, 200]
+        for (const tryLim of candidateLimits) {
+          try {
+            let salesQuery = supabase
+              .from('platform_sales')
+              .select('id, platform, restaurant_id, order_id, total_amount, placed_at, created_at, items')
+              .limit(tryLim)
 
-                if (startDate) salesQuery = salesQuery.gte('placed_at', startDate)
-                if (endDate && periodFilter !== 'today') salesQuery = salesQuery.lte('placed_at', endDate)
+            if (startDate) salesQuery = salesQuery.gte('placed_at', startDate)
+            if (endDate && periodFilter !== 'today') salesQuery = salesQuery.lte('placed_at', endDate)
 
-                const { data, error: oErr } = await withTimeout(salesQuery, 2500)
-                if (!oErr && Array.isArray(data)) return data
-              } catch (_) {}
+            const { data, error: oErr } = await withTimeout(salesQuery, 2500)
+            if (!oErr && Array.isArray(data) && data.length > 0) {
+              rawOrders = data
+              break
             }
-            return []
-          })()
-        ])
+          } catch (_) {}
+        }
 
-        const combined = [...(syrveDirectRows || []), ...(dbFetchedRows || [])]
-        if (combined.length > 0) {
-          rawOrders = combined
+        if (rawOrders.length > 0) {
           rawOrders.sort((a, b) => new Date(b.placed_at || b.created_at || 0) - new Date(a.placed_at || a.created_at || 0))
           liveDispatchCache.set(basePeriodCacheKey, {
             timestamp: Date.now(),
@@ -972,7 +1082,7 @@ export default async (req, context) => {
       // Pre-merge metadata (timings, courier, status) across rows sharing the same iiko UUID prefix
       const mergedMetaByUuid = new Map()
       for (const o of (rawOrders || [])) {
-        const baseUuid = String(o.order_id || '').split('_')[0]
+        const baseUuid = extractBaseOrderUuid(o.order_id || o.id)
         if (!baseUuid) continue
         const m = (o.items || [])[0]?._order_meta || {}
         const prev = mergedMetaByUuid.get(baseUuid) || { timings: {}, courier: null, customer: null, status: null, stage: null }
@@ -1036,6 +1146,7 @@ export default async (req, context) => {
       const seenUuidBrandSet = new Set()
 
       let totalSalesToday = 0
+      let totalGrossSalesToday = 0
       let todayOrdersCount = 0
       let kioskCount = 0
       let casierieCount = 0
@@ -1054,7 +1165,7 @@ export default async (req, context) => {
 
       for (const o of (rawOrders || [])) {
         const rawRest = restMap[o.restaurant_id] || (allRests || []).find(r => r.id === o.restaurant_id)
-        const baseUuid = String(o.order_id || '').split('_')[0]
+        const baseUuid = extractBaseOrderUuid(o.order_id || o.id)
         const sharedMeta = mergedMetaByUuid.get(baseUuid)
         const rawMeta = (o.items || [])[0]?._order_meta || {}
         const meta = sharedMeta ? {
@@ -1065,6 +1176,8 @@ export default async (req, context) => {
           courier: sharedMeta.courier || rawMeta.courier,
           customer: sharedMeta.customer || rawMeta.customer
         } : rawMeta
+        const stCheck = String(meta.status || meta.stage || o.status || '').toLowerCase()
+        if (stCheck.includes('cancel') || stCheck.includes('delet')) continue
         const cityCanon = getCanonicalCity(rawRest?.city || o.restaurant_city || rawRest?.name || meta.city || meta.conception || '')
 
         if (validRestIds.size > 0 && !validRestIds.has(o.restaurant_id)) {
@@ -1082,7 +1195,7 @@ export default async (req, context) => {
         }
 
         // Deduplicate rows that share the exact same iiko UUID + brand (e.g. webhook row + sync row)
-        if (baseUuid && baseUuid.length > 10) {
+        if (baseUuid && baseUuid.length >= 6) {
           const dedupKey = `${baseUuid}_${bName}`
           if (seenUuidBrandSet.has(dedupKey)) continue
           seenUuidBrandSet.add(dedupKey)
@@ -1301,7 +1414,10 @@ export default async (req, context) => {
           if (dTime > 0) deliveryTimes.push(dTime)
         }
 
-        totalSalesToday += (Number(o.total_amount) || 0)
+        const orderNetAmount = Number(o.total_amount) || 0
+        const orderGrossAmount = computeOrderGrossAmount(o)
+        totalSalesToday += orderNetAmount
+        totalGrossSalesToday += orderGrossAmount
         todayOrdersCount++
 
         // Real courier from Valentin's webhook or POS if assigned (NO MOCK)
@@ -1413,6 +1529,8 @@ export default async (req, context) => {
 
         enrichedOrders.push({
           ...o,
+          gross_amount: orderGrossAmount,
+          discount_amount: Math.max(0, Math.round((orderGrossAmount - orderNetAmount) * 100) / 100),
           platform: normalizedPlatform,
           raw_platform: o.platform,
           channel_type: channelType,
@@ -1556,6 +1674,8 @@ export default async (req, context) => {
         success: true,
         kpis: {
           today_sales: parseFloat(totalSalesToday.toFixed(2)),
+          today_gross_sales: parseFloat(totalGrossSalesToday.toFixed(2)),
+          today_discount_amount: parseFloat(Math.max(0, totalGrossSalesToday - totalSalesToday).toFixed(2)),
           today_orders_count: todayOrdersCount,
           kiosk_count: kioskCount,
           casierie_count: casierieCount,
@@ -1674,49 +1794,90 @@ export default async (req, context) => {
       let sales = []
       const seenOrderIds = new Set()
 
-      try {
-        const allCusts = Array.from(customersService?.customersByKey?.values?.() || [])
-        const startMs = periodInfo.startDate ? new Date(periodInfo.startDate).getTime() : 0
-        const endMs = periodInfo.endDate ? new Date(periodInfo.endDate).getTime() : Infinity
+      const roNowStr = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
+      const [ryStr, rmStr, rdStr] = roNowStr.split('-')
+      const ry = parseInt(ryStr, 10)
+      const rm = parseInt(rmStr, 10) - 1
+      const rd = parseInt(rdStr, 10)
+      const pad2 = (n) => String(n).padStart(2, '0')
+      const yDateObj = new Date(ry, rm, rd - 1)
+      const roYesterdayStr = `${yDateObj.getFullYear()}-${pad2(yDateObj.getMonth() + 1)}-${pad2(yDateObj.getDate())}`
 
-        for (const c of allCusts) {
-          for (const ro of (c.recent_orders || [])) {
-            const key = ro.base_uuid || ro.order_id
-            if (!key || seenOrderIds.has(key)) continue
-            const pTime = ro.placed_at ? new Date(ro.placed_at).getTime() : 0
-            if (pTime && (pTime < startMs || pTime > endMs)) continue
-            seenOrderIds.add(key)
+      const targetSyrveDay = reqPeriod === 'today' ? roNowStr : reqPeriod === 'yesterday' ? roYesterdayStr : null
 
-            const parts = String(ro.order_id || '').split('_')
-            const extractedRestId = parts.length > 1 && parts[1].length >= 20 ? parts[1] : null
-            sales.push({
-              id: key,
-              order_id: ro.order_id,
-              restaurant_id: ro.restaurant_id || extractedRestId,
-              city: ro.city || c.city || '',
-              brand_name: ro.brand_name || (c.brands && c.brands[0]) || '',
-              restaurant_name: ro.restaurant_name || '',
-              platform: ro.platform || 'glovo',
-              total_amount: ro.total_amount || 0,
-              placed_at: ro.placed_at,
-              items: ro.items || []
-            })
-          }
-        }
-      } catch (_) {}
-
-      const rawCached = liveDispatchCache.get(`raw_period_${reqPeriod}`) || liveDispatchCache.get('raw_period_today')
-      if (rawCached && Array.isArray(rawCached.data)) {
-        const startMs = periodInfo.startDate ? new Date(periodInfo.startDate).getTime() : 0
-        const endMs = periodInfo.endDate ? new Date(periodInfo.endDate).getTime() : Infinity
-        for (const lo of rawCached.data) {
-          const key = String(lo.order_id || lo.id || '').split('_')[0]
-          if (!key || seenOrderIds.has(key)) continue
-          const pTime = lo.placed_at ? new Date(lo.placed_at).getTime() : 0
-          if (pTime && (pTime < startMs || pTime > endMs)) continue
-          seenOrderIds.add(key)
+      if (targetSyrveDay) {
+        const liveDayOrders = await fetchLiveAndWebhookOrdersForDay(targetSyrveDay, rests)
+        for (const lo of liveDayOrders) {
+          const baseKey = extractBaseOrderUuid(lo.order_id || lo.id)
+          if (!baseKey) continue
+          const m = (lo.items || [])[0]?._order_meta || {}
+          const stLow = String(m.status || m.stage || lo.status || '').toLowerCase()
+          if (stLow.includes('cancel') || stLow.includes('delet')) continue
+          const rawRest = restMap[lo.restaurant_id] || null
+          const bName = lo.brand_name || detectBrandFromItems(lo.items || [], rawRest)
+          const dedupKey = `${baseKey}_${bName}`
+          if (seenOrderIds.has(dedupKey)) continue
+          seenOrderIds.add(dedupKey)
           sales.push(lo)
         }
+      } else {
+        try {
+          if (reqPeriod === 'this_week' || reqPeriod === 'this_month' || reqPeriod === 'this_year' || reqPeriod === 'all') {
+            const [todayLive, yestLive] = await Promise.all([
+              fetchLiveAndWebhookOrdersForDay(roNowStr, rests),
+              fetchLiveAndWebhookOrdersForDay(roYesterdayStr, rests)
+            ])
+            const startMs = periodInfo.startDate ? new Date(periodInfo.startDate).getTime() : 0
+            const endMs = periodInfo.endDate ? new Date(periodInfo.endDate).getTime() : Infinity
+            for (const lo of [...todayLive, ...yestLive]) {
+              const baseKey = extractBaseOrderUuid(lo.order_id || lo.id)
+              if (!baseKey) continue
+              const pTime = lo.placed_at ? new Date(lo.placed_at).getTime() : 0
+              if (pTime && (pTime < startMs || pTime > endMs)) continue
+              const m = (lo.items || [])[0]?._order_meta || {}
+              const stLow = String(m.status || m.stage || lo.status || '').toLowerCase()
+              if (stLow.includes('cancel') || stLow.includes('delet')) continue
+              const rawRest = restMap[lo.restaurant_id] || null
+              const bName = lo.brand_name || detectBrandFromItems(lo.items || [], rawRest)
+              const dedupKey = `${baseKey}_${bName}`
+              if (seenOrderIds.has(dedupKey)) continue
+              seenOrderIds.add(dedupKey)
+              sales.push(lo)
+            }
+          }
+
+          const allCusts = Array.from(customersService?.customersByKey?.values?.() || [])
+          const startMs = periodInfo.startDate ? new Date(periodInfo.startDate).getTime() : 0
+          const endMs = periodInfo.endDate ? new Date(periodInfo.endDate).getTime() : Infinity
+
+          for (const c of allCusts) {
+            for (const ro of (c.recent_orders || [])) {
+              const baseKey = extractBaseOrderUuid(ro.base_uuid || ro.order_id)
+              if (!baseKey) continue
+              const pTime = ro.placed_at ? new Date(ro.placed_at).getTime() : 0
+              if (pTime && (pTime < startMs || pTime > endMs)) continue
+              const bName = ro.brand_name || (c.brands && c.brands[0]) || detectBrandFromItems(ro.items || [], null)
+              const dedupKey = `${baseKey}_${bName}`
+              if (seenOrderIds.has(dedupKey)) continue
+              seenOrderIds.add(dedupKey)
+
+              const parts = String(ro.order_id || '').split('_')
+              const extractedRestId = parts.length > 1 && parts[parts.length - 1].length >= 20 ? parts[parts.length - 1] : null
+              sales.push({
+                id: baseKey,
+                order_id: ro.order_id,
+                restaurant_id: ro.restaurant_id || extractedRestId,
+                city: ro.city || c.city || '',
+                brand_name: bName,
+                restaurant_name: ro.restaurant_name || '',
+                platform: ro.platform || 'glovo',
+                total_amount: ro.total_amount || 0,
+                placed_at: ro.placed_at,
+                items: ro.items || []
+              })
+            }
+          }
+        } catch (_) {}
       }
 
       if (sales.length === 0) {
@@ -1738,22 +1899,23 @@ export default async (req, context) => {
       const scaleFactor = 1
 
       let sampleRevenue = 0
+      let sampleGrossRevenue = 0
 
       const channelStats = {
-        kiosk: { key: 'kiosk', label: 'Smart Kiosk', type: 'local', count: 0, revenue: 0, color: '#F97316' },
-        casierie: { key: 'casierie', label: 'Casierie (iiko POS)', type: 'local', count: 0, revenue: 0, color: '#8B5CF6' },
-        glovo: { key: 'glovo', label: 'Glovo', type: 'delivery', count: 0, revenue: 0, color: '#F59E0B' },
-        wolt: { key: 'wolt', label: 'Wolt', type: 'delivery', count: 0, revenue: 0, color: '#00C2E8' },
-        bolt: { key: 'bolt', label: 'Bolt Food', type: 'delivery', count: 0, revenue: 0, color: '#10B981' },
-        direct: { key: 'direct', label: 'Direct / Web', type: 'direct', count: 0, revenue: 0, color: '#06B6D4' }
+        kiosk: { key: 'kiosk', label: 'Smart Kiosk', type: 'local', count: 0, revenue: 0, grossRevenue: 0, color: '#F97316' },
+        casierie: { key: 'casierie', label: 'Casierie (iiko POS)', type: 'local', count: 0, revenue: 0, grossRevenue: 0, color: '#8B5CF6' },
+        glovo: { key: 'glovo', label: 'Glovo', type: 'delivery', count: 0, revenue: 0, grossRevenue: 0, color: '#F59E0B' },
+        wolt: { key: 'wolt', label: 'Wolt', type: 'delivery', count: 0, revenue: 0, grossRevenue: 0, color: '#00C2E8' },
+        bolt: { key: 'bolt', label: 'Bolt Food', type: 'delivery', count: 0, revenue: 0, grossRevenue: 0, color: '#10B981' },
+        direct: { key: 'direct', label: 'Direct / Web', type: 'direct', count: 0, revenue: 0, grossRevenue: 0, color: '#06B6D4' }
       }
 
       const brandStats = {
-        'Roll Master': { count: 0, revenue: 0, color: '#E11D48' },
-        'Poki Woki': { count: 0, revenue: 0, color: '#10B981' },
-        'Love Sushi': { count: 0, revenue: 0, color: '#8B5CF6' },
-        'Smash Me': { count: 0, revenue: 0, color: '#F97316' },
-        'Crunch': { count: 0, revenue: 0, color: '#D97706' }
+        'Roll Master': { count: 0, revenue: 0, grossRevenue: 0, color: '#E11D48' },
+        'Poki Woki': { count: 0, revenue: 0, grossRevenue: 0, color: '#10B981' },
+        'Love Sushi': { count: 0, revenue: 0, grossRevenue: 0, color: '#8B5CF6' },
+        'Smash Me': { count: 0, revenue: 0, grossRevenue: 0, color: '#F97316' },
+        'Crunch': { count: 0, revenue: 0, grossRevenue: 0, color: '#D97706' }
       }
 
       const cityStats = {}
@@ -1774,11 +1936,14 @@ export default async (req, context) => {
 
       (sales || []).forEach(o => {
         const amt = Number(o.total_amount) || 0
+        const grossAmt = computeOrderGrossAmount(o)
         sampleRevenue += amt
+        sampleGrossRevenue += grossAmt
 
         const ch = normalizeChannel(o.platform)
         channelStats[ch].count++
         channelStats[ch].revenue += amt
+        channelStats[ch].grossRevenue += grossAmt
 
         // Heatmap calculation
         if (o.placed_at) {
@@ -1792,28 +1957,19 @@ export default async (req, context) => {
         }
 
         let rest = restMap[o.restaurant_id]
-        let bName = o.brand_name || rest?.brands?.name || ''
-        const rName = (rest?.name || o.restaurant_name || '').toLowerCase()
-        const itemsTxt = (o.items || []).map(i => i.product_name || i.name || '').join(' ').toLowerCase()
-
-        if (!bName) {
-          if (rName.includes('smash') || itemsTxt.includes('burger') || (o.platform || '').includes('kiosk')) bName = 'Smash Me'
-          else if (rName.includes('poki') || itemsTxt.includes('poke') || itemsTxt.includes('ramen')) bName = 'Poki Woki'
-          else if (rName.includes('love') || itemsTxt.includes('love')) bName = 'Love Sushi'
-          else if (rName.includes('roll') || itemsTxt.includes('sushi')) bName = 'Roll Master'
-          else if (rName.includes('crunch')) bName = 'Crunch'
-          else bName = 'Roll Master'
-        }
+        let bName = o.brand_name || detectBrandFromItems(o.items || [], rest) || rest?.brands?.name || 'Roll Master'
 
         const city = getCanonicalCity(rest?.city || o.city || o.restaurant_city || rest?.name || o.restaurant_name) || 'Alte Orașe'
-        if (!rest && city !== 'Alte Orașe') {
-          rest = resolveMatchingRestaurant(rests, null, bName, city)
+        if (city !== 'Alte Orașe') {
+          const matchedBrandRest = resolveMatchingRestaurant(rests, rest, bName, city)
+          if (matchedBrandRest) rest = matchedBrandRest
         }
         const resolvedRestId = rest?.id || o.restaurant_id
 
-        if (!brandStats[bName]) brandStats[bName] = { count: 0, revenue: 0, color: '#3B82F6' }
+        if (!brandStats[bName]) brandStats[bName] = { count: 0, revenue: 0, grossRevenue: 0, color: '#3B82F6' }
         brandStats[bName].count++
         brandStats[bName].revenue += amt
+        brandStats[bName].grossRevenue += grossAmt
 
         // Top Products aggregation
         if (Array.isArray(o.items)) {
@@ -1842,26 +1998,33 @@ export default async (req, context) => {
           }
         }
 
-        if (!cityStats[city]) cityStats[city] = { city, count: 0, revenue: 0, channels: {} }
+        if (!cityStats[city]) cityStats[city] = { city, count: 0, revenue: 0, grossRevenue: 0, channels: {} }
         cityStats[city].count++
         cityStats[city].revenue += amt
+        cityStats[city].grossRevenue += grossAmt
         cityStats[city].channels[ch] = (cityStats[city].channels[ch] || 0) + 1
 
         if (resolvedRestId) {
-          if (!restStats[resolvedRestId]) restStats[resolvedRestId] = { count: 0, revenue: 0, channels: {} }
+          if (!restStats[resolvedRestId]) restStats[resolvedRestId] = { count: 0, revenue: 0, grossRevenue: 0, channels: {} }
           restStats[resolvedRestId].count++
           restStats[resolvedRestId].revenue += amt
+          restStats[resolvedRestId].grossRevenue += grossAmt
           restStats[resolvedRestId].channels[ch] = (restStats[resolvedRestId].channels[ch] || 0) + 1
         }
       })
 
       const totalRevenue = Math.round(sampleRevenue * scaleFactor)
+      const totalGrossRevenue = Math.round(sampleGrossRevenue * scaleFactor)
+      const totalDiscount = Math.max(0, totalGrossRevenue - totalRevenue)
       const avgTicket = totalOrders > 0 ? (totalRevenue / totalOrders).toFixed(2) : '0'
+      const avgGrossTicket = totalOrders > 0 ? (totalGrossRevenue / totalOrders).toFixed(2) : '0'
 
       const localCount = Math.round((channelStats.kiosk.count + channelStats.casierie.count) * scaleFactor)
       const localRevenue = Math.round((channelStats.kiosk.revenue + channelStats.casierie.revenue) * scaleFactor)
+      const localGrossRevenue = Math.round((channelStats.kiosk.grossRevenue + channelStats.casierie.grossRevenue) * scaleFactor)
       const deliveryCount = Math.round((channelStats.glovo.count + channelStats.wolt.count + channelStats.bolt.count) * scaleFactor)
       const deliveryRevenue = Math.round((channelStats.glovo.revenue + channelStats.wolt.revenue + channelStats.bolt.revenue) * scaleFactor)
+      const deliveryGrossRevenue = Math.round((channelStats.glovo.grossRevenue + channelStats.wolt.grossRevenue + channelStats.bolt.grossRevenue) * scaleFactor)
 
       const workpointsList = Object.entries(restStats).map(([rid, rdata]) => {
         const r = restMap[rid]
@@ -1872,6 +2035,7 @@ export default async (req, context) => {
           brand: r?.brands?.name || 'Brand',
           count: Math.round(rdata.count * scaleFactor),
           revenue: Math.round(rdata.revenue * scaleFactor),
+          grossRevenue: Math.round((rdata.grossRevenue || rdata.revenue) * scaleFactor),
           channels: Object.fromEntries(
             Object.entries(rdata.channels || {}).map(([ch, cnt]) => [ch, Math.round(cnt * scaleFactor)])
           )
@@ -1929,17 +2093,22 @@ export default async (req, context) => {
         totals: {
           totalOrders,
           totalRevenue,
-          avgTicket
+          totalGrossRevenue,
+          totalDiscount,
+          avgTicket,
+          avgGrossTicket
         },
         local_vs_delivery: {
           local: {
             count: localCount,
             revenue: localRevenue,
+            grossRevenue: localGrossRevenue,
             share: totalOrders > 0 ? Math.round((localCount / totalOrders) * 100) : 0
           },
           delivery: {
             count: deliveryCount,
             revenue: deliveryRevenue,
+            grossRevenue: deliveryGrossRevenue,
             share: totalOrders > 0 ? Math.round((deliveryCount / totalOrders) * 100) : 0
           }
         },
@@ -1947,12 +2116,14 @@ export default async (req, context) => {
           ...c,
           count: Math.round(c.count * scaleFactor),
           revenue: Math.round(c.revenue * scaleFactor),
+          grossRevenue: Math.round((c.grossRevenue || c.revenue) * scaleFactor),
           share: totalOrders > 0 ? Math.round(((c.count * scaleFactor) / totalOrders) * 100) : 0
         })),
         brands: Object.entries(brandStats).map(([name, data]) => ({
           name,
           count: Math.round(data.count * scaleFactor),
           revenue: Math.round(data.revenue * scaleFactor),
+          grossRevenue: Math.round((data.grossRevenue || data.revenue) * scaleFactor),
           share: totalOrders > 0 ? Math.round(((data.count * scaleFactor) / totalOrders) * 100) : 0,
           color: data.color
         })).sort((a, b) => b.count - a.count),
@@ -1961,6 +2132,7 @@ export default async (req, context) => {
           name: ct.city,
           count: Math.round(ct.count * scaleFactor),
           revenue: Math.round(ct.revenue * scaleFactor),
+          grossRevenue: Math.round((ct.grossRevenue || ct.revenue) * scaleFactor),
           channels: Object.fromEntries(
             Object.entries(ct.channels || {}).map(([ch, cnt]) => [ch, Math.round(cnt * scaleFactor)])
           )
@@ -1982,6 +2154,7 @@ export default async (req, context) => {
                 brand: r?.brands?.name || 'Roll Master',
                 count: Math.round(rdata.count * scaleFactor),
                 revenue: Math.round(rdata.revenue * scaleFactor),
+                grossRevenue: Math.round((rdata.grossRevenue || rdata.revenue) * scaleFactor),
                 channels: Object.fromEntries(
                   Object.entries(rdata.channels || {}).map(([ch, cnt]) => [ch, Math.round(cnt * scaleFactor)])
                 )
@@ -2819,8 +2992,13 @@ async function processIikoOrders(payload) {
 
     if (!matchedRest) continue
 
+    // Skip cancelled / deleted orders
+    const ordStatusLower = String(o.status || o.cancelInfo?.cause || '').toLowerCase()
+    if (ordStatusLower.includes('cancel') || ordStatusLower.includes('delet') || Boolean(o.cancelInfo)) {
+      continue
+    }
+
     const baseId = o.id || o.orderId || o.order_id || o.number || o.externalNumber || `order_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
-    const uniqueOrderId = `${baseId}_${matchedRest.id}`
 
     // Determine platform & channel
     const rawSource = (o.sourceKey || o.source || o.platform || o.eventType || '').toLowerCase()
@@ -2880,6 +3058,8 @@ async function processIikoOrders(payload) {
     } catch (_) {
       placed_at = new Date().toISOString()
     }
+    const dayPrefix = String(placed_at).slice(0, 10)
+    const uniqueOrderId = `wh_${dayPrefix}_${baseId}_${matchedRest.id}`
 
     // Extract Customer & Courier info from Syrve/iiko order payload
     const rawCustName = [o.customer?.name, o.customer?.surname].filter(Boolean).join(' ').trim() || o.customerName || null
@@ -2930,10 +3110,12 @@ async function processIikoOrders(payload) {
 
     // Format items
     const rawItems = Array.isArray(o.items) ? o.items : []
+    let grossSumCalc = 0
     const items = rawItems.map((it, idx) => {
       const pName = it.product?.name || it.product_name || it.name || 'Articol'
       const price = parseFloat(it.price || it.resultSum || 0)
       const qty = parseFloat(it.amount || it.quantity || 1)
+      grossSumCalc += price * qty
       return {
         product_name: pName,
         price,
@@ -2964,6 +3146,11 @@ async function processIikoOrders(payload) {
         } : undefined
       }
     })
+    const grossSumFinal = grossSumCalc > total_amount ? Math.round(grossSumCalc * 100) / 100 : total_amount
+    if (items[0]?._order_meta) {
+      items[0]._order_meta.grossSum = grossSumFinal
+      items[0]._order_meta.discountSum = Math.max(0, Math.round((grossSumFinal - total_amount) * 100) / 100)
+    }
 
     rowsToUpsert.push({
       restaurant_id: matchedRest.id,
@@ -3048,6 +3235,7 @@ async function processIikoOrders(payload) {
       if (error) console.error('[NETLIFY WEBHOOK] Upsert error:', error)
     } catch (_) {}
     liveDispatchCache.clear()
+    executiveSummaryCache.clear()
     return { count: uniqueRows.length + statusUpdatedCount, error: upsertErr?.message }
   }
 

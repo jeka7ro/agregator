@@ -5,12 +5,12 @@ import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
 import { useAuth } from '../lib/AuthContext'
 import { getApiUrl } from '../lib/api'
-import { 
-  Loader2, 
-  Store, 
-  ExternalLink, 
+import {
+  Loader2,
+  Store,
+  ExternalLink,
   AlertTriangle,
-  Download, 
+  Download,
   FileText,
   ShoppingBag,
   Play,
@@ -32,9 +32,8 @@ import { useExecutiveSales } from '../hooks/useExecutiveSales'
 function KPICard({ title, online, total, platform, isDark, t }) {
   const percentage = total > 0 ? Math.round((online / total) * 100) : 0
   return (
-    <div className={`p-4 rounded-2xl shadow-sm border flex flex-col justify-between transition-colors ${
-      isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-    }`}>
+    <div className={`p-4 rounded-2xl shadow-sm border flex flex-col justify-between transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+      }`}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{title}</span>
         <PlatformLogo platform={platform} size={18} />
@@ -45,9 +44,9 @@ function KPICard({ title, online, total, platform, isDark, t }) {
       </div>
       <div className="mt-2.5">
         <div className={`h-1.5 w-full rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
-          <div 
-            className={`h-full rounded-full transition-all duration-500 ${percentage >= 80 ? 'bg-emerald-600' : percentage >= 50 ? 'bg-amber-500' : 'bg-rose-600'}`} 
-            style={{ width: `${percentage}%` }} 
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${percentage >= 80 ? 'bg-emerald-600' : percentage >= 50 ? 'bg-amber-500' : 'bg-rose-600'}`}
+            style={{ width: `${percentage}%` }}
           />
         </div>
         <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 font-bold mt-2">
@@ -97,7 +96,7 @@ export default function Dashboard() {
     try {
       const p = new URLSearchParams(window.location.search).get('period')
       if (p && PERIOD_OPTIONS.some(o => o.key === p)) return p
-    } catch (_) {}
+    } catch (_) { }
     return 'this_month'
   })
 
@@ -111,7 +110,7 @@ export default function Dashboard() {
         url.searchParams.delete('period')
       }
       window.history.replaceState({}, '', url.toString())
-    } catch (_) {}
+    } catch (_) { }
   }
 
   useEffect(() => {
@@ -119,7 +118,7 @@ export default function Dashboard() {
       try {
         const p = new URLSearchParams(window.location.search).get('period')
         setSelectedPeriod(p && PERIOD_OPTIONS.some(o => o.key === p) ? p : 'this_month')
-      } catch (_) {}
+      } catch (_) { }
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
@@ -141,7 +140,7 @@ export default function Dashboard() {
   // Statistici globale & agregare pe platforme
   const stats = useMemo(() => {
     const activeRestaurants = restaurants.filter(r => r.is_active)
-    
+
     const health = {
       glovo: { total: 0, online: 0, unavailable: 0 },
       wolt: { total: 0, online: 0, unavailable: 0 },
@@ -215,9 +214,9 @@ export default function Dashboard() {
         if (st === 'available' || st === 'open' || st === 'online' || st === 'unchecked') {
           statusCategory = 'online'
           statusLabel = t('common.online', 'Online')
-          diagnostic = c?.raw_data?.delivery_time_min 
+          diagnostic = c?.raw_data?.delivery_time_min
             ? t('dashboard.diag_active_delivery', { min: c.raw_data.delivery_time_min, max: c.raw_data.delivery_time_max })
-            : p === 'iiko' 
+            : p === 'iiko'
               ? (c?.raw_data?.active_products_count ? t('dashboard.diag_synced_syrve', { count: c.raw_data.active_products_count }) : t('dashboard.diag_synced_iiko'))
               : t('dashboard.diag_active_orders')
         } else if (st === 'closed') {
@@ -267,6 +266,7 @@ export default function Dashboard() {
 
       const orders = sBrand.count || 0
       const revenue = sBrand.revenue || 0
+      const grossRevenue = sBrand.grossRevenue || revenue
       const share = sBrand.share || 0
       const avgTicket = orders > 0 ? Math.round(revenue / orders) : 0
 
@@ -322,6 +322,7 @@ export default function Dashboard() {
         locationsCount,
         orders,
         revenue,
+        grossRevenue,
         share,
         avgTicket,
         localShare,
@@ -431,7 +432,7 @@ export default function Dashboard() {
             }
           }
         }
-      } catch (_) {}
+      } catch (_) { }
     }
 
     checkStatus()
@@ -445,7 +446,7 @@ export default function Dashboard() {
           }).format(new Date())
         )
         if ((roHour >= 22 || roHour < 10) && !isVerifyingRef.current) return
-      } catch (_) {}
+      } catch (_) { }
       checkStatus()
     }, 15000)
     return () => clearInterval(interval)
@@ -461,7 +462,7 @@ export default function Dashboard() {
 
   return (
     <div className="w-full space-y-6 pb-12">
-      
+
       {/* Header Operativ */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -505,9 +506,8 @@ export default function Dashboard() {
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           </button>
 
-          <div className={`px-4 h-9 rounded-full border text-xs font-medium flex items-center shadow-xs ${
-            isDark ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-600'
-          }`}>
+          <div className={`px-4 h-9 rounded-full border text-xs font-medium flex items-center shadow-xs ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-600'
+            }`}>
             {t('common.sync_prefix')} {lastRefresh.toLocaleTimeString(localeCode)}
           </div>
         </div>
@@ -515,9 +515,8 @@ export default function Dashboard() {
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className={`p-4 rounded-2xl shadow-sm border flex flex-col justify-between transition-colors ${
-          isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-        }`}>
+        <div className={`p-4 rounded-2xl shadow-sm border flex flex-col justify-between transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               {t('dashboard.locations_card')}
@@ -533,7 +532,7 @@ export default function Dashboard() {
             </span>
           </div>
         </div>
-        
+
         <KPICard title="Glovo" online={stats.health.glovo.online} total={stats.health.glovo.total} platform="glovo" isDark={isDark} t={t} />
         <KPICard title="Wolt" online={stats.health.wolt.online} total={stats.health.wolt.total} platform="wolt" isDark={isDark} t={t} />
         <KPICard title="Bolt Food" online={stats.health.bolt.online} total={stats.health.bolt.total} platform="bolt" isDark={isDark} t={t} />
@@ -541,9 +540,8 @@ export default function Dashboard() {
       </div>
 
       {/* Executive Sales & Channel Performance Strip */}
-      <div className={`p-4 rounded-2xl shadow-sm border transition-colors ${
-        isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-      }`}>
+      <div className={`p-4 rounded-2xl shadow-sm border transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+        }`}>
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2.5 shrink-0">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
@@ -560,9 +558,8 @@ export default function Dashboard() {
 
           {/* Period Selector Buttons */}
           <div className="flex items-center gap-2">
-            <div className={`p-1 rounded-xl border flex items-center gap-1 shrink-0 ${
-              isDark ? 'bg-slate-800/90 border-slate-700/80' : 'bg-slate-100 border-slate-200'
-            }`}>
+            <div className={`p-1 rounded-xl border flex items-center gap-1 shrink-0 ${isDark ? 'bg-slate-800/90 border-slate-700/80' : 'bg-slate-100 border-slate-200'
+              }`}>
               {PERIOD_OPTIONS.map(opt => {
                 const isSelected = selectedPeriod === opt.key
                 const label = opt[language] || opt.ro
@@ -571,11 +568,10 @@ export default function Dashboard() {
                     key={opt.key}
                     id={`period-btn-${opt.key}`}
                     onClick={() => handlePeriodChange(opt.key)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                      isSelected
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${isSelected
                         ? 'bg-emerald-600 text-white shadow-xs'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-700/50'
-                    }`}
+                      }`}
                   >
                     {label}
                   </button>
@@ -594,9 +590,8 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {/* Card 1: Total Volume */}
-          <div className={`p-3 rounded-xl border flex flex-col justify-between ${
-            isDark ? 'bg-slate-800/40 border-slate-800' : 'bg-slate-50 border-slate-100'
-          }`}>
+          <div className={`p-3 rounded-xl border flex flex-col justify-between ${isDark ? 'bg-slate-800/40 border-slate-800' : 'bg-slate-50 border-slate-100'
+            }`}>
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               {language === 'ru' ? 'Всего Заказов и Выручка' : language === 'en' ? 'Total Volume & Revenue' : 'Volum Comenzi & Încasări'}
             </span>
@@ -604,15 +599,19 @@ export default function Dashboard() {
               <span className="text-xl font-black text-cyan-500">{(salesData?.totals?.totalOrders || 0).toLocaleString()}</span>
               <span className="text-xs text-slate-400 ml-1.5 font-bold">com</span>
             </div>
-            <div className="text-xs font-bold text-emerald-500 mt-1">
-              {(salesData?.totals?.totalRevenue || 0).toLocaleString()} RON
+            <div className="text-xs font-bold text-emerald-500 mt-1 flex flex-wrap items-center gap-x-1.5">
+              <span>{(salesData?.totals?.totalRevenue || 0).toLocaleString()} RON</span>
+              {(salesData?.totals?.totalGrossRevenue || 0) > (salesData?.totals?.totalRevenue || 0) && (
+                <span className="text-[10px] font-semibold text-slate-400">
+                  | {(salesData?.totals?.totalGrossRevenue || 0).toLocaleString()} RON {language === 'ru' ? 'без скидки' : language === 'en' ? 'gross' : 'fără disc.'}
+                </span>
+              )}
             </div>
           </div>
 
           {/* Card 2: Local Sales (Kiosk + POS) */}
-          <div className={`p-3 rounded-xl border flex flex-col justify-between ${
-            isDark ? 'bg-slate-800/40 border-slate-800' : 'bg-slate-50 border-slate-100'
-          }`}>
+          <div className={`p-3 rounded-xl border flex flex-col justify-between ${isDark ? 'bg-slate-800/40 border-slate-800' : 'bg-slate-50 border-slate-100'
+            }`}>
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 {language === 'ru' ? 'Локально (Киоск + Касса)' : language === 'en' ? 'Local (Kiosk + POS)' : 'Local (Kiosk + Casierie)'}
@@ -631,9 +630,8 @@ export default function Dashboard() {
           </div>
 
           {/* Card 3: Delivery Apps */}
-          <div className={`p-3 rounded-xl border flex flex-col justify-between ${
-            isDark ? 'bg-slate-800/40 border-slate-800' : 'bg-slate-50 border-slate-100'
-          }`}>
+          <div className={`p-3 rounded-xl border flex flex-col justify-between ${isDark ? 'bg-slate-800/40 border-slate-800' : 'bg-slate-50 border-slate-100'
+            }`}>
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 {language === 'ru' ? 'Доставка (Приложения)' : language === 'en' ? 'Delivery Apps' : 'Livrare (Aplicații)'}
@@ -652,9 +650,8 @@ export default function Dashboard() {
           </div>
 
           {/* Card 4: Average Ticket & Top Brand */}
-          <div className={`p-3 rounded-xl border flex flex-col justify-between ${
-            isDark ? 'bg-slate-800/40 border-slate-800' : 'bg-slate-50 border-slate-100'
-          }`}>
+          <div className={`p-3 rounded-xl border flex flex-col justify-between ${isDark ? 'bg-slate-800/40 border-slate-800' : 'bg-slate-50 border-slate-100'
+            }`}>
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               {language === 'ru' ? 'Средний Чек и Лидер' : language === 'en' ? 'Average Ticket & Leader' : 'Bon Mediu & Top Brand'}
             </span>
@@ -670,25 +667,23 @@ export default function Dashboard() {
       </div>
 
       {/* ZoomCharts™ Visual Intelligence Suite (DrillDown Donut + ZoomTime Timeline) */}
-      <ZoomChartsSuite 
-        restaurants={restaurants} 
-        checks={checks} 
+      <ZoomChartsSuite
+        restaurants={restaurants}
+        checks={checks}
         salesData={salesData}
-        isDark={isDark} 
-        t={t} 
+        isDark={isDark}
+        t={t}
       />
 
       {/* SECTIUNE EXECUTIVA: PERFORMANTA BRANDURI & TOP ORASE */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* 1. Brand Executive Matrix (2 coloane pe ecran mare) */}
-        <div className={`lg:col-span-2 rounded-2xl shadow-sm border overflow-hidden flex flex-col transition-colors ${
-          isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-        }`}>
-          {/* Header */}
-          <div className={`p-4 border-b flex items-center justify-between gap-3 ${
-            isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-100 bg-slate-50/60'
+        <div className={`lg:col-span-2 rounded-2xl shadow-sm border overflow-hidden flex flex-col transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
           }`}>
+          {/* Header */}
+          <div className={`p-4 border-b flex items-center justify-between gap-3 ${isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-100 bg-slate-50/60'
+            }`}>
             <div className="flex items-center gap-2.5">
               <Store size={18} className="text-emerald-500" />
               <div>
@@ -704,11 +699,10 @@ export default function Dashboard() {
             <button
               onClick={handleExportCSV}
               disabled={isExporting}
-              className={`px-3.5 h-8 rounded-full border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                isDark 
-                  ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-400 hover:bg-emerald-900/50' 
+              className={`px-3.5 h-8 rounded-full border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${isDark
+                  ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-400 hover:bg-emerald-900/50'
                   : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-              }`}
+                }`}
               title="Exportă Raport Executiv CSV"
             >
               {isExporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
@@ -719,9 +713,8 @@ export default function Dashboard() {
           {/* Tabel Matrice Branduri */}
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left border-collapse min-w-[620px]">
-              <thead className={`border-b text-[10px] font-bold uppercase tracking-wider select-none ${
-                isDark ? 'bg-slate-900/80 border-slate-800 text-slate-400' : 'bg-slate-50/80 border-slate-200 text-slate-500'
-              }`}>
+              <thead className={`border-b text-[10px] font-bold uppercase tracking-wider select-none ${isDark ? 'bg-slate-900/80 border-slate-800 text-slate-400' : 'bg-slate-50/80 border-slate-200 text-slate-500'
+                }`}>
                 <tr>
                   <th className="px-4 py-3">{t('dashboard.th_brand', 'Brand')}</th>
                   <th className="px-3 py-3 text-center">{t('dashboard.th_locations', 'Locații')}</th>
@@ -733,8 +726,8 @@ export default function Dashboard() {
               </thead>
               <tbody className={`divide-y text-xs font-medium ${isDark ? 'divide-slate-800' : 'divide-slate-100'}`}>
                 {brandMetrics.map((b) => (
-                  <tr 
-                    key={b.name} 
+                  <tr
+                    key={b.name}
                     className={`transition-colors ${isDark ? 'hover:bg-slate-800/50' : 'hover:bg-slate-50/80'}`}
                   >
                     {/* Brand Logo & Name */}
@@ -754,9 +747,8 @@ export default function Dashboard() {
 
                     {/* Locații Count */}
                     <td className="px-3 py-3.5 text-center">
-                      <span className={`px-2 py-0.5 rounded-full font-bold text-xs ${
-                        isDark ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-700'
-                      }`}>
+                      <span className={`px-2 py-0.5 rounded-full font-bold text-xs ${isDark ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-700'
+                        }`}>
                         {b.locationsCount}
                       </span>
                     </td>
@@ -777,7 +769,9 @@ export default function Dashboard() {
                         {b.revenue.toLocaleString()} RON
                       </div>
                       <div className="text-[10px] text-slate-400 font-medium mt-0.5">
-                        ~{b.avgTicket} RON/com
+                        {b.grossRevenue > b.revenue
+                          ? `${b.grossRevenue.toLocaleString()} RON (${language === 'ru' ? 'без ск.' : 'brut'})`
+                          : `~${b.avgTicket} RON/com`}
                       </div>
                     </td>
 
@@ -789,14 +783,14 @@ export default function Dashboard() {
                           <span className="text-emerald-500">Delivery {b.deliveryShare}%</span>
                         </div>
                         <div className="h-2 w-full rounded-full overflow-hidden flex bg-slate-200 dark:bg-slate-800">
-                          <div 
-                            className="h-full bg-amber-500 transition-all duration-500" 
-                            style={{ width: `${b.localShare}%` }} 
+                          <div
+                            className="h-full bg-amber-500 transition-all duration-500"
+                            style={{ width: `${b.localShare}%` }}
                             title={`Local: ${b.localShare}%`}
                           />
-                          <div 
-                            className="h-full bg-emerald-500 transition-all duration-500" 
-                            style={{ width: `${b.deliveryShare}%` }} 
+                          <div
+                            className="h-full bg-emerald-500 transition-all duration-500"
+                            style={{ width: `${b.deliveryShare}%` }}
                             title={`Delivery: ${b.deliveryShare}%`}
                           />
                         </div>
@@ -805,16 +799,14 @@ export default function Dashboard() {
 
                     {/* Live Uptime */}
                     <td className="px-3 py-3.5 text-center whitespace-nowrap">
-                      <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1.5 ${
-                        b.uptime >= 95
+                      <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1.5 ${b.uptime >= 95
                           ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                           : b.uptime >= 80
                             ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
                             : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${
-                          b.uptime >= 95 ? 'bg-emerald-500' : b.uptime >= 80 ? 'bg-amber-500' : 'bg-rose-500'
-                        }`} />
+                        }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${b.uptime >= 95 ? 'bg-emerald-500' : b.uptime >= 80 ? 'bg-amber-500' : 'bg-rose-500'
+                          }`} />
                         <span>{b.uptime}% online</span>
                       </span>
                     </td>
@@ -826,13 +818,11 @@ export default function Dashboard() {
         </div>
 
         {/* 2. Top Orașe & Hub-uri Regionale */}
-        <div className={`rounded-2xl shadow-sm border overflow-hidden flex flex-col transition-colors ${
-          isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-        }`}>
-          {/* Header */}
-          <div className={`p-4 border-b flex items-center justify-between ${
-            isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-100 bg-slate-50/60'
+        <div className={`rounded-2xl shadow-sm border overflow-hidden flex flex-col transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
           }`}>
+          {/* Header */}
+          <div className={`p-4 border-b flex items-center justify-between ${isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-100 bg-slate-50/60'
+            }`}>
             <div className="flex items-center gap-2">
               <MapPin size={17} className="text-cyan-500" />
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
@@ -861,13 +851,12 @@ export default function Dashboard() {
                   <div key={cityName || idx} className="p-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-2">
-                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold ${
-                          idx === 0 
-                            ? 'bg-amber-500 text-white' 
-                            : idx === 1 
-                              ? 'bg-slate-300 dark:bg-slate-700 text-slate-800 dark:text-white' 
+                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold ${idx === 0
+                            ? 'bg-amber-500 text-white'
+                            : idx === 1
+                              ? 'bg-slate-300 dark:bg-slate-700 text-slate-800 dark:text-white'
                               : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                        }`}>
+                          }`}>
                           {idx + 1}
                         </span>
                         <span className="font-bold text-xs text-slate-900 dark:text-white">
@@ -884,6 +873,11 @@ export default function Dashboard() {
                         <span className="font-bold text-xs text-emerald-600 dark:text-emerald-400">
                           {(ct?.revenue || 0).toLocaleString()} RON
                         </span>
+                        {(ct?.grossRevenue || 0) > (ct?.revenue || 0) && (
+                          <span className="text-[10px] text-slate-400 font-semibold ml-1">
+                            | {(ct?.grossRevenue || 0).toLocaleString()} {language === 'ru' ? 'без ск.' : 'brut'}
+                          </span>
+                        )}
                         <span className="text-[10px] text-slate-400 font-medium ml-1.5">
                           ({(ct?.count || 0).toLocaleString()} com)
                         </span>
@@ -893,9 +887,9 @@ export default function Dashboard() {
                     {/* Progress Bar & Canale */}
                     <div className="flex items-center justify-between gap-3 text-[10px]">
                       <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-                        <div 
-                          className="h-full bg-cyan-500 rounded-full transition-all duration-500" 
-                          style={{ width: `${Math.min(100, Math.max(8, cityShare * 2))}%` }} 
+                        <div
+                          className="h-full bg-cyan-500 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(100, Math.max(8, cityShare * 2))}%` }}
                         />
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
@@ -931,9 +925,8 @@ export default function Dashboard() {
       </div>
 
       {/* 3. Centru de Alertă & Excepții Operaționale (înlocuiește lista oarbă de 208 verificări) */}
-      <div className={`p-4 rounded-2xl shadow-sm border transition-colors ${
-        isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-      }`}>
+      <div className={`p-4 rounded-2xl shadow-sm border transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+        }`}>
         {operationalExceptions.length === 0 ? (
           /* Rețea 100% OK */
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -983,11 +976,10 @@ export default function Dashboard() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {operationalExceptions.map((row) => (
-                <div 
-                  key={row.id} 
-                  className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
-                    isDark ? 'bg-slate-800/40 border-slate-700/60' : 'bg-slate-50 border-slate-200'
-                  }`}
+                <div
+                  key={row.id}
+                  className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${isDark ? 'bg-slate-800/40 border-slate-700/60' : 'bg-slate-50 border-slate-200'
+                    }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <BrandAvatar brand={row.restaurant} size={28} className="rounded-full shrink-0 shadow-xs" />
@@ -1040,9 +1032,8 @@ export default function Dashboard() {
 
       {/* Secțiune Discretă: Produse Oprite pe Bucătărie (iiko Stop-List) */}
       {stats.topMissing.length > 0 && (
-        <div className={`p-5 rounded-2xl shadow-sm border transition-colors ${
-          isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-        }`}>
+        <div className={`p-5 rounded-2xl shadow-sm border transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
           <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
             <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-slate-700 dark:text-slate-300">
               <ShoppingBag size={15} className="text-amber-500" />
@@ -1054,8 +1045,8 @@ export default function Dashboard() {
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
             {stats.topMissing.map(([name, count], i) => (
-              <span 
-                key={i} 
+              <span
+                key={i}
                 className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/80 inline-flex items-center gap-2"
               >
                 <span>{name}</span>
