@@ -650,13 +650,14 @@ app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
                     const isPickedUpEvent = Boolean(sendTs) || ['PICKED_UP', 'PICKED UP', 'IN_TRANSIT', 'IN TRANSIT', 'ON_WAY', 'ON WAY', 'OUT_FOR_DELIVERY'].includes(upperStatus)
                     const isAtCustomerEvent = upperStatus.includes('AT CUSTOMER') || upperStatus.includes('ARRIVED')
 
+                    const todayDayPrefix = new Date().toISOString().slice(0, 10)
+                    const whRefPrefix = refId ? `wh_${todayDayPrefix}_${refId}` : null
                     let matchingRows = []
                     if (refId && refId.length >= 8) {
                         const { data: directRows } = await supabase
                             .from('platform_sales')
                             .select('id, order_id, restaurant_id, platform, total_amount, placed_at, items')
-                            .gte('order_id', refId)
-                            .lt('order_id', `${refId}~`)
+                            .or(`and(order_id.gte.${refId},order_id.lt.${refId}~),and(order_id.gte.${whRefPrefix},order_id.lt.${whRefPrefix}~)`)
                         if (Array.isArray(directRows) && directRows.length > 0) {
                             matchingRows = directRows
                         }
@@ -675,7 +676,7 @@ app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
                         }
                         matchingRows = fallbackRecentSales.filter(row => {
                             const rowOrdId = String(row.order_id || '').toLowerCase()
-                            const baseOrdId = rowOrdId.split('_')[0]
+                            const baseOrdId = extractBaseOrderUuid(rowOrdId).toLowerCase()
                             const meta = (Array.isArray(row.items) && row.items[0]?._order_meta) || {}
                             const metaNum = String(meta.orderNumber || '').replace(/^#+/, '').trim().toLowerCase()
                             const metaExt = String(meta.externalOrderId || '').replace(/^#+/, '').trim().toLowerCase()
@@ -686,6 +687,17 @@ app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
                         })
                     }
 
+                    const nowIso = new Date().toISOString()
+                    const trackingUrl = String(upd.order_traking_url || upd.order_tracking_url || '').trim()
+                    const courierCompany = upd.curier || upd.courier || null
+                    const courierOrderId = upd.curier_order_id || upd.courier_order_id || null
+                    const deliveryFee = upd.delivery_fee || null
+                    const mappedStage = isDeliveredEvent
+                        ? 'Delivered'
+                        : (isPickedUpEvent || isAtCustomerEvent)
+                            ? 'OnWay'
+                            : (rawStatus || 'CookingStarted')
+
                     for (const row of matchingRows) {
                         const itemsArr = Array.isArray(row.items) && row.items.length > 0
                             ? [...row.items]
@@ -694,37 +706,31 @@ app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
                         const prevMeta = firstItem._order_meta || {}
                         const prevTimings = prevMeta.timings || {}
                         const prevCourier = prevMeta.courier || {}
-                        const nowIso = new Date().toISOString()
 
-                        const trackingUrl = String(upd.order_traking_url || upd.order_tracking_url || prevCourier.trackingUrl || prevMeta.trackingUrl || '').trim()
-                        const courierCompany = upd.curier || upd.courier || prevCourier.company || null
-                        const courierOrderId = upd.curier_order_id || upd.courier_order_id || prevCourier.orderId || null
-                        const deliveryFee = upd.delivery_fee || prevCourier.deliveryFee || null
-
-                        const mappedStage = isDeliveredEvent
-                            ? 'Delivered'
-                            : (isPickedUpEvent || isAtCustomerEvent)
-                                ? 'OnWay'
-                                : (prevMeta.stage || rawStatus || 'CookingStarted')
+                        const finalTracking = trackingUrl || prevCourier.trackingUrl || prevMeta.trackingUrl || null
+                        const finalCompany = courierCompany || prevCourier.company || 'Partener Livrare'
+                        const finalOrderId = courierOrderId || prevCourier.orderId || null
+                        const finalFee = deliveryFee || prevCourier.deliveryFee || null
 
                         firstItem._order_meta = {
                             ...prevMeta,
                             status: isDeliveredEvent ? 'Delivered' : (rawStatus || prevMeta.status || 'Delivered'),
                             stage: mappedStage,
                             courierStatus: rawStatus || prevMeta.courierStatus || null,
-                            trackingUrl: trackingUrl || null,
-                            courierOrderId: courierOrderId || null,
-                            deliveryFee: deliveryFee || null,
+                            trackingUrl: finalTracking,
+                            courierOrderId: finalOrderId,
+                            deliveryFee: finalFee,
                             customerName: upd.recipient_name || prevMeta.customerName || null,
                             customerPhone: upd.recipient_phone || prevMeta.customerPhone || null,
                             customerAddress: upd.address || prevMeta.customerAddress || null,
                             courier: {
                                 ...prevCourier,
-                                name: prevCourier.name || (courierCompany ? `Curier ${courierCompany}` : 'Curier'),
-                                company: courierCompany || prevCourier.company || 'Delivery',
-                                orderId: courierOrderId,
-                                deliveryFee,
-                                trackingUrl: trackingUrl || null,
+                                name: prevCourier.name || (finalCompany ? `Curier ${finalCompany}` : 'Curier Partener'),
+                                company: finalCompany,
+                                awb: finalOrderId,
+                                orderId: finalOrderId,
+                                deliveryFee: finalFee,
+                                trackingUrl: finalTracking,
                                 status: rawStatus || prevCourier.status || null
                             },
                             timings: {
@@ -745,6 +751,57 @@ app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
                             .eq('id', row.id)
 
                         if (!uErr) processedCount++
+                    }
+
+                    // Persist a wh_YYYY-MM-DD_ carrier row so fetchWebhookIndexed() merges partner courier data onto live Syrve orders
+                    const carrierKey = refId || refNum
+                    if (carrierKey) {
+                        const partnerOrderId = `wh_${todayDayPrefix}_${carrierKey}`
+                        const matchedRestId = matchingRows[0]?.restaurant_id || restaurants?.[0]?.id || null
+                        if (matchedRestId) {
+                            await supabase.from('platform_sales').upsert([{
+                                restaurant_id: matchedRestId,
+                                order_id: partnerOrderId,
+                                platform: 'own_delivery',
+                                total_amount: 0,
+                                placed_at: nowIso,
+                                items: [{
+                                    product_name: 'Partner Delivery Meta',
+                                    price: 0,
+                                    amount: 1,
+                                    quantity: 1,
+                                    _order_meta: {
+                                        isPartnerMetaOnly: true,
+                                        orderNumber: refNum || null,
+                                        externalOrderId: refId || null,
+                                        status: isDeliveredEvent ? 'Delivered' : (rawStatus || null),
+                                        stage: mappedStage,
+                                        courierStatus: rawStatus || null,
+                                        trackingUrl: trackingUrl || null,
+                                        courierOrderId: courierOrderId || null,
+                                        deliveryFee: deliveryFee || null,
+                                        courier: {
+                                            name: courierCompany ? `Curier ${courierCompany}` : 'Curier Partener',
+                                            company: courierCompany || 'Partener Livrare',
+                                            awb: courierOrderId || null,
+                                            orderId: courierOrderId || null,
+                                            deliveryFee: deliveryFee || null,
+                                            trackingUrl: trackingUrl || null,
+                                            status: rawStatus || null
+                                        },
+                                        timings: {
+                                            whenCookingCompleted: cookTs || null,
+                                            whenSended: sendTs || (isPickedUpEvent ? nowIso : null),
+                                            whenArrivedAtCustomer: isAtCustomerEvent ? nowIso : null,
+                                            whenDelivered: delivTs || (isDeliveredEvent ? nowIso : null),
+                                            whenClosed: delivTs || (isDeliveredEvent ? nowIso : null)
+                                        }
+                                    }
+                                }]
+                            }], { onConflict: 'order_id' })
+                            localLiveDispatchCache.clear()
+                            processedCount++
+                        }
                     }
                 }
             }
@@ -1590,13 +1647,20 @@ async function fetchLiveAndWebhookOrdersForDay(dayStr, allRests = []) {
                     const custPhone = ord.phone || ord.customer?.phone || phoneFromComment || null
                     const custAddress = ord.deliveryPoint?.comment || ord.deliveryPoint?.address?.line1 || ord.deliveryPoint?.address?.street?.name || null
                     const rawCourierObj = ord.courierInfo?.courier || null
-                    const courierName = rawCourierObj?.name || cleanCourierFromComment || null
-                    const courierPhone = rawCourierObj?.phone || courierPhoneFromComment || null
+                    const isOperatorSameAsCourier = Boolean(
+                        rawCourierObj &&
+                        ord.operator &&
+                        ((rawCourierObj.id && ord.operator.id && rawCourierObj.id === ord.operator.id) ||
+                            (rawCourierObj.name && ord.operator.name && rawCourierObj.name.trim().toLowerCase() === ord.operator.name.trim().toLowerCase())) &&
+                        !ord.courierInfo?.isCourierSelectedManually
+                    )
+                    const courierName = (!isOperatorSameAsCourier && rawCourierObj?.name) || cleanCourierFromComment || null
+                    const courierPhone = (!isOperatorSameAsCourier && rawCourierObj?.phone) || courierPhoneFromComment || null
 
                     const extractedCourier = courierName ? {
                         name: courierName,
                         phone: courierPhone || '',
-                        company: platform === 'glovo' ? 'Glovo' : platform === 'wolt' ? 'Wolt' : platform === 'bolt' ? 'Bolt Food' : 'Livrator Propriu',
+                        company: platform === 'glovo' ? 'Glovo' : platform === 'wolt' ? 'Wolt' : platform === 'bolt' ? 'Bolt Food' : 'Partener Livrare',
                         isManual: Boolean(ord.courierInfo?.isCourierSelectedManually)
                     } : null
 
@@ -2327,13 +2391,16 @@ app.get('/api/dispatch/live', async (req, res) => {
             }
         }
 
-        // Pre-merge metadata (timings, courier, status) across rows sharing the same iiko UUID prefix
+        // Pre-merge metadata (timings, courier, status) across rows sharing the same iiko UUID prefix or orderNumber
         const mergedMetaByUuid = new Map()
+        const mergedMetaByOrderNum = new Map()
         for (const o of (rawOrders || [])) {
             const baseUuid = extractBaseOrderUuid(o.order_id || o.id)
             if (!baseUuid) continue
             const m = (o.items || [])[0]?._order_meta || {}
-            const prev = mergedMetaByUuid.get(baseUuid) || { timings: {}, courier: null, customer: null, status: null, stage: null }
+            const numKey = String(m.orderNumber || '').replace(/^#+/, '').trim().toLowerCase()
+            const extKey = String(m.externalOrderId || '').replace(/^#+/, '').trim().toLowerCase()
+            const prev = mergedMetaByUuid.get(baseUuid) || (numKey && mergedMetaByOrderNum.get(numKey)) || { timings: {}, courier: null, customer: null, status: null, stage: null }
             const curTimings = m.timings || {}
             prev.timings = {
                 whenCreated: prev.timings.whenCreated || curTimings.whenCreated || null,
@@ -2364,6 +2431,8 @@ app.get('/api/dispatch/live', async (req, res) => {
                 prev.stage = m.stage || m.status
             }
             mergedMetaByUuid.set(baseUuid, prev)
+            if (numKey) mergedMetaByOrderNum.set(numKey, prev)
+            if (extKey) mergedMetaByOrderNum.set(extKey, prev)
         }
 
         const enrichedOrders = []
@@ -2391,8 +2460,10 @@ app.get('/api/dispatch/live', async (req, res) => {
         for (const o of (rawOrders || [])) {
             const rawRest = restMap[o.restaurant_id] || (allRests || []).find(r => r.id === o.restaurant_id)
             const baseUuid = extractBaseOrderUuid(o.order_id || o.id)
-            const sharedMeta = mergedMetaByUuid.get(baseUuid)
             const rawMeta = (o.items || [])[0]?._order_meta || {}
+            if (rawMeta.isPartnerMetaOnly) continue
+            const rawNumKey = String(rawMeta.orderNumber || '').replace(/^#+/, '').trim().toLowerCase()
+            const sharedMeta = mergedMetaByUuid.get(baseUuid) || (rawNumKey && mergedMetaByOrderNum.get(rawNumKey)) || null
             const meta = sharedMeta ? {
                 ...rawMeta,
                 status: sharedMeta.status || rawMeta.status,

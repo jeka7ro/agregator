@@ -1773,7 +1773,7 @@ export default function Dispatch() {
                               </span>
                             ) : ord.channel_type === 'own_delivery' ? (
                               <span className="text-indigo-500 dark:text-indigo-400 font-semibold truncate block">
-                                {language === 'ru' ? 'Собственный курьер' : language === 'en' ? 'Own Courier' : 'Curier Propriu'}
+                                {language === 'ru' ? 'Курьер партнёра' : language === 'en' ? 'Partner Courier' : 'Curier Partener'}
                               </span>
                             ) : (
                               <span className="text-slate-400 truncate block">
@@ -2505,7 +2505,7 @@ export default function Dispatch() {
                   ) : selectedOrder.channel_type === 'own_delivery' ? (
                     <div className="text-indigo-600 dark:text-indigo-400 font-semibold flex items-center gap-1.5">
                       <Bike size={14} />
-                      <span>{language === 'ru' ? 'Собственная доставка (курьер ресторана)' : language === 'en' ? 'Own Delivery (Restaurant Courier)' : 'Livrare proprie (Curier restaurant)'}</span>
+                      <span>{language === 'ru' ? 'Доставка через партнёра (ожидание данных от партнёра)' : language === 'en' ? 'Partner Delivery (awaiting partner data)' : 'Livrare prin partener (în așteptarea datelor de la partener)'}</span>
                     </div>
                   ) : (
                     <div className="text-slate-400 italic">{t('dispatch.aggregator_courier', 'Curier Agregator')}</div>
