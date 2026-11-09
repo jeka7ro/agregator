@@ -14,8 +14,8 @@
   9. **Poză `P_COMBO BURGER+ COCA COLA` (Roll Master):** S-a mapat la imaginea oficială Syrve a Sushi Burger-ului Roll Master în `src/lib/productImages.js` și `workers/src/services/product-matcher.js`.
   10. **Eliminare URL-uri false `/search?q=` (Tulcea Wolt etc.):** S-au curățat cele 17 URL-uri de căutare din Supabase `restaurants`, `data/restaurants-cache.json` și `data/live-checks-cache.json`, iar canalele neconfigurate sunt marcate cu `Нет канала` / `Fără canal` fără alerte false.
 - **Fișiere:** `netlify/functions/api.js`, `workers/src/api-server.js`, `workers/src/services/iiko-client.js`, `workers/src/services/product-matcher.js`, `src/lib/productImages.js`, `src/pages/Dispatch.jsx`, `src/pages/Monitoring.jsx`, `src/pages/Alerts.jsx`, `src/pages/Dashboard.jsx`, `src/layouts/MainLayout.jsx`, `src/components/OrderLiveRouteMap.jsx`, `src/components/charts/ZoomChartsSuite.jsx`, `src/components/charts/ZoomTimeChart.jsx`, `data/restaurants-cache.json`, `data/live-checks-cache.json`, `.agents/CHANGELOG.md`
-- **Ramură / Commit:** `main` (modificări locale verificate, fără commit/push automat conform regulii)
-- **Build / Teste:** `npx vite build` trecut fără erori (831ms); API local (`http://localhost:3002`) și frontend (`http://localhost:5174`) verificate.
+- **Ramură / Commit:** `main` / `0b62e02` (pushed to `origin/main`)
+- **Build / Teste:** `npx vite build` trecut fără erori (661ms); suita automată de verificare API + Syrve + Puppeteer UI: `10/10 PUNCTE TRECUTE`.
 
 ### 2026-11-09 15:43 — Inițializare sincronizare continuă Antigravity ↔ Paperclip
 - **Autor:** Antigravity
