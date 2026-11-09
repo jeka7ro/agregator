@@ -1,5 +1,14 @@
 # Jurnal de modificări (Antigravity ↔ Paperclip)
 
+### 2026-11-09 23:04 — Potrivire exactă sub-locații București (Unirii / Titan / Ceaikovski) și persistență webhook curier partener
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  1. **Mapare exactă pe sub-locații București (`resolveMatchingRestaurant`):** S-a adăugat verificarea după `iiko_restaurant_id` și sub-locația din București (`UNIRII` / `Bucuresti-02`, `TITAN` / `Bucuresti-03`, `CEAIKOVSKI` / `Bucuresti-01`) înainte de potrivirea generică pe orașul `BUCURESTI`, astfel încât comenzile de pe `SM BUC UNIRII` (ex. `#14034`) să nu mai fie atribuite primei locații din București (`BUC CEAIKOVSKI`).
+  2. **Persistență webhook curier partener (`wh_YYYY-MM-DD_<ref>`):** Salvarea și unificarea după UUID și numărul comenzii a datelor trimise de partenerul de livrare pentru comenzile `Сайт/Приложение` (`Livrare SM`).
+- **Fișiere:** `workers/src/api-server.js`, `netlify/functions/api.js`, `src/pages/Dispatch.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` / `9d00382` + commit sub-locații București
+- **Build / Teste:** `npx vite build` OK; verificat pe `#14034` (`SM BUC UNIRII`).
+
 ### 2026-11-09 22:08 — Rezolvare integrală a celor 10 puncte semnalate de Igor pe grupul Telegram (verificat local)
 - **Autor:** Antigravity
 - **Ce s-a făcut:**

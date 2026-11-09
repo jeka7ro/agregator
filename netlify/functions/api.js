@@ -290,9 +290,10 @@ function resolveMatchingRestaurant(allRests, rawRest, detectedBrand, canonicalCi
   if (!canonicalCity) return rawRest
 
   const brandLower = (detectedBrand || '').toLowerCase()
-  const match = (allRests || []).find(r => {
-    const rCity = getCanonicalCity(r.city || r.name)
-    if (rCity !== canonicalCity) return false
+  const rawSubLoc = `${rawRest?.city || ''} ${rawRest?.name || ''}`.toUpperCase()
+  const subTag = rawSubLoc.includes('UNIRII') ? 'UNIRII' : rawSubLoc.includes('TITAN') ? 'TITAN' : rawSubLoc.includes('CEAIKOVSKI') ? 'CEAIKOVSKI' : null
+
+  const matchesBrand = (r) => {
     const bName = (r.brands?.name || '').toLowerCase()
     const rName = (r.name || '').toLowerCase()
     if (brandLower === 'roll master') {
@@ -315,6 +316,22 @@ function resolveMatchingRestaurant(allRests, rawRest, detectedBrand, canonicalCi
       return false
     }
     return false
+  }
+
+  // 1. Prioritize exact physical kitchen (same iiko_restaurant_id or Bucharest sub-location UNIRII/TITAN/CEAIKOVSKI)
+  if (rawRest?.iiko_restaurant_id || subTag) {
+    const exactLocMatch = (allRests || []).find(r => {
+      if (rawRest?.iiko_restaurant_id && r.iiko_restaurant_id === rawRest.iiko_restaurant_id && matchesBrand(r)) return true
+      if (subTag && `${r.city || ''} ${r.name || ''}`.toUpperCase().includes(subTag) && matchesBrand(r)) return true
+      return false
+    })
+    if (exactLocMatch) return exactLocMatch
+  }
+
+  const match = (allRests || []).find(r => {
+    const rCity = getCanonicalCity(r.city || r.name)
+    if (rCity !== canonicalCity) return false
+    return matchesBrand(r)
   })
 
   return match || rawRest
