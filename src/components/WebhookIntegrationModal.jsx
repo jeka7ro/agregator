@@ -520,7 +520,7 @@ export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTrig
                       type="text"
                       readOnly
                       value={`${webhookBaseUrl}/api/webhooks/iiko`}
-                      style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
+                      style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
                       className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 dark:text-white select-all outline-hidden cursor-text"
                     />
                     <button
@@ -562,7 +562,7 @@ export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTrig
                       type="text"
                       readOnly
                       value={`${webhookBaseUrl}/api/webhooks/wolt`}
-                      style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
+                      style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
                       className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 dark:text-white select-all outline-hidden cursor-text"
                     />
                     <button
@@ -604,7 +604,7 @@ export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTrig
                       type="text"
                       readOnly
                       value={`${webhookBaseUrl}/api/webhooks/bolt`}
-                      style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
+                      style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
                       className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 dark:text-white select-all outline-hidden cursor-text"
                     />
                     <button
@@ -646,7 +646,7 @@ export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTrig
                       type="text"
                       readOnly
                       value={`${webhookBaseUrl}/api/webhooks/glovo`}
-                      style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
+                      style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
                       className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 dark:text-white select-all outline-hidden cursor-text"
                     />
                     <button
@@ -688,7 +688,7 @@ export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTrig
                       type="text"
                       readOnly
                       value={`${webhookBaseUrl}/api/webhooks/kiosk`}
-                      style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
+                      style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
                       className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 dark:text-white select-all outline-hidden cursor-text"
                     />
                     <button

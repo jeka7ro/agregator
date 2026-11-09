@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { 
   Radio, 
   RotateCw, 
@@ -208,17 +208,18 @@ export default function Dispatch() {
   // Etichetă perioadă curentă
   const currentPeriodOpt = PERIOD_OPTIONS.find(p => p.key === selectedPeriod) || PERIOD_OPTIONS[0]
   const currentPeriodLabel = t(currentPeriodOpt.labelKey, currentPeriodOpt.fallback)
+  const [searchParams, setSearchParams] = useSearchParams()
 
-  // Sincronizare parametri URL la schimbarea filtrelor
+  // Sincronizare parametri URL la schimbarea filtrelor (notifică React Router & MainLayout)
   const updateUrlParam = (key, value) => {
     try {
-      const url = new URL(window.location.href)
+      const next = new URLSearchParams(searchParams)
       if (value && value !== 'all' && (key !== 'period' || value !== 'today')) {
-        url.searchParams.set(key, value)
+        next.set(key, value)
       } else {
-        url.searchParams.delete(key)
+        next.delete(key)
       }
-      window.history.replaceState({}, '', url.toString())
+      setSearchParams(next, { replace: true })
     } catch (_) {}
   }
 
@@ -255,33 +256,49 @@ export default function Dispatch() {
     setSelectedRestaurantId('all')
     setSelectedChannel('all')
     setSelectedPeriod('today')
+    setSearchQuery('')
     setPage(1)
     try {
-      const url = new URL(window.location.href)
-      url.searchParams.delete('city')
-      url.searchParams.delete('brand')
-      url.searchParams.delete('channel')
-      url.searchParams.delete('period')
-      window.history.replaceState({}, '', url.pathname)
+      const next = new URLSearchParams(searchParams)
+      next.delete('city')
+      next.delete('brand')
+      next.delete('channel')
+      next.delete('period')
+      setSearchParams(next, { replace: true })
     } catch (_) {}
   }
 
-  // Ascultare eveniment popstate pentru navigare back/forward în browser
+  // Sincronizare când filtrele sunt resetate din bara globală (MainLayout) sau prin back/forward
   useEffect(() => {
-    const onPopState = () => {
-      try {
-        const pCity = new URLSearchParams(window.location.search).get('city')
-        setSelectedCity(pCity ? getCanonicalCity(pCity) : 'all')
-        const pBrand = new URLSearchParams(window.location.search).get('brand')
-        setSelectedBrand(pBrand || 'all')
-        const pChannel = new URLSearchParams(window.location.search).get('channel')
-        setSelectedChannel(pChannel || 'all')
-        const pPeriod = new URLSearchParams(window.location.search).get('period')
-        setSelectedPeriod(pPeriod || 'today')
-      } catch (_) {}
+    try {
+      const pCity = searchParams.get('city')
+      const nextCity = pCity ? getCanonicalCity(pCity) : 'all'
+      if (nextCity !== selectedCity) setSelectedCity(nextCity)
+
+      const pBrand = searchParams.get('brand') || 'all'
+      if (pBrand !== selectedBrand) setSelectedBrand(pBrand)
+
+      const pChannel = searchParams.get('channel') || 'all'
+      if (pChannel !== selectedChannel) setSelectedChannel(pChannel)
+
+      const pPeriod = searchParams.get('period') || 'today'
+      if (pPeriod !== selectedPeriod) setSelectedPeriod(pPeriod)
+    } catch (_) {}
+  }, [searchParams])
+
+  useEffect(() => {
+    const onGlobalReset = () => {
+      setSelectedCity('all')
+      setSelectedBrand('all')
+      setSelectedRestaurantId('all')
+      setSelectedChannel('all')
+      setSelectedPeriod('today')
+      setSearchQuery('')
+      setActiveTab('all')
+      setPage(1)
     }
-    window.addEventListener('popstate', onPopState)
-    return () => window.removeEventListener('popstate', onPopState)
+    window.addEventListener('global-reset-filters', onGlobalReset)
+    return () => window.removeEventListener('global-reset-filters', onGlobalReset)
   }, [])
 
   // GDPR Protection State (disabled by default for operational visibility)
@@ -301,7 +318,7 @@ export default function Dispatch() {
   // Modal comanda selectata
   const [selectedOrder, setSelectedOrder] = useState(null)
 
-  // Hook date live
+  // Hook date live (filtrarea după punct fizic se face pe client pentru a suporta locațiile multi-brand unificate)
   const { 
     kpis, 
     orders, 
@@ -317,7 +334,7 @@ export default function Dispatch() {
   } = useLiveDispatch({ 
     city: selectedCity, 
     brand: selectedBrand, 
-    restaurantId: selectedRestaurantId,
+    restaurantId: 'all',
     period: selectedPeriod,
     autoRefreshSeconds: 300 
   })
@@ -374,20 +391,40 @@ export default function Dispatch() {
     })
   }, [restaurants, selectedCity, selectedBrand])
 
-  // Opțiuni formatate pentru Selectorul Punct de Lucru cu bară de căutare
+  // Opțiuni formatate pentru Selectorul Punct de Lucru (unifică punctele fizice cu mai multe branduri, ex. BUC UNIRII, BUC TITAN, BUC CEAIKOVSKI)
   const restaurantOptions = useMemo(() => {
-    return filteredRestaurantsForSelector.map(r => {
+    const groups = new Map()
+    filteredRestaurantsForSelector.forEach(r => {
       const bInfo = getBrandInfo(r)
       const cleanName = cleanRestaurantName(r.name)
-      const cityName = getCityDisplayName(r.city)
-      return {
-        value: r.id,
-        label: cleanName,
-        sublabel: `${cityName} · ${bInfo.name}`,
-        avatar: <BrandAvatar brand={bInfo.name} name={r.name} size={18} />,
-        keywords: `${r.name} ${r.city} ${bInfo.name} ${cleanName} ${cityName}`
+      const cityCanon = getCanonicalCity(r.city || r.name)
+      const cityName = getCityDisplayName(r.city || r.name)
+      const groupKey = `${cityCanon}__${cleanName.toUpperCase()}`
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, {
+          value: r.id,
+          ids: [r.id],
+          label: cleanName,
+          cityName,
+          brands: [bInfo.name],
+          primaryRestaurant: r,
+          keywords: `${r.name} ${r.city} ${bInfo.name} ${cleanName} ${cityName}`
+        })
+      } else {
+        const g = groups.get(groupKey)
+        if (!g.ids.includes(r.id)) g.ids.push(r.id)
+        if (!g.brands.includes(bInfo.name)) g.brands.push(bInfo.name)
+        g.keywords += ` ${r.name} ${bInfo.name}`
       }
     })
+    return Array.from(groups.values()).map(g => ({
+      value: g.value,
+      ids: g.ids,
+      label: g.label,
+      sublabel: `${g.cityName} · ${g.brands.join(' + ')}`,
+      avatar: <BrandAvatar brand={g.brands[0]} name={g.primaryRestaurant.name} size={18} />,
+      keywords: g.keywords
+    }))
   }, [filteredRestaurantsForSelector])
 
   // Opțiuni formatate pentru Selectorul Oraș cu bară de căutare
@@ -474,7 +511,7 @@ export default function Dispatch() {
 
   const selectedLocationObj = useMemo(() => {
     if (selectedRestaurantId === 'all') return null
-    return restaurantOptions.find(o => String(o.value) === String(selectedRestaurantId))
+    return restaurantOptions.find(o => String(o.value) === String(selectedRestaurantId) || (Array.isArray(o.ids) && o.ids.includes(selectedRestaurantId)))
   }, [restaurantOptions, selectedRestaurantId])
 
   // Comenzi de bază filtrate conform perioadei, orașului, brandului și restaurantului (pentru numărătorile din tab-uri și KPI-uri)
@@ -482,6 +519,9 @@ export default function Dispatch() {
     const yesterdayDate = new Date()
     yesterdayDate.setDate(yesterdayDate.getDate() - 1)
     const yesterdayRo = yesterdayDate.toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
+
+    const allowedRestIds = selectedLocationObj?.ids ? new Set(selectedLocationObj.ids) : null
+    const allowedRestCleanLabel = selectedLocationObj?.label ? selectedLocationObj.label.toUpperCase() : null
 
     return orders.filter(o => {
       // 0. Filtru strict Perioadă (asigură că "Azi" conține EXCLUSIV comenzi din data de azi)
@@ -503,19 +543,21 @@ export default function Dispatch() {
         if (o.brand_name !== selectedBrand) return false
       }
 
-      // 3. Filtru Restaurant specific
+      // 3. Filtru Restaurant specific (suportă punctele fizice unificate)
       if (selectedRestaurantId !== 'all') {
-        if (o.restaurant_id !== selectedRestaurantId) return false
+        const matchesId = allowedRestIds ? allowedRestIds.has(o.restaurant_id) : (o.restaurant_id === selectedRestaurantId)
+        const matchesLabel = allowedRestCleanLabel && cleanRestaurantName(o.restaurant_name || '').toUpperCase() === allowedRestCleanLabel
+        if (!matchesId && !matchesLabel) return false
       }
 
       return true
     }).map(o => {
-      // Client-side SLA guard against stale sessionStorage snapshots:
-      // O comandă mai veche de 48 min (livrare) sau 15 min (restaurant) nu poate rămâne blocată în "În Preparare"
       const liveElapsed = computeElapsedMinutes(o.placed_at, o.created_at, o.elapsed_minutes || 0)
       const isInRest = o.channel_type === 'kiosk' || o.channel_type === 'casierie' || o.platform === 'kiosk' || o.platform === 'casierie'
+      const hasRealIikoTimings = Boolean(o.timings?.created_time || o.timings?.when_created)
       const maxSla = isInRest ? 15 : 48
-      if (o.stage !== 'delivered' && liveElapsed > maxSla) {
+      // Nu suprascriem niciodată cu timpi falși comenzile care au cronologie reală din iiko POS!
+      if (!hasRealIikoTimings && o.stage !== 'delivered' && liveElapsed > maxSla) {
         const kMin = o.kitchen_minutes && o.kitchen_minutes <= 35 ? o.kitchen_minutes : (isInRest ? 9 : 16)
         const wMin = isInRest ? 0 : (o.courier_wait_minutes || 5)
         const dMin = isInRest ? 0 : (o.delivery_minutes && o.delivery_minutes > 1 ? o.delivery_minutes : 16)
@@ -538,7 +580,7 @@ export default function Dispatch() {
         elapsed_minutes: liveElapsed
       }
     })
-  }, [orders, selectedCity, selectedBrand, selectedRestaurantId, selectedPeriod])
+  }, [orders, selectedCity, selectedBrand, selectedRestaurantId, selectedLocationObj, selectedPeriod])
 
   // Păstrează modalul deschis sincronizat cu datele live
   useEffect(() => {
@@ -600,6 +642,7 @@ export default function Dispatch() {
 
   // Jurnal STOP filtrat conform orașului, brandului și restaurantului selectat
   const filteredStopAuditLog = useMemo(() => {
+    const allowedIds = selectedLocationObj?.ids ? new Set(selectedLocationObj.ids) : null
     return (stopAuditLog || []).filter(log => {
       if (selectedCity !== 'all') {
         const logCity = getCanonicalCity(log.city || log.restaurant_city || log.restaurant_name)
@@ -609,11 +652,12 @@ export default function Dispatch() {
         if (log.brand !== selectedBrand) return false
       }
       if (selectedRestaurantId !== 'all') {
-        if (log.restaurant_id !== selectedRestaurantId) return false
+        const matchesId = allowedIds ? allowedIds.has(log.restaurant_id) : (log.restaurant_id === selectedRestaurantId)
+        if (!matchesId) return false
       }
       return true
     })
-  }, [stopAuditLog, selectedCity, selectedBrand, selectedRestaurantId])
+  }, [stopAuditLog, selectedCity, selectedBrand, selectedRestaurantId, selectedLocationObj])
 
   // Sume calculate dinamic pentru siguranță instantă
   const calculatedTodaySales = useMemo(() => {
@@ -1727,6 +1771,10 @@ export default function Dispatch() {
                               <span className="text-slate-400 truncate block" title={t('dispatch.wolt_no_data', 'Curier Wolt (Fără acces date)')}>
                                 {language === 'ru' ? 'Курьер Wolt' : language === 'en' ? 'Wolt Courier' : 'Curier Wolt'}
                               </span>
+                            ) : ord.channel_type === 'own_delivery' ? (
+                              <span className="text-indigo-500 dark:text-indigo-400 font-semibold truncate block">
+                                {language === 'ru' ? 'Собственный курьер' : language === 'en' ? 'Own Courier' : 'Curier Propriu'}
+                              </span>
                             ) : (
                               <span className="text-slate-400 truncate block">
                                 {t('dispatch.aggregator_courier', 'Curier Agregator')}
@@ -2208,15 +2256,25 @@ export default function Dispatch() {
                 <div className="flex items-center gap-4 text-xs font-semibold text-slate-500">
                   <div className="text-center">
                     <div className="text-[10px] uppercase text-slate-400">{t('dispatch.modal_kitchen', 'Bucătărie')}</div>
-                    <div className="font-bold text-slate-700 dark:text-slate-200">{selectedOrder.kitchen_minutes}{language === 'ru' ? 'м' : 'm'}</div>
+                    <div className="font-bold text-slate-700 dark:text-slate-200 tabular-nums">{selectedOrder.kitchen_minutes}{language === 'ru' ? 'м' : 'm'}</div>
                   </div>
                   <div className="text-center">
                     <div className="text-[10px] uppercase text-slate-400">{t('dispatch.modal_wait', 'Așteptare')}</div>
-                    <div className="font-bold text-slate-700 dark:text-slate-200">{selectedOrder.courier_wait_minutes}{language === 'ru' ? 'м' : 'm'}</div>
+                    <div className="font-bold text-slate-700 dark:text-slate-200 tabular-nums">
+                      {(selectedOrder.timings?.created_time && !selectedOrder.timings?.sended_time && selectedOrder.stage === 'delivered')
+                        ? '—'
+                        : `${selectedOrder.courier_wait_minutes}${language === 'ru' ? 'м' : 'm'}`}
+                    </div>
                   </div>
                   <div className="text-center">
                     <div className="text-[10px] uppercase text-slate-400">{t('dispatch.modal_delivery', 'Livrare')}</div>
-                    <div className="font-bold text-slate-700 dark:text-slate-200">{selectedOrder.delivery_minutes}{language === 'ru' ? 'м' : 'm'}</div>
+                    <div className="font-bold text-slate-700 dark:text-slate-200 tabular-nums">
+                      {selectedOrder.timings?.closed_at_handoff
+                        ? (language === 'ru' ? 'По выдаче' : language === 'en' ? 'At handoff' : 'La predare')
+                        : (selectedOrder.timings?.created_time && !selectedOrder.timings?.sended_time)
+                          ? '—'
+                          : `${selectedOrder.delivery_minutes}${language === 'ru' ? 'м' : 'm'}`}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2232,32 +2290,36 @@ export default function Dispatch() {
                     </span>
                     {selectedOrder.timings?.complete_before_time && (
                       <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                        {language === 'ru' ? 'Обещанный срок (SLA):' : language === 'en' ? 'Promised SLA:' : 'Termen promis (SLA):'} <b className="font-mono text-slate-800 dark:text-slate-200">{selectedOrder.timings.complete_before_time}</b>
+                        {language === 'ru' ? 'Обещанный срок (SLA):' : language === 'en' ? 'Promised SLA:' : 'Termen promis (SLA):'} <b className="tabular-nums text-slate-800 dark:text-slate-200">{selectedOrder.timings.complete_before_time}</b>
                       </span>
                     )}
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                     <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-white border-emerald-100'}`}>
                       <div className="text-[10px] text-slate-400 font-semibold">{language === 'ru' ? '1. Заказ принят' : language === 'en' ? '1. Order Received' : '1. Comandă Intrată'}</div>
-                      <div className="font-mono font-extrabold text-sm text-slate-900 dark:text-white mt-0.5">
+                      <div className="tabular-nums font-extrabold text-sm text-slate-900 dark:text-white mt-0.5">
                         {selectedOrder.timings?.created_time || parseOrderDateTime(selectedOrder.placed_at).time || '—'}
                       </div>
                     </div>
                     <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-white border-emerald-100'}`}>
                       <div className="text-[10px] text-slate-400 font-semibold">{language === 'ru' ? '2. Готов на кухне' : language === 'en' ? '2. Kitchen Ready' : '2. Gata Bucătărie'}</div>
-                      <div className="font-mono font-extrabold text-sm text-blue-600 dark:text-blue-400 mt-0.5">
+                      <div className="tabular-nums font-extrabold text-sm text-blue-600 dark:text-blue-400 mt-0.5">
                         {selectedOrder.timings?.cooking_completed_time || '—'}
                       </div>
                     </div>
                     <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-white border-emerald-100'}`}>
                       <div className="text-[10px] text-slate-400 font-semibold">{language === 'ru' ? '3. Передан курьеру' : language === 'en' ? '3. Handed to Courier' : '3. Predată Curier'}</div>
-                      <div className="font-mono font-extrabold text-sm text-amber-600 dark:text-amber-400 mt-0.5">
+                      <div className="tabular-nums font-extrabold text-sm text-amber-600 dark:text-amber-400 mt-0.5">
                         {selectedOrder.timings?.sended_time || '—'}
                       </div>
                     </div>
                     <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-white border-emerald-100'}`}>
-                      <div className="text-[10px] text-slate-400 font-semibold">{language === 'ru' ? '4. Доставлен / Закрыт' : language === 'en' ? '4. Delivered / Closed' : '4. Livrată / Închisă'}</div>
-                      <div className="font-mono font-extrabold text-sm text-emerald-600 dark:text-emerald-400 mt-0.5">
+                      <div className="text-[10px] text-slate-400 font-semibold">
+                        {selectedOrder.timings?.closed_at_handoff
+                          ? (language === 'ru' ? '4. Закрыт в кассе (при выдаче)' : language === 'en' ? '4. Closed at POS (handoff)' : '4. Închis în casă (la predare)')
+                          : (language === 'ru' ? '4. Доставлен / Закрыт' : language === 'en' ? '4. Delivered / Closed' : '4. Livrată / Închisă')}
+                      </div>
+                      <div className="tabular-nums font-extrabold text-sm text-emerald-600 dark:text-emerald-400 mt-0.5">
                         {selectedOrder.timings?.delivered_time || '—'}
                       </div>
                     </div>
@@ -2440,6 +2502,11 @@ export default function Dispatch() {
                     <div className="text-slate-400 italic">{t('dispatch.modal_glovo_no_contact', 'Asignat direct de Glovo (Platforma nu expune contactul curierului prin iiko)')}</div>
                   ) : selectedOrder.platform === 'wolt' ? (
                     <div className="text-slate-400 italic">{t('dispatch.modal_wolt_no_contact', 'Asignat direct de Wolt (Platforma nu expune contactul curierului prin iiko)')}</div>
+                  ) : selectedOrder.channel_type === 'own_delivery' ? (
+                    <div className="text-indigo-600 dark:text-indigo-400 font-semibold flex items-center gap-1.5">
+                      <Bike size={14} />
+                      <span>{language === 'ru' ? 'Собственная доставка (курьер ресторана)' : language === 'en' ? 'Own Delivery (Restaurant Courier)' : 'Livrare proprie (Curier restaurant)'}</span>
+                    </div>
                   ) : (
                     <div className="text-slate-400 italic">{t('dispatch.aggregator_courier', 'Curier Agregator')}</div>
                   )}

@@ -2,11 +2,11 @@ import React, { useState } from 'react'
 import { getUserInitials } from '../lib/AuthContext'
 
 const ROLE_AVATAR_STYLES = {
-  admin: 'bg-emerald-600 text-white border-emerald-500/40',
-  supervisor: 'bg-blue-600 text-white border-blue-500/40',
-  operational: 'bg-amber-600 text-white border-amber-500/40',
-  marketing: 'bg-purple-600 text-white border-purple-500/40',
-  restaurant_manager: 'bg-cyan-600 text-white border-cyan-500/40'
+  admin: 'bg-[#047857] text-white border-emerald-600/40',
+  supervisor: 'bg-slate-800 text-white border-slate-700',
+  operational: 'bg-slate-700 text-white border-slate-600',
+  marketing: 'bg-slate-800 text-white border-slate-700',
+  restaurant_manager: 'bg-slate-700 text-white border-slate-600'
 }
 
 export async function compressAvatarImage(file) {

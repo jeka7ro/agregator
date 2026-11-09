@@ -109,6 +109,18 @@ export default function Customers() {
   const [savingEdit, setSavingEdit] = useState(false)
   const [toastMsg, setToastMsg] = useState(null)
 
+  const closeCustomerModal = useCallback(() => {
+    setSelectedCustomer(null)
+    if (searchParams.has('open') || searchParams.has('search')) {
+      const next = new URLSearchParams(searchParams)
+      next.delete('open')
+      next.delete('search')
+      setSearchParams(next, { replace: true })
+      setSearch('')
+      setDebouncedSearch('')
+    }
+  }, [searchParams, setSearchParams])
+
   const openCustomerModal = useCallback((cust, openEdit = false) => {
     if (!cust) return
     setSelectedCustomer(cust)
@@ -241,9 +253,12 @@ export default function Customers() {
         setFilteredTotalOrders(json.filtered_total_orders ?? json.kpis?.total_orders ?? 0)
         setFilteredTotalReviews(json.filtered_total_reviews ?? 0)
 
-        // Dacă s-a navigat cu ?search=...&open=1, deschidem direct dosarul complet al clientului
-        if (searchParams.get('open') === '1' && list.length > 0 && !selectedCustomer) {
+        // Dacă s-a navigat cu ?search=...&open=1, deschidem o singură dată dosarul complet al clientului și curățăm parametrul open=1
+        if (searchParams.get('open') === '1' && list.length > 0) {
           openCustomerModal(list[0], false)
+          const next = new URLSearchParams(searchParams)
+          next.delete('open')
+          setSearchParams(next, { replace: true })
         }
       }
     } catch (err) {
@@ -251,7 +266,7 @@ export default function Customers() {
     } finally {
       setLoading(false)
     }
-  }, [cityFilter, brandFilter, platformFilter, segmentFilter, debouncedSearch, sortConfig, page, rowsPerPage, searchParams, selectedCustomer, openCustomerModal, user, hasScopeRestrictions, canAccessCity, canAccessBrand])
+  }, [cityFilter, brandFilter, platformFilter, segmentFilter, debouncedSearch, sortConfig, page, rowsPerPage, searchParams, setSearchParams, openCustomerModal, user, hasScopeRestrictions, canAccessCity, canAccessBrand])
 
   useEffect(() => {
     fetchCustomers()
@@ -1192,7 +1207,7 @@ export default function Customers() {
       {/* ─── 4. DOSAR COMPLET CLIENT (360° FULL CUSTOMER DETAILS: PROFIL, ADRESĂ, RECENZII, COMENZI & PRODUSE) ─── */}
       {selectedCustomer && (
         <div
-          onClick={() => setSelectedCustomer(null)}
+          onClick={closeCustomerModal}
           className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-40 flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200"
         >
           <div
@@ -1272,7 +1287,7 @@ export default function Customers() {
 
                 <button
                   type="button"
-                  onClick={() => setSelectedCustomer(null)}
+                  onClick={closeCustomerModal}
                   className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white cursor-pointer"
                 >
                   <X size={16} />

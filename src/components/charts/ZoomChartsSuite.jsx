@@ -94,6 +94,7 @@ export default function ZoomChartsSuite({ restaurants = [], checks = [], salesDa
         {(activeView === 'both' || activeView === 'timeline') && (
           <div className="w-full">
             <ZoomTimeChart 
+              restaurants={restaurants}
               checks={checks} 
               isDark={isDark} 
               t={t} 

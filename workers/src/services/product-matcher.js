@@ -162,7 +162,7 @@ const SYRVE_SEEDS = [
   },
   {
     name: 'Burger Somon',
-    synonyms: ['burger somon', 'sushi burger somon'],
+    synonyms: ['burger somon', 'sushi burger somon', 'sushi burger', 'combo burger', 'p_combo burger'],
     brand: 'Roll Master',
     image: 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/2ad07ee9-9df0-4dc6-8898-e73c2db6bf2e.jpg',
     description: 'Burger inedit din orez de sushi, somon proaspăt și sos cremos.',
@@ -353,6 +353,10 @@ export function matchProductImage(rawName, brandHint = '') {
     return catalogCache.find(e => e.name.includes('Big Party Set')) || SYRVE_SEEDS[11]
   }
   if (rawLower.includes('burger') || rawLower.includes('smash')) {
+    const bHintLow = String(brandHint || '').toLowerCase()
+    if (bHintLow.includes('roll') || bHintLow.includes('sushi') || bHintLow.includes('love') || String(rawName || '').toLowerCase().startsWith('p_')) {
+      return catalogCache.find(e => e.name === 'Burger Somon') || SYRVE_SEEDS[18]
+    }
     return catalogCache.find(e => e.name.includes('Smashed ME Burger Dublu')) || SYRVE_SEEDS[3]
   }
   if (rawLower.includes('wok') || rawLower.includes('orez') || rawLower.includes('udon') || rawLower.includes('noodle')) {

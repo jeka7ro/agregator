@@ -12,6 +12,7 @@ const fastWithTimeout = (promise, ms = 1400) => Promise.race([
   promise,
   new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms))
 ])
+const withTimeout = fastWithTimeout
 
 try {
   customersService.hydrateFromStatic(customersCacheStatic)
@@ -723,7 +724,7 @@ export default async (req, context) => {
       try {
         let query = supabase
           .from('stop_events')
-          .select('*, restaurants(name, city)')
+          .select('*, restaurants(name, city, glovo_url, wolt_url, bolt_url)')
           .order('stopped_at', { ascending: false })
           .limit(limit)
 
@@ -736,6 +737,11 @@ export default async (req, context) => {
           events = data.filter(ev => {
             const r = String(ev.reason || '').toLowerCase()
             if (r.includes('temporarily closed') || r.includes('outside delivery hours') || r.includes('closed on glovo')) return false
+            const p = String(ev.platform || '').toLowerCase()
+            if (p === 'glovo' || p === 'wolt' || p === 'bolt') {
+              const pUrl = ev.restaurants?.[`${p}_url`]
+              if (!pUrl || String(pUrl).includes('/search')) return false
+            }
             return true
           })
         }
@@ -1254,12 +1260,72 @@ export default async (req, context) => {
         const realWaitMin = (tCooked && tSended) ? Math.max(0, Math.round((tSended - tCooked) / 60000)) : null
         const realDelivMin = (tSended && tDelivered) ? Math.max(0, Math.round((tDelivered - tSended) / 60000)) : null
         const realTotalMin = (tCreated && tDelivered) ? Math.max(1, Math.round((tDelivered - tCreated) / 60000)) : null
+        const isClosedAtHandoff = Boolean(!isInRestaurant && tSended && tDelivered && Math.abs(tDelivered - tSended) <= 90000)
 
-        const maxActiveSlaMin = isInRestaurant ? 15 : 48
-        const isPastActiveSla = elapsedMin > maxActiveSlaMin
-
-        if (hasRealIikoTimings && !isKioskPlat && !isPastActiveSla) {
-          if ((rawStatus === 'waitcooking' || rawStatus === 'unconfirmed' || rawStatus === 'readyforcooking') && elapsedMin <= 8) {
+        if (hasRealIikoTimings && !isKioskPlat) {
+          if (tDelivered || rawStatus === 'closed' || rawStatus === 'delivered') {
+            stage = 'delivered'
+            stageLabel = isInRestaurant ? 'Servit în Restaurant' : 'Livrat'
+            statusColor = 'emerald'
+            deliveredCount++
+            kTime = realCookMin !== null ? realCookMin : (realTotalMin || 15)
+            wTime = realWaitMin !== null ? realWaitMin : 0
+            dTime = (isInRestaurant || isClosedAtHandoff) ? 0 : (realDelivMin !== null ? realDelivMin : 0)
+          } else if (tSended || rawStatus === 'onway') {
+            if (elapsedMin <= 120) {
+              stage = 'on_way'
+              stageLabel = 'La Curier (Pe drum)'
+              statusColor = 'indigo'
+              onWayCount++
+              kTime = realCookMin || 16
+              wTime = realWaitMin !== null ? realWaitMin : 0
+              dTime = tSended ? Math.max(1, Math.round((Date.now() - tSended.getTime()) / 60000)) : Math.max(1, elapsedMin - kTime - wTime)
+            } else {
+              stage = 'delivered'
+              stageLabel = isInRestaurant ? 'Servit în Restaurant' : 'Livrat'
+              statusColor = 'emerald'
+              deliveredCount++
+              kTime = realCookMin || 16
+              wTime = realWaitMin !== null ? realWaitMin : 0
+              dTime = realDelivMin !== null ? realDelivMin : 0
+            }
+          } else if (tCooked || rawStatus === 'cookingcompleted' || rawStatus === 'waiting') {
+            if (elapsedMin <= 120) {
+              stage = 'ready'
+              stageLabel = 'Gata / Așteaptă Curier'
+              statusColor = 'purple'
+              waitingCourierCount++
+              kTime = realCookMin || Math.min(20, Math.max(1, elapsedMin))
+              wTime = tCooked ? Math.max(1, Math.round((Date.now() - tCooked.getTime()) / 60000)) : Math.max(1, elapsedMin - kTime)
+              dTime = 0
+            } else {
+              stage = 'delivered'
+              stageLabel = isInRestaurant ? 'Servit în Restaurant' : 'Livrat'
+              statusColor = 'emerald'
+              deliveredCount++
+              kTime = realCookMin || 16
+              wTime = 0
+              dTime = 0
+            }
+          } else if (rawStatus === 'cookingstarted') {
+            if (elapsedMin <= 90) {
+              stage = 'cooking'
+              stageLabel = 'În Preparare Bucătărie'
+              statusColor = 'blue'
+              activeInKitchenCount++
+              kTime = Math.max(1, elapsedMin)
+              wTime = 0
+              dTime = 0
+            } else {
+              stage = 'delivered'
+              stageLabel = isInRestaurant ? 'Servit în Restaurant' : 'Livrat'
+              statusColor = 'emerald'
+              deliveredCount++
+              kTime = realCookMin || 16
+              wTime = 0
+              dTime = 0
+            }
+          } else if (elapsedMin <= 8) {
             stage = 'wait_cooking'
             stageLabel = 'În Așteptare Bucătărie'
             statusColor = 'amber'
@@ -1267,7 +1333,7 @@ export default async (req, context) => {
             kTime = Math.max(1, elapsedMin)
             wTime = 0
             dTime = 0
-          } else if ((rawStatus === 'cookingstarted' || rawStatus === 'waitcooking' || rawStatus === 'unconfirmed' || rawStatus === 'readyforcooking') && elapsedMin <= 25) {
+          } else if (elapsedMin <= 90) {
             stage = 'cooking'
             stageLabel = 'În Preparare Bucătărie'
             statusColor = 'blue'
@@ -1275,47 +1341,15 @@ export default async (req, context) => {
             kTime = Math.max(1, elapsedMin)
             wTime = 0
             dTime = 0
-          } else if ((rawStatus === 'cookingcompleted' || rawStatus === 'waiting' || rawStatus === 'cookingstarted') && elapsedMin <= 34) {
-            stage = 'ready'
-            stageLabel = 'Gata / Așteaptă Curier'
-            statusColor = 'purple'
-            waitingCourierCount++
-            kTime = realCookMin || Math.min(20, Math.max(12, elapsedMin - 4))
-            wTime = Math.max(1, elapsedMin - kTime)
-            dTime = 0
-          } else if (rawStatus === 'onway' || rawStatus === 'cookingcompleted' || rawStatus === 'waiting' || rawStatus === 'cookingstarted') {
-            stage = 'on_way'
-            stageLabel = 'La Curier (Pe drum)'
-            statusColor = 'indigo'
-            onWayCount++
-            kTime = realCookMin || 16
-            wTime = realWaitMin !== null ? realWaitMin : 5
-            dTime = Math.max(1, elapsedMin - kTime - wTime)
           } else {
             stage = 'delivered'
             stageLabel = isInRestaurant ? 'Servit în Restaurant' : 'Livrat'
             statusColor = 'emerald'
             deliveredCount++
-            kTime = realCookMin !== null ? realCookMin : (realTotalMin || 15)
-            wTime = realWaitMin !== null ? realWaitMin : 0
-            // Dacă bonul de livrare a fost închis automat în iiko POS la predarea către curier (realDelivMin <= 1 min),
-            // estimăm timpul real de drum al curierului (14-20 min) în loc de 0m
-            const fallbackCourierTransit = (!isInRestaurant && (realDelivMin === null || realDelivMin <= 1))
-              ? (14 + ((o.order_id?.charCodeAt(0) || 3) % 7))
-              : (realDelivMin || 0)
-            dTime = isInRestaurant ? 0 : fallbackCourierTransit
+            kTime = realCookMin || 16
+            wTime = 0
+            dTime = 0
           }
-        } else if (hasRealIikoTimings && !isKioskPlat && isPastActiveSla) {
-          stage = 'delivered'
-          stageLabel = isInRestaurant ? 'Servit în Restaurant' : 'Livrat'
-          statusColor = 'emerald'
-          deliveredCount++
-          kTime = realCookMin !== null ? realCookMin : 16
-          wTime = realWaitMin !== null ? realWaitMin : (isInRestaurant ? 0 : 5)
-          const fallbackCourierTransit = (!isInRestaurant && (realDelivMin === null || realDelivMin <= 1))
-            ? (14 + ((o.order_id?.charCodeAt(0) || 3) % 7))
-            : (realDelivMin || 0)
-          dTime = isInRestaurant ? 0 : fallbackCourierTransit
         } else if (isInRestaurant) {
           // In-restaurant orders (Kiosk & Casierie / POS) DO NOT have couriers or on_way delivery
           // NOTE: Syrve/iiko closes the fiscal check ("Closed") immediately upon payment at Kiosk/POS.
@@ -1399,7 +1433,7 @@ export default async (req, context) => {
           }
         }
 
-        const totalTime = (hasRealIikoTimings && stage === 'delivered' && realTotalMin !== null && (isInRestaurant || (realDelivMin !== null && realDelivMin > 1)))
+        const totalTime = (hasRealIikoTimings && stage === 'delivered' && realTotalMin !== null)
           ? realTotalMin
           : (kTime + wTime + dTime)
 
@@ -1574,7 +1608,8 @@ export default async (req, context) => {
             delivered_time: extractHHMMSS(rawTimings.whenDelivered || rawTimings.whenClosed),
             closed_time: extractHHMMSS(rawTimings.whenClosed),
             complete_before_time: extractHHMM(rawTimings.completeBefore),
-            delivered_short_time: extractHHMM(rawTimings.whenDelivered || rawTimings.whenClosed)
+            delivered_short_time: extractHHMM(rawTimings.whenDelivered || rawTimings.whenClosed),
+            closed_at_handoff: isClosedAtHandoff
           },
           customer: {
             name: finalCustomer.name,

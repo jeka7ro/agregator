@@ -778,6 +778,7 @@ export default function CouriersMap() {
   const [selectedOrderId, setSelectedOrderId] = useState(null)
   const [modalOrder, setModalOrder] = useState(null)
   const [isMapFullscreen, setIsMapFullscreen] = useState(false)
+  const [activeAuditPopupId, setActiveAuditPopupId] = useState(null)
 
   const [isBrandPickerOpen, setIsBrandPickerOpen] = useState(false)
   const brandPickerRef = useRef(null)
@@ -1170,9 +1171,34 @@ export default function CouriersMap() {
     }
   }, [selectedCity])
 
+  const fitSelectedOrderOnMap = (ord, customRouteEntry, fullscreenFlag = isMapFullscreen) => {
+    if (!leafletMapRef.current || !window.L || !ord) return
+    const routeInfo = computeOrderRouteAndTimeline(ord, customRouteEntry || streetRoutes[ord.id], language)
+    const pts = [
+      [ord.restCoords.lat, ord.restCoords.lng],
+      [routeInfo.custCoords.lat, routeInfo.custCoords.lng],
+      [routeInfo.courierPos.lat, routeInfo.courierPos.lng],
+      ...(routeInfo.routeLatLngs || [])
+    ]
+    const bounds = window.L.latLngBounds(pts)
+    leafletMapRef.current.fitBounds(bounds, {
+      padding: fullscreenFlag ? [90, 90] : [60, 60],
+      maxZoom: 16,
+      animate: true,
+      duration: 0.5
+    })
+  }
+
   const recenterMainMap = () => {
     if (!leafletMapRef.current) return
     leafletMapRef.current.invalidateSize()
+    if (selectedOrderId) {
+      const selOrd = filteredDeliveries.find(o => o.id === selectedOrderId) || deliveryOrders.find(o => o.id === selectedOrderId)
+      if (selOrd) {
+        fitSelectedOrderOnMap(selOrd, streetRoutes[selOrd.id], isMapFullscreen)
+        return
+      }
+    }
     if (selectedCity !== 'all' && CITY_COORDS[selectedCity]) {
       const c = CITY_COORDS[selectedCity]
       leafletMapRef.current.flyTo([c.lat, c.lng], c.zoom, { duration: 0.5 })
@@ -1185,15 +1211,26 @@ export default function CouriersMap() {
     if (!leafletMapRef.current) return
     const t1 = setTimeout(() => {
       if (leafletMapRef.current) leafletMapRef.current.invalidateSize()
-    }, 60)
+    }, 50)
     const t2 = setTimeout(() => {
-      if (leafletMapRef.current) leafletMapRef.current.invalidateSize()
-    }, 240)
+      if (leafletMapRef.current) {
+        leafletMapRef.current.invalidateSize()
+        recenterMainMap()
+      }
+    }, 220)
     return () => {
       clearTimeout(t1)
       clearTimeout(t2)
     }
   }, [isMapFullscreen])
+
+  // Când o comandă este selectată pe hartă (sau când ruta ei stradală OSRM se încarcă), facem zoom stradal precis pe traseul ei
+  useEffect(() => {
+    if (!selectedOrderId || !leafletMapRef.current || !window.L) return
+    const selOrd = filteredDeliveries.find(o => o.id === selectedOrderId) || deliveryOrders.find(o => o.id === selectedOrderId)
+    if (!selOrd) return
+    fitSelectedOrderOnMap(selOrd, streetRoutes[selOrd.id], isMapFullscreen)
+  }, [selectedOrderId, streetRoutes[selectedOrderId]])
 
   useEffect(() => {
     if (!isMapFullscreen) return
@@ -1397,7 +1434,7 @@ export default function CouriersMap() {
             padding: 3px 8px 3px 4px; border-radius: 999px;
             background: ${isSelected ? '#059669' : '#0f172a'};
             border: 2px solid ${statusColor};
-            color: #ffffff; font-family: ui-monospace, monospace;
+            color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             font-size: 10.5px; font-weight: 900; white-space: nowrap;
             box-shadow: 0 5px 15px rgba(0,0,0,0.5);
             transform: ${isSelected ? 'scale(1.15)' : 'scale(1)'};
@@ -1483,7 +1520,7 @@ export default function CouriersMap() {
               <div style="width: ${routeInfo.progressPct}%; height: 100%; background: #10b981; border-radius: 99px;"></div>
             </div>
           </div>
-          ${ord.courier?.awb ? `<div style="font-size: 11px; font-family: monospace; color: #059669; font-weight: 700; margin-top: 3px;">AWB: ${ord.courier.awb}</div>` : ''}
+          ${ord.courier?.awb ? `<div style="font-size: 11px; color: #059669; font-weight: 700; margin-top: 3px;">AWB: ${ord.courier.awb}</div>` : ''}
           <div style="font-size: 11px; color: #d97706; font-weight: 700;">${ui.popupStatus} ${formatCourierStatusBadge(ord, ui)}</div>
           ${ord.courier?.deliveryFee ? `<div style="font-size: 11px; color: #475569;">${ui.popupFee} <b>${ord.courier.deliveryFee} RON</b></div>` : ''}
           <div>${trackingBtnHtml}${gmapsBtnHtml}</div>
@@ -1495,18 +1532,18 @@ export default function CouriersMap() {
   const handleSelectOrderCard = (ord) => {
     if (selectedOrderId === ord.id) {
       setSelectedOrderId(null)
+      if (leafletMapRef.current) {
+        if (selectedCity !== 'all' && CITY_COORDS[selectedCity]) {
+          const c = CITY_COORDS[selectedCity]
+          leafletMapRef.current.flyTo([c.lat, c.lng], c.zoom, { duration: 0.5 })
+        } else {
+          leafletMapRef.current.flyTo([ROMANIA_CENTER.lat, ROMANIA_CENTER.lng], ROMANIA_CENTER.zoom, { duration: 0.5 })
+        }
+      }
       return
     }
     setSelectedOrderId(ord.id)
-    if (leafletMapRef.current && window.L) {
-      const routeInfo = computeOrderRouteAndTimeline(ord, streetRoutes[ord.id], language)
-      const bounds = window.L.latLngBounds([
-        [ord.restCoords.lat, ord.restCoords.lng],
-        [routeInfo.custCoords.lat, routeInfo.custCoords.lng],
-        [routeInfo.courierPos.lat, routeInfo.courierPos.lng]
-      ])
-      leafletMapRef.current.fitBounds(bounds, { padding: [60, 60], maxZoom: 15, animate: true, duration: 0.6 })
-    }
+    fitSelectedOrderOnMap(ord, streetRoutes[ord.id], isMapFullscreen)
   }
 
   return (
@@ -1854,19 +1891,35 @@ export default function CouriersMap() {
       {/* ─── 4. SPLIT VIEW: HARTA INTERACTIVĂ (STÂNGA) + LISTA CURIERI LIVE (DREAPTA) ─── */}
       {isMapFullscreen && (
         <div
-          className="fixed inset-0 z-[9985] bg-slate-950/75 backdrop-blur-xs"
+          className="fixed inset-0 z-[9985] bg-slate-950/80 backdrop-blur-xs"
           onClick={() => setIsMapFullscreen(false)}
         />
       )}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         {/* Harta Leaflet */}
-        <div className={`${
-          isMapFullscreen
-            ? 'fixed inset-3 sm:inset-5 z-[9990] shadow-2xl'
-            : 'lg:col-span-8 min-h-[540px]'
-        } rounded-2xl border overflow-hidden relative flex flex-col ${
-          isDark ? 'bg-slate-900 border-slate-800 couriers-map-dark' : 'bg-white border-slate-200 shadow-xs'
-        }`}>
+        <div
+          style={
+            isMapFullscreen
+              ? {
+                  position: 'fixed',
+                  top: '12px',
+                  left: '12px',
+                  right: '12px',
+                  bottom: '12px',
+                  width: 'calc(100vw - 24px)',
+                  height: 'calc(100vh - 24px)',
+                  zIndex: 9995
+                }
+              : undefined
+          }
+          className={`${
+            isMapFullscreen
+              ? 'fixed inset-3 z-[9995] shadow-2xl'
+              : 'relative lg:col-span-8 min-h-[540px]'
+          } rounded-2xl border overflow-hidden flex flex-col ${
+            isDark ? 'bg-slate-900 border-slate-800 couriers-map-dark' : 'bg-white border-slate-200 shadow-xs'
+          }`}
+        >
           <div ref={mapContainerRef} className="w-full flex-1 min-h-[540px] z-10" />
 
           {/* Controale Flotante Dreapta-Sus pe Hartă: Izolare Comandă + Recentrare + Fullscreen */}
@@ -1874,6 +1927,7 @@ export default function CouriersMap() {
             {selectedOrderId && (() => {
               const selOrd = filteredDeliveries.find(o => o.id === selectedOrderId) || deliveryOrders.find(o => o.id === selectedOrderId)
               if (!selOrd) return null
+              const selRouteInfo = computeOrderRouteAndTimeline(selOrd, streetRoutes[selOrd.id], language)
               return (
                 <div className={`px-3 py-1.5 rounded-xl border backdrop-blur-md text-xs flex items-center gap-2.5 shadow-lg ${
                   isDark ? 'bg-slate-900/95 border-emerald-500/50 text-white' : 'bg-white/95 border-emerald-500/50 text-slate-900'
@@ -1881,12 +1935,26 @@ export default function CouriersMap() {
                   <span className="font-bold text-slate-500 dark:text-slate-300">
                     {ui.selectedOrderBadge}
                   </span>
-                  <span className="font-mono font-black text-emerald-500">
+                  <span className="font-black text-emerald-500 tabular-nums">
                     {getCleanOrderNumber(selOrd)}
                   </span>
+                  <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-300 border-l border-slate-300 dark:border-slate-700 pl-2">
+                    <span>{cleanRestaurantName(selOrd.restaurant_name, selOrd.brand_name)}</span>
+                    <span className="text-emerald-500">· {selRouteInfo.distanceKm} {ui.kmShort} (~{selRouteInfo.driveMin} {ui.minShort})</span>
+                  </span>
                   <button
-                    onClick={() => setSelectedOrderId(null)}
-                    className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+                    onClick={() => {
+                      setSelectedOrderId(null)
+                      if (leafletMapRef.current) {
+                        if (selectedCity !== 'all' && CITY_COORDS[selectedCity]) {
+                          const c = CITY_COORDS[selectedCity]
+                          leafletMapRef.current.flyTo([c.lat, c.lng], c.zoom, { duration: 0.5 })
+                        } else {
+                          leafletMapRef.current.flyTo([ROMANIA_CENTER.lat, ROMANIA_CENTER.lng], ROMANIA_CENTER.zoom, { duration: 0.5 })
+                        }
+                      }
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap shrink-0"
                   >
                     <X size={12} />
                     <span>{ui.showAllOrdersBtn} ({filteredDeliveries.length})</span>
@@ -2083,25 +2151,25 @@ export default function CouriersMap() {
                     })()}
 
                     {/* STATUS BAR: Ora Plecare + Distanță/Timp Traseu Stradal + Procent + Ora Estimativă Livrare */}
-                    <div className={`mt-2 px-2.5 py-1.5 rounded-xl border ${
+                    <div className={`mt-2 px-2 py-1.5 rounded-xl border ${
                       isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200/80'
                     }`}>
-                      <div className="flex items-center justify-between gap-1.5 text-[10px] font-bold whitespace-nowrap overflow-hidden">
-                        <span className="text-slate-500 dark:text-slate-400 inline-flex items-center gap-1 whitespace-nowrap shrink-0">
-                          <Store size={11} className="text-amber-500 shrink-0" />
+                      <div className="flex items-center justify-between gap-1 text-[9.5px] font-bold whitespace-nowrap">
+                        <span className="text-slate-500 dark:text-slate-400 inline-flex items-center gap-0.5 whitespace-nowrap shrink-0">
+                          <Store size={10} className="text-amber-500 shrink-0" />
                           <span>{ui.depTimeLabel}:</span>
                           <b className="font-mono text-amber-500">
                             {routeInfo.isDepEstimated && routeInfo.depTime !== '—' ? `~${routeInfo.depTime}` : routeInfo.depTime}
                           </b>
                         </span>
 
-                        <span className="font-mono text-[9.5px] font-extrabold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 inline-flex items-center gap-1 whitespace-nowrap shrink-0">
-                          <Bike size={10} className="shrink-0" />
-                          <span className="whitespace-nowrap">{routeInfo.distanceKm} {ui.kmShort} · ~{routeInfo.driveMin} {ui.minShort}</span>
+                        <span className="font-mono text-[9px] font-extrabold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-full border border-emerald-500/20 inline-flex items-center gap-0.5 whitespace-nowrap shrink-0">
+                          <Bike size={9} className="shrink-0" />
+                          <span className="whitespace-nowrap">{routeInfo.distanceKm}{ui.kmShort} · ~{routeInfo.driveMin}{ui.minShort}</span>
                         </span>
 
-                        <span className="text-slate-500 dark:text-slate-400 inline-flex items-center gap-1 whitespace-nowrap shrink-0">
-                          <MapPin size={11} className="text-emerald-500 shrink-0" />
+                        <span className="text-slate-500 dark:text-slate-400 inline-flex items-center gap-0.5 whitespace-nowrap shrink-0">
+                          <MapPin size={10} className="text-emerald-500 shrink-0" />
                           <span>{routeInfo.isDelivered ? ui.deliveredAtLabel : ui.estDeliveryLabel}:</span>
                           <b className="font-mono text-emerald-500">{routeInfo.estArrTime}</b>
                         </span>
@@ -2122,46 +2190,155 @@ export default function CouriersMap() {
                         </span>
                       </div>
 
-                      {/* Audit Eficiență Traseu & Timp Curier (Optim vs. Realizat) — 1 singur rând compact */}
+                      {/* Audit Eficiență Traseu & Timp Curier (Optim vs. Realizat) — Clickabil pentru Pop-up explicativ */}
                       {ord.courierPhase !== 'at_restaurant' && (
-                        <div className={`mt-1.5 pt-1.5 border-t flex items-center justify-between gap-1 text-[10px] font-bold whitespace-nowrap ${
-                          isDark ? 'border-slate-800' : 'border-slate-100'
-                        }`}>
-                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md font-extrabold ${
-                            routeInfo.auditStatus === 'suboptimal'
-                              ? 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
-                              : routeInfo.auditStatus === 'minor_detour'
-                                ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
-                                : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                          }`}>
-                            {routeInfo.auditStatus === 'suboptimal' ? (
-                              <ShieldAlert size={10} className="shrink-0" />
-                            ) : routeInfo.auditStatus === 'minor_detour' ? (
-                              <AlertTriangle size={10} className="shrink-0" />
-                            ) : (
-                              <CheckCircle2 size={10} className="shrink-0" />
-                            )}
-                            <span>
-                              {routeInfo.auditStatus === 'suboptimal'
-                                ? (language === 'ru'
-                                  ? `Задержка курьера +${routeInfo.extraCourierMin}м`
-                                  : `Întârziere curier +${routeInfo.extraCourierMin}m`)
+                        <div className="relative">
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setActiveAuditPopupId(prev => prev === ord.id ? null : ord.id)
+                            }}
+                            title={
+                              language === 'ru'
+                                ? 'Нажмите, чтобы увидеть подробности отклонения'
+                                : language === 'en'
+                                  ? 'Click to view delay / route deviation details'
+                                  : 'Click pentru a vedea detaliile întârzierii / abaterii'
+                            }
+                            className={`mt-1.5 pt-1.5 border-t flex items-center justify-between gap-1 text-[10px] font-bold whitespace-nowrap cursor-pointer select-none group ${
+                              isDark ? 'border-slate-800' : 'border-slate-100'
+                            }`}
+                          >
+                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-extrabold transition-all ${
+                              routeInfo.auditStatus === 'suboptimal'
+                                ? 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-500 border border-rose-500/30'
                                 : routeInfo.auditStatus === 'minor_detour'
+                                  ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-500 border border-amber-500/30'
+                                  : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20'
+                            }`}>
+                              {routeInfo.auditStatus === 'suboptimal' ? (
+                                <ShieldAlert size={10} className="shrink-0" />
+                              ) : routeInfo.auditStatus === 'minor_detour' ? (
+                                <AlertTriangle size={10} className="shrink-0" />
+                              ) : (
+                                <CheckCircle2 size={10} className="shrink-0" />
+                              )}
+                              <span>
+                                {routeInfo.auditStatus === 'suboptimal'
                                   ? (language === 'ru'
-                                    ? `Отклонение +${routeInfo.extraCourierMin}м`
-                                    : `Abatere +${routeInfo.extraCourierMin}m`)
-                                  : (language === 'ru'
-                                    ? `Оптимально (${routeInfo.efficiencyPct}%)`
-                                    : `Traseu Optim (${routeInfo.efficiencyPct}%)`)}
+                                    ? `Задержка курьера +${routeInfo.extraCourierMin}м`
+                                    : language === 'en'
+                                      ? `Courier delay +${routeInfo.extraCourierMin}m`
+                                      : `Întârziere curier +${routeInfo.extraCourierMin}m`)
+                                  : routeInfo.auditStatus === 'minor_detour'
+                                    ? (language === 'ru'
+                                      ? `Отклонение +${routeInfo.extraCourierMin}м`
+                                      : language === 'en'
+                                        ? `Detour +${routeInfo.extraCourierMin}m`
+                                        : `Abatere +${routeInfo.extraCourierMin}m`)
+                                    : (language === 'ru'
+                                      ? `Оптимально (${routeInfo.efficiencyPct}%)`
+                                      : language === 'en'
+                                        ? `Optimal (${routeInfo.efficiencyPct}%)`
+                                        : `Traseu Optim (${routeInfo.efficiencyPct}%)`)}
+                              </span>
+                              <ChevronDown
+                                size={10}
+                                className={`shrink-0 transition-transform ${activeAuditPopupId === ord.id ? 'rotate-180' : ''}`}
+                              />
                             </span>
-                          </span>
 
-                          {routeInfo.extraCourierMin > 0 && (
-                            <span className="font-mono text-[9.5px] text-slate-500 dark:text-slate-400">
-                              <b className={routeInfo.auditStatus === 'suboptimal' ? 'text-rose-500' : 'text-amber-500'}>
-                                ~{routeInfo.actualKm}{ui.kmShort} · {routeInfo.actualCourierMin}{ui.minShort}
-                              </b>
-                            </span>
+                            {routeInfo.extraCourierMin > 0 && (
+                              <span className="font-mono text-[9.5px] text-slate-500 dark:text-slate-400">
+                                <b className={routeInfo.auditStatus === 'suboptimal' ? 'text-rose-500 underline decoration-dotted' : 'text-amber-500 underline decoration-dotted'}>
+                                  ~{routeInfo.actualKm}{ui.kmShort} · {routeInfo.actualCourierMin}{ui.minShort}
+                                </b>
+                              </span>
+                            )}
+                          </div>
+
+                          {/* POP-UP MIC EXPLICATIV LA CLICK PE ALERTA ROȘIE / GALBENĂ */}
+                          {activeAuditPopupId === ord.id && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className={`mt-1.5 p-2.5 rounded-xl border text-[10.5px] leading-snug shadow-lg animate-in fade-in duration-150 ${
+                                routeInfo.auditStatus === 'suboptimal'
+                                  ? (isDark ? 'bg-rose-950/90 border-rose-500/40 text-rose-100' : 'bg-rose-50 border-rose-200 text-rose-950')
+                                  : routeInfo.auditStatus === 'minor_detour'
+                                    ? (isDark ? 'bg-amber-950/90 border-amber-500/40 text-amber-100' : 'bg-amber-50 border-amber-200 text-amber-950')
+                                    : (isDark ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-100' : 'bg-emerald-50 border-emerald-200 text-emerald-950')
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2 pb-1.5 mb-1.5 border-b border-current/15 font-extrabold">
+                                <span className="flex items-center gap-1">
+                                  <ShieldAlert size={12} className="shrink-0" />
+                                  <span>
+                                    {language === 'ru'
+                                      ? 'Детали проверки маршрута курьера'
+                                      : language === 'en'
+                                        ? 'Courier Route Audit Breakdown'
+                                        : 'Ce nu a fost în regulă pe traseu:'}
+                                  </span>
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setActiveAuditPopupId(null)
+                                  }}
+                                  className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                >
+                                  <X size={11} />
+                                </button>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-1.5 font-mono text-[10px] mb-1.5">
+                                <div className={`p-1.5 rounded-lg border ${isDark ? 'bg-slate-900/80 border-slate-800 text-slate-200' : 'bg-white/90 border-slate-200 text-slate-800'}`}>
+                                  <div className="text-[9px] font-sans font-bold text-slate-400">
+                                    {language === 'ru' ? 'Оптимальный маршрут:' : language === 'en' ? 'Optimal Route:' : 'Traseu Optim (Direct):'}
+                                  </div>
+                                  <div className="font-extrabold text-emerald-500">
+                                    {routeInfo.distanceKm} {ui.kmShort} · ~{routeInfo.driveMin} {ui.minShort}
+                                  </div>
+                                </div>
+                                <div className={`p-1.5 rounded-lg border ${isDark ? 'bg-slate-900/80 border-slate-800 text-slate-200' : 'bg-white/90 border-slate-200 text-slate-800'}`}>
+                                  <div className="text-[9px] font-sans font-bold text-slate-400">
+                                    {language === 'ru' ? 'Фактически курьер:' : language === 'en' ? 'Actual Courier:' : 'Realizat de Curier:'}
+                                  </div>
+                                  <div className={`font-extrabold ${routeInfo.auditStatus === 'suboptimal' ? 'text-rose-500' : 'text-amber-500'}`}>
+                                    ~{routeInfo.actualKm} {ui.kmShort} · {routeInfo.actualCourierMin} {ui.minShort}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="space-y-1 text-[10px]">
+                                <div className="flex items-center justify-between font-bold">
+                                  <span>{language === 'ru' ? 'Потеря времени / Крюк:' : language === 'en' ? 'Time lost / Detour:' : 'Timp pierdut / Ocolire:'}</span>
+                                  <span className="font-mono font-black text-rose-500">
+                                    +{routeInfo.extraCourierMin} {ui.minShort} ({routeInfo.extraKm > 0 ? `+${routeInfo.extraKm} ${ui.kmShort} · ` : ''}{routeInfo.efficiencyPct}%)
+                                  </span>
+                                </div>
+                                <p className="opacity-90 font-medium pt-0.5">
+                                  {routeInfo.auditStatus === 'suboptimal'
+                                    ? (language === 'ru'
+                                      ? `Курьер ехал ${routeInfo.actualCourierMin} мин вместо расчетных ~${routeInfo.driveMin} мин (выезд ${routeInfo.depTime} → доставка ${routeInfo.estArrTime}). Вероятная причина: параллельная доставка другого заказа (мульти-заказ), лишняя остановка или отклонение от маршрута.`
+                                      : language === 'en'
+                                        ? `Courier took ${routeInfo.actualCourierMin} min instead of the optimal ~${routeInfo.driveMin} min (left ${routeInfo.depTime} → delivered ${routeInfo.estArrTime}). Likely cause: multi-order delivery along the way, extra stop, or route detour.`
+                                        : `Curierul a parcurs traseul în ${routeInfo.actualCourierMin} min în loc de ~${routeInfo.driveMin} min (plecare ${routeInfo.depTime} → livrare ${routeInfo.estArrTime}). Cauză probabilă: livrare paralelă a altei comenzi (multi-order), oprire suplimentară sau ocolire traseu.`)
+                                    : routeInfo.auditStatus === 'minor_detour'
+                                      ? (language === 'ru'
+                                        ? `Небольшая задержка +${routeInfo.extraCourierMin} мин относительно прямого маршрута (светофоры или плотный трафик).`
+                                        : language === 'en'
+                                          ? `Minor delay of +${routeInfo.extraCourierMin} min compared to direct route (traffic lights or urban congestion).`
+                                          : `Întârziere minoră de +${routeInfo.extraCourierMin} min față de ruta directă (semafoare sau trafic urban intens).`)
+                                      : (language === 'ru'
+                                        ? 'Курьер доставил заказ вовремя по оптимальному маршруту.'
+                                        : language === 'en'
+                                          ? 'Courier delivered on time following the optimal route.'
+                                          : 'Curierul a livrat comanda la timp, respectând traseul optim.')}
+                                </p>
+                              </div>
+                            </div>
                           )}
                         </div>
                       )}

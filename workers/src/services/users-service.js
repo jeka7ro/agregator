@@ -93,7 +93,7 @@ function generateTempPassword() {
 
 const DEFAULT_BREVO_API_KEY = process.env.BREVO_API_KEY || ['xkeysib', '985c17cdfca1bc10ae91c33979c95a835974325ee5a8b42bb23c0143ca7e87d9', 'ULzL1PAZLRIAZ0Pk'].join('-')
 const DEFAULT_BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || 'jeka7ro@gmail.com'
-const DEFAULT_BREVO_SENDER_NAME = process.env.BREVO_SENDER_NAME || 'Get App — Central Dispatch'
+const DEFAULT_BREVO_SENDER_NAME = 'GetApp.FooD'
 
 function getDefaultSeedData() {
   const now = new Date().toISOString()
@@ -106,6 +106,26 @@ function getDefaultSeedData() {
     },
     resetCodes: {},
     users: [
+      {
+        id: 'usr_igor_1',
+        first_name: 'Игорь',
+        last_name: 'Сафонов',
+        email: 'safonov.market@yandex.ru',
+        phone: '',
+        role: 'admin',
+        avatar_url: '',
+        password_hash: hashPassword('Igor2026!'),
+        temp_password_hint: 'Igor2026!',
+        must_change_password: true,
+        status: 'invited',
+        allowed_pages: ['dashboard', 'dispatch', 'couriers-map', 'customers', 'monitoring', 'reputation', 'alerts', 'reports', 'users', 'settings'],
+        allowed_cities: ['all'],
+        allowed_brands: ['all'],
+        allowed_restaurants: ['all'],
+        invited_by: 'Eugeniu Cazmal',
+        created_at: now,
+        last_login_at: null
+      },
       {
         id: 'usr_admin_1',
         first_name: 'Eugeniu',
@@ -125,86 +145,6 @@ function getDefaultSeedData() {
         invited_by: 'System',
         created_at: '2026-10-01T09:00:00.000Z',
         last_login_at: now
-      },
-      {
-        id: 'usr_sup_1',
-        first_name: 'Alexandru',
-        last_name: 'Moraru',
-        email: 'alexandru.moraru@getapp.ro',
-        phone: '+40744112233',
-        role: 'supervisor',
-        avatar_url: '',
-        password_hash: hashPassword('Super2026!'),
-        temp_password_hint: 'Super2026!',
-        must_change_password: false,
-        status: 'active',
-        allowed_pages: ['dashboard', 'dispatch', 'couriers-map', 'customers', 'monitoring', 'reputation', 'alerts', 'reports'],
-        allowed_cities: ['BUCURESTI', 'CONSTANTA', 'BRASOV'],
-        allowed_brands: ['all'],
-        allowed_restaurants: ['all'],
-        invited_by: 'Eugeniu Cazmal',
-        created_at: '2026-10-15T10:30:00.000Z',
-        last_login_at: '2026-11-04T08:15:00.000Z'
-      },
-      {
-        id: 'usr_ops_1',
-        first_name: 'Mihai',
-        last_name: 'Diaconu',
-        email: 'mihai.operational@getapp.ro',
-        phone: '+40722334455',
-        role: 'operational',
-        avatar_url: '',
-        password_hash: hashPassword('Ops2026!'),
-        temp_password_hint: 'Ops2026!',
-        must_change_password: false,
-        status: 'active',
-        allowed_pages: ['dashboard', 'dispatch', 'couriers-map', 'monitoring', 'alerts'],
-        allowed_cities: ['all'],
-        allowed_brands: ['Roll Master', 'Love Sushi', 'Poki Woki'],
-        allowed_restaurants: ['all'],
-        invited_by: 'Eugeniu Cazmal',
-        created_at: '2026-10-20T12:00:00.000Z',
-        last_login_at: '2026-11-04T09:40:00.000Z'
-      },
-      {
-        id: 'usr_mkt_1',
-        first_name: 'Elena',
-        last_name: 'Popescu',
-        email: 'elena.marketing@getapp.ro',
-        phone: '+40766554433',
-        role: 'marketing',
-        avatar_url: '',
-        password_hash: hashPassword('Mkt2026!'),
-        temp_password_hint: 'Mkt2026!',
-        must_change_password: true,
-        status: 'invited',
-        allowed_pages: ['dashboard', 'customers', 'reputation', 'reports'],
-        allowed_cities: ['all'],
-        allowed_brands: ['all'],
-        allowed_restaurants: ['all'],
-        invited_by: 'Eugeniu Cazmal',
-        created_at: '2026-11-02T14:20:00.000Z',
-        last_login_at: null
-      },
-      {
-        id: 'usr_mgr_1',
-        first_name: 'Cristian',
-        last_name: 'Ionescu',
-        email: 'cristian.iasi@getapp.ro',
-        phone: '+40755998877',
-        role: 'restaurant_manager',
-        avatar_url: '',
-        password_hash: hashPassword('Manager2026!'),
-        temp_password_hint: 'Manager2026!',
-        must_change_password: true,
-        status: 'invited',
-        allowed_pages: ['dashboard', 'dispatch', 'couriers-map', 'reputation', 'alerts'],
-        allowed_cities: ['IASI'],
-        allowed_brands: ['Love Sushi', 'Roll Master'],
-        allowed_restaurants: ['all'],
-        invited_by: 'Eugeniu Cazmal',
-        created_at: '2026-11-03T16:10:00.000Z',
-        last_login_at: null
       }
     ]
   }
@@ -217,24 +157,27 @@ class UsersService {
   }
 
   _load() {
-    try {
-      if (fs.existsSync(USERS_DATA_FILE)) {
-        const raw = JSON.parse(fs.readFileSync(USERS_DATA_FILE, 'utf8'))
-        if (raw && Array.isArray(raw.users) && raw.users.length > 0) {
-          this.state = {
-            brevoConfig: {
-              apiKey: raw.brevoConfig?.apiKey || DEFAULT_BREVO_API_KEY,
-              senderEmail: (raw.brevoConfig?.senderEmail && raw.brevoConfig.senderEmail !== 'noreply@smartdevize.ro') ? raw.brevoConfig.senderEmail : DEFAULT_BREVO_SENDER_EMAIL,
-              senderName: raw.brevoConfig?.senderName || DEFAULT_BREVO_SENDER_NAME,
-              enabled: raw.brevoConfig?.enabled !== false
-            },
-            resetCodes: raw.resetCodes || {},
-            users: raw.users
+    const candidateFiles = [USERS_DATA_FILE, '/tmp/app-users.json']
+    for (const file of candidateFiles) {
+      try {
+        if (fs.existsSync(file)) {
+          const raw = JSON.parse(fs.readFileSync(file, 'utf8'))
+          if (raw && Array.isArray(raw.users) && raw.users.length > 0) {
+            this.state = {
+              brevoConfig: {
+                apiKey: raw.brevoConfig?.apiKey || DEFAULT_BREVO_API_KEY,
+                senderEmail: (raw.brevoConfig?.senderEmail && raw.brevoConfig.senderEmail !== 'noreply@smartdevize.ro') ? raw.brevoConfig.senderEmail : DEFAULT_BREVO_SENDER_EMAIL,
+                senderName: (raw.brevoConfig?.senderName && !raw.brevoConfig.senderName.includes('Central Dispatch')) ? raw.brevoConfig.senderName : DEFAULT_BREVO_SENDER_NAME,
+                enabled: raw.brevoConfig?.enabled !== false
+              },
+              resetCodes: raw.resetCodes || {},
+              users: raw.users
+            }
+            return
           }
-          return
         }
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
 
     this.state = getDefaultSeedData()
     this._save()
@@ -242,12 +185,19 @@ class UsersService {
 
   hydrateFromStatic(raw) {
     try {
+      // Dacă există deja modificări salvate în /tmp pe serverless, le păstrăm prioritare
+      if (fs.existsSync('/tmp/app-users.json')) {
+        const tmpRaw = JSON.parse(fs.readFileSync('/tmp/app-users.json', 'utf8'))
+        if (tmpRaw && Array.isArray(tmpRaw.users) && tmpRaw.users.length > 0) {
+          raw = tmpRaw
+        }
+      }
       if (raw && Array.isArray(raw.users) && raw.users.length > 0) {
         this.state = {
           brevoConfig: {
             apiKey: raw.brevoConfig?.apiKey || DEFAULT_BREVO_API_KEY,
             senderEmail: (raw.brevoConfig?.senderEmail && raw.brevoConfig.senderEmail !== 'noreply@smartdevize.ro') ? raw.brevoConfig.senderEmail : DEFAULT_BREVO_SENDER_EMAIL,
-            senderName: raw.brevoConfig?.senderName || DEFAULT_BREVO_SENDER_NAME,
+            senderName: (raw.brevoConfig?.senderName && !raw.brevoConfig.senderName.includes('Central Dispatch')) ? raw.brevoConfig.senderName : DEFAULT_BREVO_SENDER_NAME,
             enabled: raw.brevoConfig?.enabled !== false
           },
           resetCodes: raw.resetCodes || {},
@@ -258,16 +208,20 @@ class UsersService {
   }
 
   _save() {
+    const toWrite = {
+      ...this.state,
+      brevoConfig: {
+        ...this.state.brevoConfig,
+        apiKey: this.state.brevoConfig?.apiKey === DEFAULT_BREVO_API_KEY ? '' : (this.state.brevoConfig?.apiKey || '')
+      }
+    }
+    const serialized = JSON.stringify(toWrite, null, 2)
     try {
       fs.mkdirSync(path.dirname(USERS_DATA_FILE), { recursive: true })
-      const toWrite = {
-        ...this.state,
-        brevoConfig: {
-          ...this.state.brevoConfig,
-          apiKey: this.state.brevoConfig?.apiKey === DEFAULT_BREVO_API_KEY ? '' : (this.state.brevoConfig?.apiKey || '')
-        }
-      }
-      fs.writeFileSync(USERS_DATA_FILE, JSON.stringify(toWrite, null, 2))
+      fs.writeFileSync(USERS_DATA_FILE, serialized)
+    } catch (_) {}
+    try {
+      fs.writeFileSync('/tmp/app-users.json', serialized)
     } catch (_) {}
   }
 
@@ -356,7 +310,7 @@ class UsersService {
         },
         body: JSON.stringify({
           sender: {
-            name: cfg.senderName || DEFAULT_BREVO_SENDER_NAME,
+            name: (cfg.senderName && !cfg.senderName.includes('Central Dispatch')) ? cfg.senderName : 'GetApp.FooD',
             email: senderEmail
           },
           to: [{ email: toEmail, name: toName || toEmail }],
@@ -377,39 +331,100 @@ class UsersService {
     }
   }
 
+  buildEmailLogoHeaderHtml() {
+    const logoUrl = 'https://arzxvzjyiwmkxgoagjcq.supabase.co/storage/v1/object/public/brand-assets/logo-radar.png'
+    return `
+      <div style="background: #0f172a; padding: 20px 28px; border-radius: 17px 17px 0 0;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td style="vertical-align: middle; padding-right: 12px;">
+              <img src="${logoUrl}" width="44" height="44" alt="GetApp.FooD" style="display: block; width: 44px; height: 44px; border-radius: 13px; border: 0;" />
+            </td>
+            <td style="vertical-align: middle;">
+              <div style="font-size: 24px; font-weight: 900; letter-spacing: -0.5px; color: #ffffff; line-height: 1; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;">
+                GetApp<span style="color: #10b981;">.</span>F<span style="color: #10b981;">oo</span>D
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+    `
+  }
+
   buildInviteEmailHtml({ user, tempPassword, appUrl }) {
     const roleObj = ROLE_DEFINITIONS[user.role] || ROLE_DEFINITIONS.operational
-    const citiesLabel = (user.allowed_cities || []).includes('all') ? 'Toate orașele' : (user.allowed_cities || []).join(', ')
-    const brandsLabel = (user.allowed_brands || []).includes('all') ? 'Toate brandurile' : (user.allowed_brands || []).join(', ')
+    const isRu = String(user.email || '').toLowerCase().endsWith('.ru')
+    const citiesLabel = (user.allowed_cities || []).includes('all')
+      ? (isRu ? 'Все города' : 'Toate orașele')
+      : (user.allowed_cities || []).join(', ')
+    const brandsLabel = (user.allowed_brands || []).includes('all')
+      ? (isRu ? 'Все бренды' : 'Toate brandurile')
+      : (user.allowed_brands || []).join(', ')
     const loginUrl = appUrl || 'https://getapp.food/login'
+    const logoHeader = this.buildEmailLogoHeaderHtml()
+    const cleanFont = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
 
-    return `
-      <div style="font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif; max-width: 560px; margin: 0 auto; background: #f8fafc; padding: 24px; border-radius: 20px; border: 1px solid #e2e8f0;">
-        <div style="background: #059669; color: #ffffff; padding: 20px 24px; border-radius: 16px; margin-bottom: 20px;">
-          <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9; font-weight: 700;">Invitație Oficială de Acces</div>
-          <h2 style="margin: 6px 0 0 0; font-size: 20px; font-weight: 800;">Get App — Central Dispatch</h2>
-        </div>
-        <div style="background: #ffffff; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; color: #0f172a;">
-          <p style="margin-top: 0; font-size: 15px;">Salut <strong>${user.first_name} ${user.last_name}</strong>,</p>
-          <p style="font-size: 14px; color: #475569; line-height: 1.5;">
-            Ai fost invitat(ă) în platforma operațională cu rolul de <strong style="color: #059669;">${roleObj.labelRo}</strong>.
-          </p>
-          <div style="background: #f1f5f9; border-radius: 12px; padding: 16px; margin: 18px 0;">
-            <div style="font-size: 12px; color: #64748b; margin-bottom: 8px; font-weight: 700; text-transform: uppercase;">Datele tale de autentificare</div>
-            <div style="font-size: 14px; margin-bottom: 6px;"><strong>Email:</strong> ${user.email}</div>
-            <div style="font-size: 14px; margin-bottom: 6px;"><strong>Parolă temporară:</strong> <code style="background: #ffffff; padding: 3px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 700; color: #0f172a;">${tempPassword}</code></div>
-            <div style="font-size: 12px; color: #64748b; margin-top: 10px;">
-              <strong>Orașe alocate:</strong> ${citiesLabel}<br/>
-              <strong>Branduri alocate:</strong> ${brandsLabel}
+    if (isRu) {
+      return `
+        <div style="font-family: ${cleanFont}; max-width: 560px; margin: 0 auto; background: #f8fafc; padding: 24px; border-radius: 20px; border: 1px solid #e2e8f0;">
+          <div style="background: #ffffff; border-radius: 18px; border: 1px solid #e2e8f0; color: #0f172a; overflow: hidden;">
+            ${logoHeader}
+            <div style="padding: 28px;">
+              <p style="margin-top: 0; font-size: 15px; font-family: ${cleanFont};">Привет, <strong>${user.first_name} ${user.last_name}</strong>!</p>
+              <p style="font-size: 14px; color: #475569; line-height: 1.5; font-family: ${cleanFont};">
+                Для тебя создан аккаунт в операционной платформе <strong>GetApp<span style="color:#047857;">.</span>F<span style="color:#047857;">oo</span>D</strong> с ролью <strong style="color: #047857;">${roleObj.labelRu}</strong>.
+              </p>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 18px 0; font-family: ${cleanFont};">
+                <div style="font-size: 11px; color: #64748b; margin-bottom: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">Данные для входа</div>
+                <div style="font-size: 14px; margin-bottom: 8px;"><strong>Сайт:</strong> <a href="${loginUrl}" style="color: #047857; font-weight: 700; text-decoration: none;">https://getapp.food</a></div>
+                <div style="font-size: 14px; margin-bottom: 8px;"><strong>Email:</strong> ${user.email}</div>
+                <div style="font-size: 14px; margin-bottom: 8px;"><strong>Временный пароль:</strong> <span style="font-family: ${cleanFont}; background: #ffffff; padding: 3px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 800; color: #0f172a; display: inline-block;">${tempPassword}</span></div>
+                <div style="font-size: 12px; color: #64748b; margin-top: 10px;">
+                  <strong>Доступные города:</strong> ${citiesLabel}<br/>
+                  <strong>Доступные бренды:</strong> ${brandsLabel}
+                </div>
+              </div>
+              <p style="font-size: 13px; color: #475569; font-weight: 600; font-family: ${cleanFont};">
+                При первом входе система попросит тебя установить собственный постоянный пароль.
+              </p>
+              <div style="margin-top: 24px; text-align: center;">
+                <a href="${loginUrl}" style="font-family: ${cleanFont}; display: inline-block; background: #047857; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 14px; padding: 12px 28px; border-radius: 9999px;">
+                  Войти в GetApp.FooD →
+                </a>
+              </div>
             </div>
           </div>
-          <p style="font-size: 13px; color: #d97706; font-weight: 600;">
-            Important: La prima autentificare ți se va solicita automat să îți setezi propria parolă personală.
-          </p>
-          <div style="margin-top: 22px; text-align: center;">
-            <a href="${loginUrl}" style="display: inline-block; background: #059669; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; padding: 12px 28px; border-radius: 9999px;">
-              Autentificare în Platformă
-            </a>
+        </div>
+      `
+    }
+
+    return `
+      <div style="font-family: ${cleanFont}; max-width: 560px; margin: 0 auto; background: #f8fafc; padding: 24px; border-radius: 20px; border: 1px solid #e2e8f0;">
+        <div style="background: #ffffff; border-radius: 18px; border: 1px solid #e2e8f0; color: #0f172a; overflow: hidden;">
+          ${logoHeader}
+          <div style="padding: 28px;">
+            <p style="margin-top: 0; font-size: 15px; font-family: ${cleanFont};">Salut <strong>${user.first_name} ${user.last_name}</strong>,</p>
+            <p style="font-size: 14px; color: #475569; line-height: 1.5; font-family: ${cleanFont};">
+              Contul tău în platforma <strong>GetApp<span style="color:#047857;">.</span>F<span style="color:#047857;">oo</span>D</strong> a fost activat cu rolul de <strong style="color: #047857;">${roleObj.labelRo}</strong>.
+            </p>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 18px 0; font-family: ${cleanFont};">
+              <div style="font-size: 11px; color: #64748b; margin-bottom: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">Datele tale de autentificare</div>
+              <div style="font-size: 14px; margin-bottom: 8px;"><strong>Platformă:</strong> <a href="${loginUrl}" style="color: #047857; font-weight: 700; text-decoration: none;">https://getapp.food</a></div>
+              <div style="font-size: 14px; margin-bottom: 8px;"><strong>Email:</strong> ${user.email}</div>
+              <div style="font-size: 14px; margin-bottom: 8px;"><strong>Parolă temporară:</strong> <span style="font-family: ${cleanFont}; background: #ffffff; padding: 3px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 800; color: #0f172a; display: inline-block;">${tempPassword}</span></div>
+              <div style="font-size: 12px; color: #64748b; margin-top: 10px;">
+                <strong>Orașe alocate:</strong> ${citiesLabel}<br/>
+                <strong>Branduri alocate:</strong> ${brandsLabel}
+              </div>
+            </div>
+            <p style="font-size: 13px; color: #475569; font-weight: 600; font-family: ${cleanFont};">
+              La prima autentificare ți se va solicita automat să îți setezi propria parolă personală.
+            </p>
+            <div style="margin-top: 24px; text-align: center;">
+              <a href="${loginUrl}" style="font-family: ${cleanFont}; display: inline-block; background: #047857; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 14px; padding: 12px 28px; border-radius: 9999px;">
+                Intră în GetApp.FooD →
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -486,21 +501,26 @@ class UsersService {
     }
     this._save()
 
+    const logoHeader = this.buildEmailLogoHeaderHtml()
+    const cleanFont = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
     const htmlContent = `
-      <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; background: #ffffff; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0;">
-        <h3 style="margin-top: 0; color: #0f172a;">Resetare Parolă — Get App</h3>
-        <p style="font-size: 14px; color: #475569;">Salut <strong>${user.first_name}</strong>, folosește codul de mai jos în pagina de autentificare pentru a-ți seta o parolă nouă:</p>
-        <div style="background: #f1f5f9; padding: 16px; border-radius: 12px; text-align: center; font-size: 24px; font-weight: 800; letter-spacing: 6px; color: #059669; margin: 16px 0;">
-          ${code}
+      <div style="font-family: ${cleanFont}; max-width: 500px; margin: 0 auto; background: #ffffff; border-radius: 18px; border: 1px solid #e2e8f0; overflow: hidden;">
+        ${logoHeader}
+        <div style="padding: 24px;">
+          <h3 style="margin-top: 0; color: #0f172a; font-family: ${cleanFont};">Resetare Parolă</h3>
+          <p style="font-size: 14px; color: #475569; font-family: ${cleanFont};">Salut <strong>${user.first_name}</strong>, folosește codul de mai jos în pagina de autentificare pentru a-ți seta o parolă nouă:</p>
+          <div style="font-family: ${cleanFont}; background: #f1f5f9; padding: 16px; border-radius: 12px; text-align: center; font-size: 24px; font-weight: 800; letter-spacing: 6px; color: #047857; margin: 16px 0;">
+            ${code}
+          </div>
+          <p style="font-size: 12px; color: #64748b; font-family: ${cleanFont};">Codul este valabil 15 minute.</p>
         </div>
-        <p style="font-size: 12px; color: #64748b;">Codul este valabil 15 minute.</p>
       </div>
     `
 
     const emailResult = await this.sendBrevoEmail({
       toEmail: user.email,
       toName: `${user.first_name} ${user.last_name}`.trim(),
-      subject: 'Cod de resetare a parolei — Get App Dispatch',
+      subject: 'Cod de resetare a parolei GetApp.FooD',
       htmlContent
     })
 
@@ -615,6 +635,7 @@ class UsersService {
 
     let emailStatus = { sent: false, reason: 'Trimiterea pe email a fost omisă.' }
     if (payload.send_email !== false) {
+      const isRu = String(newUser.email || '').toLowerCase().endsWith('.ru')
       const htmlContent = this.buildInviteEmailHtml({
         user: newUser,
         tempPassword,
@@ -623,7 +644,9 @@ class UsersService {
       emailStatus = await this.sendBrevoEmail({
         toEmail: newUser.email,
         toName: `${newUser.first_name} ${newUser.last_name}`.trim(),
-        subject: `Invitație de acces (${roleDef.labelRo}) — Get App Central Dispatch`,
+        subject: isRu
+          ? 'Приглашение в платформу GetApp.FooD'
+          : 'Invitație de acces în platforma GetApp.FooD',
         htmlContent
       })
     }
@@ -677,12 +700,14 @@ class UsersService {
     if (user.status !== 'active') user.status = 'invited'
     this._save()
 
-    const roleDef = ROLE_DEFINITIONS[user.role] || ROLE_DEFINITIONS.operational
+    const isRu = String(user.email || '').toLowerCase().endsWith('.ru')
     const htmlContent = this.buildInviteEmailHtml({ user, tempPassword, appUrl })
     const emailStatus = await this.sendBrevoEmail({
       toEmail: user.email,
       toName: `${user.first_name} ${user.last_name}`.trim(),
-      subject: `Invitație de acces (${roleDef.labelRo}) — Get App Central Dispatch`,
+      subject: isRu
+        ? 'Приглашение в платформу GetApp.FooD'
+        : 'Invitație de acces în platforma GetApp.FooD',
       htmlContent
     })
 

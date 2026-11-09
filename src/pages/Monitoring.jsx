@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 import { 
   AlertCircle, 
@@ -31,7 +31,9 @@ import {
   ChefHat,
   Bike,
   Copy,
-  Check
+  Check,
+  MapPin,
+  RotateCcw
 } from 'lucide-react'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
@@ -41,6 +43,7 @@ import BrandAvatar, { getBrandInfo, cleanRestaurantName } from '../components/Br
 import RestaurantDetailsModal from '../components/RestaurantDetailsModal'
 import OrderDetailsModal from '../components/OrderDetailsModal'
 import { getApiUrl } from '../lib/api'
+import { getCanonicalCity, getCityDisplayName } from '../lib/orderUtils'
 import WebhookIntegrationModal from '../components/WebhookIntegrationModal'
 
 function AnimatedNumber({ value }) {
@@ -53,6 +56,7 @@ export default function Monitoring() {
   const navigate = useNavigate()
 
   const { restaurants, checks, loading, getLatestCheck, fetchData } = useLiveChecks()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [activeBrand, setActiveBrand] = useState(() => {
     try {
@@ -65,7 +69,7 @@ export default function Monitoring() {
   const [cityFilter, setCityFilter] = useState(() => {
     try {
       const p = new URLSearchParams(window.location.search).get('city')
-      if (p && p !== 'all') return p
+      if (p && p !== 'all') return getCanonicalCity(p) || 'all'
     } catch (_) {}
     return 'all'
   })
@@ -74,28 +78,64 @@ export default function Monitoring() {
     setActiveBrand(brand)
     setPage(1)
     try {
-      const url = new URL(window.location.href)
+      const next = new URLSearchParams(searchParams)
       if (brand && brand !== 'all') {
-        url.searchParams.set('brand', brand)
+        next.set('brand', brand)
       } else {
-        url.searchParams.delete('brand')
+        next.delete('brand')
       }
-      window.history.replaceState({}, '', url.toString())
+      setSearchParams(next, { replace: true })
     } catch (_) {}
   }
 
-  // Listen to popstate for browser forward/back buttons
+  const handleCityChange = (city) => {
+    const canon = city && city !== 'all' ? getCanonicalCity(city) : 'all'
+    setCityFilter(canon)
+    setPage(1)
+    try {
+      const next = new URLSearchParams(searchParams)
+      if (canon && canon !== 'all') {
+        next.set('city', canon)
+      } else {
+        next.delete('city')
+      }
+      setSearchParams(next, { replace: true })
+    } catch (_) {}
+  }
+
+  const handleResetMonitoringFilters = () => {
+    setActiveBrand('all')
+    setCityFilter('all')
+    setSearch('')
+    setPage(1)
+    try {
+      const next = new URLSearchParams(searchParams)
+      next.delete('brand')
+      next.delete('city')
+      setSearchParams(next, { replace: true })
+    } catch (_) {}
+  }
+
+  // Sync with React Router searchParams & central Reset button
   useEffect(() => {
-    const onPopState = () => {
-      try {
-        const pBrand = new URLSearchParams(window.location.search).get('brand')
-        setActiveBrand(pBrand || 'all')
-        const pCity = new URLSearchParams(window.location.search).get('city')
-        setCityFilter(pCity || 'all')
-      } catch (_) {}
+    try {
+      const pBrand = searchParams.get('brand') || 'all'
+      if (pBrand !== activeBrand) setActiveBrand(pBrand)
+      const pCity = searchParams.get('city')
+      const nextCity = pCity && pCity !== 'all' ? getCanonicalCity(pCity) : 'all'
+      if (nextCity !== cityFilter) setCityFilter(nextCity)
+    } catch (_) {}
+  }, [searchParams])
+
+  useEffect(() => {
+    const onGlobalReset = () => {
+      setActiveBrand('all')
+      setCityFilter('all')
+      setSearch('')
+      setPage(1)
     }
-    window.addEventListener('popstate', onPopState)
-    return () => window.removeEventListener('popstate', onPopState)
+    window.addEventListener('global-reset-filters', onGlobalReset)
+    return () => window.removeEventListener('global-reset-filters', onGlobalReset)
   }, [])
 
   // Paginare & Căutare State
@@ -340,6 +380,23 @@ export default function Monitoring() {
     }
   }, [restaurants])
 
+  const availableCities = useMemo(() => {
+    const set = new Set()
+    restaurants.forEach(r => {
+      if (!r.is_active) return
+      const c = getCanonicalCity(r.city || r.name)
+      if (c) set.add(c)
+    })
+    return ['all', ...Array.from(set).sort()]
+  }, [restaurants])
+
+  const getValidMissingProducts = (list) => {
+    if (!Array.isArray(list)) return []
+    return list
+      .map(mp => typeof mp === 'string' ? mp.trim() : (mp?.name || mp?.product_name || '').trim())
+      .filter(name => name && name.toLowerCase() !== 'produs' && name.toLowerCase() !== 'unknown')
+  }
+
   let displayedRestaurants = []
   if (activeBrand === 'all') {
     displayedRestaurants = restaurants.filter(r => r.is_active)
@@ -347,8 +404,9 @@ export default function Monitoring() {
     displayedRestaurants = groupedByBrand[activeBrand] || []
   }
   if (cityFilter && cityFilter !== 'all') {
+    const targetCityCanon = getCanonicalCity(cityFilter)
     displayedRestaurants = displayedRestaurants.filter(r => 
-      r.city && r.city.toLowerCase().includes(cityFilter.toLowerCase())
+      getCanonicalCity(r.city || r.name) === targetCityCanon
     )
   }
 
@@ -605,9 +663,34 @@ export default function Monitoring() {
           {t('monitoring.title')}
         </h2>
         
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
+        <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full xl:w-auto flex-wrap">
+          {/* Selector Oraș */}
+          <div className="relative w-full sm:w-52">
+            <MapPin className="w-4 h-4 text-emerald-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <select
+              value={cityFilter}
+              onChange={(e) => handleCityChange(e.target.value)}
+              className={`w-full pl-9 pr-8 h-10 text-xs font-bold rounded-full border outline-none transition-all shadow-xs cursor-pointer ${
+                cityFilter !== 'all'
+                  ? 'bg-emerald-600 text-white border-emerald-600'
+                  : isDark
+                    ? 'bg-slate-900 border-slate-700 text-white hover:border-slate-600'
+                    : 'bg-white border-slate-200 text-slate-800 hover:border-slate-300'
+              }`}
+            >
+              <option value="all" className="bg-slate-900 text-white">
+                {language === 'ru' ? 'Все города' : language === 'en' ? 'All cities' : 'Toate orașele'}
+              </option>
+              {availableCities.filter(c => c !== 'all').map(cityKey => (
+                <option key={cityKey} value={cityKey} className="bg-slate-900 text-white">
+                  {getCityDisplayName(cityKey)}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Căutare */}
-          <div className="relative w-full sm:w-80">
+          <div className="relative w-full sm:w-72">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input 
               type="text"
@@ -621,6 +704,17 @@ export default function Monitoring() {
               }`}
             />
           </div>
+
+          {(cityFilter !== 'all' || activeBrand !== 'all' || search.trim() !== '') && (
+            <button
+              type="button"
+              onClick={handleResetMonitoringFilters}
+              className="px-3.5 h-10 rounded-full border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-300 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <RotateCcw size={13} />
+              <span>{language === 'ru' ? 'Сбросить' : language === 'en' ? 'Reset' : 'Resetează'}</span>
+            </button>
+          )}
 
           <div className="flex items-center gap-2.5 w-full sm:w-auto">
             <button
@@ -799,14 +893,15 @@ export default function Monitoring() {
                   
                   {/* COLOANE PLATFORME */}
                   {['glovo', 'wolt', 'bolt', 'iiko'].map(p => {
-                    const hasPlatform = (p !== 'iiko' && r[`${p}_url`]) || (p === 'iiko' && r.iiko_restaurant_id);
+                    const rawPlatUrl = p !== 'iiko' ? r[`${p}_url`] : null;
+                    const hasPlatform = (p !== 'iiko' && rawPlatUrl && !String(rawPlatUrl).includes('/search')) || (p === 'iiko' && r.iiko_restaurant_id);
                     if (!hasPlatform) {
                       return (
                         <td key={p} className="px-4 py-3.5 text-center align-middle whitespace-nowrap">
                           <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${
                             isDark ? 'bg-slate-800/40 border-slate-800 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400'
                           }`}>
-                            {t('common.inactive')}
+                            {language === 'ru' ? 'Нет канала' : language === 'en' ? 'No channel' : 'Fără canal'}
                           </span>
                         </td>
                       );
@@ -816,13 +911,14 @@ export default function Monitoring() {
                     const outside = !isWithinWorkingHours(r.working_hours);
                     const info = getStatusInfo(check?.final_status, outside);
                     const ratingInfo = p !== 'iiko' ? getRestaurantRating(r.id, p) : null;
+                    const validMissingProducts = getValidMissingProducts(check?.missing_products);
                     
                     return (
                       <td key={p} className="px-4 py-3.5 text-center align-middle whitespace-nowrap">
                         <div className="inline-flex flex-col items-center gap-1">
                           <div 
                             onClick={() => {
-                              if (check) setSelectedCheckDetail({ check: { ...check, ...(ratingInfo || {}) }, restaurant: r, platform: p, info });
+                              if (check) setSelectedCheckDetail({ check: { ...check, ...(ratingInfo || {}), missing_products: validMissingProducts }, restaurant: r, platform: p, info });
                             }}
                             className={`inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all hover:scale-105 cursor-pointer ${info.badgeClass}`}
                             title="Apasă pentru mai multe detalii"
@@ -869,12 +965,12 @@ export default function Monitoring() {
                             </span>
                           )}
 
-                          {check?.missing_products?.length > 0 && (
+                          {validMissingProducts.length > 0 && (
                             <span 
-                              title={check.missing_products.map(mp => typeof mp === 'string' ? mp : (mp.name || 'Produs')).join(', ')}
+                              title={validMissingProducts.join(', ')}
                               className="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800 cursor-help"
                             >
-                              {t('monitoring.missing_badge', { count: check.missing_products.length })}
+                              {t('monitoring.missing_badge', { count: validMissingProducts.length })}
                             </span>
                           )}
                         </div>

@@ -113,9 +113,9 @@
     "city": "Ploiesti",
     "address": "Bulevardul Republicii 146, Ploiești",
     "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
-    "glovo_url": "https://glovoapp.com/ro/ro/ploiesti/search/?q=Roll%20Master",
+    "glovo_url": null,
     "wolt_url": "https://wolt.com/ro/rou/ploiesti/restaurant/sushi-master-ploiesti-67caabf2a971d62483da599f",
-    "bolt_url": "https://food.bolt.eu/ro-RO/search?q=Roll%20Master%20Ploiesti",
+    "bolt_url": null,
     "iiko_restaurant_id": null,
     "is_active": false,
     "working_hours": {},
@@ -159,21 +159,21 @@
     }
   },
   {
-    "id": "1c2b8519-107d-4f6a-a644-22ec53f54b60",
-    "name": "CONSTANTA (Poki Woki)",
-    "city": "CONSTANTA",
-    "address": "Bulevardul Tomis 56, Constanța 900178, Romania",
-    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
-    "glovo_url": "https://glovoapp.com/ro/ro/constanta/stores/ikura-sushi-cta",
-    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7047",
-    "bolt_url": "https://food.bolt.eu/ro-ro/store/BMlSIYETji/",
-    "iiko_restaurant_id": "29ba038b-f7b6-4b64-ad1f-aef5ccbd43c4",
-    "is_active": true,
+    "id": "73fc4a93-db00-4cd6-bcce-2d3683cbd399",
+    "name": "TULCEA (Love Sushi)",
+    "city": "TULCEA",
+    "address": "Strada Isaccei 57 bis 820241 Tulcea Romania",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/527488",
+    "wolt_url": null,
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/rEkv2uPQjA/",
+    "iiko_restaurant_id": "5989edaa-038d-4407-8d98-be180b5b5b65",
+    "is_active": false,
     "working_hours": {},
     "revenue_per_hour": 100,
     "brands": {
-      "name": "Poki Woki",
-      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
     }
   },
   {
@@ -267,21 +267,21 @@
     }
   },
   {
-    "id": "73fc4a93-db00-4cd6-bcce-2d3683cbd399",
-    "name": "TULCEA (Love Sushi)",
-    "city": "TULCEA",
-    "address": "Strada Isaccei 57 bis 820241 Tulcea Romania",
-    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
-    "glovo_url": "https://glovoapp.com/ro/ro/store/527488",
-    "wolt_url": "https://wolt.com/ro/rou/tulcea/restaurant/we-love-sushi",
-    "bolt_url": "https://food.bolt.eu/ro-ro/store/rEkv2uPQjA/",
-    "iiko_restaurant_id": "5989edaa-038d-4407-8d98-be180b5b5b65",
-    "is_active": false,
+    "id": "1c2b8519-107d-4f6a-a644-22ec53f54b60",
+    "name": "CONSTANTA (Poki Woki)",
+    "city": "CONSTANTA",
+    "address": "Bulevardul Tomis 56, Constanța 900178, Romania",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "glovo_url": "https://glovoapp.com/ro/ro/constanta/stores/ikura-sushi-cta",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7047",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/BMlSIYETji/",
+    "iiko_restaurant_id": "29ba038b-f7b6-4b64-ad1f-aef5ccbd43c4",
+    "is_active": true,
     "working_hours": {},
     "revenue_per_hour": 100,
     "brands": {
-      "name": "Love Sushi",
-      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
     }
   },
   {
@@ -330,24 +330,6 @@
     "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e642502",
     "bolt_url": "https://food.bolt.eu/ro-ro/store/NcqsVG3C6i/",
     "iiko_restaurant_id": "c45b986e-5297-47b7-b733-293bbc91da23",
-    "is_active": true,
-    "working_hours": {},
-    "revenue_per_hour": 100,
-    "brands": {
-      "name": "Roll Master",
-      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
-    }
-  },
-  {
-    "id": "430213a0-efef-49bc-89b7-902328a163e3",
-    "name": "TULCEA (Roll Master)",
-    "city": "TULCEA",
-    "address": "Strada Isaccei 57 bis 820241 Tulcea Romania",
-    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
-    "glovo_url": "https://glovoapp.com/ro/ro/tulcea/stores/sushi-master-tul",
-    "wolt_url": "https://wolt.com/ro/rou/tulcea/search?q=Roll%20Master",
-    "bolt_url": "https://food.bolt.eu/ro-ro/store/3xKLgZLFAI/",
-    "iiko_restaurant_id": "5989edaa-038d-4407-8d98-be180b5b5b65",
     "is_active": true,
     "working_hours": {},
     "revenue_per_hour": 100,
@@ -408,24 +390,6 @@
     "brands": {
       "name": "Roll Master",
       "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
-    }
-  },
-  {
-    "id": "c31eb332-e506-4461-af39-bcff1e3664c7",
-    "name": "TULCEA (Poki Woki)",
-    "city": "TULCEA",
-    "address": "Strada Isaccei 57 bis 820241 Tulcea Romania",
-    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
-    "glovo_url": "https://glovoapp.com/ro/ro/tulcea/stores/ikura-sushi-tul",
-    "wolt_url": "https://wolt.com/ro/rou/tulcea/search?q=Poki%20Woki",
-    "bolt_url": "https://food.bolt.eu/ro-ro/store/9NET3qPz6L/",
-    "iiko_restaurant_id": "5989edaa-038d-4407-8d98-be180b5b5b65",
-    "is_active": true,
-    "working_hours": {},
-    "revenue_per_hour": 100,
-    "brands": {
-      "name": "Poki Woki",
-      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
     }
   },
   {
@@ -519,6 +483,24 @@
     }
   },
   {
+    "id": "430213a0-efef-49bc-89b7-902328a163e3",
+    "name": "TULCEA (Roll Master)",
+    "city": "TULCEA",
+    "address": "Strada Isaccei 57 bis 820241 Tulcea Romania",
+    "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
+    "glovo_url": "https://glovoapp.com/ro/ro/tulcea/stores/sushi-master-tul",
+    "wolt_url": null,
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/3xKLgZLFAI/",
+    "iiko_restaurant_id": "5989edaa-038d-4407-8d98-be180b5b5b65",
+    "is_active": true,
+    "working_hours": {},
+    "revenue_per_hour": 100,
+    "brands": {
+      "name": "Roll Master",
+      "logo_url": "https://roll-master.ro/_next/static/images/logo-fc4ea547edeb206fad48e806a5a7e7ee.png"
+    }
+  },
+  {
     "id": "95aedaf8-fc3e-4999-addf-992367d0735d",
     "name": "TIMISOARA (Poki Woki)",
     "city": "TIMISOARA",
@@ -528,6 +510,24 @@
     "wolt_url": "https://wolt.com/en/rou/restaurant/6a54b66c03a39aad721f93ec",
     "bolt_url": "https://food.bolt.eu/ro-ro/store/I7u1vcBxRP/",
     "iiko_restaurant_id": "0af6b0d4-c56f-4264-9384-965d24c97e43",
+    "is_active": true,
+    "working_hours": {},
+    "revenue_per_hour": 100,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "c31eb332-e506-4461-af39-bcff1e3664c7",
+    "name": "TULCEA (Poki Woki)",
+    "city": "TULCEA",
+    "address": "Strada Isaccei 57 bis 820241 Tulcea Romania",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "glovo_url": "https://glovoapp.com/ro/ro/tulcea/stores/ikura-sushi-tul",
+    "wolt_url": null,
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/9NET3qPz6L/",
+    "iiko_restaurant_id": "5989edaa-038d-4407-8d98-be180b5b5b65",
     "is_active": true,
     "working_hours": {},
     "revenue_per_hour": 100,
@@ -645,6 +645,24 @@
     }
   },
   {
+    "id": "1eb2dcff-33ba-42f2-a199-331d64a9af88",
+    "name": "IASI#2 (Love Sushi)",
+    "city": "IASI#2",
+    "address": "T17, Campus, Bulevardul Tudor Vladimirescu 111, Iași 700560, Romania",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "glovo_url": null,
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e64250e",
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/5O8uD6knU8/",
+    "iiko_restaurant_id": "9f260bf3-b6d8-42db-b2f1-ee8bb01cc7aa",
+    "is_active": false,
+    "working_hours": {},
+    "revenue_per_hour": 100,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
+    }
+  },
+  {
     "id": "2a627a0f-cee6-4934-ad6b-0c129bf4ad5c",
     "name": "ORADEA",
     "city": "ORADEA",
@@ -678,24 +696,6 @@
     "brands": {
       "name": "Sushi Master",
       "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
-    }
-  },
-  {
-    "id": "1eb2dcff-33ba-42f2-a199-331d64a9af88",
-    "name": "IASI#2 (Love Sushi)",
-    "city": "IASI#2",
-    "address": "T17, Campus, Bulevardul Tudor Vladimirescu 111, Iași 700560, Romania",
-    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
-    "glovo_url": "https://glovoapp.com/ro/ro/iasi/search/?q=Love%20Sushi",
-    "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e64250e",
-    "bolt_url": "https://food.bolt.eu/ro-ro/store/5O8uD6knU8/",
-    "iiko_restaurant_id": "9f260bf3-b6d8-42db-b2f1-ee8bb01cc7aa",
-    "is_active": false,
-    "working_hours": {},
-    "revenue_per_hour": 100,
-    "brands": {
-      "name": "Love Sushi",
-      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
     }
   },
   {
@@ -825,24 +825,6 @@
     }
   },
   {
-    "id": "67aec385-594f-4e25-bd29-d67552b95ca4",
-    "name": "BALOTESTI (Poki Woki)",
-    "city": "BALOTESTI",
-    "address": "Calea Bucureşti 2bis, 077015, Romania",
-    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
-    "glovo_url": "https://glovoapp.com/ro/ro/balotesti/stores/ikura-crb",
-    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7044",
-    "bolt_url": "https://food.bolt.eu/ro-RO/search?q=Poki%20Woki%20Balotesti",
-    "iiko_restaurant_id": "264cb8e8-0dc9-46c3-b8f5-6a38f6c43fe9",
-    "is_active": true,
-    "working_hours": {},
-    "revenue_per_hour": 100,
-    "brands": {
-      "name": "Poki Woki",
-      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
-    }
-  },
-  {
     "id": "fd6651a5-0fdb-405f-84e6-a5e84a6d3eab",
     "name": "ORADEA (Roll Master)",
     "city": "ORADEA",
@@ -879,6 +861,24 @@
     }
   },
   {
+    "id": "67aec385-594f-4e25-bd29-d67552b95ca4",
+    "name": "BALOTESTI (Poki Woki)",
+    "city": "BALOTESTI",
+    "address": "Calea Bucureşti 2bis, 077015, Romania",
+    "brand_id": "1389be2a-ffc9-44ba-b577-e873d756d2f5",
+    "glovo_url": "https://glovoapp.com/ro/ro/balotesti/stores/ikura-crb",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7044",
+    "bolt_url": null,
+    "iiko_restaurant_id": "264cb8e8-0dc9-46c3-b8f5-6a38f6c43fe9",
+    "is_active": true,
+    "working_hours": {},
+    "revenue_per_hour": 100,
+    "brands": {
+      "name": "Poki Woki",
+      "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
     "id": "d22a3ec7-f23b-4711-a069-45d42197c7e5",
     "name": "BALOTESTI (Roll Master)",
     "city": "BALOTESTI",
@@ -886,7 +886,7 @@
     "brand_id": "97a0cb90-b01b-4edc-ab8c-c37b4f66efe4",
     "glovo_url": "https://glovoapp.com/ro/ro/balotesti/stores/sushi-master2",
     "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7039",
-    "bolt_url": "https://food.bolt.eu/ro-RO/search?q=Roll%20Master%20Balotesti",
+    "bolt_url": null,
     "iiko_restaurant_id": "264cb8e8-0dc9-46c3-b8f5-6a38f6c43fe9",
     "is_active": true,
     "working_hours": {},
@@ -987,30 +987,12 @@
     }
   },
   {
-    "id": "76e6a6e9-b8eb-43a7-a66d-cf9959ccda97",
-    "name": "BALOTESTI (Love Sushi)",
-    "city": "BALOTESTI",
-    "address": "Calea Bucureşti 2bis, 077015, Romania",
-    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
-    "glovo_url": "https://glovoapp.com/ro/ro/balotesti/stores/we-love-sushi-balotesti",
-    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7050",
-    "bolt_url": "https://food.bolt.eu/ro-RO/search?q=Love%20Sushi%20Balotesti",
-    "iiko_restaurant_id": "264cb8e8-0dc9-46c3-b8f5-6a38f6c43fe9",
-    "is_active": false,
-    "working_hours": {},
-    "revenue_per_hour": 100,
-    "brands": {
-      "name": "Love Sushi",
-      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
-    }
-  },
-  {
     "id": "b27e37d9-4d3f-4689-93e4-e0048c216b27",
     "name": "IASI#1 (Love Sushi)",
     "city": "IASI#1",
     "address": "Piața Voievozilor a9, Iași, Romania",
     "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
-    "glovo_url": "https://glovoapp.com/ro/ro/iasi/search/?q=Love%20Sushi",
+    "glovo_url": null,
     "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e64250f",
     "bolt_url": "https://food.bolt.eu/ro-ro/store/tRappg4uJt/",
     "iiko_restaurant_id": "26bc7c2c-5113-4a18-a9e9-c1c84da4ba9f",
@@ -1110,6 +1092,24 @@
     "brands": {
       "name": "Poki Woki",
       "logo_url": "https://poki-woki.ro/_next/static/images/logo-ac23289f83a41d16309d073e992a2726.png"
+    }
+  },
+  {
+    "id": "76e6a6e9-b8eb-43a7-a66d-cf9959ccda97",
+    "name": "BALOTESTI (Love Sushi)",
+    "city": "BALOTESTI",
+    "address": "Calea Bucureşti 2bis, 077015, Romania",
+    "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
+    "glovo_url": "https://glovoapp.com/ro/ro/balotesti/stores/we-love-sushi-balotesti",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7050",
+    "bolt_url": null,
+    "iiko_restaurant_id": "264cb8e8-0dc9-46c3-b8f5-6a38f6c43fe9",
+    "is_active": false,
+    "working_hours": {},
+    "revenue_per_hour": 100,
+    "brands": {
+      "name": "Love Sushi",
+      "logo_url": "https://lovesushi.ro/_next/static/images/logo-3aae39d64b3f87133129257a7272d9c6.png"
     }
   },
   {
@@ -1514,7 +1514,7 @@
     "city": "BOTOSANI",
     "address": "Bulevardul George Enescu 4, Botoșani, Romania",
     "brand_id": "14a75ee3-63a1-46e9-aa4a-9748a0c635d2",
-    "glovo_url": "https://glovoapp.com/ro/ro/botosani/search/?q=Love%20Sushi",
+    "glovo_url": null,
     "wolt_url": "https://wolt.com/en/rou/restaurant/67dad68ddb56261b0e64250c",
     "bolt_url": "https://food.bolt.eu/ro-ro/store/W0CyYdkuCQ/",
     "iiko_restaurant_id": "f6c77b52-5bf8-4808-b4e4-e7fbfa1a2805",
@@ -2013,24 +2013,6 @@
     }
   },
   {
-    "id": "ccd868e5-846e-40f5-ade2-71ab94a806e3",
-    "name": "TULCEA (Sushi Master)",
-    "city": "TULCEA",
-    "address": "Strada Isaccei 57 bis 820241 Tulcea Romania",
-    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
-    "glovo_url": "https://glovoapp.com/ro/ro/store/514163",
-    "wolt_url": "https://wolt.com/ro/rou/tulcea/search?q=Roll%20Master",
-    "bolt_url": "https://food.bolt.eu/ro-ro/store/3xKLgZLFAI/",
-    "iiko_restaurant_id": "5989edaa-038d-4407-8d98-be180b5b5b65",
-    "is_active": false,
-    "working_hours": {},
-    "revenue_per_hour": 100,
-    "brands": {
-      "name": "Sushi Master",
-      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
-    }
-  },
-  {
     "id": "98e778db-8630-4d49-982a-b225a72cd3d6",
     "name": "PIATRA NEAMT (Poki Woki)",
     "city": "PIATRA NEAMT",
@@ -2139,6 +2121,24 @@
     }
   },
   {
+    "id": "ccd868e5-846e-40f5-ade2-71ab94a806e3",
+    "name": "TULCEA (Sushi Master)",
+    "city": "TULCEA",
+    "address": "Strada Isaccei 57 bis 820241 Tulcea Romania",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/514163",
+    "wolt_url": null,
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/3xKLgZLFAI/",
+    "iiko_restaurant_id": "5989edaa-038d-4407-8d98-be180b5b5b65",
+    "is_active": false,
+    "working_hours": {},
+    "revenue_per_hour": 100,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
     "id": "9d41d0a3-6324-40c8-a06a-7a85147be605",
     "name": "CLUJ",
     "city": "CLUJ-NAPOCA",
@@ -2157,15 +2157,15 @@
     }
   },
   {
-    "id": "5d28adc5-3f9d-4164-8bf4-efc6bead0da2",
-    "name": "BALOTESTI (Sushi Master)",
-    "city": "BALOTESTI",
-    "address": "Calea Bucureşti 2bis, 077015, Romania",
+    "id": "93437a40-07c8-42e7-a695-3509ac09740e",
+    "name": "Sushi Master Baia Mare",
+    "city": "Baia Mare",
+    "address": "Bulevardul Unirii 11, Baia Mare",
     "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
-    "glovo_url": "https://glovoapp.com/ro/ro/store/324707",
-    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7039",
-    "bolt_url": "https://food.bolt.eu/ro-RO/search?q=Roll%20Master%20Balotesti",
-    "iiko_restaurant_id": "264cb8e8-0dc9-46c3-b8f5-6a38f6c43fe9",
+    "glovo_url": null,
+    "wolt_url": null,
+    "bolt_url": null,
+    "iiko_restaurant_id": null,
     "is_active": false,
     "working_hours": {},
     "revenue_per_hour": 100,
@@ -2355,6 +2355,24 @@
     }
   },
   {
+    "id": "5d28adc5-3f9d-4164-8bf4-efc6bead0da2",
+    "name": "BALOTESTI (Sushi Master)",
+    "city": "BALOTESTI",
+    "address": "Calea Bucureşti 2bis, 077015, Romania",
+    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/324707",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7039",
+    "bolt_url": null,
+    "iiko_restaurant_id": "264cb8e8-0dc9-46c3-b8f5-6a38f6c43fe9",
+    "is_active": false,
+    "working_hours": {},
+    "revenue_per_hour": 100,
+    "brands": {
+      "name": "Sushi Master",
+      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
+    }
+  },
+  {
     "id": "51b2333b-fc27-4e9a-8180-91592652e7c0",
     "name": "IASI#1 (Ikura Sushi)",
     "city": "IASI#1",
@@ -2370,24 +2388,6 @@
     "brands": {
       "name": "Ikura Sushi",
       "logo_url": null
-    }
-  },
-  {
-    "id": "93437a40-07c8-42e7-a695-3509ac09740e",
-    "name": "Sushi Master Baia Mare",
-    "city": "Baia Mare",
-    "address": "Bulevardul Unirii 11, Baia Mare",
-    "brand_id": "4fa847aa-c889-4254-b30c-84c0f51a70e1",
-    "glovo_url": "https://glovoapp.com/ro/ro/baia-mare/search/?q=Roll%20Master",
-    "wolt_url": "https://wolt.com/ro/rou/baia-mare/search?q=Roll%20Master",
-    "bolt_url": "https://food.bolt.eu/ro-RO/search?q=Roll%20Master%20Baia%20Mare",
-    "iiko_restaurant_id": null,
-    "is_active": false,
-    "working_hours": {},
-    "revenue_per_hour": 100,
-    "brands": {
-      "name": "Sushi Master",
-      "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
     }
   },
   {
@@ -2463,6 +2463,24 @@
     }
   },
   {
+    "id": "58441f1b-7e60-4a3d-a8d8-e5cd6b9ad489",
+    "name": "TULCEA (Ikura Sushi)",
+    "city": "TULCEA",
+    "address": "Strada Isaccei 57 bis 820241 Tulcea Romania",
+    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/527494",
+    "wolt_url": null,
+    "bolt_url": "https://food.bolt.eu/ro-ro/store/9NET3qPz6L/",
+    "iiko_restaurant_id": "5989edaa-038d-4407-8d98-be180b5b5b65",
+    "is_active": false,
+    "working_hours": {},
+    "revenue_per_hour": 100,
+    "brands": {
+      "name": "Ikura Sushi",
+      "logo_url": null
+    }
+  },
+  {
     "id": "1908602c-d7df-49c8-a964-064ec0ee3445",
     "name": "PITESTI (Ikura Sushi)",
     "city": "PITESTI",
@@ -2481,15 +2499,15 @@
     }
   },
   {
-    "id": "58441f1b-7e60-4a3d-a8d8-e5cd6b9ad489",
-    "name": "TULCEA (Ikura Sushi)",
-    "city": "TULCEA",
-    "address": "Strada Isaccei 57 bis 820241 Tulcea Romania",
+    "id": "239b5d9c-e93e-463a-a9cd-0544ea9a8186",
+    "name": "BALOTESTI (Ikura Sushi)",
+    "city": "BALOTESTI",
+    "address": "Calea Bucureşti 2bis, 077015, Romania",
     "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
-    "glovo_url": "https://glovoapp.com/ro/ro/store/527494",
-    "wolt_url": "https://wolt.com/ro/rou/tulcea/search?q=Poki%20Woki",
-    "bolt_url": "https://food.bolt.eu/ro-ro/store/9NET3qPz6L/",
-    "iiko_restaurant_id": "5989edaa-038d-4407-8d98-be180b5b5b65",
+    "glovo_url": "https://glovoapp.com/ro/ro/store/286941",
+    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7044",
+    "bolt_url": null,
+    "iiko_restaurant_id": "264cb8e8-0dc9-46c3-b8f5-6a38f6c43fe9",
     "is_active": false,
     "working_hours": {},
     "revenue_per_hour": 100,
@@ -2514,24 +2532,6 @@
     "brands": {
       "name": "Sushi Master",
       "logo_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQl1mcUxAc3nHdQ7OmTUkQ6fmOi-obxDE-Akcz08dZfxBeP7O1k4Ac5jos&s=10"
-    }
-  },
-  {
-    "id": "239b5d9c-e93e-463a-a9cd-0544ea9a8186",
-    "name": "BALOTESTI (Ikura Sushi)",
-    "city": "BALOTESTI",
-    "address": "Calea Bucureşti 2bis, 077015, Romania",
-    "brand_id": "adbd1adf-38b0-4740-8727-a61d6a48a4b6",
-    "glovo_url": "https://glovoapp.com/ro/ro/store/286941",
-    "wolt_url": "https://wolt.com/en/rou/restaurant/67dd59415e61a1513fbf7044",
-    "bolt_url": "https://food.bolt.eu/ro-RO/search?q=Poki%20Woki%20Balotesti",
-    "iiko_restaurant_id": "264cb8e8-0dc9-46c3-b8f5-6a38f6c43fe9",
-    "is_active": false,
-    "working_hours": {},
-    "revenue_per_hour": 100,
-    "brands": {
-      "name": "Ikura Sushi",
-      "logo_url": null
     }
   },
   {

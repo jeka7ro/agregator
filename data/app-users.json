@@ -2,42 +2,47 @@
   "brevoConfig": {
     "apiKey": "",
     "senderEmail": "jeka7ro@gmail.com",
-    "senderName": "Get App — Central Dispatch",
+    "senderName": "GetApp.FooD",
     "enabled": true
   },
   "resetCodes": {},
   "users": [
     {
-      "id": "usr_1793788118957_rpk9",
-      "first_name": "Alexandra",
-      "last_name": "Popescu",
-      "email": "eugen7ro@gmail.com",
-      "phone": "+40724030303",
-      "role": "restaurant_manager",
-      "avatar_url": "data:image/jpeg;base64,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",
-      "password_hash": "0397bfaee1ca0c05f029bebc16c107a7b06547b5a211503bd8d32aedf6ba4cfe",
-      "temp_password_hint": null,
-      "must_change_password": false,
-      "status": "active",
+      "id": "usr_1793805295597_1ljx",
+      "first_name": "Игорь",
+      "last_name": "Сафонов",
+      "email": "safonov.market@yandex.ru",
+      "phone": "",
+      "role": "admin",
+      "avatar_url": "",
+      "password_hash": "e6e9d0323256c42d7e515a66039ac4ab979942cd53e7298f4bc98e3f31991ab2",
+      "temp_password_hint": "Igor2026!",
+      "must_change_password": true,
+      "status": "invited",
       "allowed_pages": [
         "dashboard",
         "dispatch",
         "couriers-map",
+        "customers",
+        "monitoring",
         "reputation",
-        "alerts"
+        "alerts",
+        "reports",
+        "users",
+        "settings"
       ],
       "allowed_cities": [
-        "BRASOV"
+        "all"
       ],
       "allowed_brands": [
-        "Roll Master"
+        "all"
       ],
       "allowed_restaurants": [
         "all"
       ],
       "invited_by": "Eugeniu Cazmal",
-      "created_at": "2026-11-04T10:28:38.957Z",
-      "last_login_at": "2026-11-04T10:39:16.781Z"
+      "created_at": "2026-11-04T15:14:55.597Z",
+      "last_login_at": null
     },
     {
       "id": "usr_admin_1",
@@ -74,142 +79,7 @@
       ],
       "invited_by": "System",
       "created_at": "2026-10-01T09:00:00.000Z",
-      "last_login_at": "2026-11-04T09:48:27.360Z"
-    },
-    {
-      "id": "usr_sup_1",
-      "first_name": "Alexandru",
-      "last_name": "Moraru",
-      "email": "alexandru.moraru@getapp.ro",
-      "phone": "+40744112233",
-      "role": "supervisor",
-      "avatar_url": "",
-      "password_hash": "d36136bdce0d74cd548f540e424c2948a0205887018e6e5422c890f396a319c5",
-      "temp_password_hint": "Super2026!",
-      "must_change_password": false,
-      "status": "active",
-      "allowed_pages": [
-        "dashboard",
-        "dispatch",
-        "couriers-map",
-        "customers",
-        "monitoring",
-        "reputation",
-        "alerts",
-        "reports"
-      ],
-      "allowed_cities": [
-        "BUCURESTI",
-        "CONSTANTA",
-        "BRASOV"
-      ],
-      "allowed_brands": [
-        "all"
-      ],
-      "allowed_restaurants": [
-        "all"
-      ],
-      "invited_by": "Eugeniu Cazmal",
-      "created_at": "2026-10-15T10:30:00.000Z",
-      "last_login_at": "2026-11-04T08:15:00.000Z"
-    },
-    {
-      "id": "usr_ops_1",
-      "first_name": "Mihai",
-      "last_name": "Diaconu",
-      "email": "mihai.operational@getapp.ro",
-      "phone": "+40722334455",
-      "role": "operational",
-      "avatar_url": "",
-      "password_hash": "8f2546ee964119a4820626122d6f9530c5baa5317bf4d6e9e6e709059291b23d",
-      "temp_password_hint": "Ops2026!",
-      "must_change_password": false,
-      "status": "active",
-      "allowed_pages": [
-        "dashboard",
-        "dispatch",
-        "couriers-map",
-        "monitoring",
-        "alerts"
-      ],
-      "allowed_cities": [
-        "all"
-      ],
-      "allowed_brands": [
-        "Roll Master",
-        "Love Sushi",
-        "Poki Woki"
-      ],
-      "allowed_restaurants": [
-        "all"
-      ],
-      "invited_by": "Eugeniu Cazmal",
-      "created_at": "2026-10-20T12:00:00.000Z",
-      "last_login_at": "2026-11-04T09:40:00.000Z"
-    },
-    {
-      "id": "usr_mkt_1",
-      "first_name": "Elena",
-      "last_name": "Popescu",
-      "email": "elena.marketing@getapp.ro",
-      "phone": "+40766554433",
-      "role": "marketing",
-      "avatar_url": "",
-      "password_hash": "ca5f23899d55bb1c3470d90fc949742d82215b61ef50585a0a69636360271aac",
-      "temp_password_hint": "Mkt2026!",
-      "must_change_password": true,
-      "status": "invited",
-      "allowed_pages": [
-        "dashboard",
-        "customers",
-        "reputation",
-        "reports"
-      ],
-      "allowed_cities": [
-        "all"
-      ],
-      "allowed_brands": [
-        "all"
-      ],
-      "allowed_restaurants": [
-        "all"
-      ],
-      "invited_by": "Eugeniu Cazmal",
-      "created_at": "2026-11-02T14:20:00.000Z",
-      "last_login_at": null
-    },
-    {
-      "id": "usr_mgr_1",
-      "first_name": "Cristian",
-      "last_name": "Ionescu",
-      "email": "cristian.iasi@getapp.ro",
-      "phone": "+40755998877",
-      "role": "restaurant_manager",
-      "avatar_url": "",
-      "password_hash": "c17c2ffebc7e390e836bb483f376ea0adfa69ed7ca50b61d466b93cf99992406",
-      "temp_password_hint": "Manager2026!",
-      "must_change_password": true,
-      "status": "invited",
-      "allowed_pages": [
-        "dashboard",
-        "dispatch",
-        "couriers-map",
-        "reputation",
-        "alerts"
-      ],
-      "allowed_cities": [
-        "IASI"
-      ],
-      "allowed_brands": [
-        "Love Sushi",
-        "Roll Master"
-      ],
-      "allowed_restaurants": [
-        "all"
-      ],
-      "invited_by": "Eugeniu Cazmal",
-      "created_at": "2026-11-03T16:10:00.000Z",
-      "last_login_at": null
+      "last_login_at": "2026-11-04T15:10:52.165Z"
     }
   ]
 }

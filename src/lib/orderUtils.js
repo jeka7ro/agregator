@@ -250,7 +250,7 @@ export function maskAddress(address = '') {
  */
 export function parseDeliveryAddress(rawAddress = '', lang = 'ro') {
   if (!rawAddress) {
-    return { streetAddress: '', buildingDetails: [], instructions: '' }
+    return { streetAddress: '', shortStreet: '', buildingDetails: [], instructions: '' }
   }
 
   const labels = lang === 'ru'
@@ -287,12 +287,40 @@ export function parseDeliveryAddress(rawAddress = '', lang = 'ro') {
     dashNote = afterDashParts.join(' - ').trim()
   }
 
-  // Dacă nu conține ";" (doar adresă simplă)
+  // Helper intern pentru extragerea detaliilor de clădire inline (ex: "Aleea Zorilor, 6, Scara B et. 3 ap. 11")
+  const extractInlineBuildingFromStreet = (str, bDetails, instrParts) => {
+    if (!str) return ''
+    const inlineRegex = /(?:,\s*|\s+)(?=(?:bl(?:oc)?\.?|sc(?:ara)?\.?|et(?:aj)?\.?|ap(?:artament)?\.?|interfon|intrare|building|floor|apt\.?)\s*[a-z0-9])/i
+    const match = str.match(inlineRegex)
+    if (match && typeof match.index === 'number' && match.index > 3) {
+      const pureStreet = str.slice(0, match.index).replace(/,\s*$/, '').trim()
+      const restBuilding = str.slice(match.index).replace(/^,\s*/, '').trim()
+      if (restBuilding) {
+        instrParts.unshift(restBuilding)
+      }
+      return pureStreet
+    }
+    return str
+  }
+
+  // Helper pentru strada scurtă (doar strada + numărul, fără oraș/cod poștal redundant în tabel)
+  const makeShortStreet = (fullStreet) => {
+    if (!fullStreet) return ''
+    const parts = fullStreet.split(',').map(p => p.trim()).filter(Boolean)
+    if (parts.length <= 2) return parts.join(', ')
+    return `${parts[0]}, ${parts[1]}`
+  }
+
+  // Dacă nu conține ";" (doar adresă simplă cu virgule)
   if (!cleaned.includes(';')) {
+    const bDetails = []
+    const instrParts = dashNote ? [dashNote] : []
+    const cleanStreet = extractInlineBuildingFromStreet(cleaned, bDetails, instrParts)
     return {
-      streetAddress: cleaned,
-      buildingDetails: [],
-      instructions: dashNote
+      streetAddress: cleanStreet,
+      shortStreet: makeShortStreet(cleanStreet),
+      buildingDetails: bDetails,
+      instructions: instrParts.join(' • ')
     }
   }
 
@@ -364,8 +392,12 @@ export function parseDeliveryAddress(rawAddress = '', lang = 'ro') {
     instructionParts.push(dashNote)
   }
 
+  const rawJoinedStreet = addressParts.join(', ') || cleaned
+  const finalStreet = extractInlineBuildingFromStreet(rawJoinedStreet, buildingDetails, instructionParts)
+
   return {
-    streetAddress: addressParts.join(', ') || cleaned,
+    streetAddress: finalStreet,
+    shortStreet: makeShortStreet(finalStreet),
     buildingDetails,
     instructions: instructionParts.join(' • ')
   }

@@ -2483,12 +2483,72 @@ app.get('/api/dispatch/live', async (req, res) => {
             const realWaitMin = (tCooked && tSended) ? Math.max(0, Math.round((tSended - tCooked) / 60000)) : null
             const realDelivMin = (tSended && tDelivered) ? Math.max(0, Math.round((tDelivered - tSended) / 60000)) : null
             const realTotalMin = (tCreated && tDelivered) ? Math.max(1, Math.round((tDelivered - tCreated) / 60000)) : null
+            const isClosedAtHandoff = Boolean(!isInRestaurant && tSended && tDelivered && Math.abs(tDelivered - tSended) <= 90000)
 
-            const maxActiveSlaMin = isInRestaurant ? 15 : 48
-            const isPastActiveSla = elapsedMin > maxActiveSlaMin
-
-            if (hasRealIikoTimings && !isKioskPlat && !isPastActiveSla) {
-                if ((rawStatus === 'waitcooking' || rawStatus === 'unconfirmed' || rawStatus === 'readyforcooking') && elapsedMin <= 8) {
+            if (hasRealIikoTimings && !isKioskPlat) {
+                if (tDelivered || rawStatus === 'closed' || rawStatus === 'delivered') {
+                    stage = 'delivered'
+                    stageLabel = isInRestaurant ? 'Servit în Restaurant' : 'Livrat'
+                    statusColor = 'emerald'
+                    deliveredCount++
+                    kTime = realCookMin !== null ? realCookMin : (realTotalMin || 15)
+                    wTime = realWaitMin !== null ? realWaitMin : 0
+                    dTime = (isInRestaurant || isClosedAtHandoff) ? 0 : (realDelivMin !== null ? realDelivMin : 0)
+                } else if (tSended || rawStatus === 'onway') {
+                    if (elapsedMin <= 120) {
+                        stage = 'on_way'
+                        stageLabel = 'La Curier (Pe drum)'
+                        statusColor = 'indigo'
+                        onWayCount++
+                        kTime = realCookMin || 16
+                        wTime = realWaitMin !== null ? realWaitMin : 0
+                        dTime = tSended ? Math.max(1, Math.round((Date.now() - tSended.getTime()) / 60000)) : Math.max(1, elapsedMin - kTime - wTime)
+                    } else {
+                        stage = 'delivered'
+                        stageLabel = isInRestaurant ? 'Servit în Restaurant' : 'Livrat'
+                        statusColor = 'emerald'
+                        deliveredCount++
+                        kTime = realCookMin || 16
+                        wTime = realWaitMin !== null ? realWaitMin : 0
+                        dTime = realDelivMin !== null ? realDelivMin : 0
+                    }
+                } else if (tCooked || rawStatus === 'cookingcompleted' || rawStatus === 'waiting') {
+                    if (elapsedMin <= 120) {
+                        stage = 'ready'
+                        stageLabel = 'Gata / Așteaptă Curier'
+                        statusColor = 'purple'
+                        waitingCourierCount++
+                        kTime = realCookMin || Math.min(20, Math.max(1, elapsedMin))
+                        wTime = tCooked ? Math.max(1, Math.round((Date.now() - tCooked.getTime()) / 60000)) : Math.max(1, elapsedMin - kTime)
+                        dTime = 0
+                    } else {
+                        stage = 'delivered'
+                        stageLabel = isInRestaurant ? 'Servit în Restaurant' : 'Livrat'
+                        statusColor = 'emerald'
+                        deliveredCount++
+                        kTime = realCookMin || 16
+                        wTime = 0
+                        dTime = 0
+                    }
+                } else if (rawStatus === 'cookingstarted') {
+                    if (elapsedMin <= 90) {
+                        stage = 'cooking'
+                        stageLabel = 'În Preparare Bucătărie'
+                        statusColor = 'blue'
+                        activeInKitchenCount++
+                        kTime = Math.max(1, elapsedMin)
+                        wTime = 0
+                        dTime = 0
+                    } else {
+                        stage = 'delivered'
+                        stageLabel = isInRestaurant ? 'Servit în Restaurant' : 'Livrat'
+                        statusColor = 'emerald'
+                        deliveredCount++
+                        kTime = realCookMin || 16
+                        wTime = 0
+                        dTime = 0
+                    }
+                } else if (elapsedMin <= 8) {
                     stage = 'wait_cooking'
                     stageLabel = 'În Așteptare Bucătărie'
                     statusColor = 'amber'
@@ -2496,7 +2556,7 @@ app.get('/api/dispatch/live', async (req, res) => {
                     kTime = Math.max(1, elapsedMin)
                     wTime = 0
                     dTime = 0
-                } else if ((rawStatus === 'cookingstarted' || rawStatus === 'waitcooking' || rawStatus === 'unconfirmed' || rawStatus === 'readyforcooking') && elapsedMin <= 25) {
+                } else if (elapsedMin <= 90) {
                     stage = 'cooking'
                     stageLabel = 'În Preparare Bucătărie'
                     statusColor = 'blue'
@@ -2504,45 +2564,15 @@ app.get('/api/dispatch/live', async (req, res) => {
                     kTime = Math.max(1, elapsedMin)
                     wTime = 0
                     dTime = 0
-                } else if ((rawStatus === 'cookingcompleted' || rawStatus === 'waiting' || rawStatus === 'cookingstarted') && elapsedMin <= 34) {
-                    stage = 'ready'
-                    stageLabel = 'Gata / Așteaptă Curier'
-                    statusColor = 'purple'
-                    waitingCourierCount++
-                    kTime = realCookMin || Math.min(20, Math.max(12, elapsedMin - 4))
-                    wTime = Math.max(1, elapsedMin - kTime)
-                    dTime = 0
-                } else if (rawStatus === 'onway' || rawStatus === 'cookingcompleted' || rawStatus === 'waiting' || rawStatus === 'cookingstarted') {
-                    stage = 'on_way'
-                    stageLabel = 'La Curier (Pe drum)'
-                    statusColor = 'indigo'
-                    onWayCount++
-                    kTime = realCookMin || 16
-                    wTime = realWaitMin !== null ? realWaitMin : 5
-                    dTime = Math.max(1, elapsedMin - kTime - wTime)
                 } else {
                     stage = 'delivered'
                     stageLabel = isInRestaurant ? 'Servit în Restaurant' : 'Livrat'
                     statusColor = 'emerald'
                     deliveredCount++
-                    kTime = realCookMin !== null ? realCookMin : (realTotalMin || 15)
-                    wTime = realWaitMin !== null ? realWaitMin : 0
-                    const fallbackCourierTransit = (!isInRestaurant && (realDelivMin === null || realDelivMin <= 1))
-                        ? (14 + ((o.order_id?.charCodeAt(0) || 3) % 7))
-                        : (realDelivMin || 0)
-                    dTime = isInRestaurant ? 0 : fallbackCourierTransit
+                    kTime = realCookMin || 16
+                    wTime = 0
+                    dTime = 0
                 }
-            } else if (hasRealIikoTimings && !isKioskPlat && isPastActiveSla) {
-                stage = 'delivered'
-                stageLabel = isInRestaurant ? 'Servit în Restaurant' : 'Livrat'
-                statusColor = 'emerald'
-                deliveredCount++
-                kTime = realCookMin !== null ? realCookMin : 16
-                wTime = realWaitMin !== null ? realWaitMin : (isInRestaurant ? 0 : 5)
-                const fallbackCourierTransit = (!isInRestaurant && (realDelivMin === null || realDelivMin <= 1))
-                    ? (14 + ((o.order_id?.charCodeAt(0) || 3) % 7))
-                    : (realDelivMin || 0)
-                dTime = isInRestaurant ? 0 : fallbackCourierTransit
             } else if (isInRestaurant) {
                 // In-restaurant orders (Kiosk & Casierie / POS) DO NOT have couriers or on_way delivery
                 // NOTE: Syrve/iiko closes the fiscal check ("Closed") immediately upon payment at Kiosk/POS.
@@ -2626,7 +2656,7 @@ app.get('/api/dispatch/live', async (req, res) => {
                 }
             }
 
-            const totalTime = (hasRealIikoTimings && stage === 'delivered' && realTotalMin !== null && (isInRestaurant || (realDelivMin !== null && realDelivMin > 1)))
+            const totalTime = (hasRealIikoTimings && stage === 'delivered' && realTotalMin !== null)
                 ? realTotalMin
                 : (kTime + wTime + dTime)
 
@@ -2799,7 +2829,8 @@ app.get('/api/dispatch/live', async (req, res) => {
                     delivered_time: extractHHMMSS(rawTimings.whenDelivered || rawTimings.whenClosed),
                     closed_time: extractHHMMSS(rawTimings.whenClosed),
                     complete_before_time: extractHHMM(rawTimings.completeBefore),
-                    delivered_short_time: extractHHMM(rawTimings.whenDelivered || rawTimings.whenClosed)
+                    delivered_short_time: extractHHMM(rawTimings.whenDelivered || rawTimings.whenClosed),
+                    closed_at_handoff: isClosedAtHandoff
                 },
                 customer: {
                     name: finalCustomer.name,
@@ -3013,20 +3044,36 @@ app.get('/api/violations', async (req, res) => {
 app.get('/api/stop-events', async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 100
-        let { data, error } = await supabase
+        const { restaurantId, platform } = req.query
+        let query = supabase
             .from('stop_events')
-            .select('*, restaurants(name, city)')
+            .select('*, restaurants(name, city, revenue_per_hour, glovo_url, wolt_url, bolt_url)')
             .order('stopped_at', { ascending: false })
             .limit(limit)
 
+        if (restaurantId) query = query.eq('restaurant_id', restaurantId)
+        if (platform) query = query.eq('platform', platform)
+
+        let { data, error } = await query
+
+        const filterValidStops = (list) => (list || []).filter(ev => {
+            const p = String(ev.platform || '').toLowerCase()
+            if (p === 'glovo' || p === 'wolt' || p === 'bolt') {
+                const pUrl = ev.restaurants?.[`${p}_url`]
+                if (ev.restaurants && (!pUrl || String(pUrl).includes('/search'))) return false
+            }
+            return true
+        })
+
         if (!data || data.length === 0 || error) {
-            const local = loadStopEventsCache() || []
-            return res.json({ success: true, stop_events: local.slice(0, limit), source: 'local_cache' })
+            const local = filterValidStops(loadStopEventsCache() || []).slice(0, limit)
+            return res.json({ success: true, events: local, stop_events: local, count: local.length, source: 'local_cache' })
         }
-        res.json({ success: true, stop_events: data, source: 'database' })
+        const valid = filterValidStops(data)
+        res.json({ success: true, events: valid, stop_events: valid, count: valid.length, source: 'database' })
     } catch (err) {
         const local = loadStopEventsCache() || []
-        res.json({ success: true, stop_events: local, source: 'fallback_cache' })
+        res.json({ success: true, events: local, stop_events: local, count: local.length, source: 'fallback_cache' })
     }
 })
 
@@ -3140,7 +3187,8 @@ app.post('/api/check-restaurant', async (req, res) => {
         const results = []
 
         for (const platform of platforms) {
-            const isConfigured = platform === 'iiko' ? !!restaurant.iiko_restaurant_id : !!restaurant[`${platform}_url`]
+            const pUrl = restaurant[`${platform}_url`]
+            const isConfigured = platform === 'iiko' ? !!restaurant.iiko_restaurant_id : (!!pUrl && !String(pUrl).includes('/search'))
             if (!isConfigured) continue
 
             const checker = getChecker(platform)
@@ -3213,7 +3261,7 @@ app.post('/api/check-all', async (req, res) => {
 
         for (const restaurant of restaurants) {
             const platforms = ['glovo', 'wolt', 'bolt', 'iiko']
-            global.checkAllStatus.totalChecks += platforms.filter(p => p === 'iiko' ? !!restaurant.iiko_restaurant_id : !!restaurant[`${p}_url`]).length;
+            global.checkAllStatus.totalChecks += platforms.filter(p => p === 'iiko' ? !!restaurant.iiko_restaurant_id : (!!restaurant[`${p}_url`] && !String(restaurant[`${p}_url`]).includes('/search'))).length;
         }
 
         for (const restaurant of restaurants) {
@@ -3226,7 +3274,8 @@ app.post('/api/check-all', async (req, res) => {
 
             for (const platform of platforms) {
                 if (global.checkAllStatus?.abort) break
-                const isConfigured = platform === 'iiko' ? !!restaurant.iiko_restaurant_id : !!restaurant[`${platform}_url`]
+                const pUrl = restaurant[`${platform}_url`]
+                const isConfigured = platform === 'iiko' ? !!restaurant.iiko_restaurant_id : (!!pUrl && !String(pUrl).includes('/search'))
                 if (!isConfigured) continue
 
                 const checker = getChecker(platform)
@@ -3674,7 +3723,7 @@ app.get('/api/stop-events', async (req, res) => {
             .from('stop_events')
             .select(`
                 *,
-                restaurants (name, city, revenue_per_hour)
+                restaurants (name, city, revenue_per_hour, glovo_url, wolt_url, bolt_url)
             `)
             .order('stopped_at', { ascending: false })
             .limit(limit)
@@ -3688,7 +3737,16 @@ app.get('/api/stop-events', async (req, res) => {
 
         if (error) throw error
 
-        res.json({ success: true, events: data || [], count: (data || []).length })
+        const validEvents = (data || []).filter(ev => {
+            const p = String(ev.platform || '').toLowerCase()
+            if (p === 'glovo' || p === 'wolt' || p === 'bolt') {
+                const url = ev.restaurants?.[`${p}_url`]
+                if (!url || String(url).includes('/search')) return false
+            }
+            return true
+        })
+
+        res.json({ success: true, events: validEvents, count: validEvents.length })
     } catch (error) {
         console.error('[API] Error getting stop events:', error)
         res.status(500).json({ success: false, error: error.message })

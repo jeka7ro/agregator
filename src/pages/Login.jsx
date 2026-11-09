@@ -136,7 +136,15 @@ export default function Login() {
         })
       }
     } catch (err) {
-      setFeedback({ type: 'error', text: err.message })
+      let msg = err.message || ''
+      if (msg.includes('Nu există niciun cont')) {
+        msg = tr(msg, 'No account found with this email address.', 'Аккаунт с этим email не найден.')
+      } else if (msg.includes('Parola introdusă este incorectă')) {
+        msg = tr(msg, 'Incorrect password.', 'Неверный пароль.')
+      } else if (msg.includes('dezactivat')) {
+        msg = tr(msg, 'This account has been disabled by the Administrator.', 'Этот аккаунт отключен администратором.')
+      }
+      setFeedback({ type: 'error', text: msg })
     } finally {
       setLoading(false)
     }
@@ -176,7 +184,15 @@ export default function Login() {
       })
       persistRememberedCredentials(targetEmail, newPassword.trim(), rememberMe)
     } catch (err) {
-      setFeedback({ type: 'error', text: err.message })
+      let msg = err.message || ''
+      if (msg.includes('Nu există niciun cont')) {
+        msg = tr(msg, 'No account found with this email address.', 'Аккаунт с этим email не найден.')
+      } else if (msg.includes('Parola introdusă este incorectă')) {
+        msg = tr(msg, 'Incorrect password.', 'Неверный пароль.')
+      } else if (msg.includes('dezactivat')) {
+        msg = tr(msg, 'This account has been disabled by the Administrator.', 'Этот аккаунт отключен администратором.')
+      }
+      setFeedback({ type: 'error', text: msg })
     } finally {
       setLoading(false)
     }
@@ -208,7 +224,15 @@ export default function Login() {
           : tr('Codul de resetare a fost generat.', 'Verification code has been generated.', 'Код подтверждения сгенерирован.')
       })
     } catch (err) {
-      setFeedback({ type: 'error', text: err.message })
+      let msg = err.message || ''
+      if (msg.includes('Nu există niciun cont')) {
+        msg = tr(msg, 'No account found with this email address.', 'Аккаунт с этим email не найден.')
+      } else if (msg.includes('Parola introdusă este incorectă')) {
+        msg = tr(msg, 'Incorrect password.', 'Неверный пароль.')
+      } else if (msg.includes('dezactivat')) {
+        msg = tr(msg, 'This account has been disabled by the Administrator.', 'Этот аккаунт отключен администратором.')
+      }
+      setFeedback({ type: 'error', text: msg })
     } finally {
       setLoading(false)
     }
@@ -247,7 +271,15 @@ export default function Login() {
       })
       persistRememberedCredentials(resetEmail.trim(), resetNewPass.trim(), rememberMe)
     } catch (err) {
-      setFeedback({ type: 'error', text: err.message })
+      let msg = err.message || ''
+      if (msg.includes('Nu există niciun cont')) {
+        msg = tr(msg, 'No account found with this email address.', 'Аккаунт с этим email не найден.')
+      } else if (msg.includes('Parola introdusă este incorectă')) {
+        msg = tr(msg, 'Incorrect password.', 'Неверный пароль.')
+      } else if (msg.includes('dezactivat')) {
+        msg = tr(msg, 'This account has been disabled by the Administrator.', 'Этот аккаунт отключен администратором.')
+      }
+      setFeedback({ type: 'error', text: msg })
     } finally {
       setLoading(false)
     }
@@ -264,13 +296,7 @@ export default function Login() {
     }
   }
 
-  const logoVariant = (() => {
-    try {
-      return localStorage.getItem('app_logo_variant') || 'radar'
-    } catch (_) {
-      return 'radar'
-    }
-  })()
+  const logoVariant = 'radar'
 
   return (
     <div
@@ -321,8 +347,8 @@ export default function Login() {
               <div className="text-center mb-6">
                 <div className="flex justify-center mb-4">
                   <AppLogo
-                    variant={logoVariant}
-                    size={44}
+                    variant="radar"
+                    size={56}
                     showText={true}
                     isDark={isDark}
                   />
@@ -798,7 +824,7 @@ export default function Login() {
 
       {/* Footer */}
       <div className="relative z-10 text-center text-[11px] font-semibold text-white/80 drop-shadow-xs">
-        Get App — Central Dispatch
+        GetApp.FooD
       </div>
     </div>
   )

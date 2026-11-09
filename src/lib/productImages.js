@@ -38,6 +38,8 @@ export const SYRVE_DISH_IMAGES = {
   // Sushi Burgers
   'burger somon': 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/2ad07ee9-9df0-4dc6-8898-e73c2db6bf2e.jpg',
   'burger creveti': 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/0533a7d5-400f-4d6f-a332-ec83e1e3bca5.jpg',
+  'sushi burger': 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/2ad07ee9-9df0-4dc6-8898-e73c2db6bf2e.jpg',
+  'combo burger': 'https://storage.cdneu.syrve.com/nomenclature_images/3774906/2ad07ee9-9df0-4dc6-8898-e73c2db6bf2e.jpg',
 
   // Smash Me Burgers & Fries
   'cheesburger': 'https://storage.cdneu.syrve.com/nomenclature_images/7601594/4e21ae1f-d604-458e-9a81-05f1b5f7a378.jpg',
@@ -236,10 +238,14 @@ export function getProductImage(productName = '', brand = '', directUrl = null) 
   }
 
   // 2. Keyword fallback
+  const bLow = String(brand || '').toLowerCase()
   if (clean.includes('set') || clean.includes('roll') || clean.includes('sushi') || clean.includes('maki')) {
     return SYRVE_DISH_IMAGES['big party']
   }
   if (clean.includes('burger')) {
+    if (bLow.includes('roll') || bLow.includes('sushi') || bLow.includes('love') || rawLower.startsWith('p_')) {
+      return SYRVE_DISH_IMAGES['burger somon']
+    }
     return SYRVE_DISH_IMAGES['cheesburger']
   }
   if (clean.includes('wok') || clean.includes('orez') || clean.includes('noodle')) {
@@ -250,7 +256,6 @@ export function getProductImage(productName = '', brand = '', directUrl = null) 
   }
 
   // Brand default fallback
-  const bLow = String(brand || '').toLowerCase()
   if (bLow.includes('smash')) return SYRVE_DISH_IMAGES['cheesburger']
   if (bLow.includes('poki')) return SYRVE_DISH_IMAGES['poke']
   if (bLow.includes('crunch')) return SYRVE_DISH_IMAGES['crunch']

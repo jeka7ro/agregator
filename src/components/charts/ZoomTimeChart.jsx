@@ -1,6 +1,9 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react'
-import { Activity, Clock, ZoomIn, ZoomOut, RefreshCw, AlertTriangle, TrendingUp, Info } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Activity, Clock, ZoomIn, ZoomOut, RefreshCw, AlertTriangle, TrendingUp, Info, ExternalLink } from 'lucide-react'
 import { useLanguage } from '../../lib/LanguageContext'
+import { getApiUrl } from '../../lib/api'
+import { cleanRestaurantName } from '../BrandAvatar'
 
 // Monotone / Catmull-Rom to Cubic Bezier curve path
 function getCurvedPath(points) {
@@ -24,8 +27,9 @@ function getCurvedPath(points) {
   return d
 }
 
-export default function ZoomTimeChart({ checks = [], isDark = false, t }) {
+export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = false, t }) {
   const { t: contextT, language } = useLanguage()
+  const navigate = useNavigate()
   const tr = t || contextT
   const localeCode = language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-US' : 'ro-RO'
 
@@ -35,48 +39,109 @@ export default function ZoomTimeChart({ checks = [], isDark = false, t }) {
   const [scrubberWindow, setScrubberWindow] = useState([0, 100])
   const [hoveredPoint, setHoveredPoint] = useState(null)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
+  const [stopEvents, setStopEvents] = useState([])
   const svgRef = useRef(null)
 
-  // Generate continuous timeline data based on actual checks and hourly aggregation
+  useEffect(() => {
+    let mounted = true
+    fetch(getApiUrl('/api/stop-events?limit=150'))
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (mounted && d) {
+          const list = Array.isArray(d.events) ? d.events : (Array.isArray(d.stop_events) ? d.stop_events : [])
+          setStopEvents(list)
+        }
+      })
+      .catch(() => {})
+    return () => { mounted = false }
+  }, [])
+
+  // Generate timeline data strictly from real checks & real stop_events (NO Math.random)
   const rawTimelineData = useMemo(() => {
     let pointCount = 24
     let intervalHours = 1
     if (rangePreset === '6h') { pointCount = 18; intervalHours = 0.33; }
     else if (rangePreset === '12h') { pointCount = 24; intervalHours = 0.5; }
-    else if (rangePreset === '24h') { pointCount = 28; intervalHours = 1; }
+    else if (rangePreset === '24h') { pointCount = 24; intervalHours = 1; }
     else if (rangePreset === '7d') { pointCount = 28; intervalHours = 6; }
     else if (rangePreset === '30d') { pointCount = 30; intervalHours = 24; }
 
+    const activeRests = (restaurants || []).filter(r => r.is_active !== false)
+    const restMap = new Map()
+    activeRests.forEach(r => restMap.set(r.id, r))
+    const totalActiveLocations = activeRests.length || 52
+
+    // Live currently stopped channels on configured platforms
+    const currentStopped = []
+    ;(checks || []).forEach(c => {
+      const st = String(c.final_status || '').toLowerCase()
+      if (st === 'closed' || st === 'offline' || st === 'unavailable' || st === 'error') {
+        const r = restMap.get(c.restaurant_id)
+        if (!r) return
+        const p = String(c.platform || '').toLowerCase()
+        const pUrl = p !== 'iiko' ? r[`${p}_url`] : r.iiko_restaurant_id
+        if (!pUrl || (p !== 'iiko' && String(pUrl).includes('/search'))) return
+        currentStopped.push({
+          restaurantId: r.id,
+          name: `${cleanRestaurantName(r.name)} (${p.toUpperCase()})`,
+          platform: p,
+          checkedAt: c.checked_at ? new Date(c.checked_at).getTime() : Date.now(),
+          rate: Number(r.revenue_per_hour) || 50
+        })
+      }
+    })
+
     const now = Date.now()
+    const slotMs = intervalHours * 3600 * 1000
     const points = []
 
     for (let i = pointCount; i >= 0; i--) {
-      const time = new Date(now - i * intervalHours * 3600 * 1000)
-      
-      // Calculate realistic metrics around this time window
-      // Base uptime around 92% - 98%, with realistic slight dips during peak rush hours (12:00, 19:00)
-      const hour = time.getHours()
-      let baseUptime = 96.5
-      let incidentCount = 0
+      const slotEnd = now - i * slotMs
+      const slotStart = slotEnd - slotMs
+      const time = new Date(slotEnd)
 
-      if (hour >= 12 && hour <= 14) {
-        baseUptime = 92.4 // Lunch rush
-        incidentCount = Math.floor(Math.random() * 4) + 2
-      } else if (hour >= 19 && hour <= 21) {
-        baseUptime = 91.8 // Dinner rush
-        incidentCount = Math.floor(Math.random() * 5) + 3
-      } else if (hour >= 0 && hour <= 8) {
-        baseUptime = 99.1 // Night / quiet
-        incidentCount = 0
-      } else {
-        baseUptime = 95.8
-        incidentCount = Math.floor(Math.random() * 2)
+      const stoppedInSlotMap = new Map()
+
+      // 1. Check historical stop_events overlapping [slotStart, slotEnd]
+      ;(stopEvents || []).forEach(ev => {
+        const r = restMap.get(ev.restaurant_id)
+        const p = String(ev.platform || '').toLowerCase()
+        if (r && (p === 'glovo' || p === 'wolt' || p === 'bolt')) {
+          const pUrl = r[`${p}_url`]
+          if (!pUrl || String(pUrl).includes('/search')) return
+        }
+        const stMs = ev.stopped_at ? new Date(ev.stopped_at).getTime() : 0
+        if (!stMs) return
+        const resMs = ev.resumed_at ? new Date(ev.resumed_at).getTime() : (stMs + 2 * 3600 * 1000)
+        if (stMs <= slotEnd && resMs >= slotStart) {
+          const rName = cleanRestaurantName(r?.name || ev.restaurants?.name || 'Locație')
+          const key = `${ev.restaurant_id}_${p}`
+          stoppedInSlotMap.set(key, {
+            name: `${rName} (${p.toUpperCase()})`,
+            loss: Math.round((Number(r?.revenue_per_hour || ev.restaurants?.revenue_per_hour || 50)) * Math.min(1, intervalHours))
+          })
+        }
+      })
+
+      // 2. For the current/latest slot (i === 0), include any live stopped checks
+      if (i === 0) {
+        currentStopped.forEach(cs => {
+          const key = `${cs.restaurantId}_${cs.platform}`
+          stoppedInSlotMap.set(key, {
+            name: cs.name,
+            loss: Math.round(cs.rate * Math.min(1, intervalHours))
+          })
+        })
       }
 
-      // Add small natural jitter
-      const jitter = ((Math.sin(i * 1.5) + Math.cos(i * 0.8)) * 1.8)
-      const uptime = Math.min(100, Math.max(80, +(baseUptime + jitter).toFixed(1)))
-      const lossAmount = incidentCount * 65
+      const stoppedItems = Array.from(stoppedInSlotMap.values())
+      const incidentCount = stoppedItems.length
+      const stoppedNames = stoppedItems.map(s => s.name)
+      const lossAmount = stoppedItems.reduce((sum, s) => sum + s.loss, 0)
+      const onlineLocations = Math.max(0, totalActiveLocations - incidentCount)
+      const uptime = totalActiveLocations > 0
+        ? +(Math.max(80, Math.min(100, (onlineLocations / totalActiveLocations) * 100))).toFixed(1)
+        : 100
 
       points.push({
         timestamp: time.toISOString(),
@@ -84,13 +149,15 @@ export default function ZoomTimeChart({ checks = [], isDark = false, t }) {
         formattedDate: time.toLocaleDateString(localeCode, { day: '2-digit', month: 'short' }),
         uptime,
         incidentCount,
+        stoppedNames,
         lossAmount,
-        activeLocations: Math.round(145 * (uptime / 100))
+        activeLocations: onlineLocations,
+        totalLocations: totalActiveLocations
       })
     }
 
     return points
-  }, [rangePreset, localeCode])
+  }, [rangePreset, localeCode, restaurants, checks, stopEvents])
 
   // Filter timeline based on scrubber window [start%, end%]
   const visibleTimeline = useMemo(() => {
@@ -369,23 +436,36 @@ export default function ZoomTimeChart({ checks = [], isDark = false, t }) {
           </h3>
         </div>
 
-        {/* Range Buttons */}
-        <div className={`p-1 rounded-xl border flex items-center gap-1 shrink-0 ${
-          isDark ? 'bg-slate-800/80 border-slate-700/60' : 'bg-slate-100 border-slate-200'
-        }`}>
-          {['6h', '12h', '24h', '7d', '30d'].map(preset => (
-            <button
-              key={preset}
-              onClick={() => { setRangePreset(preset); setScrubberWindow([0, 100]); }}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                rangePreset === preset 
-                  ? 'bg-cyan-600 text-white shadow-xs' 
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              {preset}
-            </button>
-          ))}
+        {/* Range Buttons & Drilldown to Alerts */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => navigate('/alerts')}
+            className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer ${
+              isDark ? 'bg-slate-800/80 border-slate-700 text-rose-400 hover:bg-slate-800' : 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'
+            }`}
+            title={language === 'ru' ? 'Открыть журнал остановок и инцидентов' : language === 'en' ? 'Open stops & incidents log' : 'Deschide jurnalul de opriri și alerte'}
+          >
+            <span>{language === 'ru' ? 'Журнал остановок' : language === 'en' ? 'Outage Log' : 'Jurnal Opriri'}</span>
+            <ExternalLink size={12} />
+          </button>
+          <div className={`p-1 rounded-xl border flex items-center gap-1 shrink-0 ${
+            isDark ? 'bg-slate-800/80 border-slate-700/60' : 'bg-slate-100 border-slate-200'
+          }`}>
+            {['6h', '12h', '24h', '7d', '30d'].map(preset => (
+              <button
+                key={preset}
+                onClick={() => { setRangePreset(preset); setScrubberWindow([0, 100]); }}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  rangePreset === preset 
+                    ? 'bg-cyan-600 text-white shadow-xs' 
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                {preset}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -587,12 +667,20 @@ export default function ZoomTimeChart({ checks = [], isDark = false, t }) {
             <div className="space-y-0.5 text-[11px]">
               <div className="flex justify-between gap-3">
                 <span className="text-slate-400">{tr('charts.tooltip_online_locations', 'Locații Online:')}</span>
-                <span className="font-bold">{hoveredPoint.activeLocations} / 152</span>
+                <span className="font-bold">{hoveredPoint.activeLocations} / {hoveredPoint.totalLocations || 52}</span>
               </div>
               {hoveredPoint.incidentCount > 0 ? (
-                <div className="flex justify-between gap-3 text-rose-500 font-bold">
-                  <span>{tr('charts.tooltip_incident_stops', 'Opriri / Incident:')}</span>
-                  <span>{hoveredPoint.incidentCount} {tr('charts.locations_suffix', 'locații')} (-{hoveredPoint.lossAmount} RON)</span>
+                <div className="space-y-1 pt-0.5">
+                  <div className="flex justify-between gap-3 text-rose-500 font-bold">
+                    <span>{tr('charts.tooltip_incident_stops', 'Opriri / Incident:')}</span>
+                    <span>{hoveredPoint.incidentCount} {tr('charts.locations_suffix', 'locații')} (-{hoveredPoint.lossAmount} RON)</span>
+                  </div>
+                  {hoveredPoint.stoppedNames?.length > 0 && (
+                    <div className="text-[10px] text-rose-400 font-semibold max-w-[220px] leading-tight">
+                      {hoveredPoint.stoppedNames.slice(0, 4).join(', ')}
+                      {hoveredPoint.stoppedNames.length > 4 ? ` +${hoveredPoint.stoppedNames.length - 4}` : ''}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-[10px] text-emerald-500 font-medium">

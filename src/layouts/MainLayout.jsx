@@ -9,6 +9,7 @@ import LanguageToggle from '../components/LanguageToggle'
 import AppLogo from '../components/AppLogo'
 import UserAvatar from '../components/UserAvatar'
 import UserProfileModal from '../components/UserProfileModal'
+import { getCityDisplayName } from '../lib/orderUtils'
 import { 
   LayoutDashboard, 
   Store, 
@@ -27,7 +28,9 @@ import {
   ChevronDown,
   UserCog,
   LogOut,
-  KeyRound
+  KeyRound,
+  RotateCcw,
+  X
 } from 'lucide-react'
 
 export default function MainLayout() {
@@ -130,7 +133,7 @@ export default function MainLayout() {
           }`}>
             <AppLogo
               variant="radar"
-              size={isSidebarCollapsed ? 32 : 36}
+              size={isSidebarCollapsed ? 38 : 42}
               showText={!isSidebarCollapsed}
               isDark={isDark}
               onClick={() => navigate(navItems[0]?.path || '/dashboard')}
@@ -145,7 +148,17 @@ export default function MainLayout() {
               </div>
             )}
             {navItems.map((item) => {
-              const targetPath = location.search ? `${item.path}${location.search}` : item.path
+              const preservedParams = new URLSearchParams()
+              try {
+                const currentParams = new URLSearchParams(location.search)
+                for (const key of ['city', 'brand', 'period']) {
+                  if (currentParams.has(key)) {
+                    preservedParams.set(key, currentParams.get(key))
+                  }
+                }
+              } catch (_) {}
+              const qs = preservedParams.toString()
+              const targetPath = qs ? `${item.path}?${qs}` : item.path
               const isItemActive = location.pathname === item.path || (item.path === '/dashboard' && location.pathname === '/')
               return (
                 <NavLink
@@ -258,6 +271,58 @@ export default function MainLayout() {
                 {citiesScope} · {brandsScope}
               </span>
             </div>
+
+            {(() => {
+              const sp = new URLSearchParams(location.search)
+              const activeCity = sp.get('city')
+              const activeBrand = sp.get('brand')
+              const activeChannel = sp.get('channel')
+              const activePeriod = sp.get('period')
+              const hasUrlFilters = Boolean(
+                (activeCity && activeCity !== 'all') ||
+                (activeBrand && activeBrand !== 'all') ||
+                (activeChannel && activeChannel !== 'all') ||
+                (activePeriod && activePeriod !== 'today' && activePeriod !== 'all')
+              )
+              return (
+                <div className="flex items-center gap-1.5 ml-1">
+                  {activeCity && activeCity !== 'all' && (
+                    <span className={`hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                      isDark ? 'bg-emerald-950/50 border-emerald-800/70 text-emerald-300' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                    }`}>
+                      <MapPin size={11} />
+                      <span>{getCityDisplayName(activeCity)}</span>
+                    </span>
+                  )}
+                  {activeBrand && activeBrand !== 'all' && (
+                    <span className={`hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                      isDark ? 'bg-sky-950/50 border-sky-800/70 text-sky-300' : 'bg-sky-50 border-sky-200 text-sky-700'
+                    }`}>
+                      <Store size={11} />
+                      <span>{activeBrand}</span>
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigate(location.pathname, { replace: true })
+                      window.dispatchEvent(new CustomEvent('global-reset-filters'))
+                    }}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                      hasUrlFilters
+                        ? 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-600 dark:text-rose-300 border-rose-500/30 shadow-2xs'
+                        : isDark
+                          ? 'bg-slate-800/70 hover:bg-slate-800 text-slate-300 border-slate-700/80'
+                          : 'bg-slate-100 hover:bg-slate-200/80 text-slate-700 border-slate-200'
+                    }`}
+                    title={language === 'ru' ? 'Сбросить все активные фильтры (город, бренд, точка, канал)' : language === 'en' ? 'Reset all active filters (city, brand, location, channel)' : 'Resetează toate filtrele active (oraș, brand, locație, canal)'}
+                  >
+                    <RotateCcw size={12} />
+                    <span>{language === 'ru' ? 'Сбросить фильтры' : language === 'en' ? 'Reset filters' : 'Reset filtre'}</span>
+                  </button>
+                </div>
+              )
+            })()}
           </div>
 
           {/* Right: Language Switcher, Theme Toggle & User Avatar Profile Pill */}
@@ -345,25 +410,9 @@ export default function MainLayout() {
                         isDark ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
                       }`}
                     >
-                      <UserCog size={15} className="text-emerald-500" />
-                      <span>{language === 'ru' ? 'Мой профиль (Фото и Пароль)' : language === 'en' ? 'My Profile (Photo & Password)' : 'Profilul Meu (Poză & Parolă)'}</span>
+                      <UserCog size={15} className="text-slate-500 dark:text-slate-400" />
+                      <span>{language === 'ru' ? 'Мой профиль' : language === 'en' ? 'My Profile' : 'Profilul meu'}</span>
                     </button>
-
-                    {canAccessPage('users') && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsUserMenuOpen(false)
-                          navigate('/users')
-                        }}
-                        className={`w-full px-3 py-2 rounded-2xl text-xs font-bold flex items-center gap-2.5 transition-colors cursor-pointer ${
-                          isDark ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
-                        }`}
-                      >
-                        <ShieldCheck size={15} className="text-blue-500" />
-                        <span>{language === 'ru' ? 'Пользователи и Приглашения' : language === 'en' ? 'Users, Roles & Invitations' : 'Utilizatori, Roluri & Invitații'}</span>
-                      </button>
-                    )}
 
                     <div className={`my-1 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`} />
 
@@ -379,7 +428,7 @@ export default function MainLayout() {
                       }`}
                     >
                       <LogOut size={15} />
-                      <span>{language === 'ru' ? 'Выйти из аккаунта' : language === 'en' ? 'Sign Out' : 'Deconectare (Pagina Login)'}</span>
+                      <span>{language === 'ru' ? 'Выйти из аккаунта' : language === 'en' ? 'Sign Out' : 'Deconectare'}</span>
                     </button>
                   </div>
                 </div>

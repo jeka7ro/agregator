@@ -91,8 +91,8 @@ export default function UsersManagement() {
   const [brevoStatus, setBrevoStatus] = useState({
     hasApiKey: false,
     maskedApiKey: '',
-    senderEmail: 'noreply@smartdevize.ro',
-    senderName: 'Get App — Central Dispatch',
+    senderEmail: 'jeka7ro@gmail.com',
+    senderName: 'GetApp.FooD',
     enabled: true
   })
   const [loading, setLoading] = useState(true)
@@ -155,8 +155,8 @@ export default function UsersManagement() {
         setUsers(uRes.users || [])
         if (uRes.brevo) {
           setBrevoStatus(uRes.brevo)
-          setBrevoSenderEmailInput(uRes.brevo.senderEmail || 'noreply@smartdevize.ro')
-          setBrevoSenderNameInput(uRes.brevo.senderName || 'Get App — Central Dispatch')
+          setBrevoSenderEmailInput(uRes.brevo.senderEmail || 'jeka7ro@gmail.com')
+          setBrevoSenderNameInput(uRes.brevo.senderName || 'GetApp.FooD')
         }
       }
       if (Array.isArray(rRes?.data)) {
@@ -600,25 +600,25 @@ export default function UsersManagement() {
             label: tr('Invitați (1-a Logare)', 'Invited (1st Sign-In)', 'Ожидают 1-го входа'),
             value: kpis.invited,
             sub: tr('Schimbă parola la login', 'Changes password on login', 'Смена пароля при входе'),
-            color: 'text-amber-600 dark:text-amber-400'
+            color: 'text-slate-900 dark:text-white'
           },
           {
             label: 'Admin & Supervisor',
             value: kpis.adminsAndSup,
             sub: tr('Control extins / regional', 'Full / Regional control', 'Полный / Региональный'),
-            color: 'text-blue-600 dark:text-blue-400'
+            color: 'text-slate-900 dark:text-white'
           },
           {
             label: tr('Operațional & Marketing', 'Operations & Marketing', 'Операционный и Маркетинг'),
             value: kpis.opsAndMkt,
             sub: tr('Dispecerat Live & CRM', 'Live Dispatch & CRM', 'Диспетчерская и CRM'),
-            color: 'text-purple-600 dark:text-purple-400'
+            color: 'text-slate-900 dark:text-white'
           },
           {
             label: tr('Manageri Restaurant', 'Restaurant Managers', 'Менеджеры точек'),
             value: kpis.managers,
             sub: tr('Acces per locație/oraș', 'Location / City access', 'Доступ по точкам'),
-            color: 'text-cyan-600 dark:text-cyan-400'
+            color: 'text-slate-900 dark:text-white'
           }
         ].map((card, i) => (
           <div
@@ -740,13 +740,13 @@ export default function UsersManagement() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className={`border-b text-[11px] font-extrabold uppercase tracking-wider select-none ${
+              <tr className={`border-b text-[11px] font-extrabold uppercase tracking-wider select-none whitespace-nowrap ${
                 isDark ? 'bg-slate-800/70 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'
               }`}>
-                <th className="py-2.5 px-2 w-10 text-center">#</th>
+                <th className="py-2.5 px-2 w-8 text-center">#</th>
                 <th
                   onClick={() => handleSort('name')}
-                  className="py-2.5 px-3 cursor-pointer hover:text-emerald-500 transition-colors"
+                  className="py-2.5 px-2 cursor-pointer hover:text-emerald-500 transition-colors"
                 >
                   <div className="flex items-center gap-1">
                     <span>{tr('Utilizator', 'User', 'Пользователь')}</span>
@@ -755,34 +755,34 @@ export default function UsersManagement() {
                 </th>
                 <th
                   onClick={() => handleSort('role')}
-                  className="py-2.5 px-3 cursor-pointer hover:text-emerald-500 transition-colors"
+                  className="py-2.5 px-2 cursor-pointer hover:text-emerald-500 transition-colors"
                 >
                   <div className="flex items-center gap-1">
-                    <span>{tr('Rol Acces', 'Access Role', 'Роль доступа')}</span>
+                    <span>{tr('Rol', 'Role', 'Роль')}</span>
                     <span className="text-[10px]">{sortCol === 'role' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('cities')}
-                  className="py-2.5 px-3 cursor-pointer hover:text-emerald-500 transition-colors"
+                  className="py-2.5 px-2 cursor-pointer hover:text-emerald-500 transition-colors"
                 >
                   <div className="flex items-center gap-1">
-                    <span>{tr('Orașe Permise', 'Allowed Cities', 'Города')}</span>
+                    <span>{tr('Orașe', 'Cities', 'Города')}</span>
                     <span className="text-[10px]">{sortCol === 'cities' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('brands')}
-                  className="py-2.5 px-3 cursor-pointer hover:text-emerald-500 transition-colors"
+                  className="py-2.5 px-2 cursor-pointer hover:text-emerald-500 transition-colors"
                 >
                   <div className="flex items-center gap-1">
-                    <span>{tr('Branduri Permise', 'Allowed Brands', 'Бренды')}</span>
+                    <span>{tr('Branduri', 'Brands', 'Бренды')}</span>
                     <span className="text-[10px]">{sortCol === 'brands' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('modules')}
-                  className="py-2.5 px-3 text-center cursor-pointer hover:text-emerald-500 transition-colors"
+                  className="py-2.5 px-2 text-center cursor-pointer hover:text-emerald-500 transition-colors"
                 >
                   <div className="flex items-center justify-center gap-1">
                     <span>{tr('Module', 'Modules', 'Модули')}</span>
@@ -791,23 +791,23 @@ export default function UsersManagement() {
                 </th>
                 <th
                   onClick={() => handleSort('status')}
-                  className="py-2.5 px-3 cursor-pointer hover:text-emerald-500 transition-colors"
+                  className="py-2.5 px-2 cursor-pointer hover:text-emerald-500 transition-colors"
                 >
                   <div className="flex items-center gap-1">
-                    <span>{tr('Status & Parolă', 'Status & Password', 'Статус и Пароль')}</span>
+                    <span>{tr('Status', 'Status', 'Статус')}</span>
                     <span className="text-[10px]">{sortCol === 'status' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('last_login')}
-                  className="py-2.5 px-3 cursor-pointer hover:text-emerald-500 transition-colors"
+                  className="py-2.5 px-2 cursor-pointer hover:text-emerald-500 transition-colors"
                 >
                   <div className="flex items-center gap-1">
                     <span>{tr('Ultima Logare', 'Last Login', 'Вход')}</span>
                     <span className="text-[10px]">{sortCol === 'last_login' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
                   </div>
                 </th>
-                <th className="py-2.5 px-3 text-right">
+                <th className="py-2.5 px-2 text-right">
                   {tr('Acțiuni', 'Actions', 'Действия')}
                 </th>
               </tr>
@@ -819,6 +819,7 @@ export default function UsersManagement() {
                 const roleLabel = language === 'ru' ? roleMeta.labelRu : language === 'en' ? roleMeta.labelEn : roleMeta.labelRo
                 const allCities = (u.allowed_cities || []).includes('all')
                 const allBrands = (u.allowed_brands || []).includes('all')
+                const userBrandsList = allBrands ? AUTHORITATIVE_BRANDS : (u.allowed_brands || []).filter(Boolean)
                 const modCount = (u.allowed_pages || []).includes('all') ? ALL_MODULES.length : (u.allowed_pages || []).length
                 const isCurrent = currentUser?.id === u.id
 
@@ -831,16 +832,16 @@ export default function UsersManagement() {
                     }`}
                   >
                     {/* Col 1: Nr (#) */}
-                    <td className="py-2 px-2 w-10 text-center font-mono text-[11px] text-slate-400">
+                    <td className="py-2 px-2 w-8 text-center font-mono text-[11px] text-slate-400">
                       {startIndex + idx + 1}
                     </td>
 
                     {/* Col 2: Utilizator (Single-line compact) */}
-                    <td className="py-2 px-3 max-w-[230px]">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <UserAvatar user={u} size={32} showOnlineDot={u.status === 'active' && !u.must_change_password} />
+                    <td className="py-2 px-2 max-w-[185px]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <UserAvatar user={u} size={30} showOnlineDot={u.status === 'active' && !u.must_change_password} />
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5 truncate">
+                          <div className="flex items-center gap-1 truncate">
                             <span className="font-extrabold text-slate-900 dark:text-white truncate">
                               {u.full_name}
                             </span>
@@ -856,23 +857,23 @@ export default function UsersManagement() {
                     </td>
 
                     {/* Col 3: Rol */}
-                    <td className="py-2 px-3 whitespace-nowrap">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${roleMeta.badgeClass}`}>
+                    <td className="py-2 px-2 whitespace-nowrap">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border whitespace-nowrap shrink-0 ${roleMeta.badgeClass}`}>
                         <ShieldCheck size={11} />
                         <span>{roleLabel}</span>
                       </span>
                     </td>
 
                     {/* Col 4: Orașe Permise (Single-line truncate) */}
-                    <td className="py-2 px-3 max-w-[170px]">
+                    <td className="py-2 px-2 max-w-[130px]">
                       {allCities ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                          <MapPin size={11} />
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+                          <MapPin size={10} className="text-emerald-600" />
                           <span>{tr(`Toate (${availableCities.length})`, `All (${availableCities.length})`, `Все (${availableCities.length})`)}</span>
                         </span>
                       ) : (
-                        <div className="truncate font-semibold text-slate-700 dark:text-slate-300" title={(u.allowed_cities || []).join(', ')}>
-                          <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold mr-1">
+                        <div className="truncate font-semibold text-slate-700 dark:text-slate-300 text-[11px]" title={(u.allowed_cities || []).join(', ')}>
+                          <span className="font-mono text-slate-500 font-bold mr-1">
                             {(u.allowed_cities || []).length}:
                           </span>
                           {(u.allowed_cities || []).join(', ')}
@@ -880,52 +881,63 @@ export default function UsersManagement() {
                       )}
                     </td>
 
-                    {/* Col 5: Branduri Permise (Single-line truncate) */}
-                    <td className="py-2 px-3 max-w-[180px]">
-                      {allBrands ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                          <Store size={11} />
-                          <span>{tr(`Toate (${AUTHORITATIVE_BRANDS.length})`, `All (${AUTHORITATIVE_BRANDS.length})`, `Все (${AUTHORITATIVE_BRANDS.length})`)}</span>
-                        </span>
-                      ) : (
-                        <div className="truncate font-semibold text-slate-700 dark:text-slate-300" title={(u.allowed_brands || []).join(', ')}>
-                          <span className="font-mono text-blue-600 dark:text-blue-400 font-bold mr-1">
-                            {(u.allowed_brands || []).length}:
-                          </span>
-                          {(u.allowed_brands || []).join(', ')}
+                    {/* Col 5: Branduri Permise — AVATARE LOGO BRAND ÎN LOC DE TEXT */}
+                    <td className="py-2 px-2 whitespace-nowrap">
+                      <div
+                        className="inline-flex items-center gap-1"
+                        title={allBrands ? tr('Toate brandurile (5)', 'All brands (5)', 'Все бренды (5)') : userBrandsList.join(', ')}
+                      >
+                        <div className="flex items-center -space-x-1">
+                          {userBrandsList.map(brandName => (
+                            <div
+                              key={brandName}
+                              title={brandName}
+                              className="rounded-full ring-2 ring-white dark:ring-slate-900 shrink-0"
+                            >
+                              <BrandAvatar brand={brandName} size={22} className="rounded-full" />
+                            </div>
+                          ))}
                         </div>
-                      )}
+                        {allBrands && (
+                          <span className="text-[10px] font-mono font-bold text-slate-400 ml-1">
+                            ({AUTHORITATIVE_BRANDS.length})
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Col 6: Module */}
-                    <td className="py-2 px-3 text-center whitespace-nowrap">
+                    <td className="py-2 px-2 text-center whitespace-nowrap">
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                        {modCount} / {ALL_MODULES.length}
+                        {modCount}/{ALL_MODULES.length}
                       </span>
                     </td>
 
-                    {/* Col 7: Status & Parolă */}
-                    <td className="py-2 px-3 whitespace-nowrap">
+                    {/* Col 7: Status & Parolă (Compact, fără text lung) */}
+                    <td className="py-2 px-2 whitespace-nowrap">
                       {u.status === 'blocked' ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800">
-                          <Lock size={11} />
-                          <span>{tr('Blocat', 'Blocked', 'Заблокирован')}</span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800 whitespace-nowrap">
+                          <Lock size={10} />
+                          <span>{tr('Blocat', 'Blocked', 'Блок.')}</span>
                         </span>
                       ) : u.must_change_password ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800">
-                          <KeyRound size={11} />
-                          <span>{tr('Invitație (Schimbă la 1-a logare)', 'Invited (Change on 1st login)', 'Приглашен (Смена пароля)')}</span>
+                        <span
+                          title={tr('Invitație trimisă — schimbă parola la prima logare', 'Invitation sent — changes password on first sign-in', 'Приглашен — смена пароля при 1-м входе')}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 whitespace-nowrap"
+                        >
+                          <KeyRound size={10} className="text-amber-600" />
+                          <span>{tr('Invitat', 'Invited', 'Приглашен')}</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800">
-                          <CheckCircle2 size={11} />
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800 whitespace-nowrap">
+                          <CheckCircle2 size={10} />
                           <span>{tr('Activ', 'Active', 'Активен')}</span>
                         </span>
                       )}
                     </td>
 
                     {/* Col 8: Ultima Logare */}
-                    <td className="py-2 px-3 whitespace-nowrap text-[11px] text-slate-500 dark:text-slate-400">
+                    <td className="py-2 px-2 whitespace-nowrap text-[11px] text-slate-500 dark:text-slate-400">
                       {u.last_login_at
                         ? new Date(u.last_login_at).toLocaleString('ro-RO', {
                             day: '2-digit',
@@ -933,17 +945,17 @@ export default function UsersManagement() {
                             hour: '2-digit',
                             minute: '2-digit'
                           })
-                        : tr('Neautentificat', 'Never logged in', 'Не входил')}
+                        : '—'}
                     </td>
 
                     {/* Col 9: Acțiuni */}
-                    <td className="py-2 px-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <td className="py-2 px-2 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       <div className="inline-flex items-center justify-end gap-1">
                         <button
                           type="button"
                           onClick={() => switchUserDirect(u)}
                           title={tr('Testează aplicația cu acest cont/rol', 'Test platform as this user/role', 'Протестировать вход под этой ролью')}
-                          className="px-2 py-1 rounded-full text-[10px] font-bold border border-emerald-200 dark:border-emerald-800/80 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 cursor-pointer flex items-center gap-1"
+                          className="px-2 py-1 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0"
                         >
                           <UserCheck size={11} />
                           <span>Test</span>
@@ -956,14 +968,14 @@ export default function UsersManagement() {
                             isDark ? 'border-slate-700 hover:bg-slate-800 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-600'
                           }`}
                         >
-                          {copiedId === u.id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                          {copiedId === u.id ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
                         </button>
                         <button
                           type="button"
                           onClick={() => handleResendInvite(u)}
                           title={tr('Retrimite invitația pe email', 'Resend invitation email', 'Отправить приглашение на email повторно')}
                           className={`p-1.5 rounded-full border transition-colors cursor-pointer ${
-                            isDark ? 'border-slate-700 hover:bg-slate-800 text-emerald-400' : 'border-slate-200 hover:bg-slate-100 text-emerald-600'
+                            isDark ? 'border-slate-700 hover:bg-slate-800 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-600'
                           }`}
                         >
                           <Send size={12} />
@@ -973,7 +985,7 @@ export default function UsersManagement() {
                           onClick={() => openEditModal(u)}
                           title={tr('Editează rol și limite de acces', 'Edit role & access scope', 'Редактировать права')}
                           className={`p-1.5 rounded-full border transition-colors cursor-pointer ${
-                            isDark ? 'border-slate-700 hover:bg-slate-800 text-blue-400' : 'border-slate-200 hover:bg-slate-100 text-blue-600'
+                            isDark ? 'border-slate-700 hover:bg-slate-800 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-600'
                           }`}
                         >
                           <Edit2 size={12} />
@@ -983,7 +995,7 @@ export default function UsersManagement() {
                           onClick={() => setDeleteTargetUser(u)}
                           title={tr('Șterge utilizator', 'Delete user', 'Удалить аккаунт')}
                           className={`p-1.5 rounded-full border transition-colors cursor-pointer ${
-                            isDark ? 'border-slate-700 hover:bg-rose-950/50 text-rose-400' : 'border-slate-200 hover:bg-rose-50 text-rose-600'
+                            isDark ? 'border-slate-700 hover:bg-rose-950/50 text-slate-400 hover:text-rose-400' : 'border-slate-200 hover:bg-rose-50 text-slate-500 hover:text-rose-600'
                           }`}
                         >
                           <Trash2 size={12} />

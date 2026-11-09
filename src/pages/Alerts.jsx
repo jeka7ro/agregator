@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useLiveChecks } from '../hooks/useLiveChecks'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
@@ -6,6 +7,7 @@ import { AlertOctagon, TrendingDown, Clock, ExternalLink, Loader2, AlertCircle, 
 import BrandAvatar, { cleanRestaurantName, getBrandInfo } from '../components/BrandAvatar'
 import PlatformLogo from '../components/PlatformLogo'
 import { getApiUrl } from '../lib/api'
+import { getCanonicalCity } from '../lib/orderUtils'
 
 const HOURLY_LOSS_RATE = 50 // 50 RON per hour fallback if restaurant metadata is missing
 
@@ -13,6 +15,7 @@ export default function Alerts() {
   const { isDark } = useTheme()
   const { t, language } = useLanguage()
   const { restaurants, checks, loading } = useLiveChecks()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [filterBrand, setFilterBrand] = useState(() => {
     try {
@@ -24,22 +27,28 @@ export default function Alerts() {
   const [filterCity, setFilterCity] = useState(() => {
     try {
       const p = new URLSearchParams(window.location.search).get('city')
-      if (p && p !== 'all') return p
+      if (p && p !== 'all') return getCanonicalCity(p) || 'all'
     } catch (_) {}
     return 'all'
   })
 
   useEffect(() => {
-    const onPopState = () => {
-      try {
-        const pBrand = new URLSearchParams(window.location.search).get('brand')
-        setFilterBrand(pBrand || 'all')
-        const pCity = new URLSearchParams(window.location.search).get('city')
-        setFilterCity(pCity || 'all')
-      } catch (_) {}
+    try {
+      const pBrand = searchParams.get('brand') || 'all'
+      if (pBrand !== filterBrand) setFilterBrand(pBrand)
+      const pCity = searchParams.get('city')
+      const nextCity = pCity && pCity !== 'all' ? getCanonicalCity(pCity) : 'all'
+      if (nextCity !== filterCity) setFilterCity(nextCity)
+    } catch (_) {}
+  }, [searchParams])
+
+  useEffect(() => {
+    const onGlobalReset = () => {
+      setFilterBrand('all')
+      setFilterCity('all')
     }
-    window.addEventListener('popstate', onPopState)
-    return () => window.removeEventListener('popstate', onPopState)
+    window.addEventListener('global-reset-filters', onGlobalReset)
+    return () => window.removeEventListener('global-reset-filters', onGlobalReset)
   }, [])
 
   const [activeTab, setActiveTab] = useState('active') // 'active' | 'resolved'
@@ -84,12 +93,16 @@ export default function Alerts() {
       if (st === 'error' || st === 'closed' || st === 'unavailable') {
         const r = restaurants.find(res => res.id === c.restaurant_id)
         if (r && r.is_active) {
+          const p = String(c.platform || '').toLowerCase()
+          const pUrl = p !== 'iiko' ? r[`${p}_url`] : r.iiko_restaurant_id
+          if (!pUrl || (p !== 'iiko' && String(pUrl).includes('/search'))) return
+
           if (filterBrand !== 'all') {
             const bInfo = getBrandInfo(r)
             if (bInfo.name.toLowerCase() !== filterBrand.toLowerCase()) return
           }
           if (filterCity !== 'all') {
-            if (!r.city || !r.city.toLowerCase().includes(filterCity.toLowerCase())) return
+            if (getCanonicalCity(r.city || r.name) !== getCanonicalCity(filterCity)) return
           }
 
           const checkTime = c.checked_at ? new Date(c.checked_at).getTime() : Date.now()
@@ -209,10 +222,10 @@ export default function Alerts() {
                 setFilterBrand('all')
                 setFilterCity('all')
                 try {
-                  const url = new URL(window.location.href)
-                  url.searchParams.delete('brand')
-                  url.searchParams.delete('city')
-                  window.history.replaceState({}, '', url.toString())
+                  const next = new URLSearchParams(searchParams)
+                  next.delete('brand')
+                  next.delete('city')
+                  setSearchParams(next, { replace: true })
                 } catch (_) {}
               }}
               className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center gap-1 transition-all"

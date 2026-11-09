@@ -336,30 +336,54 @@ export class IikoClient {
             }
 
             const data = await response.json()
-            const stoppedItemIds = new Set()
+            const stoppedItemsById = new Map()
 
-            if (data.terminalGroupStopLists) {
-                for (const tg of data.terminalGroupStopLists) {
-                     for (const item of (tg.items || [])) {
-                          stoppedItemIds.add(item.productId)
-                     }
+            if (Array.isArray(data.terminalGroupStopLists)) {
+                for (const orgGroup of data.terminalGroupStopLists) {
+                    for (const tg of (orgGroup.items || [])) {
+                        // Support both nested terminalGroup.items and flat item structures
+                        const innerItems = Array.isArray(tg.items) ? tg.items : (tg.productId ? [tg] : [])
+                        for (const item of innerItems) {
+                            if (!item || !item.productId) continue
+                            const balance = Number(item.balance ?? 0)
+                            // In Syrve stop_lists, balance <= 0 means the item is out of stock (on stop-list)
+                            if (balance <= 0) {
+                                stoppedItemsById.set(item.productId, {
+                                    productId: item.productId,
+                                    balance,
+                                    sku: item.sku || null
+                                })
+                            }
+                        }
+                    }
                 }
             }
-            
-            // Map IDs to names if we have the products array cached or we fetch it
+
+            if (stoppedItemsById.size === 0) {
+                return []
+            }
+
+            // Map IDs to real product names from active nomenclature
             const products = await this.getProducts()
             const productMap = {}
             for (const p of products) {
-                 productMap[p.iiko_id] = p.name
+                if (p.iiko_id && p.name) {
+                    productMap[p.iiko_id] = p.name
+                }
             }
 
             const stoppedProducts = []
-            for (const id of stoppedItemIds) {
-                 stoppedProducts.push({
-                     iiko_id: id,
-                     name: productMap[id] || id,
-                     is_stopped_in_pos: true
-                 })
+            for (const [id, info] of stoppedItemsById.entries()) {
+                const realName = productMap[id]
+                // Skip deleted/archived UUIDs that no longer exist in active nomenclature
+                if (!realName) continue
+                stoppedProducts.push({
+                    iiko_id: id,
+                    sku: info.sku,
+                    name: realName,
+                    balance: info.balance,
+                    is_stopped_in_pos: true
+                })
             }
 
             return stoppedProducts

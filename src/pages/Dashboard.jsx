@@ -124,6 +124,14 @@ export default function Dashboard() {
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
+  useEffect(() => {
+    const onGlobalReset = () => {
+      setSelectedPeriod('this_month')
+    }
+    window.addEventListener('global-reset-filters', onGlobalReset)
+    return () => window.removeEventListener('global-reset-filters', onGlobalReset)
+  }, [])
+
   const { salesData, loading: salesLoading } = useExecutiveSales(selectedPeriod, 5000)
 
   const [isExporting, setIsExporting] = useState(false)
@@ -150,7 +158,7 @@ export default function Dashboard() {
 
     activeRestaurants.forEach(r => {
       ;['glovo', 'wolt', 'bolt'].forEach(p => {
-        if (r[`${p}_url`]) {
+        if (r[`${p}_url`] && !String(r[`${p}_url`]).includes('/search')) {
           health[p].total++
           const c = checks.find(chk => chk.restaurant_id === r.id && chk.platform === p)
           if (c) {
@@ -201,7 +209,8 @@ export default function Dashboard() {
       const platforms = ['glovo', 'wolt', 'bolt', 'iiko']
 
       platforms.forEach(p => {
-        const isConfigured = p === 'iiko' ? !!r.iiko_restaurant_id : !!r[`${p}_url`]
+        const pUrl = r[`${p}_url`]
+        const isConfigured = p === 'iiko' ? !!r.iiko_restaurant_id : (!!pUrl && !String(pUrl).includes('/search'))
         if (!isConfigured) return
 
         const c = checks.find(chk => chk.restaurant_id === r.id && chk.platform === p)

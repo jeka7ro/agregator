@@ -261,6 +261,7 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
 
   const [streetRoute, setStreetRoute] = useState(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [showAuditPopup, setShowAuditPopup] = useState(false)
 
   const orderKey = order?.id || order?.order_id || order?.order_number || 'ord'
 
@@ -444,33 +445,8 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
       auditStatus = 'minor_detour'
     }
 
-    // Construim o buclă stradală de ocolire (detour) dacă curierul a întârziat semnificativ pe traseu
-    let detourLatLngs = null
-    if (extraCourierMin >= 5 && routeLatLngs.length >= 2) {
-      const lat1 = restCoords.lat
-      const lng1 = restCoords.lng
-      const lat2 = custCoords.lat
-      const lng2 = custCoords.lng
-      const midLat = (lat1 + lat2) / 2
-      const midLng = (lng1 + lng2) / 2
-      const dLat = lat2 - lat1
-      const dLng = lng2 - lng1
-      const sign = (seed % 2 === 0) ? 1 : -1
-      const scale = Math.min(0.65, 0.25 + extraCourierMin * 0.02)
-      const wp1 = [
-        lat1 + dLat * 0.32 - dLng * scale * sign * 0.7,
-        lng1 + dLng * 0.32 + dLat * scale * sign * 0.95
-      ]
-      const wp2 = [
-        midLat - dLng * scale * sign,
-        midLng + dLat * scale * sign * 1.25
-      ]
-      const wp3 = [
-        lat1 + dLat * 0.74 - dLng * scale * sign * 0.55,
-        lng1 + dLng * 0.74 + dLat * scale * sign * 0.75
-      ]
-      detourLatLngs = [[lat1, lng1], wp1, wp2, wp3, [lat2, lng2]]
-    }
+    // Traseul urmează întotdeauna geometria stradală reală OSRM (fără bucle geometrice sintetice)
+    const detourLatLngs = null
 
     let estArrTime = null
     if (isDelivered && deliveredHHMM) {
@@ -756,7 +732,7 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
           display: inline-flex; align-items: center; gap: 4px;
           padding: 3px 8px 3px 4px; border-radius: 999px;
           background: #0f172a; border: 2px solid ${statusColor};
-          color: #ffffff; font-family: ui-monospace, monospace;
+          color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
           font-size: 10.5px; font-weight: 900; white-space: nowrap;
           box-shadow: 0 5px 15px rgba(0,0,0,0.5);
         ">
@@ -844,13 +820,29 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
           onClick={() => setIsFullscreen(false)}
         />
       )}
-      <div className={`rounded-2xl border overflow-hidden transition-all ${
-        isFullscreen
-          ? 'fixed inset-3 z-[9999] flex flex-col shadow-2xl'
-          : ''
-      } ${
-        isDark ? 'bg-slate-900 border-slate-800 couriers-map-dark' : 'bg-slate-50 border-slate-200'
-      }`}>
+      <div
+        style={
+          isFullscreen
+            ? {
+                position: 'fixed',
+                top: '12px',
+                left: '12px',
+                right: '12px',
+                bottom: '12px',
+                width: 'calc(100vw - 24px)',
+                height: 'calc(100vh - 24px)',
+                zIndex: 9999
+              }
+            : undefined
+        }
+        className={`rounded-2xl border overflow-hidden transition-all ${
+          isFullscreen
+            ? 'fixed inset-3 z-[9999] flex flex-col shadow-2xl'
+            : ''
+        } ${
+          isDark ? 'bg-slate-900 border-slate-800 couriers-map-dark' : 'bg-slate-50 border-slate-200'
+        }`}
+      >
         {/* Header compact pe 1 SINGUR RÂND */}
         <div className={`px-3.5 py-2 border-b flex items-center justify-between gap-2 whitespace-nowrap overflow-x-auto ${
           isDark ? 'border-slate-800 bg-slate-800/50' : 'border-slate-200 bg-white'
@@ -859,21 +851,32 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
             <Navigation size={13} className="text-emerald-500 shrink-0" />
             <span>
               {language === 'ru'
-                ? 'Маршрут курьера'
+                ? 'Расчетный маршрут (OSRM по улицам)'
                 : language === 'en'
-                  ? 'Courier Route'
-                  : 'Traseu Curier'}
+                  ? 'Estimated Street Route (OSRM)'
+                  : 'Traseu Stradal Calculat (OSRM)'}
             </span>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border inline-flex items-center gap-1 ${
-              routeInfo.auditStatus === 'suboptimal'
-                ? 'bg-rose-500/15 text-rose-500 border-rose-500/30'
-                : routeInfo.auditStatus === 'minor_detour'
-                  ? 'bg-amber-500/15 text-amber-500 border-amber-500/30'
-                  : 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30'
-            }`}>
+            <button
+              type="button"
+              onClick={() => setShowAuditPopup(prev => !prev)}
+              title={
+                language === 'ru'
+                  ? 'Нажмите для просмотра деталей проверки маршрута'
+                  : language === 'en'
+                    ? 'Click to view route audit breakdown'
+                    : 'Click pentru detalii verificare traseu'
+              }
+              className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border inline-flex items-center gap-1 cursor-pointer transition-colors ${
+                routeInfo.auditStatus === 'suboptimal'
+                  ? 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-500 border-rose-500/30'
+                  : routeInfo.auditStatus === 'minor_detour'
+                    ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-500 border-amber-500/30'
+                    : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-500 border-emerald-500/30'
+              }`}
+            >
               {routeInfo.auditStatus === 'suboptimal' ? (
                 <ShieldAlert size={11} />
               ) : routeInfo.auditStatus === 'minor_detour' ? (
@@ -882,7 +885,7 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
                 <CheckCircle2 size={11} />
               )}
               <span>{getAuditBadgeText()}</span>
-            </span>
+            </button>
 
             <button
               type="button"
@@ -924,6 +927,84 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
             </button>
           </div>
         </div>
+
+        {/* POP-UP MIC EXPLICATIV LA CLICK PE ALERTA ROȘIE / GALBENĂ DIN HEADER */}
+        {showAuditPopup && (
+          <div className={`px-3.5 py-2.5 border-b text-[11px] leading-snug ${
+            routeInfo.auditStatus === 'suboptimal'
+              ? (isDark ? 'bg-rose-950/90 border-rose-800/60 text-rose-100' : 'bg-rose-50 border-rose-200 text-rose-950')
+              : routeInfo.auditStatus === 'minor_detour'
+                ? (isDark ? 'bg-amber-950/90 border-amber-800/60 text-amber-100' : 'bg-amber-50 border-amber-200 text-amber-950')
+                : (isDark ? 'bg-emerald-950/90 border-emerald-800/60 text-emerald-100' : 'bg-emerald-50 border-emerald-200 text-emerald-950')
+          }`}>
+            <div className="flex items-center justify-between gap-2 pb-1.5 mb-1.5 border-b border-current/15 font-extrabold">
+              <span className="flex items-center gap-1.5">
+                <ShieldAlert size={13} className="shrink-0" />
+                <span>
+                  {language === 'ru'
+                    ? 'Детали проверки маршрута курьера'
+                    : language === 'en'
+                      ? 'Courier Route Audit Breakdown'
+                      : 'Ce nu a fost în regulă pe traseu:'}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowAuditPopup(false)}
+                className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+              >
+                <X size={12} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 font-mono text-[10px] mb-1.5">
+              <div className={`p-1.5 rounded-lg border ${isDark ? 'bg-slate-900/80 border-slate-800 text-slate-200' : 'bg-white/90 border-slate-200 text-slate-800'}`}>
+                <div className="text-[9px] font-sans font-bold text-slate-400">
+                  {language === 'ru' ? 'Оптимальный:' : language === 'en' ? 'Optimal Route:' : 'Traseu Optim:'}
+                </div>
+                <div className="font-extrabold text-emerald-500">
+                  {routeInfo.distanceKm} {kmWord} · ~{routeInfo.driveMin} {minWord}
+                </div>
+              </div>
+              <div className={`p-1.5 rounded-lg border ${isDark ? 'bg-slate-900/80 border-slate-800 text-slate-200' : 'bg-white/90 border-slate-200 text-slate-800'}`}>
+                <div className="text-[9px] font-sans font-bold text-slate-400">
+                  {language === 'ru' ? 'Фактически:' : language === 'en' ? 'Actual Courier:' : 'Realizat Curier:'}
+                </div>
+                <div className={`font-extrabold ${routeInfo.auditStatus === 'suboptimal' ? 'text-rose-500' : 'text-amber-500'}`}>
+                  ~{routeInfo.actualKm} {kmWord} · {routeInfo.actualCourierMin} {minWord}
+                </div>
+              </div>
+              <div className={`p-1.5 rounded-lg border ${isDark ? 'bg-slate-900/80 border-slate-800 text-slate-200' : 'bg-white/90 border-slate-200 text-slate-800'}`}>
+                <div className="text-[9px] font-sans font-bold text-slate-400">
+                  {language === 'ru' ? 'Отклонение:' : language === 'en' ? 'Delay / Detour:' : 'Întârziere / Abatere:'}
+                </div>
+                <div className="font-extrabold text-rose-500">
+                  +{routeInfo.extraCourierMin} {minWord} ({routeInfo.efficiencyPct}%)
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[10.5px] font-medium opacity-95">
+              {routeInfo.auditStatus === 'suboptimal'
+                ? (language === 'ru'
+                  ? `Курьер ехал ${routeInfo.actualCourierMin} мин вместо расчетных ~${routeInfo.driveMin} мин (выезд ${routeInfo.depTime} → доставка ${routeInfo.estArrTime}, крюк ~+${routeInfo.extraKm} км). Вероятная причина: параллельная доставка другого заказа (мульти-заказ), лишняя остановка или отклонение от маршрута.`
+                  : language === 'en'
+                    ? `Courier took ${routeInfo.actualCourierMin} min instead of the optimal ~${routeInfo.driveMin} min (left ${routeInfo.depTime} → delivered ${routeInfo.estArrTime}, ~+${routeInfo.extraKm} km detour). Likely cause: multi-order delivery along the way, extra stop, or route detour.`
+                    : `Curierul a parcurs traseul în ${routeInfo.actualCourierMin} min în loc de ~${routeInfo.driveMin} min (plecare ${routeInfo.depTime} → livrare ${routeInfo.estArrTime}, ocolire ~+${routeInfo.extraKm} km). Cauză probabilă: livrare paralelă a altei comenzi (multi-order), oprire suplimentară sau ocolire traseu.`)
+                : routeInfo.auditStatus === 'minor_detour'
+                  ? (language === 'ru'
+                    ? `Небольшая задержка +${routeInfo.extraCourierMin} мин относительно прямого маршрута (светофоры или плотный трафик).`
+                    : language === 'en'
+                      ? `Minor delay of +${routeInfo.extraCourierMin} min compared to direct route (traffic lights or urban congestion).`
+                      : `Întârziere minoră de +${routeInfo.extraCourierMin} min față de ruta directă (semafoare sau trafic urban intens).`)
+                  : (language === 'ru'
+                    ? 'Курьер доставил заказ вовремя по оптимальному маршруту.'
+                    : language === 'en'
+                      ? 'Courier delivered on time following the optimal route.'
+                      : 'Curierul a livrat comanda la timp, respectând traseul optim.')}
+            </p>
+          </div>
+        )}
 
         {/* Harta interactivă Leaflet */}
         <div className={`relative w-full ${isFullscreen ? 'flex-1 min-h-[420px]' : 'h-[225px]'}`}>
