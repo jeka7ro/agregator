@@ -283,15 +283,22 @@ function detectBrandFromItems(items, rawRest) {
   return 'Roll Master'
 }
 
-function resolveMatchingRestaurant(allRests, rawRest, detectedBrand, canonicalCity) {
+function resolveMatchingRestaurant(allRests, rawRest, detectedBrand, canonicalCity, meta = null) {
   if (!canonicalCity && rawRest) {
     canonicalCity = getCanonicalCity(rawRest.city || rawRest.name)
   }
   if (!canonicalCity) return rawRest
 
   const brandLower = (detectedBrand || '').toLowerCase()
-  const rawSubLoc = `${rawRest?.city || ''} ${rawRest?.name || ''}`.toUpperCase()
-  const subTag = rawSubLoc.includes('UNIRII') ? 'UNIRII' : rawSubLoc.includes('TITAN') ? 'TITAN' : rawSubLoc.includes('CEAIKOVSKI') ? 'CEAIKOVSKI' : null
+  const metaSubLoc = `${meta?.city || ''} ${meta?.conception || ''}`.toUpperCase()
+  const rawSubLoc = `${metaSubLoc} ${rawRest?.city || ''} ${rawRest?.name || ''}`.toUpperCase()
+  const subTag = metaSubLoc.includes('UNIRII') ? 'UNIRII'
+    : (metaSubLoc.includes('TITAN') || metaSubLoc.includes('1 DECEMBRIE')) ? 'TITAN'
+    : metaSubLoc.includes('CEAIKOVSKI') ? 'CEAIKOVSKI'
+    : rawSubLoc.includes('UNIRII') ? 'UNIRII'
+    : (rawSubLoc.includes('TITAN') || rawSubLoc.includes('1 DECEMBRIE')) ? 'TITAN'
+    : rawSubLoc.includes('CEAIKOVSKI') ? 'CEAIKOVSKI'
+    : null
 
   const matchesBrand = (r) => {
     const bName = (r.brands?.name || '').toLowerCase()
@@ -318,13 +325,19 @@ function resolveMatchingRestaurant(allRests, rawRest, detectedBrand, canonicalCi
     return false
   }
 
-  // 1. Prioritize exact physical kitchen (same iiko_restaurant_id or Bucharest sub-location UNIRII/TITAN/CEAIKOVSKI)
-  if (rawRest?.iiko_restaurant_id || subTag) {
-    const exactLocMatch = (allRests || []).find(r => {
-      if (rawRest?.iiko_restaurant_id && r.iiko_restaurant_id === rawRest.iiko_restaurant_id && matchesBrand(r)) return true
-      if (subTag && `${r.city || ''} ${r.name || ''}`.toUpperCase().includes(subTag) && matchesBrand(r)) return true
-      return false
-    })
+  // 1. Prioritize explicit Bucharest sub-location (UNIRII / TITAN / CEAIKOVSKI) from order metadata or restaurant
+  if (subTag) {
+    const subMatch = (allRests || []).find(r =>
+      `${r.city || ''} ${r.name || ''}`.toUpperCase().includes(subTag) && matchesBrand(r)
+    )
+    if (subMatch) return subMatch
+  }
+
+  // 2. Prioritize exact physical kitchen (same iiko_restaurant_id)
+  if (rawRest?.iiko_restaurant_id) {
+    const exactLocMatch = (allRests || []).find(r =>
+      r.iiko_restaurant_id === rawRest.iiko_restaurant_id && matchesBrand(r)
+    )
     if (exactLocMatch) return exactLocMatch
   }
 
@@ -532,7 +545,7 @@ async function fetchLiveAndWebhookOrdersForDay(dayStr, allRests = []) {
           }
 
           const detectedBrand = detectBrandFromItems(items, matchedRest)
-          const resolvedRest = resolveMatchingRestaurant(allRests, matchedRest, detectedBrand, cityCanon) || matchedRest
+          const resolvedRest = resolveMatchingRestaurant(allRests, matchedRest, detectedBrand, cityCanon, items[0]?._order_meta) || matchedRest
 
           rows.push({
             id: baseId,
@@ -987,10 +1000,11 @@ export default async (req, context) => {
       const restaurantFilter = url.searchParams.get('restaurant_id')
       const channelFilter = url.searchParams.get('channel')
       const periodFilter = url.searchParams.get('period') || 'today'
+      const searchFilter = String(url.searchParams.get('search') || '').replace(/^#+/, '').trim().toLowerCase()
       const limit = parseInt(url.searchParams.get('limit') || '3000')
 
       // Verificare cache în memorie pentru răspuns instantaneu (<1ms) și protecție anti-congestie Supabase
-      const cacheKey = `${cityFilter || 'all'}_${brandFilter || 'all'}_${restaurantFilter || 'all'}_${channelFilter || 'all'}_${periodFilter || 'today'}`
+      const cacheKey = `${cityFilter || 'all'}_${brandFilter || 'all'}_${restaurantFilter || 'all'}_${channelFilter || 'all'}_${periodFilter || 'today'}_${searchFilter || ''}`
       const cached = liveDispatchCache.get(cacheKey)
       if (cached && (Date.now() - cached.timestamp < LIVE_CACHE_TTL_MS)) {
         return new Response(JSON.stringify(cached.data), {
@@ -1005,6 +1019,9 @@ export default async (req, context) => {
       const y = parseInt(yStr, 10)
       const m = parseInt(mStr, 10) - 1
       const d = parseInt(dStr, 10)
+      const yDateObj = new Date(y, m, d - 1)
+      const pad2 = (n) => String(n).padStart(2, '0')
+      const yDateStr = `${yDateObj.getFullYear()}-${pad2(yDateObj.getMonth() + 1)}-${pad2(yDateObj.getDate())}`
 
       let startDate = null
       let endDate = null
@@ -1014,9 +1031,6 @@ export default async (req, context) => {
         endDate = `${roDateStr}T23:59:59.999Z`
         targetSyrveDay = roDateStr
       } else if (periodFilter === 'yesterday') {
-        const yDate = new Date(y, m, d - 1)
-        const pad = (n) => String(n).padStart(2, '0')
-        const yDateStr = `${yDate.getFullYear()}-${pad(yDate.getMonth() + 1)}-${pad(yDate.getDate())}`
         startDate = `${yDateStr}T00:00:00.000Z`
         endDate = `${yDateStr}T23:59:59.999Z`
         targetSyrveDay = yDateStr
@@ -1063,11 +1077,23 @@ export default async (req, context) => {
         })
 
       let rawOrders = []
-      const basePeriodCacheKey = `raw_period_${periodFilter}`
+      const basePeriodCacheKey = searchFilter ? `raw_search_multi` : `raw_period_${periodFilter}`
       const cachedRawPeriod = liveDispatchCache.get(basePeriodCacheKey)
 
       if (cachedRawPeriod && (Date.now() - cachedRawPeriod.timestamp < 15000)) {
         rawOrders = cachedRawPeriod.data
+      } else if (searchFilter) {
+        const [tOrders, yOrders] = await Promise.all([
+          fetchLiveAndWebhookOrdersForDay(roDateStr, allRests),
+          fetchLiveAndWebhookOrdersForDay(yDateStr, allRests)
+        ])
+        rawOrders = [...(tOrders || []), ...(yOrders || [])]
+        if (rawOrders.length > 0) {
+          liveDispatchCache.set(basePeriodCacheKey, {
+            timestamp: Date.now(),
+            data: rawOrders
+          })
+        }
       } else if (targetSyrveDay) {
         rawOrders = await fetchLiveAndWebhookOrdersForDay(targetSyrveDay, allRests)
         if (rawOrders.length > 0) {
@@ -1079,6 +1105,10 @@ export default async (req, context) => {
           rawOrders = cachedRawPeriod.data
         }
       } else {
+        const [tOrders, yOrders] = await Promise.all([
+          fetchLiveAndWebhookOrdersForDay(roDateStr, allRests),
+          fetchLiveAndWebhookOrdersForDay(yDateStr, allRests)
+        ])
         const candidateLimits = [500, 200]
         for (const tryLim of candidateLimits) {
           try {
@@ -1097,6 +1127,7 @@ export default async (req, context) => {
             }
           } catch (_) {}
         }
+        rawOrders = [...(tOrders || []), ...(yOrders || []), ...(rawOrders || [])]
 
         if (rawOrders.length > 0) {
           rawOrders.sort((a, b) => new Date(b.placed_at || b.created_at || 0) - new Date(a.placed_at || a.created_at || 0))
@@ -1107,6 +1138,18 @@ export default async (req, context) => {
         } else if (cachedRawPeriod && Array.isArray(cachedRawPeriod.data)) {
           rawOrders = cachedRawPeriod.data
         }
+      }
+
+      const isCashierOrAutoAggregatorCourier = (cObj, opVal, platStr) => {
+        if (!cObj || !cObj.name) return true
+        const cName = String(cObj.name || '').trim().toLowerCase()
+        const opName = String(typeof opVal === 'object' ? opVal?.name : (opVal || '')).trim().toLowerCase()
+        if (opName && cName === opName && !cObj.isManual) return true
+        const p = String(platStr || '').toLowerCase()
+        if ((p.includes('glovo') || p.includes('wolt') || p.includes('bolt')) && !cObj.isManual && !cObj.trackingUrl && !cObj.awb && !cObj.orderId) {
+          return true
+        }
+        return false
       }
 
       // Pre-merge metadata (timings, courier, status) across rows sharing the same iiko UUID prefix or orderNumber
@@ -1139,8 +1182,9 @@ export default async (req, context) => {
           whenClosed: valCached?.delivTs || prev.timings.whenClosed || curTimings.whenClosed || null,
           completeBefore: prev.timings.completeBefore || curTimings.completeBefore || null
         }
-        if (m.courier || m.trackingUrl || m.courierOrderId || valCached?.courier) {
-          prev.courier = { ...(prev.courier || {}), ...(m.courier || {}), ...(valCached?.courier || {}) }
+        const validRowCourier = !isCashierOrAutoAggregatorCourier(m.courier, m.operator, o.platform) ? m.courier : null
+        if (validRowCourier || m.trackingUrl || m.courierOrderId || valCached?.courier) {
+          prev.courier = { ...(prev.courier || {}), ...(validRowCourier || {}), ...(valCached?.courier || {}) }
           if (m.trackingUrl && !prev.courier.trackingUrl) prev.courier.trackingUrl = m.trackingUrl
           if (valCached?.trackingUrl) prev.courier.trackingUrl = valCached.trackingUrl
           if (m.courierOrderId && !prev.courier.awb) prev.courier.awb = m.courierOrderId
@@ -1215,17 +1259,19 @@ export default async (req, context) => {
         if (stCheck.includes('cancel') || stCheck.includes('delet')) continue
         const cityCanon = getCanonicalCity(rawRest?.city || o.restaurant_city || rawRest?.name || meta.city || meta.conception || '')
 
-        if (validRestIds.size > 0 && !validRestIds.has(o.restaurant_id)) {
-          if (cityFilter && cityFilter !== 'all') continue
-          if (restaurantFilter && restaurantFilter !== 'all') continue
-        }
-        if (targetCityCanon && cityCanon !== targetCityCanon) {
-          continue
+        if (!searchFilter) {
+          if (validRestIds.size > 0 && !validRestIds.has(o.restaurant_id)) {
+            if (cityFilter && cityFilter !== 'all') continue
+            if (restaurantFilter && restaurantFilter !== 'all') continue
+          }
+          if (targetCityCanon && cityCanon !== targetCityCanon) {
+            continue
+          }
         }
 
         const bName = detectBrandFromItems(o.items || [], rawRest)
 
-        if (brandFilter && brandFilter !== 'all' && bName !== brandFilter) {
+        if (!searchFilter && brandFilter && brandFilter !== 'all' && bName !== brandFilter) {
           continue
         }
 
@@ -1236,7 +1282,7 @@ export default async (req, context) => {
           seenUuidBrandSet.add(dedupKey)
         }
 
-        const resolvedRest = resolveMatchingRestaurant(allRests, rawRest, bName, cityCanon)
+        const resolvedRest = resolveMatchingRestaurant(allRests, rawRest, bName, cityCanon, meta)
         const displayCity = cityCanon || 'General'
         const displayRestaurantName = resolvedRest?.name || rawRest?.name || (displayCity !== 'General' ? `${displayCity} (${bName})` : `Restaurant (${bName})`)
         const brandLogo = resolvedRest?.brands?.logo_url || rawRest?.brands?.logo_url || null
@@ -1244,6 +1290,14 @@ export default async (req, context) => {
         const elapsedMin = getOrderElapsedMinutes(o.placed_at, o.created_at)
 
         const orderNum = cleanKioskOrderNumber(meta.orderNumber, o.order_id, o.platform)
+
+        if (searchFilter) {
+          const matchNum = String(orderNum || '').toLowerCase().includes(searchFilter)
+          const matchCust = String(meta.customer?.name || meta.customerName || '').toLowerCase().includes(searchFilter) ||
+            String(meta.customer?.phone || meta.customerPhone || '').toLowerCase().includes(searchFilter)
+          const matchRest = String(displayRestaurantName || '').toLowerCase().includes(searchFilter)
+          if (!matchNum && !matchCust && !matchRest) continue
+        }
 
         const rawPlat = (o.platform || '').toLowerCase().trim()
         const isKioskPlat = rawPlat.includes('kiosk') || rawPlat === 'kitchen'
@@ -1489,12 +1543,13 @@ export default async (req, context) => {
           ? (valentinCache.get(baseUuid.toLowerCase()) || valentinCache.get(String(orderNum).trim()))
           : null
 
-        const rawCourierMeta = meta.courier || cachedCourierEntry?.courier || (meta.courierName || meta.trackingUrl || meta.courierOrderId ? {
+        const candidateCourierMeta = meta.courier || cachedCourierEntry?.courier || (meta.courierName || meta.trackingUrl || meta.courierOrderId ? {
           name: meta.courierName || `Curier ${(o.platform || 'Delivery').toUpperCase()}`,
           phone: meta.courierPhone || '',
           company: meta.courierCompany || (o.platform === 'glovo' ? 'Glovo' : o.platform === 'wolt' ? 'Wolt' : o.platform === 'bolt' ? 'Bolt Food' : 'Livrator Propriu'),
           awb: meta.courierOrderId || meta.awb || ''
         } : null)
+        const rawCourierMeta = !isCashierOrAutoAggregatorCourier(candidateCourierMeta, meta.operator, o.platform) ? candidateCourierMeta : null
         const finalCourier = rawCourierMeta ? {
           ...rawCourierMeta,
           awb: cachedCourierEntry?.courierOrderId || rawCourierMeta.awb || rawCourierMeta.orderId || meta.courierOrderId || '',
@@ -2265,7 +2320,7 @@ export default async (req, context) => {
         const meta = (o.items || [])[0]?._order_meta || {}
         const cityCanon = getCanonicalCity(rawRest?.city || o.restaurant_city || rawRest?.name || meta.city || '')
         const bName = detectBrandFromItems(o.items || [], rawRest)
-        const resolvedRest = resolveMatchingRestaurant(rests, rawRest, bName, cityCanon)
+        const resolvedRest = resolveMatchingRestaurant(rests, rawRest, bName, cityCanon, meta)
         const displayCity = cityCanon || 'General'
         const displayRestName = resolvedRest?.name || rawRest?.name || (displayCity !== 'General' ? `${displayCity} (${bName})` : `Restaurant (${bName})`)
         const brandLogo = resolvedRest?.brands?.logo_url || rawRest?.brands?.logo_url || null

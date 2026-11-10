@@ -311,15 +311,22 @@ export function detectBrandFromItems(items, rawRest) {
     return 'Roll Master'
 }
 
-export function resolveMatchingRestaurant(allRests, rawRest, detectedBrand, canonicalCity) {
+export function resolveMatchingRestaurant(allRests, rawRest, detectedBrand, canonicalCity, meta = null) {
     if (!canonicalCity && rawRest) {
         canonicalCity = getCanonicalCity(rawRest.city || rawRest.name)
     }
     if (!canonicalCity) return rawRest
 
     const brandLower = (detectedBrand || '').toLowerCase()
-    const rawSubLoc = `${rawRest?.city || ''} ${rawRest?.name || ''}`.toUpperCase()
-    const subTag = rawSubLoc.includes('UNIRII') ? 'UNIRII' : rawSubLoc.includes('TITAN') ? 'TITAN' : rawSubLoc.includes('CEAIKOVSKI') ? 'CEAIKOVSKI' : null
+    const metaSubLoc = `${meta?.city || ''} ${meta?.conception || ''}`.toUpperCase()
+    const rawSubLoc = `${metaSubLoc} ${rawRest?.city || ''} ${rawRest?.name || ''}`.toUpperCase()
+    const subTag = metaSubLoc.includes('UNIRII') ? 'UNIRII'
+        : (metaSubLoc.includes('TITAN') || metaSubLoc.includes('1 DECEMBRIE')) ? 'TITAN'
+        : metaSubLoc.includes('CEAIKOVSKI') ? 'CEAIKOVSKI'
+        : rawSubLoc.includes('UNIRII') ? 'UNIRII'
+        : (rawSubLoc.includes('TITAN') || rawSubLoc.includes('1 DECEMBRIE')) ? 'TITAN'
+        : rawSubLoc.includes('CEAIKOVSKI') ? 'CEAIKOVSKI'
+        : null
 
     const matchesBrand = (r) => {
         const bName = (r.brands?.name || '').toLowerCase()
@@ -346,13 +353,19 @@ export function resolveMatchingRestaurant(allRests, rawRest, detectedBrand, cano
         return false
     }
 
-    // 1. Prioritize exact physical kitchen (same iiko_restaurant_id or Bucharest sub-location UNIRII/TITAN/CEAIKOVSKI)
-    if (rawRest?.iiko_restaurant_id || subTag) {
-        const exactLocMatch = (allRests || []).find(r => {
-            if (rawRest?.iiko_restaurant_id && r.iiko_restaurant_id === rawRest.iiko_restaurant_id && matchesBrand(r)) return true
-            if (subTag && `${r.city || ''} ${r.name || ''}`.toUpperCase().includes(subTag) && matchesBrand(r)) return true
-            return false
-        })
+    // 1. Prioritize explicit Bucharest sub-location (UNIRII / TITAN / CEAIKOVSKI) from order metadata or restaurant
+    if (subTag) {
+        const subMatch = (allRests || []).find(r =>
+            `${r.city || ''} ${r.name || ''}`.toUpperCase().includes(subTag) && matchesBrand(r)
+        )
+        if (subMatch) return subMatch
+    }
+
+    // 2. Prioritize exact physical kitchen (same iiko_restaurant_id)
+    if (rawRest?.iiko_restaurant_id) {
+        const exactLocMatch = (allRests || []).find(r =>
+            r.iiko_restaurant_id === rawRest.iiko_restaurant_id && matchesBrand(r)
+        )
         if (exactLocMatch) return exactLocMatch
     }
 
@@ -1747,7 +1760,7 @@ async function fetchLiveAndWebhookOrdersForDay(dayStr, allRests = []) {
                     }
 
                     const detectedBrand = detectBrandFromItems(items, matchedRest)
-                    const resolvedRest = resolveMatchingRestaurant(allRests, matchedRest, detectedBrand, cityCanon) || matchedRest
+                    const resolvedRest = resolveMatchingRestaurant(allRests, matchedRest, detectedBrand, cityCanon, items[0]?._order_meta) || matchedRest
 
                     rows.push({
                         id: baseId,
@@ -2182,7 +2195,7 @@ app.get('/api/webhooks/orders', async (req, res) => {
             const meta = (o.items || [])[0]?._order_meta || {}
             const cityCanon = getCanonicalCity(rawRest?.city || o.restaurant_city || rawRest?.name || meta.city || '')
             const bName = detectBrandFromItems(o.items || [], rawRest)
-            const resolvedRest = resolveMatchingRestaurant(rests, rawRest, bName, cityCanon)
+            const resolvedRest = resolveMatchingRestaurant(rests, rawRest, bName, cityCanon, meta)
             const displayCity = cityCanon || 'General'
             const displayRestName = resolvedRest?.name || rawRest?.name || (displayCity !== 'General' ? `${displayCity} (${bName})` : `Restaurant (${bName})`)
             const brandLogo = resolvedRest?.brands?.logo_url || rawRest?.brands?.logo_url || null
@@ -2300,7 +2313,8 @@ app.get('/api/dispatch/live', async (req, res) => {
         const restaurantFilter = req.query.restaurant_id
         const channelFilter = req.query.channel
         const periodFilter = req.query.period || 'today'
-        const limit = parseInt(req.query.limit || ((periodFilter === 'today' || periodFilter === 'yesterday') ? '3500' : '2000'))
+        const searchFilter = String(req.query.search || '').replace(/^#+/, '').trim().toLowerCase()
+        const limit = parseInt(req.query.limit || ((periodFilter === 'today' || periodFilter === 'yesterday' || searchFilter) ? '3500' : '2000'))
         const periodInfo = getPeriodFilter(periodFilter)
         const targetSyrveDay = (periodFilter === 'today' || periodFilter === 'yesterday') && periodInfo.startDate
             ? periodInfo.startDate.slice(0, 10)
@@ -2359,11 +2373,27 @@ app.get('/api/dispatch/live', async (req, res) => {
 
         // 2. Fetch orders from Syrve Cloud (direct live) + indexed webhook orders + platform_sales with base period cache
         let rawOrders = []
-        const basePeriodCacheKey = `raw_period_${periodFilter}`
+        const basePeriodCacheKey = searchFilter ? `raw_search_multi` : `raw_period_${periodFilter}`
         const cachedRawPeriod = localLiveDispatchCache.get(basePeriodCacheKey)
 
         if (cachedRawPeriod && (Date.now() - cachedRawPeriod.timestamp < 15000)) {
             rawOrders = cachedRawPeriod.data
+        } else if (searchFilter) {
+            const todayInfo = getPeriodFilter('today')
+            const yesterdayInfo = getPeriodFilter('yesterday')
+            const tDay = todayInfo.startDate ? todayInfo.startDate.slice(0, 10) : null
+            const yDay = yesterdayInfo.startDate ? yesterdayInfo.startDate.slice(0, 10) : null
+            const [tOrders, yOrders] = await Promise.all([
+                tDay ? fetchLiveAndWebhookOrdersForDay(tDay, allRests) : Promise.resolve([]),
+                yDay ? fetchLiveAndWebhookOrdersForDay(yDay, allRests) : Promise.resolve([])
+            ])
+            rawOrders = [...(tOrders || []), ...(yOrders || [])]
+            if (rawOrders.length > 0) {
+                localLiveDispatchCache.set(basePeriodCacheKey, {
+                    timestamp: Date.now(),
+                    data: rawOrders
+                })
+            }
         } else if (targetSyrveDay) {
             rawOrders = await fetchLiveAndWebhookOrdersForDay(targetSyrveDay, allRests)
             if (rawOrders.length > 0) {
@@ -2375,6 +2405,14 @@ app.get('/api/dispatch/live', async (req, res) => {
                 rawOrders = cachedRawPeriod.data
             }
         } else {
+            const todayInfo = getPeriodFilter('today')
+            const yesterdayInfo = getPeriodFilter('yesterday')
+            const tDay = todayInfo.startDate ? todayInfo.startDate.slice(0, 10) : null
+            const yDay = yesterdayInfo.startDate ? yesterdayInfo.startDate.slice(0, 10) : null
+            const [tOrders, yOrders] = await Promise.all([
+                tDay ? fetchLiveAndWebhookOrdersForDay(tDay, allRests) : Promise.resolve([]),
+                yDay ? fetchLiveAndWebhookOrdersForDay(yDay, allRests) : Promise.resolve([])
+            ])
             const candidateLimits = [500, 200]
             for (const tryLim of candidateLimits) {
                 try {
@@ -2397,6 +2435,7 @@ app.get('/api/dispatch/live', async (req, res) => {
                     }
                 } catch (_) {}
             }
+            rawOrders = [...(tOrders || []), ...(yOrders || []), ...(rawOrders || [])]
             if (rawOrders.length > 0) {
                 rawOrders.sort((a, b) => new Date(b.placed_at || b.created_at || 0) - new Date(a.placed_at || a.created_at || 0))
                 localLiveDispatchCache.set(basePeriodCacheKey, {
@@ -2406,6 +2445,18 @@ app.get('/api/dispatch/live', async (req, res) => {
             } else if (cachedRawPeriod && Array.isArray(cachedRawPeriod.data)) {
                 rawOrders = cachedRawPeriod.data
             }
+        }
+
+        const isCashierOrAutoAggregatorCourier = (cObj, opVal, platStr) => {
+            if (!cObj || !cObj.name) return true
+            const cName = String(cObj.name || '').trim().toLowerCase()
+            const opName = String(typeof opVal === 'object' ? opVal?.name : (opVal || '')).trim().toLowerCase()
+            if (opName && cName === opName && !cObj.isManual) return true
+            const p = String(platStr || '').toLowerCase()
+            if ((p.includes('glovo') || p.includes('wolt') || p.includes('bolt')) && !cObj.isManual && !cObj.trackingUrl && !cObj.awb && !cObj.orderId) {
+                return true
+            }
+            return false
         }
 
         // Pre-merge metadata (timings, courier, status) across rows sharing the same iiko UUID prefix or orderNumber
@@ -2429,8 +2480,9 @@ app.get('/api/dispatch/live', async (req, res) => {
                 whenClosed: prev.timings.whenClosed || curTimings.whenClosed || null,
                 completeBefore: prev.timings.completeBefore || curTimings.completeBefore || null
             }
-            if (m.courier || m.trackingUrl || m.courierOrderId) {
-                prev.courier = { ...(prev.courier || {}), ...(m.courier || {}) }
+            const validRowCourier = !isCashierOrAutoAggregatorCourier(m.courier, m.operator, o.platform) ? m.courier : null
+            if (validRowCourier || m.trackingUrl || m.courierOrderId) {
+                prev.courier = { ...(prev.courier || {}), ...(validRowCourier || {}) }
                 if (m.trackingUrl && !prev.courier.trackingUrl) prev.courier.trackingUrl = m.trackingUrl
                 if (m.courierOrderId && !prev.courier.awb) prev.courier.awb = m.courierOrderId
                 if (m.deliveryFee && !prev.courier.deliveryFee) prev.courier.deliveryFee = m.deliveryFee
@@ -2493,12 +2545,14 @@ app.get('/api/dispatch/live', async (req, res) => {
             if (stCheck.includes('cancel') || stCheck.includes('delet')) continue
             const cityCanon = getCanonicalCity(rawRest?.city || o.restaurant_city || rawRest?.name || meta.city || meta.conception || '')
 
-            if (validRestIds.size > 0 && !validRestIds.has(o.restaurant_id)) {
-                if (cityFilter && cityFilter !== 'all') continue
-                if (restaurantFilter && restaurantFilter !== 'all') continue
-            }
-            if (targetCityCanon && cityCanon !== targetCityCanon) {
-                continue
+            if (!searchFilter) {
+                if (validRestIds.size > 0 && !validRestIds.has(o.restaurant_id)) {
+                    if (cityFilter && cityFilter !== 'all') continue
+                    if (restaurantFilter && restaurantFilter !== 'all') continue
+                }
+                if (targetCityCanon && cityCanon !== targetCityCanon) {
+                    continue
+                }
             }
 
             const rawPlat = (o.platform || '').toLowerCase().trim()
@@ -2510,7 +2564,7 @@ app.get('/api/dispatch/live', async (req, res) => {
                 bName = 'Smash Me'
             }
 
-            if (brandFilter && brandFilter !== 'all' && bName !== brandFilter) {
+            if (!searchFilter && brandFilter && brandFilter !== 'all' && bName !== brandFilter) {
                 continue
             }
 
@@ -2520,7 +2574,7 @@ app.get('/api/dispatch/live', async (req, res) => {
                 seenUuidBrandSet.add(dedupKey)
             }
 
-            const resolvedRest = resolveMatchingRestaurant(allRests, rawRest, bName, cityCanon)
+            const resolvedRest = resolveMatchingRestaurant(allRests, rawRest, bName, cityCanon, meta)
             const displayCity = cityCanon || 'General'
             const displayRestaurantName = resolvedRest?.name || rawRest?.name || (displayCity !== 'General' ? `${displayCity} (${bName})` : `Restaurant (${bName})`)
             const brandLogo = resolvedRest?.brands?.logo_url || rawRest?.brands?.logo_url || null
@@ -2528,6 +2582,14 @@ app.get('/api/dispatch/live', async (req, res) => {
             const elapsedMin = getOrderElapsedMinutes(o.placed_at, o.created_at)
 
             const orderNum = cleanKioskOrderNumber(meta.orderNumber, o.order_id, o.platform)
+
+            if (searchFilter) {
+                const matchNum = String(orderNum || '').toLowerCase().includes(searchFilter)
+                const matchCust = String(meta.customer?.name || meta.customerName || '').toLowerCase().includes(searchFilter) ||
+                    String(meta.customer?.phone || meta.customerPhone || '').toLowerCase().includes(searchFilter)
+                const matchRest = String(displayRestaurantName || '').toLowerCase().includes(searchFilter)
+                if (!matchNum && !matchCust && !matchRest) continue
+            }
 
             const isCasieriePlat = rawPlat === 'casierie' || rawPlat === 'in-store' || rawPlat === 'pos' || rawPlat === 'restaurant'
             const isInRestaurant = isKioskPlat || isCasieriePlat
@@ -2766,12 +2828,13 @@ app.get('/api/dispatch/live', async (req, res) => {
             todayOrdersCount++
 
             // Real courier from Valentin's webhook or POS if assigned (NO MOCK)
-            const rawCourierMeta = meta.courier || (meta.courierName || meta.trackingUrl || meta.courierOrderId ? {
+            const candidateCourierMeta = meta.courier || (meta.courierName || meta.trackingUrl || meta.courierOrderId ? {
                 name: meta.courierName || `Curier ${(o.platform || 'Delivery').toUpperCase()}`,
                 phone: meta.courierPhone || '',
                 company: meta.courierCompany || (o.platform === 'glovo' ? 'Glovo' : o.platform === 'wolt' ? 'Wolt' : o.platform === 'bolt' ? 'Bolt Food' : 'Livrator Propriu'),
                 awb: meta.courierOrderId || meta.awb || ''
             } : null)
+            const rawCourierMeta = !isCashierOrAutoAggregatorCourier(candidateCourierMeta, meta.operator, o.platform) ? candidateCourierMeta : null
             const finalCourier = rawCourierMeta ? {
                 ...rawCourierMeta,
                 awb: rawCourierMeta.awb || rawCourierMeta.orderId || meta.courierOrderId || '',

@@ -225,6 +225,14 @@ const SYRVE_SEEDS = [
     ingredients: null
   },
   {
+    name: 'Wok Soba Vegan Sos Teriyaki',
+    synonyms: ['soba vegan sos teriyaki', 'soba vegan', 'wok soba', 'soba pui', 'soba creveti', 'soba vita'],
+    brand: 'Poki Woki',
+    image: 'https://storage.cdneu.syrve.com/nomenclature_images/3497474/ad313594-758f-484a-bbcc-883bfcadac5b.jpg',
+    description: 'Tăiței soba din hrișcă la wok cu legume proaspete și sos Teriyaki.',
+    ingredients: null
+  },
+  {
     name: 'Poke Orez Salmon Classic',
     synonyms: ['poke orez salmon classic', 'poke bowl', 'poke somon', 'poke orez', 'poke ton'],
     brand: 'Poki Woki',
@@ -292,6 +300,15 @@ export function matchProductImage(rawName, brandHint = '') {
 
   const cleanRaw = normalizeName(rawName)
   const rawLower = rawName.toLowerCase().replace(/^(?:p_|pw_|rm_|sm_|ik_|ls_|[a-z0-9]{1,3}_)\s*/i, '').trim()
+  const bHintLow = String(brandHint || '').toLowerCase()
+  const isSushiBrand = bHintLow.includes('roll') || bHintLow.includes('sushi') || bHintLow.includes('love') || String(rawName || '').toLowerCase().startsWith('p_')
+  const isIncompatibleBrandEntry = (entry) => {
+    if (!entry) return false
+    const imgStr = String(entry.image || '')
+    if (isSushiBrand && (entry.brand === 'Smash Me' || imgStr.includes('/7601594/'))) return true
+    if (imgStr.includes('e0d7070d-43d4-4195-bf79-a4488e2a9909') && !rawLower.includes('sos teriyaki 25')) return true
+    return false
+  }
 
   // 0. Dedicated Courier / Delivery item check (WOLT_BASE_DELIVERY, GLOVO_DELIVERY, BOLT_DELIVERY, Delivery, Livrare)
   if (
@@ -311,17 +328,19 @@ export function matchProductImage(rawName, brandHint = '') {
 
   // 1. Direct synonym match
   for (const entry of catalogCache) {
+    if (isIncompatibleBrandEntry(entry)) continue
     if (entry.synonyms && entry.synonyms.some(s => rawLower.includes(s) || s.includes(rawLower))) {
       return entry
     }
   }
 
   // 2. Normalized name equality
-  const exact = catalogCache.find(e => normalizeName(e.name) === cleanRaw)
+  const exact = catalogCache.find(e => !isIncompatibleBrandEntry(e) && normalizeName(e.name) === cleanRaw)
   if (exact) return exact
 
   // 3. Substring contains
   const sub = catalogCache.find(e => {
+    if (isIncompatibleBrandEntry(e)) return false
     const eNorm = normalizeName(e.name)
     return (cleanRaw.length > 3 && eNorm.includes(cleanRaw)) || (eNorm.length > 3 && cleanRaw.includes(eNorm))
   })
@@ -337,6 +356,7 @@ export function matchProductImage(rawName, brandHint = '') {
     let bestScore = 0
     let bestMatch = null
     for (const entry of catalogCache) {
+      if (isIncompatibleBrandEntry(entry)) continue
       const eLower = entry.name.toLowerCase()
       const matches = rawWords.filter(w => eLower.includes(w))
       const score = matches.length / rawWords.length
@@ -353,8 +373,7 @@ export function matchProductImage(rawName, brandHint = '') {
     return catalogCache.find(e => e.name.includes('Big Party Set')) || SYRVE_SEEDS[11]
   }
   if (rawLower.includes('burger') || rawLower.includes('smash')) {
-    const bHintLow = String(brandHint || '').toLowerCase()
-    if (bHintLow.includes('roll') || bHintLow.includes('sushi') || bHintLow.includes('love') || String(rawName || '').toLowerCase().startsWith('p_')) {
+    if (isSushiBrand) {
       return catalogCache.find(e => e.name === 'Burger Somon') || SYRVE_SEEDS[18]
     }
     return catalogCache.find(e => e.name.includes('Smashed ME Burger Dublu')) || SYRVE_SEEDS[3]
@@ -378,13 +397,15 @@ export function matchProductImage(rawName, brandHint = '') {
 export function enrichOrderItems(items = [], brandHint = '') {
   if (!Array.isArray(items)) return items
 
+  const bHintLow = String(brandHint || '').toLowerCase()
   return items.map((it, idx) => {
-    // If it already has an authentic image URL, keep it
-    if (it.image && it.image.startsWith('http')) {
+    const pName = it.name || it.product_name || ''
+    const isSushiBrand = bHintLow.includes('roll') || bHintLow.includes('sushi') || bHintLow.includes('love') || String(pName).toLowerCase().startsWith('p_')
+    // If it already has an authentic image URL (and not a misassigned Smash Me /7601594/ image on a Sushi item), keep it
+    if (it.image && it.image.startsWith('http') && !(isSushiBrand && it.image.includes('/7601594/'))) {
       return it
     }
 
-    const pName = it.name || it.product_name || ''
     const matched = matchProductImage(pName, brandHint)
 
     if (matched) {

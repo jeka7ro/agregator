@@ -1,5 +1,35 @@
 # Jurnal de modificări (Antigravity ↔ Paperclip)
 
+### 2026-11-10 10:53 — Căutare globală bonuri în Dispecerat (Azi + Ieri + fără blocare în filtre) și curățare metadate istorice DB (`#14034`, `#9441`, `#9442`)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  1. **Căutare globală după nr. bon în `Dispatch.jsx` + `/api/dispatch/live?search=...`:** Când se caută un bon în bara de căutare (ex. `14034`, `#14034`, `9441`, `9442`), căutarea nu mai este blocată de filtrul activ `Azi` / `Ieri` sau de filtrele de oraș/brand/canal/tab — bonul este găsit și afișat imediat indiferent din ce zi face parte.
+  2. **Prioritate `meta.city` / `meta.conception` în `resolveMatchingRestaurant`:** Chiar și pentru rândurile vechi salvate în `platform_sales` cu `restaurant_id = BUC CEAIKOVSKI`, sub-locația reală din metadate (`SM BUC UNIRII`) are prioritate și rezolvă `BUC UNIRII (Roll Master)`.
+  3. **Eliminare casieri salvați istoric ca falși curieri (`isCashierOrAutoAggregatorCourier`):** Rândurile vechi din `platform_sales` care aveau `Channtel Reema` / `Cosmina` salvate în `m.courier` cu `isManual: false` pe Glovo/Wolt/Bolt sunt filtrate la unificare (`mergedMetaByUuid`).
+  4. **Protecție imagini Syrve în `product-matcher.js` și `productImages.js`:** Blocarea oricărei imagini Smash Me (`/7601594/`) pe produse Roll Master / Love Sushi / `P_` (precum `P_COMBO BURGER+ COCA COLA` -> Sushi Burger Somon) și blocarea pozei de sos Teriyaki 25g (`e0d7070d...`) pe preparate Wok/Soba (`PW_Soba Vegan Sos Teriyaki`).
+- **Fișiere:** `src/pages/Dispatch.jsx`, `src/hooks/useLiveDispatch.js`, `src/lib/productImages.js`, `workers/src/api-server.js`, `workers/src/services/product-matcher.js`, `netlify/functions/api.js`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (fără commit/push/deploy — așteaptă acceptul utilizatorului după Audit Gatekeeper)
+- **Build / Teste:** Verificat live pe `localhost:3002/api/dispatch/live?search=14034`, `9441`, `9442` și rulat `run_prepush_audit.py`.
+
+### 2026-11-10 10:35 — Implementare sistem automat de verificare Pre-Push `audit-gatekeeper` (6 faze, 100% READ-ONLY)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  1. Crearea [`.agents/skills/audit-gatekeeper/SKILL.md`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/.agents/skills/audit-gatekeeper/SKILL.md) cu arhitectura în 6 faze și cei 5 vectori critici adaptați proiectului.
+  2. Crearea scriptului executabil [`.agents/skills/audit-gatekeeper/scripts/run_prepush_audit.py`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/.agents/skills/audit-gatekeeper/scripts/run_prepush_audit.py) (cu `--skip-build` și `npm run build` complet implicit, 100% READ-ONLY).
+  3. Actualizarea [`.agents/AGENTS.md`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/.agents/AGENTS.md) și [`.agents/rules/paperclip-sync.md`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/.agents/rules/paperclip-sync.md) cu obligația rulării `run_prepush_audit.py` și interdicția de `git push` / `netlify deploy` fără verdictul `🟢 VERDE` și fără acceptul explicit al utilizatorului.
+- **Fișiere:** `.agents/skills/audit-gatekeeper/SKILL.md`, `.agents/skills/audit-gatekeeper/scripts/run_prepush_audit.py`, `.agents/AGENTS.md`, `.agents/rules/paperclip-sync.md`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (fără commit/push — așteaptă acceptul utilizatorului)
+- **Build / Teste:** `python3 .agents/skills/audit-gatekeeper/scripts/run_prepush_audit.py` -> `23/23 teste PASS` (`0.95s`), Semafor `🟢 VERDE`.
+
+### 2026-11-10 10:29 — Deploy în producție pe `https://getapp.food` (`netlify deploy --prod`)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - Rularea `npx vite build` și `npx netlify-cli deploy --prod` (deploy ID `6af2d5ae842179f1b19822e1`), deoarece repo-ul GitHub nu făcea auto-deploy în Netlify la `git push`.
+  - Verificat live pe `https://getapp.food/api/dispatch/live?period=yesterday`: comanda `#14034` afișează `BUC UNIRII (Roll Master)`, poza de Sushi Burger Roll Master, `closed_at_handoff: true` (`По выдаче`), fără `18m` livrare falsă și fără casiera `Channtel Reema` la curier.
+- **Fișiere:** `src/lib/productImages.js`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` / `082518f` (deployed to `https://getapp.food`)
+- **Build / Teste:** `vite build` + `netlify deploy --prod` OK; verificat live pe `https://getapp.food`.
+
 ### 2026-11-09 23:04 — Potrivire exactă sub-locații București (Unirii / Titan / Ceaikovski) și persistență webhook curier partener
 - **Autor:** Antigravity
 - **Ce s-a făcut:**

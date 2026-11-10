@@ -19,3 +19,11 @@ Adaugă o intrare nouă DEASUPRA celor existente în `.agents/CHANGELOG.md` în 
 - **Fișiere:** <lista fișierelor modificate>
 - **Ramură / Commit:** <numele ramurii și hash-ul, dacă s-a făcut commit>
 - **Build / Teste:** <rezultat>
+
+## Înainte de orice `git commit` / `git push` / `netlify deploy` (OBLIGATORIU — Audit Gatekeeper)
+1. Rulează obligatoriu scriptul de verificare Pre-Push:
+   ```bash
+   python3 .agents/skills/audit-gatekeeper/scripts/run_prepush_audit.py
+   ```
+2. Dacă verdictul este `🔴 BLOCAT`, este **STRICT INTERZIS** să faci `git commit`, `git push` sau `netlify deploy` până când toate erorile nu sunt remediate.
+3. Chiar și când verdictul este `🟢 VERDE — 100% SIGUR PENTRU PUSH`, **prezintă tabelul de audit utilizatorului și cere permisiunea explicită** înainte de a executa `git push` sau `netlify deploy`. Nu rula niciodată `git push` sau `netlify deploy` fără acceptul explicit al utilizatorului!

@@ -25,7 +25,7 @@ const DEFAULT_KPIS = {
 function getInitialState(period) {
   try {
     if (typeof window !== 'undefined' && period === 'today') {
-      const cached = sessionStorage.getItem('dispatch_cache_today')
+      const cached = sessionStorage.getItem('dispatch_cache_today_v3')
       if (cached) {
         const parsed = JSON.parse(cached)
         if (parsed && Array.isArray(parsed.orders) && parsed.orders.length > 0) {
@@ -110,7 +110,7 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
 
           if (period === 'today' && incomingOrders.length > 0 && (!city || city === 'all') && (!brand || brand === 'all')) {
             try {
-              sessionStorage.setItem('dispatch_cache_today', JSON.stringify(nextData))
+              sessionStorage.setItem('dispatch_cache_today_v3', JSON.stringify(nextData))
             } catch (_) {}
           }
 

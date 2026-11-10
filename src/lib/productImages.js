@@ -220,12 +220,17 @@ export function getProductImage(productName = '', brand = '', directUrl = null) 
     }
   }
 
+  const bLow = String(brand || '').toLowerCase()
+  const isSushiBrandOrPrefix = bLow.includes('roll') || bLow.includes('sushi') || bLow.includes('love') || rawLower.startsWith('p_')
+
   // Use directUrl if valid and not the misassigned Teriyaki 25g sauce cup on non-sauce dishes
+  // and not a Smash Me (/7601594/) burger photo on a Roll Master / Love Sushi / P_ item
   if (
     directUrl &&
     typeof directUrl === 'string' &&
     (directUrl.startsWith('http') || directUrl.startsWith('data:image')) &&
-    !(directUrl.includes('e0d7070d-43d4-4195-bf79-a4488e2a9909') && !clean.includes('sos teriyaki 25'))
+    !(directUrl.includes('e0d7070d-43d4-4195-bf79-a4488e2a9909') && !clean.includes('sos teriyaki 25')) &&
+    !(isSushiBrandOrPrefix && directUrl.includes('/7601594/'))
   ) {
     return directUrl
   }
@@ -233,12 +238,12 @@ export function getProductImage(productName = '', brand = '', directUrl = null) 
   // 1b. Shorter keyword match from SYRVE_DISH_IMAGES
   for (const [key, url] of sortedEntries) {
     if (clean.includes(key)) {
+      if (isSushiBrandOrPrefix && url.includes('/7601594/')) continue
       return url
     }
   }
 
   // 2. Keyword fallback
-  const bLow = String(brand || '').toLowerCase()
   if (clean.includes('set') || clean.includes('roll') || clean.includes('sushi') || clean.includes('maki')) {
     return SYRVE_DISH_IMAGES['big party']
   }

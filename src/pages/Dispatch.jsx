@@ -38,6 +38,7 @@ import {
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
 import { useAuth } from '../lib/AuthContext'
+import { getApiUrl } from '../lib/api'
 import { useLiveDispatch } from '../hooks/useLiveDispatch'
 import { useLiveChecks } from '../hooks/useLiveChecks'
 import BrandAvatar, { getBrandInfo, cleanRestaurantName } from '../components/BrandAvatar'
@@ -582,20 +583,86 @@ export default function Dispatch() {
     })
   }, [orders, selectedCity, selectedBrand, selectedRestaurantId, selectedLocationObj, selectedPeriod])
 
-  // Păstrează modalul deschis sincronizat cu datele live
+  // Păstrează în memorie și comenzile din cealaltă zi (Azi <-> Ieri) + rezultate căutate pe server
+  // astfel încât căutarea după numărul bonului (ex. #14034, #9441) să găsească bonul indiferent de filtrul Azi/Ieri
+  const [extraSearchOrders, setExtraSearchOrders] = useState([])
+
   useEffect(() => {
-    if (!selectedOrder) return
-    const updated = baseFilteredOrders.find(
-      o => (o.order_id && o.order_id === selectedOrder.order_id) ||
-           (o.order_number && o.order_number === selectedOrder.order_number && o.restaurant_name === selectedOrder.restaurant_name)
-    )
-    if (updated && updated !== selectedOrder) {
-      setSelectedOrder(updated)
+    let cancelled = false
+    const altPeriod = selectedPeriod === 'today' ? 'yesterday' : 'today'
+    fetch(getApiUrl(`/api/dispatch/live?period=${altPeriod}&limit=3500&_t=${Date.now()}`))
+      .then(r => (r.ok ? r.json() : null))
+      .then(json => {
+        if (!cancelled && json && Array.isArray(json.orders)) {
+          setExtraSearchOrders(prev => {
+            const byKey = new Map()
+            ;[...json.orders, ...prev].forEach(o => {
+              const k = o.order_id || `${o.order_number}_${o.restaurant_id}_${o.placed_at || o.created_at}`
+              if (!byKey.has(k)) byKey.set(k, o)
+            })
+            return Array.from(byKey.values())
+          })
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [selectedPeriod])
+
+  useEffect(() => {
+    const q = searchQuery.trim()
+    if (q.length < 2) return
+    let cancelled = false
+    const timer = setTimeout(() => {
+      fetch(getApiUrl(`/api/dispatch/live?search=${encodeURIComponent(q)}&limit=500&_t=${Date.now()}`))
+        .then(r => (r.ok ? r.json() : null))
+        .then(json => {
+          if (!cancelled && json && Array.isArray(json.orders) && json.orders.length > 0) {
+            setExtraSearchOrders(prev => {
+              const byKey = new Map()
+              ;[...json.orders, ...prev].forEach(o => {
+                const k = o.order_id || `${o.order_number}_${o.restaurant_id}_${o.placed_at || o.created_at}`
+                if (!byKey.has(k)) byKey.set(k, o)
+              })
+              return Array.from(byKey.values())
+            })
+          }
+        })
+        .catch(() => {})
+    }, 150)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
     }
-  }, [baseFilteredOrders])
+  }, [searchQuery])
 
   // Comenzi filtrate conform canalului, tab-ului activ și căutării
+  // Când se caută în bara de căutare (ex. după nr. bon #14034), căutarea se face global (Azi + Ieri + toate filtrele)
   const filteredOrders = useMemo(() => {
+    const qRaw = searchQuery.trim()
+    if (qRaw) {
+      const q = qRaw.toLowerCase()
+      const qNoHash = q.replace(/^#+/, '').trim()
+      const combinedMap = new Map()
+      ;[...orders, ...extraSearchOrders].forEach(o => {
+        const k = o.order_id || `${o.order_number}_${o.restaurant_id}_${o.placed_at || o.created_at}`
+        if (!combinedMap.has(k)) {
+          const liveElapsed = computeElapsedMinutes(o.placed_at, o.created_at, o.elapsed_minutes || 0)
+          combinedMap.set(k, { ...o, elapsed_minutes: liveElapsed })
+        }
+      })
+      return Array.from(combinedMap.values()).filter(o => {
+        const rawNum = String(o.order_number || '').toLowerCase()
+        const cleanNum = rawNum.replace(/^#+/, '')
+        const dispNum = String(formatDisplayOrderNumber(o.order_number) || '').toLowerCase()
+        const matchNum = rawNum.includes(q) || (qNoHash && cleanNum.includes(qNoHash)) || dispNum.includes(q)
+        const matchRest = (o.restaurant_name || '').toLowerCase().includes(q)
+        const matchCust = (o.customer?.name || '').toLowerCase().includes(q) || (o.customer?.phone || '').includes(q)
+        const matchCour = (o.courier?.name || '').toLowerCase().includes(q) || (o.courier?.awb || '').toLowerCase().includes(q)
+        const matchCity = (o.restaurant_city || '').toLowerCase().includes(q)
+        return matchNum || matchRest || matchCust || matchCour || matchCity
+      })
+    }
+
     return baseFilteredOrders.filter(o => {
       // 1. Filtru Canal de Vânzare (Kiosk, Casierie POS, Agregatori, Propriu)
       if (selectedChannel !== 'all') {
@@ -625,20 +692,22 @@ export default function Dispatch() {
         if (!o.problem) return false
       }
 
-      // 3. Filtru Căutare text
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase()
-        const matchNum = (o.order_number || '').toLowerCase().includes(q)
-        const matchRest = (o.restaurant_name || '').toLowerCase().includes(q)
-        const matchCust = (o.customer?.name || '').toLowerCase().includes(q) || (o.customer?.phone || '').includes(q)
-        const matchCour = (o.courier?.name || '').toLowerCase().includes(q) || (o.courier?.awb || '').toLowerCase().includes(q)
-        const matchCity = (o.restaurant_city || '').toLowerCase().includes(q)
-        if (!matchNum && !matchRest && !matchCust && !matchCour && !matchCity) return false
-      }
-
       return true
     })
-  }, [baseFilteredOrders, selectedChannel, activeTab, searchQuery])
+  }, [baseFilteredOrders, orders, extraSearchOrders, selectedChannel, activeTab, searchQuery])
+
+  // Păstrează modalul deschis sincronizat cu datele live
+  useEffect(() => {
+    if (!selectedOrder) return
+    const pool = searchQuery.trim() ? [...filteredOrders, ...baseFilteredOrders] : baseFilteredOrders
+    const updated = pool.find(
+      o => (o.order_id && o.order_id === selectedOrder.order_id) ||
+           (o.order_number && o.order_number === selectedOrder.order_number && o.restaurant_name === selectedOrder.restaurant_name)
+    )
+    if (updated && updated !== selectedOrder) {
+      setSelectedOrder(updated)
+    }
+  }, [baseFilteredOrders, filteredOrders, searchQuery])
 
   // Jurnal STOP filtrat conform orașului, brandului și restaurantului selectat
   const filteredStopAuditLog = useMemo(() => {
@@ -885,7 +954,7 @@ export default function Dispatch() {
             {isAutoRefreshEnabled ? (
               <>
                 <span>{language === 'ru' ? 'Авто-Обновление (5м)' : 'Auto-Refresh (5m)'}</span>
-                <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-200 font-mono font-extrabold text-[11px] min-w-[38px] text-center">
+                <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-200 tabular-nums font-extrabold text-[11px] min-w-[38px] text-center">
                   {secondsUntilRefresh >= 60
                     ? `${Math.floor(secondsUntilRefresh / 60)}:${String(secondsUntilRefresh % 60).padStart(2, '0')}`
                     : `${secondsUntilRefresh}${language === 'ru' ? 'с' : 's'}`}
@@ -999,7 +1068,7 @@ export default function Dispatch() {
                   isDark ? 'border-slate-800 bg-slate-800/80 text-slate-400' : 'border-slate-100 bg-slate-50 text-slate-500'
                 }`}>
                   <span>{language === 'ru' ? 'Выберите Бренд' : language === 'en' ? 'Select Brand' : 'Selectează Brand'}</span>
-                  <span className="text-[10px] text-slate-400 font-mono">
+                  <span className="text-[10px] text-slate-400 tabular-nums">
                     {availableBrands.length} {language === 'ru' ? 'брендов' : language === 'en' ? 'brands' : 'branduri'}
                   </span>
                 </div>
@@ -1025,7 +1094,7 @@ export default function Dispatch() {
                       <span className="font-semibold">{t('dispatch.filter_all_brands', 'Toate Brandurile')}</span>
                     </div>
                     {brandCounts.all > 0 && (
-                      <span className="text-[10px] font-mono text-slate-400 px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-slate-800">
+                      <span className="text-[10px] tabular-nums text-slate-400 px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-slate-800">
                         {brandCounts.all}
                       </span>
                     )}
@@ -1055,7 +1124,7 @@ export default function Dispatch() {
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           {count > 0 && (
-                            <span className="text-[10px] font-mono text-slate-400 px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-slate-800">
+                            <span className="text-[10px] tabular-nums text-slate-400 px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-slate-800">
                               {count}
                             </span>
                           )}
@@ -1438,7 +1507,7 @@ export default function Dispatch() {
                   ? t('dispatch.table_title_clean', 'Tabel Operațional Live „Azi”')
                   : t('dispatch.table_title_dynamic', `Tabel Operațional «${currentPeriodLabel}»`, { period: currentPeriodLabel })}
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-mono">
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 tabular-nums">
                 {totalFiltered} {t('common.orders', 'comenzi')}
               </span>
             </h2>
@@ -1525,7 +1594,7 @@ export default function Dispatch() {
                   />
                 )}
                 <span>{tab.label}</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] tabular-nums font-bold ${
                   isTabActive 
                     ? 'bg-white/20 text-white' 
                     : isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600'
@@ -1573,7 +1642,7 @@ export default function Dispatch() {
                     />
                   )}
                   <span>{ch.label}</span>
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] tabular-nums font-bold ${
                     isChActive
                       ? 'bg-white/20 text-white'
                       : isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600'
@@ -1591,7 +1660,7 @@ export default function Dispatch() {
                 className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer flex items-center gap-0.5"
                 title={t('common.reset', 'Resetează canal')}
               >
-                <span>✕</span>
+                <span></span>
                 <span>{language === 'ru' ? 'Сброс' : language === 'en' ? 'Reset' : 'Reset'}</span>
               </button>
             )}
@@ -2409,7 +2478,7 @@ export default function Dispatch() {
                   >
                     {selectedOrder.customer?.name || t('dispatch.modal_customer_data', 'Client Nespecificat')}
                   </button>
-                  <div className="text-slate-500 dark:text-slate-400 mt-1 font-mono flex items-center gap-1.5">
+                  <div className="text-slate-500 dark:text-slate-400 mt-1 tabular-nums flex items-center gap-1.5">
                     <Phone size={11} className="text-slate-400 shrink-0" />
                     <span>{selectedOrder.customer?.phone || t('dispatch.modal_no_phone', 'Fără număr de telefon')}</span>
                   </div>
@@ -2433,7 +2502,7 @@ export default function Dispatch() {
                                 }`}
                               >
                                 <span className="text-slate-400">{b.label}:</span>
-                                <b className="font-mono text-slate-900 dark:text-white">{b.value}</b>
+                                <b className="tabular-nums text-slate-900 dark:text-white">{b.value}</b>
                               </span>
                             ))}
                           </div>
@@ -2465,16 +2534,16 @@ export default function Dispatch() {
                         <span className="text-[10px] font-normal text-slate-400">({selectedOrder.courier.company})</span>
                       </div>
                       {selectedOrder.courier.phone && (
-                        <div className="text-slate-500 dark:text-slate-400 mt-1 font-mono">{selectedOrder.courier.phone}</div>
+                        <div className="text-slate-500 dark:text-slate-400 mt-1 tabular-nums">{selectedOrder.courier.phone}</div>
                       )}
                       {(selectedOrder.courier.awb || selectedOrder.courier.orderId) && (
-                        <div className="font-mono text-emerald-600 dark:text-emerald-400 font-bold mt-1 text-xs">
+                        <div className="tabular-nums text-emerald-600 dark:text-emerald-400 font-bold mt-1 text-xs">
                           AWB: {selectedOrder.courier.awb || selectedOrder.courier.orderId}
                         </div>
                       )}
                       {selectedOrder.courier.status && (
                         <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 mt-1">
-                          {language === 'ru' ? 'Статус курьера:' : language === 'en' ? 'Courier Status:' : 'Status Curier:'} <span className="font-mono font-bold text-amber-600 dark:text-amber-400">{selectedOrder.courier.status}</span>
+                          {language === 'ru' ? 'Статус курьера:' : language === 'en' ? 'Courier Status:' : 'Status Curier:'} <span className="tabular-nums font-bold text-amber-600 dark:text-amber-400">{selectedOrder.courier.status}</span>
                         </div>
                       )}
                       {selectedOrder.courier.deliveryFee && (
