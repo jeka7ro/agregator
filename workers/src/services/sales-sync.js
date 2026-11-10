@@ -251,7 +251,8 @@ export class SalesSync {
                                 const custPhone = o.order.phone || o.order.customer?.phone || phoneFromComment || null
                                 const custAddress = o.order.deliveryPoint?.comment || o.order.deliveryPoint?.address?.line1 || o.order.deliveryPoint?.address?.street?.name || null
                                 const rawCourierObj = o.order.courierInfo?.courier || null
-                                const courierName = rawCourierObj?.name || cleanCourierFromComment || null
+                                const hasRealSyrveCourierPhone = Boolean(rawCourierObj?.phone || courierPhoneFromComment)
+                                const courierName = (hasRealSyrveCourierPhone && rawCourierObj?.name) || cleanCourierFromComment || null
                                 const courierPhone = rawCourierObj?.phone || courierPhoneFromComment || null
 
                                 const extractedCourier = courierName ? {
@@ -283,51 +284,66 @@ export class SalesSync {
                                 const items = []
                                 let orderSum = 0
 
+                                // Determine if this order as a whole belongs to this virtual brand restaurant `r`
+                                // (Never split a single Syrve order across multiple virtual brands!)
+                                const rName = `${r.name || ''} ${r.brand || ''}`.toLowerCase()
+                                const isWeLoveSushiRest = rName.includes('we love')
+                                const isLoveSushiRest = rName.includes('love sushi') && !isWeLoveSushiRest
+                                const isPokiWokiRest = rName.includes('poki') || rName.includes('woki') || rName.includes('ikura')
+                                const isCrunchRest = rName.includes('crunch')
+                                const isSmashMeRest = rName.includes('smash') && !isCrunchRest
+                                const isRollMasterRest = rName.includes('roll master') || rName.includes('sushi master')
+
+                                const rawItems = Array.isArray(o.order.items) ? o.order.items : []
+                                let hasPokiOrderSignal = orderTypeName.includes('_pw') || orderTypeName.includes('poki') || orderTypeName.includes('woki') || orderTypeName.includes('ikura')
+                                let hasLoveSushiSignal = orderTypeName.includes('_ls') || (orderTypeName.includes('love sushi') && !orderTypeName.includes('we love'))
+                                let hasWeLoveSushiSignal = orderTypeName.includes('_wls') || orderTypeName.includes('we love')
+                                let hasCrunchSignal = orderTypeName.includes('crunch')
+
+                                for (const it of rawItems) {
+                                    if (it.type === 'Product' && it.product) {
+                                        const pName = (it.product.name || '').toLowerCase()
+                                        const prodCategory = (orgProductCategoryMap[orgId]?.[it.product.id] || '').toUpperCase()
+                                        if (prodCategory.includes('POKI') || prodCategory.includes('WOKI') || pName.startsWith('pw_') || pName.includes('poki') || pName.includes('woki') || pName.includes('ikura')) {
+                                            hasPokiOrderSignal = true
+                                        }
+                                        if (prodCategory.includes('WE LOVE') || pName.startsWith('wls_')) {
+                                            hasWeLoveSushiSignal = true
+                                        } else if (prodCategory.includes('LOVE SUSHI') || pName.startsWith('ls_')) {
+                                            hasLoveSushiSignal = true
+                                        }
+                                        if (prodCategory.includes('CRUNCH') || pName.includes('wings') || pName.includes('tenders') || (pName.includes('crunch') && !pName.includes('oklahoma'))) {
+                                            hasCrunchSignal = true
+                                        }
+                                    }
+                                }
+
+                                // Check whether this order belongs to `r` among restaurants sharing `orgId`
+                                const sameOrgRests = restaurants.filter(other => {
+                                    const otherOrg = other.iiko_restaurant_id || other.iiko_config?.organizationId || other.iiko_config?.organization_id
+                                    return otherOrg === orgId
+                                })
+                                if (sameOrgRests.length > 1) {
+                                    let orderMatchesThisRest = false
+                                    if (hasWeLoveSushiSignal && sameOrgRests.some(x => `${x.name} ${x.brand}`.toLowerCase().includes('we love'))) {
+                                        orderMatchesThisRest = isWeLoveSushiRest
+                                    } else if (hasLoveSushiSignal && sameOrgRests.some(x => `${x.name} ${x.brand}`.toLowerCase().includes('love sushi') && !`${x.name} ${x.brand}`.toLowerCase().includes('we love'))) {
+                                        orderMatchesThisRest = isLoveSushiRest
+                                    } else if (hasPokiOrderSignal && sameOrgRests.some(x => /poki|woki|ikura/i.test(`${x.name} ${x.brand}`))) {
+                                        orderMatchesThisRest = isPokiWokiRest
+                                    } else if (hasCrunchSignal && sameOrgRests.some(x => /crunch/i.test(`${x.name} ${x.brand}`))) {
+                                        orderMatchesThisRest = isCrunchRest
+                                    } else {
+                                        // Default brand for this org (Roll Master / Smash Me / primary restaurant)
+                                        orderMatchesThisRest = isRollMasterRest || isSmashMeRest || sameOrgRests[0]?.id === r.id
+                                    }
+                                    if (!orderMatchesThisRest) continue
+                                }
+
                                 if (o.order.items) {
                                     for (const it of o.order.items) {
                                         if (it.type === 'Product' && it.product) {
-                                            const pName = (it.product.name || '').toLowerCase()
-                                            const productId = it.product.id;
-                                            
-                                            // Get top level category for this product
-                                            const prodCategory = (orgProductCategoryMap[orgId]?.[productId] || '').toUpperCase();
-                                            
-                                            // Filter by Virtual Brand category if a filter is configured
-                                            const rName = (r.name || '').toLowerCase();
-                                            const isRollMaster = rName.includes('roll master');
-                                            const isPokiWoki = rName.includes('poki woki');
-                                            const isCrunch = rName.includes('crunch');
-                                            const isSmashMe = rName.includes('smash me') && !isCrunch;
-
-                                            let matchesCategory = false;
-
-                                            if (isRollMaster) {
-                                                if (prodCategory.includes('POKI') || prodCategory.includes('WOKI')) {
-                                                    matchesCategory = false;
-                                                } else if (prodCategory.includes('MENIU') || prodCategory.includes('SUSHI') || prodCategory.includes('ROLL')) {
-                                                    matchesCategory = true;
-                                                } else if (filterCategories && filterCategories.some(c => prodCategory.includes(c.toUpperCase()) || pName.includes(c.toLowerCase()))) {
-                                                    matchesCategory = true;
-                                                } else {
-                                                    matchesCategory = true;
-                                                }
-                                            } else if (isPokiWoki) {
-                                                matchesCategory = prodCategory.includes('POKI') || prodCategory.includes('WOKI') || pName.includes('poki') || pName.includes('wok') || pName.includes('ramen');
-                                            } else if (isCrunch) {
-                                                matchesCategory = prodCategory.includes('CRUNCH') || pName.includes('wings') || pName.includes('tenders') || (pName.includes('crunch') && !pName.includes('oklahoma'));
-                                            } else if (isSmashMe) {
-                                                matchesCategory = !pName.includes('wings') && !pName.includes('tenders') && (!prodCategory.includes('CRUNCH') || pName.includes('oklahoma')) && (!pName.includes('crunch') || pName.includes('oklahoma'));
-                                            } else if (filterCategories && filterCategories.length > 0) {
-                                                matchesCategory = filterCategories.some(c => prodCategory.includes(c.toUpperCase()) || pName.includes(c.toLowerCase()));
-                                            } else {
-                                                matchesCategory = true;
-                                            }
-
-                                            if (!matchesCategory) {
-                                                continue; // Skip this product, it belongs to another Virtual Brand
-                                            }
-
-                                            const itemSum = it.resultSum || it.price || 0
+                                            const itemSum = Number(it.resultSum ?? it.price ?? 0)
                                             orderSum += itemSum
 
                                             items.push({
@@ -364,11 +380,12 @@ export class SalesSync {
 
                                 if (items.length === 0) continue
 
+                                const finalOrderAmount = Number(o.order.sum || orderSum || 0)
                                 dbRows.push({
                                     restaurant_id: r.id,
                                     order_id: uniqueOrderId,
                                     platform: platform,
-                                    total_amount: orderSum,
+                                    total_amount: finalOrderAmount,
                                     placed_at: placed_at,
                                     items: items
                                 })
@@ -505,7 +522,8 @@ export class SalesSync {
                     const custPhone = ord.phone || ord.customer?.phone || phoneFromComment || null;
                     const custAddress = ord.deliveryPoint?.comment || ord.deliveryPoint?.address?.line1 || ord.deliveryPoint?.address?.street?.name || null;
                     const rawCourierObj = ord.courierInfo?.courier || null;
-                    const courierName = rawCourierObj?.name || cleanCourierFromComment || null;
+                    const hasRealSyrveCourierPhone = Boolean(rawCourierObj?.phone || courierPhoneFromComment);
+                    const courierName = (hasRealSyrveCourierPhone && rawCourierObj?.name) || cleanCourierFromComment || null;
                     const courierPhone = rawCourierObj?.phone || courierPhoneFromComment || null;
 
                     const extractedCourier = courierName ? {
@@ -811,7 +829,7 @@ export class SalesSync {
                     meta.customerPhone = custPhone;
                     meta.customerAddress = custAddress;
                 }
-                if (courierName) {
+                if (courierName && (courierPhone || cleanCourierFromComment)) {
                     meta.courier = {
                         ...(meta.courier || {}),
                         name: courierName,

@@ -277,7 +277,11 @@ export function parseDeliveryAddress(rawAddress = '', lang = 'ro') {
           intercom: 'Interfon'
         }
 
-  let cleaned = String(rawAddress).trim()
+  let cleaned = String(rawAddress)
+    .trim()
+    .replace(/^(?:Adres[aă]|Address|Адрес)\s*:\s*/i, '')
+    .replace(/\bstr\.\s+(?=Strada\b)/gi, '')
+    .trim()
 
   // Cazul 1: Format cu " -- " (ex: "Strada Osiris, 59 -- suna la poarta" sau "Strada Osiris, 59 -- ")
   let dashNote = ''

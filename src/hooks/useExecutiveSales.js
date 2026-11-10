@@ -9,7 +9,7 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
   const [salesData, setSalesData] = useState(() => {
     try {
       if (typeof window !== 'undefined') {
-        const cached = sessionStorage.getItem(`exec_sales_${period}`)
+        const cached = sessionStorage.getItem(`exec_sales_v4_${period}`)
         if (cached) {
           const parsed = JSON.parse(cached)
           if (parsed && parsed.success) return parsed
@@ -31,7 +31,7 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
         setSalesData(data)
         setError(null)
         try {
-          sessionStorage.setItem(`exec_sales_${period}`, JSON.stringify(data))
+          sessionStorage.setItem(`exec_sales_v4_${period}`, JSON.stringify(data))
         } catch (_) {}
       } else {
         throw new Error(data?.error || 'Failed to fetch sales summary')
@@ -41,7 +41,7 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
       setError(err.message)
       // Anti-Wipe: fallback la cache dacă serverul are un glitch temporar
       try {
-        const cached = sessionStorage.getItem(`exec_sales_${period}`)
+        const cached = sessionStorage.getItem(`exec_sales_v4_${period}`)
         if (cached) {
           const parsed = JSON.parse(cached)
           if (parsed && parsed.success) {
@@ -56,7 +56,7 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
 
   useEffect(() => {
     try {
-      const cached = sessionStorage.getItem(`exec_sales_${period}`)
+      const cached = sessionStorage.getItem(`exec_sales_v4_${period}`)
       if (cached) {
         const parsed = JSON.parse(cached)
         if (parsed && parsed.success) {
@@ -94,6 +94,7 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
     const filteredByRest = {}
     let totalOrders = 0
     let totalRevenue = 0
+    let totalGrossRevenue = 0
     const chTotals = { kiosk: 0, casierie: 0, glovo: 0, wolt: 0, bolt: 0, direct: 0 }
     const brandMap = {}
     const cityMap = {}
@@ -113,8 +114,10 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
       filteredByRest[restId] = { ...wp, ...rData, city: rCity || rawCity, brand: rawBrand }
       const cnt = Number(rData.count || 0)
       const rev = Number(rData.revenue || 0)
+      const grossRev = Number(rData.grossRevenue || rev)
       totalOrders += cnt
       totalRevenue += rev
+      totalGrossRevenue += grossRev
 
       const chObj = rData.channels || wp.channels || {}
       Object.keys(chTotals).forEach(k => {
@@ -179,9 +182,9 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
         }
       })
 
-    const avgTicketVal = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0
+    const avgTicketVal = totalOrders > 0 ? (totalRevenue / totalOrders).toFixed(2) : '0'
     const localCnt = chTotals.kiosk + chTotals.casierie
-    const delivCnt = chTotals.glovo + chTotals.wolt + chTotals.bolt
+    const delivCnt = chTotals.glovo + chTotals.wolt + chTotals.bolt + chTotals.direct
 
     return {
       ...salesData,
@@ -213,8 +216,9 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
         ...(salesData.totals || {}),
         totalOrders,
         totalRevenue: Math.round(totalRevenue),
+        totalGrossRevenue: Math.round(totalGrossRevenue),
         avgTicket: avgTicketVal,
-        avgOrderValue: avgTicketVal
+        avgOrderValue: Math.round(Number(avgTicketVal))
       } : salesData.totals
     }
   }, [salesData, hasScopeRestrictions, canAccessCity, canAccessBrand, canAccessRestaurant])

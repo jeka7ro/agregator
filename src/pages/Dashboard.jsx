@@ -71,14 +71,34 @@ function formatPeriodRange(rangeStr, lang) {
   if (!rangeStr) return ''
   if (lang === 'en') {
     return rangeStr
-      .replace('Octombrie', 'October')
+      .replace('Ianuarie', 'January')
+      .replace('Februarie', 'February')
+      .replace('Martie', 'March')
+      .replace('Aprilie', 'April')
+      .replace('Mai', 'May')
+      .replace('Iunie', 'June')
+      .replace('Iulie', 'July')
+      .replace('August', 'August')
       .replace('Septembrie', 'September')
+      .replace('Octombrie', 'October')
+      .replace('Noiembrie', 'November')
+      .replace('Decembrie', 'December')
       .replace('Anul', 'Year')
   }
   if (lang === 'ru') {
     return rangeStr
-      .replace('Octombrie', 'Октября')
+      .replace('Ianuarie', 'Января')
+      .replace('Februarie', 'Февраля')
+      .replace('Martie', 'Марта')
+      .replace('Aprilie', 'Апреля')
+      .replace('Mai', 'Мая')
+      .replace('Iunie', 'Июня')
+      .replace('Iulie', 'Июля')
+      .replace('August', 'Августа')
       .replace('Septembrie', 'Сентября')
+      .replace('Octombrie', 'Октября')
+      .replace('Noiembrie', 'Ноября')
+      .replace('Decembrie', 'Декабря')
       .replace('Anul', 'Год')
   }
   return rangeStr

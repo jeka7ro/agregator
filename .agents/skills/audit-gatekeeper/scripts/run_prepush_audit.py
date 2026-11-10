@@ -184,8 +184,8 @@ def vector_2_data_integrity_and_filters():
         issues.append("Lipsă buton central `Сбросить фильтры` în `src/layouts/MainLayout.jsx`")
     if "extraSearchOrders" not in disp_src:
         issues.append("Lipsă căutare globală bonuri (`extraSearchOrders`) în `src/pages/Dispatch.jsx`")
-    if "calculatedKpis.active_in_kitchen" not in disp_src or "kpis?.active_in_kitchen" in disp_src:
-        issues.append("KPI-urile din `src/pages/Dispatch.jsx` nu sunt adaptate la filtrul de locație (`calculatedKpis`)")
+    if "calculatedKpis.in_work_total" not in disp_src or "kpis?.active_in_kitchen" in disp_src:
+        issues.append("KPI-urile din `src/pages/Dispatch.jsx` nu sunt adaptate la filtrul de locație (`calculatedKpis.in_work_total`)")
 
     return len(issues) == 0, checks_run, issues
 
@@ -225,7 +225,9 @@ def vector_3_business_invariants():
     required_markers = [
         "closed_at_handoff",
         "isClosedAtHandoff",
-        "isOperatorSameAsCourier",
+        "hasRealSyrveCourierPhone",
+        "hasRealDeliveryMeta",
+        "isCashierOrAutoAggregatorCourier",
         "isPartnerMetaOnly",
         "mergedMetaByOrderNum",
     ]
@@ -249,6 +251,26 @@ def vector_3_business_invariants():
     iiko_client_src = read_text("workers/src/services/iiko-client.js")
     if "tg.items" not in iiko_client_src or "balance" not in iiko_client_src:
         issues.append("Parserul `getStopList()` din `workers/src/services/iiko-client.js` nu parcurge `tg.items` + `balance`")
+
+    # 5. Test Etalon Rapoarte Istorice (`data/sales-history-cache.json` + integrare `last_month` / `this_month` / `this_year`)
+    checks_run += 1
+    hist_cache_path = ROOT_DIR / "data/sales-history-cache.json"
+    if not hist_cache_path.exists():
+        issues.append("Lipsă `data/sales-history-cache.json` pentru rapoartele istorice (`last_month`, `this_month`, `this_year`)")
+    else:
+        try:
+            hist_data = json.loads(hist_cache_path.read_text(encoding="utf-8"))
+            lm_orders = hist_data.get("buckets", {}).get("last_month", {}).get("totalOrders", 0)
+            if lm_orders < 20000:
+                issues.append(f"`data/sales-history-cache.json` are prea puține comenzi în `last_month`: {lm_orders} (așteptat >= 20.000 comenzi reale deduplicate după baseUuid)")
+        except Exception as e:
+            issues.append(f"Eroare la citirea `data/sales-history-cache.json`: {e}")
+    for api_file in ("workers/src/api-server.js", "netlify/functions/api.js"):
+        src = read_text(api_file)
+        if "sales-history-cache.json" not in src:
+            issues.append(f"`{api_file}` nu încarcă `data/sales-history-cache.json` pentru `/api/sales/executive-summary`")
+        if "filterValidLiveOrders" not in src:
+            issues.append(f"`{api_file}` nu folosește `filterValidLiveOrders` pentru paritate 1:1 între Dispatch și ExecutiveSummary")
 
     return len(issues) == 0, checks_run, issues
 

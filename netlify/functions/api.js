@@ -4,6 +4,7 @@ import customersCacheStatic from '../../data/customers-cache.json'
 import restaurantsCacheStatic from '../../data/restaurants-cache.json'
 import liveChecksCacheStatic from '../../data/live-checks-cache.json'
 import stopEventsCacheStatic from '../../data/stop-events-cache.json'
+import salesHistoryCacheStatic from '../../data/sales-history-cache.json'
 import appUsersStatic from '../../data/app-users.json'
 import customersService from '../../workers/src/services/customers-service.js'
 import { usersService } from '../../workers/src/services/users-service.js'
@@ -462,15 +463,9 @@ async function fetchLiveAndWebhookOrdersForDay(dayStr, allRests = []) {
           const custPhone = ord.phone || ord.customer?.phone || phoneFromComment || null
           const custAddress = ord.deliveryPoint?.comment || ord.deliveryPoint?.address?.line1 || ord.deliveryPoint?.address?.street?.name || null
           const rawCourierObj = ord.courierInfo?.courier || null
-          const isOperatorSameAsCourier = Boolean(
-            rawCourierObj &&
-            ord.operator &&
-            ((rawCourierObj.id && ord.operator.id && rawCourierObj.id === ord.operator.id) ||
-              (rawCourierObj.name && ord.operator.name && rawCourierObj.name.trim().toLowerCase() === ord.operator.name.trim().toLowerCase())) &&
-            !ord.courierInfo?.isCourierSelectedManually
-          )
-          const courierName = (!isOperatorSameAsCourier && rawCourierObj?.name) || cleanCourierFromComment || null
-          const courierPhone = (!isOperatorSameAsCourier && rawCourierObj?.phone) || courierPhoneFromComment || null
+          const hasRealSyrveCourierPhone = Boolean(rawCourierObj?.phone || courierPhoneFromComment)
+          const courierName = (hasRealSyrveCourierPhone && rawCourierObj?.name) || cleanCourierFromComment || null
+          const courierPhone = rawCourierObj?.phone || courierPhoneFromComment || null
 
           const extractedCourier = courierName ? {
             name: courierName,
@@ -1144,11 +1139,9 @@ export default async (req, context) => {
         if (!cObj || !cObj.name) return true
         const cName = String(cObj.name || '').trim().toLowerCase()
         const opName = String(typeof opVal === 'object' ? opVal?.name : (opVal || '')).trim().toLowerCase()
-        if (opName && cName === opName && !cObj.isManual) return true
-        const p = String(platStr || '').toLowerCase()
-        if ((p.includes('glovo') || p.includes('wolt') || p.includes('bolt')) && !cObj.isManual && !cObj.trackingUrl && !cObj.awb && !cObj.orderId) {
-          return true
-        }
+        if (opName && cName === opName) return true
+        const hasRealDeliveryMeta = Boolean(cObj.phone || cObj.trackingUrl || cObj.awb || cObj.orderId || cName.startsWith('curier '))
+        if (!hasRealDeliveryMeta) return true
         return false
       }
 
@@ -1275,9 +1268,9 @@ export default async (req, context) => {
           continue
         }
 
-        // Deduplicate rows that share the exact same iiko UUID + brand (e.g. webhook row + sync row)
+        // Deduplicate rows that share the exact same iiko UUID (1 Syrve order UUID = 1 real check)
         if (baseUuid && baseUuid.length >= 6) {
-          const dedupKey = `${baseUuid}_${bName}`
+          const dedupKey = baseUuid.toLowerCase()
           if (seenUuidBrandSet.has(dedupKey)) continue
           seenUuidBrandSet.add(dedupKey)
         }
@@ -1845,10 +1838,17 @@ export default async (req, context) => {
         })
       }
 
+      const pad = (n) => String(n).padStart(2, '0')
       const now = new Date()
-      const y = now.getFullYear()
-      const m = now.getMonth()
-      const d = now.getDate()
+      const roDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
+      const [yStr, mStr, dStr] = roDateStr.split('-')
+      const y = parseInt(yStr, 10)
+      const m = parseInt(mStr, 10) - 1
+      const d = parseInt(dStr, 10)
+
+      const monthNamesRo = ['Ianuarie', 'Februarie', 'Martie', 'Aprilie', 'Mai', 'Iunie', 'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie']
+      const monthName = monthNamesRo[m]
+      const toDateStr = (dateObj) => `${dateObj.getFullYear()}-${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())}`
 
       let start = null
       let end = null
@@ -1856,29 +1856,35 @@ export default async (req, context) => {
       let dateRange = ''
 
       if (reqPeriod === 'today') {
-        start = new Date(y, m, d, 0, 0, 0, 0)
-        end = new Date(y, m, d, 23, 59, 59, 999)
+        start = `${roDateStr}T00:00:00.000Z`
+        end = `${roDateStr}T23:59:59.999Z`
         label = 'Azi'
-        dateRange = `${d} Octombrie ${y}`
+        dateRange = `${d} ${monthName} ${y}`
       } else if (reqPeriod === 'yesterday') {
-        start = new Date(y, m, d - 1, 0, 0, 0, 0)
-        end = new Date(y, m, d - 1, 23, 59, 59, 999)
+        const yDate = new Date(y, m, d - 1)
+        const yDayStr = toDateStr(yDate)
+        start = `${yDayStr}T00:00:00.000Z`
+        end = `${yDayStr}T23:59:59.999Z`
         label = 'Ieri'
-        dateRange = `${d - 1} Octombrie ${y}`
+        dateRange = `${yDate.getDate()} ${monthNamesRo[yDate.getMonth()]} ${yDate.getFullYear()}`
       } else if (reqPeriod === 'this_week') {
         const dayOfWeek = (now.getDay() + 6) % 7
-        start = new Date(y, m, d - dayOfWeek, 0, 0, 0, 0)
-        end = new Date(y, m, d, 23, 59, 59, 999)
+        const monday = new Date(y, m, d - dayOfWeek)
+        const mondayStr = toDateStr(monday)
+        start = `${mondayStr}T00:00:00.000Z`
+        end = `${roDateStr}T23:59:59.999Z`
         label = 'Săpt. Curentă'
-        dateRange = `${start.getDate()} - ${d} Octombrie ${y}`
+        dateRange = `${monday.getDate()} - ${d} ${monthName} ${y}`
       } else if (reqPeriod === 'last_month') {
-        start = new Date(y, m - 1, 1, 0, 0, 0, 0)
-        end = new Date(y, m, 0, 23, 59, 59, 999)
+        const firstDayPrev = new Date(y, m - 1, 1)
+        const lastDayPrev = new Date(y, m, 0)
+        start = `${toDateStr(firstDayPrev)}T00:00:00.000Z`
+        end = `${toDateStr(lastDayPrev)}T23:59:59.999Z`
         label = 'Luna Trecută'
-        dateRange = `1 - ${end.getDate()} Septembrie ${y}`
+        dateRange = `1 - ${lastDayPrev.getDate()} ${monthNamesRo[firstDayPrev.getMonth()]} ${firstDayPrev.getFullYear()}`
       } else if (reqPeriod === 'this_year') {
-        start = new Date(y, 0, 1, 0, 0, 0, 0)
-        end = new Date(y, m, d, 23, 59, 59, 999)
+        start = `${y}-01-01T00:00:00.000Z`
+        end = `${roDateStr}T23:59:59.999Z`
         label = 'Anul Curent'
         dateRange = `Anul ${y}`
       } else if (reqPeriod === 'all') {
@@ -1887,18 +1893,19 @@ export default async (req, context) => {
         label = 'Toate Perioadele'
         dateRange = 'Total Istoric'
       } else {
-        start = new Date(y, m, 1, 0, 0, 0, 0)
-        end = new Date(y, m, d, 23, 59, 59, 999)
+        const firstDayMonth = new Date(y, m, 1)
+        start = `${toDateStr(firstDayMonth)}T00:00:00.000Z`
+        end = `${roDateStr}T23:59:59.999Z`
         label = 'Luna Curentă'
-        dateRange = `1 - ${d} Octombrie ${y}`
+        dateRange = `1 - ${d} ${monthName} ${y}`
       }
 
       const periodInfo = {
         key: reqPeriod,
         label,
         dateRange,
-        startDate: start ? start.toISOString() : null,
-        endDate: end ? end.toISOString() : null
+        startDate: start,
+        endDate: end
       }
 
       const rests = Array.isArray(restaurantsCacheStatic) && restaurantsCacheStatic.length > 0
@@ -1909,6 +1916,18 @@ export default async (req, context) => {
 
       const restMap = {}
         ; (rests || []).forEach(r => { restMap[r.id] = r })
+
+      const salesHistoryCache = salesHistoryCacheStatic || null
+      const histCutoffDay = salesHistoryCache?.cutoff_date || '2026-11-08'
+      const histBucket = reqPeriod === 'last_month'
+        ? salesHistoryCache?.buckets?.last_month
+        : reqPeriod === 'this_month'
+          ? salesHistoryCache?.buckets?.this_month_hist
+          : reqPeriod === 'this_year'
+            ? salesHistoryCache?.buckets?.this_year_hist
+            : reqPeriod === 'all'
+              ? salesHistoryCache?.buckets?.all_hist
+              : null
 
       let sales = []
       const seenOrderIds = new Set()
@@ -1924,22 +1943,39 @@ export default async (req, context) => {
 
       const targetSyrveDay = reqPeriod === 'today' ? roNowStr : reqPeriod === 'yesterday' ? roYesterdayStr : null
 
+      const filterValidLiveOrders = (list) => {
+        const cancelledBases = new Set()
+        const closedOrDeliveredBases = new Set()
+        for (const o of (list || [])) {
+          const bk = extractBaseOrderUuid(o.order_id || o.id)
+          if (!bk) continue
+          const m = (o.items || [])[0]?._order_meta || {}
+          const stLow = String(m.status || m.stage || o.status || '').toLowerCase()
+          if (stLow.includes('closed') || stLow.includes('deliv')) {
+            closedOrDeliveredBases.add(bk)
+          } else if (stLow.includes('cancel') || stLow.includes('delet')) {
+            cancelledBases.add(bk)
+          }
+        }
+        const out = []
+        for (const o of (list || [])) {
+          const bk = extractBaseOrderUuid(o.order_id || o.id)
+          if (!bk || (cancelledBases.has(bk) && !closedOrDeliveredBases.has(bk))) continue
+          const m = (o.items || [])[0]?._order_meta || {}
+          if (m.isPartnerMetaOnly) continue
+          out.push({ o, bk })
+        }
+        return out
+      }
+
       if (targetSyrveDay) {
         const liveDayOrders = await fetchLiveAndWebhookOrdersForDay(targetSyrveDay, rests)
-        for (const lo of liveDayOrders) {
-          const baseKey = extractBaseOrderUuid(lo.order_id || lo.id)
-          if (!baseKey) continue
-          const m = (lo.items || [])[0]?._order_meta || {}
-          const stLow = String(m.status || m.stage || lo.status || '').toLowerCase()
-          if (stLow.includes('cancel') || stLow.includes('delet')) continue
-          const rawRest = restMap[lo.restaurant_id] || null
-          const bName = lo.brand_name || detectBrandFromItems(lo.items || [], rawRest)
-          const dedupKey = `${baseKey}_${bName}`
-          if (seenOrderIds.has(dedupKey)) continue
-          seenOrderIds.add(dedupKey)
+        for (const { o: lo, bk: baseKey } of filterValidLiveOrders(liveDayOrders)) {
+          if (seenOrderIds.has(baseKey)) continue
+          seenOrderIds.add(baseKey)
           sales.push(lo)
         }
-      } else {
+      } else if (reqPeriod !== 'last_month') {
         try {
           if (reqPeriod === 'this_week' || reqPeriod === 'this_month' || reqPeriod === 'this_year' || reqPeriod === 'all') {
             const [todayLive, yestLive] = await Promise.all([
@@ -1948,19 +1984,13 @@ export default async (req, context) => {
             ])
             const startMs = periodInfo.startDate ? new Date(periodInfo.startDate).getTime() : 0
             const endMs = periodInfo.endDate ? new Date(periodInfo.endDate).getTime() : Infinity
-            for (const lo of [...todayLive, ...yestLive]) {
-              const baseKey = extractBaseOrderUuid(lo.order_id || lo.id)
-              if (!baseKey) continue
+            for (const { o: lo, bk: baseKey } of filterValidLiveOrders([...todayLive, ...yestLive])) {
+              const dayStr = String(lo.placed_at || '').slice(0, 10)
+              if (histBucket && dayStr && dayStr <= histCutoffDay) continue
               const pTime = lo.placed_at ? new Date(lo.placed_at).getTime() : 0
               if (pTime && (pTime < startMs || pTime > endMs)) continue
-              const m = (lo.items || [])[0]?._order_meta || {}
-              const stLow = String(m.status || m.stage || lo.status || '').toLowerCase()
-              if (stLow.includes('cancel') || stLow.includes('delet')) continue
-              const rawRest = restMap[lo.restaurant_id] || null
-              const bName = lo.brand_name || detectBrandFromItems(lo.items || [], rawRest)
-              const dedupKey = `${baseKey}_${bName}`
-              if (seenOrderIds.has(dedupKey)) continue
-              seenOrderIds.add(dedupKey)
+              if (seenOrderIds.has(baseKey)) continue
+              seenOrderIds.add(baseKey)
               sales.push(lo)
             }
           }
@@ -1971,14 +2001,14 @@ export default async (req, context) => {
 
           for (const c of allCusts) {
             for (const ro of (c.recent_orders || [])) {
+              const dayStr = String(ro.placed_at || '').slice(0, 10)
+              if (histBucket && dayStr && dayStr <= histCutoffDay) continue
               const baseKey = extractBaseOrderUuid(ro.base_uuid || ro.order_id)
-              if (!baseKey) continue
+              if (!baseKey || seenOrderIds.has(baseKey)) continue
               const pTime = ro.placed_at ? new Date(ro.placed_at).getTime() : 0
               if (pTime && (pTime < startMs || pTime > endMs)) continue
               const bName = ro.brand_name || (c.brands && c.brands[0]) || detectBrandFromItems(ro.items || [], null)
-              const dedupKey = `${baseKey}_${bName}`
-              if (seenOrderIds.has(dedupKey)) continue
-              seenOrderIds.add(dedupKey)
+              seenOrderIds.add(baseKey)
 
               const parts = String(ro.order_id || '').split('_')
               const extractedRestId = parts.length > 1 && parts[parts.length - 1].length >= 20 ? parts[parts.length - 1] : null
@@ -1999,12 +2029,12 @@ export default async (req, context) => {
         } catch (_) {}
       }
 
-      if (sales.length === 0) {
+      if (sales.length === 0 && !histBucket) {
         try {
           let baseQuery = supabase
             .from('platform_sales')
             .select('id, platform, total_amount, placed_at, restaurant_id, items')
-            .limit(400)
+            .limit(1000)
           if (periodInfo.startDate) baseQuery = baseQuery.gte('placed_at', periodInfo.startDate)
           if (periodInfo.endDate) baseQuery = baseQuery.lte('placed_at', periodInfo.endDate)
           const { data, error } = await fastWithTimeout(baseQuery, 1500)
@@ -2014,34 +2044,36 @@ export default async (req, context) => {
         } catch (_) {}
       }
 
-      const totalOrders = sales.length
+      const totalOrders = sales.length + (histBucket?.totalOrders || 0)
       const scaleFactor = 1
 
-      let sampleRevenue = 0
-      let sampleGrossRevenue = 0
+      let sampleRevenue = histBucket?.totalRevenue || 0
+      let sampleGrossRevenue = histBucket?.totalGrossRevenue || 0
 
       const channelStats = {
-        kiosk: { key: 'kiosk', label: 'Smart Kiosk', type: 'local', count: 0, revenue: 0, grossRevenue: 0, color: '#F97316' },
-        casierie: { key: 'casierie', label: 'Casierie (iiko POS)', type: 'local', count: 0, revenue: 0, grossRevenue: 0, color: '#8B5CF6' },
-        glovo: { key: 'glovo', label: 'Glovo', type: 'delivery', count: 0, revenue: 0, grossRevenue: 0, color: '#F59E0B' },
-        wolt: { key: 'wolt', label: 'Wolt', type: 'delivery', count: 0, revenue: 0, grossRevenue: 0, color: '#00C2E8' },
-        bolt: { key: 'bolt', label: 'Bolt Food', type: 'delivery', count: 0, revenue: 0, grossRevenue: 0, color: '#10B981' },
-        direct: { key: 'direct', label: 'Direct / Web', type: 'direct', count: 0, revenue: 0, grossRevenue: 0, color: '#06B6D4' }
+        kiosk: { key: 'kiosk', label: 'Smart Kiosk', type: 'local', count: histBucket?.channelStats?.kiosk?.count || 0, revenue: histBucket?.channelStats?.kiosk?.revenue || 0, grossRevenue: histBucket?.channelStats?.kiosk?.grossRevenue || 0, color: '#F97316' },
+        casierie: { key: 'casierie', label: 'Casierie (iiko POS)', type: 'local', count: histBucket?.channelStats?.casierie?.count || 0, revenue: histBucket?.channelStats?.casierie?.revenue || 0, grossRevenue: histBucket?.channelStats?.casierie?.grossRevenue || 0, color: '#8B5CF6' },
+        glovo: { key: 'glovo', label: 'Glovo', type: 'delivery', count: histBucket?.channelStats?.glovo?.count || 0, revenue: histBucket?.channelStats?.glovo?.revenue || 0, grossRevenue: histBucket?.channelStats?.glovo?.grossRevenue || 0, color: '#F59E0B' },
+        wolt: { key: 'wolt', label: 'Wolt', type: 'delivery', count: histBucket?.channelStats?.wolt?.count || 0, revenue: histBucket?.channelStats?.wolt?.revenue || 0, grossRevenue: histBucket?.channelStats?.wolt?.grossRevenue || 0, color: '#00C2E8' },
+        bolt: { key: 'bolt', label: 'Bolt Food', type: 'delivery', count: histBucket?.channelStats?.bolt?.count || 0, revenue: histBucket?.channelStats?.bolt?.revenue || 0, grossRevenue: histBucket?.channelStats?.bolt?.grossRevenue || 0, color: '#10B981' },
+        direct: { key: 'direct', label: 'Direct / Web', type: 'direct', count: histBucket?.channelStats?.direct?.count || 0, revenue: histBucket?.channelStats?.direct?.revenue || 0, grossRevenue: histBucket?.channelStats?.direct?.grossRevenue || 0, color: '#06B6D4' }
       }
 
       const brandStats = {
-        'Roll Master': { count: 0, revenue: 0, grossRevenue: 0, color: '#E11D48' },
-        'Poki Woki': { count: 0, revenue: 0, grossRevenue: 0, color: '#10B981' },
-        'Love Sushi': { count: 0, revenue: 0, grossRevenue: 0, color: '#8B5CF6' },
-        'Smash Me': { count: 0, revenue: 0, grossRevenue: 0, color: '#F97316' },
-        'Crunch': { count: 0, revenue: 0, grossRevenue: 0, color: '#D97706' }
+        'Roll Master': { count: histBucket?.brandStats?.['Roll Master']?.count || 0, revenue: histBucket?.brandStats?.['Roll Master']?.revenue || 0, grossRevenue: histBucket?.brandStats?.['Roll Master']?.grossRevenue || 0, color: '#E11D48' },
+        'Poki Woki': { count: histBucket?.brandStats?.['Poki Woki']?.count || 0, revenue: histBucket?.brandStats?.['Poki Woki']?.revenue || 0, grossRevenue: histBucket?.brandStats?.['Poki Woki']?.grossRevenue || 0, color: '#10B981' },
+        'Love Sushi': { count: histBucket?.brandStats?.['Love Sushi']?.count || 0, revenue: histBucket?.brandStats?.['Love Sushi']?.revenue || 0, grossRevenue: histBucket?.brandStats?.['Love Sushi']?.grossRevenue || 0, color: '#8B5CF6' },
+        'Smash Me': { count: histBucket?.brandStats?.['Smash Me']?.count || 0, revenue: histBucket?.brandStats?.['Smash Me']?.revenue || 0, grossRevenue: histBucket?.brandStats?.['Smash Me']?.grossRevenue || 0, color: '#F97316' },
+        'Crunch': { count: histBucket?.brandStats?.['Crunch']?.count || 0, revenue: histBucket?.brandStats?.['Crunch']?.revenue || 0, grossRevenue: histBucket?.brandStats?.['Crunch']?.grossRevenue || 0, color: '#D97706' }
       }
 
-      const cityStats = {}
-      const restStats = {}
-      const productStats = {}
+      const cityStats = histBucket?.cityStats ? JSON.parse(JSON.stringify(histBucket.cityStats)) : {}
+      const restStats = histBucket?.restStats ? JSON.parse(JSON.stringify(histBucket.restStats)) : {}
+      const productStats = histBucket?.productStats ? JSON.parse(JSON.stringify(histBucket.productStats)) : {}
       // 7 days (0=Mon, ..., 6=Sun) x 24 hours (0..23)
-      const heatmapMatrix = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => ({ count: 0, revenue: 0 })))
+      const heatmapMatrix = histBucket?.heatmapMatrix
+        ? JSON.parse(JSON.stringify(histBucket.heatmapMatrix))
+        : Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => ({ count: 0, revenue: 0 })))
 
       const normalizeChannel = (p) => {
         const low = (p || '').toLowerCase()
@@ -2077,6 +2109,8 @@ export default async (req, context) => {
 
         let rest = restMap[o.restaurant_id]
         let bName = o.brand_name || detectBrandFromItems(o.items || [], rest) || rest?.brands?.name || 'Roll Master'
+        if (bName.toLowerCase().includes('sushi master')) bName = 'Roll Master'
+        if (bName.toLowerCase().includes('ikura')) bName = 'Poki Woki'
 
         const city = getCanonicalCity(rest?.city || o.city || o.restaurant_city || rest?.name || o.restaurant_name) || 'Alte Orașe'
         if (city !== 'Alte Orașe') {
@@ -2141,17 +2175,24 @@ export default async (req, context) => {
       const localCount = Math.round((channelStats.kiosk.count + channelStats.casierie.count) * scaleFactor)
       const localRevenue = Math.round((channelStats.kiosk.revenue + channelStats.casierie.revenue) * scaleFactor)
       const localGrossRevenue = Math.round((channelStats.kiosk.grossRevenue + channelStats.casierie.grossRevenue) * scaleFactor)
-      const deliveryCount = Math.round((channelStats.glovo.count + channelStats.wolt.count + channelStats.bolt.count) * scaleFactor)
-      const deliveryRevenue = Math.round((channelStats.glovo.revenue + channelStats.wolt.revenue + channelStats.bolt.revenue) * scaleFactor)
-      const deliveryGrossRevenue = Math.round((channelStats.glovo.grossRevenue + channelStats.wolt.grossRevenue + channelStats.bolt.grossRevenue) * scaleFactor)
+      const deliveryCount = Math.round((channelStats.glovo.count + channelStats.wolt.count + channelStats.bolt.count + channelStats.direct.count) * scaleFactor)
+      const deliveryRevenue = Math.round((channelStats.glovo.revenue + channelStats.wolt.revenue + channelStats.bolt.revenue + channelStats.direct.revenue) * scaleFactor)
+      const deliveryGrossRevenue = Math.round((channelStats.glovo.grossRevenue + channelStats.wolt.grossRevenue + channelStats.bolt.grossRevenue + channelStats.direct.grossRevenue) * scaleFactor)
+
+      const normalizeRestBrand = (rawB) => {
+        const b = String(rawB || 'Roll Master')
+        if (b.toLowerCase().includes('sushi master')) return 'Roll Master'
+        if (b.toLowerCase().includes('ikura')) return 'Poki Woki'
+        return b
+      }
 
       const workpointsList = Object.entries(restStats).map(([rid, rdata]) => {
         const r = restMap[rid]
         return {
           id: rid,
           name: r?.name || 'Punct necunoscut',
-          city: r?.city || 'Oraș',
-          brand: r?.brands?.name || 'Brand',
+          city: getCanonicalCity(r?.city || r?.name || '') || 'Oraș',
+          brand: normalizeRestBrand(r?.brands?.name),
           count: Math.round(rdata.count * scaleFactor),
           revenue: Math.round(rdata.revenue * scaleFactor),
           grossRevenue: Math.round((rdata.grossRevenue || rdata.revenue) * scaleFactor),
@@ -2270,7 +2311,7 @@ export default async (req, context) => {
               {
                 name: r?.name || 'Punct necunoscut',
                 city: getCanonicalCity(r?.city || r?.name || '') || 'Oraș',
-                brand: r?.brands?.name || 'Roll Master',
+                brand: normalizeRestBrand(r?.brands?.name),
                 count: Math.round(rdata.count * scaleFactor),
                 revenue: Math.round(rdata.revenue * scaleFactor),
                 grossRevenue: Math.round((rdata.grossRevenue || rdata.revenue) * scaleFactor),
@@ -2995,7 +3036,9 @@ async function processIikoOrders(payload) {
           const firstItem = { ...(itemsArr[0] || {}) }
           const prevMeta = firstItem._order_meta || {}
           const prevTimings = prevMeta.timings || {}
-          const prevCourier = prevMeta.courier || {}
+          const prevCourierRaw = prevMeta.courier || {}
+          const prevHasRealCourierMeta = Boolean(prevCourierRaw.phone || prevCourierRaw.trackingUrl || prevCourierRaw.awb || prevCourierRaw.orderId)
+          const prevCourier = prevHasRealCourierMeta ? prevCourierRaw : {}
 
           const updatedCourier = {
             ...prevCourier,
@@ -3240,7 +3283,8 @@ async function processIikoOrders(payload) {
     const custAddress = o.deliveryPoint?.comment || o.deliveryPoint?.address?.line1 || o.deliveryPoint?.address?.street?.name || null
 
     const rawCourierObj = o.courierInfo?.courier || o.courier || null
-    const courierName = rawCourierObj?.name || o.courierName || cleanCourierFromComment || null
+    const hasRealSyrveCourierPhone = Boolean(rawCourierObj?.phone || o.courierPhone || courierPhoneFromComment)
+    const courierName = (hasRealSyrveCourierPhone && (rawCourierObj?.name || o.courierName)) || cleanCourierFromComment || null
     const courierPhone = rawCourierObj?.phone || o.courierPhone || courierPhoneFromComment || null
     const extractedCourier = courierName ? {
       name: courierName,

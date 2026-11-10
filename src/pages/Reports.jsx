@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
+import { useAuth } from '../lib/AuthContext'
 import { 
   Loader2, 
   ChevronLeft, 
@@ -28,6 +29,7 @@ import {
 import BrandAvatar, { cleanRestaurantName } from '../components/BrandAvatar'
 import PlatformLogo from '../components/PlatformLogo'
 import { getProductImage } from '../lib/productImages'
+import { getCanonicalCity } from '../lib/orderUtils'
 import { getApiUrl } from '../lib/api'
 import { supabase } from '../lib/supabaseClient'
 
@@ -193,6 +195,7 @@ function InteractiveDonut({ data = [], activeKey, onSelect, centerTitle, centerV
 export default function Reports() {
   const { isDark } = useTheme()
   const { t, language } = useLanguage()
+  const { canAccessCity, canAccessBrand, canAccessRestaurant, hasScopeRestrictions } = useAuth()
 
   // Main Tabs: 'analytics' (Executive Suite) vs 'audit' (Scan Logs)
   const [activeTab, setActiveTab] = useState('analytics')
@@ -209,7 +212,7 @@ export default function Reports() {
     try {
       if (typeof window !== 'undefined') {
         const initialPeriod = new URLSearchParams(window.location.search).get('period') || 'this_week'
-        const cached = sessionStorage.getItem(`reports_cache_${initialPeriod}`)
+        const cached = sessionStorage.getItem(`reports_cache_v4_${initialPeriod}`)
         if (cached) {
           const parsed = JSON.parse(cached)
           if (parsed && parsed.success) return parsed
@@ -291,8 +294,19 @@ export default function Reports() {
         setFilterChannel(pChannel && pChannel !== 'all' ? pChannel : null)
       } catch (_) {}
     }
+    const onGlobalReset = () => {
+      setFilterCity(null)
+      setFilterBrand(null)
+      setFilterChannel(null)
+      setFilterWorkpoint(null)
+      setFilterSlot(null)
+    }
     window.addEventListener('popstate', onPopState)
-    return () => window.removeEventListener('popstate', onPopState)
+    window.addEventListener('global-reset-filters', onGlobalReset)
+    return () => {
+      window.removeEventListener('popstate', onPopState)
+      window.removeEventListener('global-reset-filters', onGlobalReset)
+    }
   }, [])
 
   // Search in workpoints
@@ -316,7 +330,7 @@ export default function Reports() {
       if (json.success) {
         setAnalyticsData(json)
         try {
-          sessionStorage.setItem(`reports_cache_${period}`, JSON.stringify(json))
+          sessionStorage.setItem(`reports_cache_v4_${period}`, JSON.stringify(json))
         } catch (_) {}
       } else {
         throw new Error(json.error || 'Failed to fetch executive summary')
@@ -325,7 +339,7 @@ export default function Reports() {
       console.error("Executive analytics fetch error:", err)
       // Anti-Wipe: dacă există date în cache-ul sesiunii, le recuperăm
       try {
-        const cached = sessionStorage.getItem(`reports_cache_${period}`)
+        const cached = sessionStorage.getItem(`reports_cache_v4_${period}`)
         if (cached) {
           const parsed = JSON.parse(cached)
           if (parsed && parsed.success) {
@@ -341,7 +355,7 @@ export default function Reports() {
   useEffect(() => {
     // La schimbarea perioadei, dacă avem cache pentru noua perioadă, îl afișăm instant
     try {
-      const cached = sessionStorage.getItem(`reports_cache_${period}`)
+      const cached = sessionStorage.getItem(`reports_cache_v4_${period}`)
       if (cached) {
         const parsed = JSON.parse(cached)
         if (parsed && parsed.success) {
@@ -410,15 +424,27 @@ export default function Reports() {
     }
     const s = new Date(analyticsData.period.startDate)
     const e = new Date(analyticsData.period.endDate)
-    return `${s.toLocaleDateString(localeCode, { day: 'numeric', month: 'short' })} - ${e.toLocaleDateString(localeCode, { day: 'numeric', month: 'short', year: 'numeric' })}`
+    const sStr = s.toLocaleDateString(localeCode, { day: 'numeric', month: 'short', timeZone: 'UTC' })
+    const eStr = e.toLocaleDateString(localeCode, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+    if (String(analyticsData.period.startDate).slice(0, 10) === String(analyticsData.period.endDate).slice(0, 10)) {
+      return eStr
+    }
+    return `${sStr} - ${eStr}`
   }, [analyticsData, localeCode])
   const filteredWorkpoints = useMemo(() => {
     if (!analyticsData?.workpoints) return []
+    const targetCityCanon = filterCity ? getCanonicalCity(filterCity) : null
     return analyticsData.workpoints.filter(wp => {
       const wpCity = wp.city || ''
+      const wpCityCanon = getCanonicalCity(wpCity || wp.name || '')
       const wpBrand = wp.brand || ''
       const wpName = wp.name || ''
-      if (filterCity && !wpCity.toLowerCase().includes(filterCity.toLowerCase())) return false
+      if (hasScopeRestrictions) {
+        if (!canAccessCity(wpCityCanon || wpCity)) return false
+        if (!canAccessBrand(wpBrand || wpName)) return false
+        if (!canAccessRestaurant(wp.id)) return false
+      }
+      if (targetCityCanon && wpCityCanon !== targetCityCanon && !wpCity.toLowerCase().includes(filterCity.toLowerCase())) return false
       if (filterBrand && !wpBrand.toLowerCase().includes(filterBrand.toLowerCase())) return false
       if (filterWorkpoint && wp.id !== filterWorkpoint) return false
       if (filterChannel && (!wp.channels || !wp.channels[filterChannel] || wp.channels[filterChannel] <= 0)) return false
@@ -428,7 +454,90 @@ export default function Reports() {
       }
       return true
     })
-  }, [analyticsData, filterCity, filterBrand, filterChannel, filterWorkpoint, searchWorkpoint])
+  }, [analyticsData, hasScopeRestrictions, canAccessCity, canAccessBrand, canAccessRestaurant, filterCity, filterBrand, filterChannel, filterWorkpoint, searchWorkpoint])
+
+  const displaySummary = useMemo(() => {
+    const hasStructFilter = Boolean(hasScopeRestrictions || filterCity || filterBrand || filterChannel || filterWorkpoint)
+    if (!hasStructFilter || !filteredWorkpoints.length) {
+      return {
+        totalRevenue: analyticsData?.totals?.totalRevenue || 0,
+        totalOrders: analyticsData?.totals?.totalOrders || 0,
+        avgTicket: analyticsData?.totals?.avgTicket || 0,
+        localShare: analyticsData?.local_vs_delivery?.local?.share || 0,
+        deliveryShare: analyticsData?.local_vs_delivery?.delivery?.share || 0,
+        topBrandName: analyticsData?.brands?.[0]?.name || 'Roll Master',
+        topBrandCount: analyticsData?.brands?.[0]?.count || 0,
+        topBrandRev: analyticsData?.brands?.[0]?.revenue || 0,
+        channels: analyticsData?.channels || [],
+        brands: analyticsData?.brands || [],
+        cities: analyticsData?.cities || []
+      }
+    }
+    let rev = 0
+    let ord = 0
+    let locCnt = 0
+    let delCnt = 0
+    const chTotals = { kiosk: 0, casierie: 0, glovo: 0, wolt: 0, bolt: 0, direct: 0 }
+    const bMap = {}
+    const cMap = {}
+    for (const wp of filteredWorkpoints) {
+      const wpCnt = filterChannel ? (wp.channels?.[filterChannel] || 0) : (wp.count || 0)
+      const wpRatio = wp.count > 0 ? wpCnt / wp.count : 1
+      const wpRev = Math.round((wp.revenue || 0) * wpRatio)
+      ord += wpCnt
+      rev += wpRev
+      if (filterChannel) {
+        chTotals[filterChannel] = (chTotals[filterChannel] || 0) + wpCnt
+        if (filterChannel === 'kiosk' || filterChannel === 'casierie') locCnt += wpCnt
+        else delCnt += wpCnt
+      } else {
+        Object.keys(chTotals).forEach(k => {
+          chTotals[k] += Number(wp.channels?.[k] || 0)
+        })
+        locCnt += (wp.channels?.kiosk || 0) + (wp.channels?.casierie || 0)
+        delCnt += (wp.channels?.glovo || 0) + (wp.channels?.wolt || 0) + (wp.channels?.bolt || 0) + (wp.channels?.direct || 0)
+      }
+      const b = wp.brand || 'Roll Master'
+      if (!bMap[b]) bMap[b] = { name: b, count: 0, revenue: 0 }
+      bMap[b].count += wpCnt
+      bMap[b].revenue += wpRev
+
+      const c = getCanonicalCity(wp.city || wp.name || '') || wp.city || 'Alte Orașe'
+      if (!cMap[c]) cMap[c] = { city: c, name: c, count: 0, revenue: 0 }
+      cMap[c].count += wpCnt
+      cMap[c].revenue += wpRev
+    }
+    const topB = Object.values(bMap).sort((a, b) => b.revenue - a.revenue)[0] || { name: 'Roll Master', count: 0, revenue: 0 }
+    const totCh = locCnt + delCnt
+    const filteredChannels = (analyticsData?.channels || []).map(ch => ({
+      ...ch,
+      count: chTotals[ch.key] || 0,
+      share: ord > 0 ? Math.round(((chTotals[ch.key] || 0) / ord) * 100) : 0
+    }))
+    const filteredBrands = (analyticsData?.brands || []).map(b => ({
+      ...b,
+      count: bMap[b.name]?.count || 0,
+      revenue: bMap[b.name]?.revenue || 0,
+      share: rev > 0 ? Math.round(((bMap[b.name]?.revenue || 0) / rev) * 100) : 0
+    })).filter(b => b.count > 0 || !hasScopeRestrictions)
+    const filteredCities = Object.values(cMap)
+      .sort((a, b) => b.revenue - a.revenue)
+      .map(c => ({ ...c, share: rev > 0 ? Math.round((c.revenue / rev) * 100) : 0 }))
+
+    return {
+      totalRevenue: rev,
+      totalOrders: ord,
+      avgTicket: ord > 0 ? (rev / ord).toFixed(2) : '0',
+      localShare: totCh > 0 ? Math.round((locCnt / totCh) * 100) : 0,
+      deliveryShare: totCh > 0 ? Math.round((delCnt / totCh) * 100) : 0,
+      topBrandName: topB.name,
+      topBrandCount: topB.count,
+      topBrandRev: topB.revenue,
+      channels: filteredChannels,
+      brands: filteredBrands,
+      cities: filteredCities
+    }
+  }, [analyticsData, filteredWorkpoints, hasScopeRestrictions, filterCity, filterBrand, filterChannel, filterWorkpoint])
 
   // Cross-Filtered Top Products
   const filteredProducts = useMemo(() => {
@@ -698,12 +807,12 @@ export default function Reports() {
                     <TrendingUp size={16} className="text-emerald-500" />
                   </div>
                   <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                    {Math.round(analyticsData?.totals?.totalRevenue || 0).toLocaleString(localeCode)}{' '}
+                    {Math.round(displaySummary.totalRevenue).toLocaleString(localeCode)}{' '}
                     <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">RON</span>
                   </div>
                   <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
                     <span>{t('reports.avg_ticket_label', 'Bon mediu:')}</span>
-                    <span className="font-bold text-slate-700 dark:text-slate-300">{analyticsData?.totals?.avgTicket || 0} RON</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300">{displaySummary.avgTicket} RON</span>
                   </div>
                 </div>
 
@@ -714,7 +823,7 @@ export default function Reports() {
                     <ShoppingBag size={16} className="text-blue-500" />
                   </div>
                   <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                    {(analyticsData?.totals?.totalOrders || 0).toLocaleString(localeCode)}{' '}
+                    {displaySummary.totalOrders.toLocaleString(localeCode)}{' '}
                     <span className="text-sm font-bold text-slate-400">{t('reports.orders_unit', 'comenzi')}</span>
                   </div>
                   <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
@@ -731,18 +840,18 @@ export default function Reports() {
                   </div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-black text-amber-500">
-                      {analyticsData?.local_vs_delivery?.local?.share || 0}%
+                      {displaySummary.localShare}%
                     </span>
                     <span className="text-xs text-slate-400">{t('reports.channel_local', 'local')}</span>
                     <span className="text-slate-300 dark:text-slate-700">/</span>
                     <span className="text-2xl font-black text-emerald-500">
-                      {analyticsData?.local_vs_delivery?.delivery?.share || 0}%
+                      {displaySummary.deliveryShare}%
                     </span>
                     <span className="text-xs text-slate-400">{t('reports.channel_delivery', 'delivery')}</span>
                   </div>
                   <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full mt-2.5 overflow-hidden flex">
-                    <div style={{ width: `${analyticsData?.local_vs_delivery?.local?.share || 0}%` }} className="bg-amber-500 h-full" />
-                    <div style={{ width: `${analyticsData?.local_vs_delivery?.delivery?.share || 0}%` }} className="bg-emerald-500 h-full" />
+                    <div style={{ width: `${displaySummary.localShare}%` }} className="bg-amber-500 h-full" />
+                    <div style={{ width: `${displaySummary.deliveryShare}%` }} className="bg-emerald-500 h-full" />
                   </div>
                 </div>
 
@@ -753,12 +862,12 @@ export default function Reports() {
                     <Sparkles size={16} className="text-rose-500" />
                   </div>
                   <div className="text-xl md:text-2xl font-black text-slate-900 dark:text-white truncate">
-                    {analyticsData?.brands?.[0]?.name || 'Roll Master'}
+                    {displaySummary.topBrandName}
                   </div>
                   <div className="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
-                    <span>{analyticsData?.brands?.[0]?.count?.toLocaleString(localeCode) || 0} {t('reports.orders_unit', 'comenzi')}</span>
+                    <span>{displaySummary.topBrandCount.toLocaleString(localeCode)} {t('reports.orders_unit', 'comenzi')}</span>
                     <span className="font-bold text-emerald-500">
-                      {Math.round(analyticsData?.brands?.[0]?.revenue || 0).toLocaleString(localeCode)} RON
+                      {Math.round(displaySummary.topBrandRev).toLocaleString(localeCode)} RON
                     </span>
                   </div>
                 </div>
@@ -867,7 +976,7 @@ export default function Reports() {
                   {hoveredHeatCell ? (
                     <div className="flex items-center gap-3 animate-fade-in font-semibold text-slate-800 dark:text-slate-200">
                       <span className="text-emerald-500 font-bold">
-                        📍 {dayNames[hoveredHeatCell.day]}, {String(hoveredHeatCell.hour).padStart(2, '0')}:00 - {String(hoveredHeatCell.hour + 1).padStart(2, '0')}:00:
+                        {dayNames[hoveredHeatCell.day]}, {String(hoveredHeatCell.hour).padStart(2, '0')}:00 - {String(hoveredHeatCell.hour + 1).padStart(2, '0')}:00:
                       </span>
                       <span>{hoveredHeatCell.cell.count} {t('reports.orders_unit', 'comenzi')}</span>
                       <span>•</span>
@@ -903,7 +1012,7 @@ export default function Reports() {
                   </div>
 
                   <InteractiveDonut
-                    data={(analyticsData?.channels || []).map(ch => ({
+                    data={(displaySummary.channels || []).map(ch => ({
                       key: ch.key,
                       label: ch.label,
                       value: ch.count,
@@ -913,7 +1022,7 @@ export default function Reports() {
                     activeKey={filterChannel}
                     onSelect={(k) => handleSetChannel(k)}
                     centerTitle={t('reports.donut_center_orders', 'Total Comenzi')}
-                    centerValue={(analyticsData?.totals?.totalOrders || 0).toLocaleString(localeCode)}
+                    centerValue={(displaySummary.totalOrders || 0).toLocaleString(localeCode)}
                     isDark={isDark}
                   />
                 </div>
@@ -935,7 +1044,7 @@ export default function Reports() {
                   </div>
 
                   <InteractiveDonut
-                    data={(analyticsData?.brands || []).map(b => ({
+                    data={(displaySummary.brands || []).map(b => ({
                       key: b.name,
                       label: b.name,
                       value: b.revenue,
@@ -945,7 +1054,7 @@ export default function Reports() {
                     activeKey={filterBrand}
                     onSelect={(k) => handleSetBrand(k)}
                     centerTitle={t('reports.donut_center_sales', 'Total Vânzări')}
-                    centerValue={`${Math.round((analyticsData?.totals?.totalRevenue || 0) / 1000)}k RON`}
+                    centerValue={`${Math.round((displaySummary.totalRevenue || 0) / 1000)}k RON`}
                     isDark={isDark}
                   />
                 </div>
@@ -968,9 +1077,9 @@ export default function Reports() {
 
                   {/* Ranked list of top cities */}
                   <div className="space-y-2 overflow-y-auto max-h-[300px] pr-1 custom-scrollbar">
-                    {(analyticsData?.cities || []).map((ct, idx) => {
+                    {(displaySummary.cities || []).map((ct, idx) => {
                       const isSelected = filterCity?.toLowerCase() === ct.city.toLowerCase()
-                      const maxCityRev = analyticsData?.cities?.[0]?.revenue || 1
+                      const maxCityRev = displaySummary.cities?.[0]?.revenue || 1
                       const pct = Math.min(100, Math.round((ct.revenue / maxCityRev) * 100))
 
                       return (

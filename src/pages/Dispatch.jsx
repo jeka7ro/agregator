@@ -783,6 +783,7 @@ export default function Dispatch() {
       if (tot > 0) { tSum += tot; tCnt++ }
     })
     return {
+      in_work_total: countsByStage.cooking + countsByStage.ready + countsByStage.on_way,
       active_in_kitchen: countsByStage.cooking,
       waiting_courier: countsByStage.ready,
       on_way_count: countsByStage.on_way,
@@ -1438,10 +1439,10 @@ export default function Dispatch() {
           </div>
           <div className="mt-1">
             <div className="text-lg font-black tracking-tight text-blue-600 dark:text-blue-400">
-              {calculatedKpis.active_in_kitchen}
+              {calculatedKpis.in_work_total}
             </div>
             <div className="text-[10px] font-bold text-slate-400 mt-0.5">
-              +{calculatedKpis.waiting_courier} {t('dispatch.kpi_waiting_courier', 'așteaptă curier')}
+              {calculatedKpis.active_in_kitchen} {t('dispatch.tab_cooking', 'în bucătărie').toLowerCase()} · {calculatedKpis.waiting_courier} {t('dispatch.kpi_waiting_courier', 'așteaptă curier')}
             </div>
           </div>
         </div>
@@ -1915,7 +1916,12 @@ export default function Dispatch() {
                                   <CheckCircle2 size={10} className="text-emerald-500 shrink-0" />
                                   <span>
                                     {ord.timings?.delivered_short_time ? (
-                                      <>Livrat la <b>{ord.timings.delivered_short_time}</b> · ({formatElapsed(leadTime)})</>
+                                      <>
+                                        {ord.timings?.closed_at_handoff
+                                          ? (language === 'ru' ? 'Выдан в' : language === 'en' ? 'Handed at' : 'Predat la')
+                                          : (language === 'ru' ? 'Доставлен в' : language === 'en' ? 'Delivered at' : 'Livrat la')}{' '}
+                                        <b>{ord.timings.delivered_short_time}</b> · ({formatElapsed(leadTime)})
+                                      </>
                                     ) : (
                                       <>{t('dispatch.completed_duration_prefix', 'Finalizat în:')} <b>{formatElapsed(leadTime)}</b></>
                                     )}
@@ -1966,11 +1972,19 @@ export default function Dispatch() {
                           </div>
                         ) : (() => {
                           const isUnmasked = unmaskedRows.has(ord.id || ord.order_id) || !gdprMasked
-                          let rawName = ord.customer?.name || `Comandă ${(ord.channel_label || ord.platform || 'Online').toUpperCase()}`
+                          const fallbackOrderPrefix = language === 'ru' ? 'Заказ' : language === 'en' ? 'Order' : 'Comandă'
+                          let rawName = ord.customer?.name || `${fallbackOrderPrefix} ${(ord.channel_label || ord.platform || 'Online').toUpperCase()}`
                           if (rawName === 'Delivery') {
                             rawName = language === 'ru' ? 'Доставка' : language === 'en' ? 'Delivery' : 'Livrare'
+                          } else if (/^Comand[aă]\s+/i.test(rawName) && language !== 'ro') {
+                            rawName = rawName.replace(/^Comand[aă]\s+/i, `${fallbackOrderPrefix} `)
+                          } else if (rawName === 'Client' && language === 'ru') {
+                            rawName = 'Клиент'
                           }
-                          const parsedTableAddr = parseDeliveryAddress(ord.customer?.address, language)
+                          const rawAddrInput = (ord.customer?.address === 'În Restaurant' || ord.customer?.address === 'Livrare Curier')
+                            ? ''
+                            : ord.customer?.address
+                          const parsedTableAddr = parseDeliveryAddress(rawAddrInput, language)
                           const custName = isUnmasked ? rawName : maskCustomerName(rawName)
                           const hasRealPhone = ord.customer?.phone && !String(ord.customer.phone).includes('00000000')
                           const custPhone = isUnmasked ? ord.customer?.phone : maskPhone(ord.customer?.phone)
@@ -2006,7 +2020,7 @@ export default function Dispatch() {
                                 </span>
                                 {hasExtraDetails && (
                                   <span className="text-[9px] font-semibold px-1 py-0 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0">
-                                    +detalii
+                                    {language === 'ru' ? '+детали' : language === 'en' ? '+details' : '+detalii'}
                                   </span>
                                 )}
                               </div>
@@ -2067,8 +2081,8 @@ export default function Dispatch() {
                 {/* Col 5: Etapă - Breakdown */}
                 <td className="py-2 px-2 w-40 whitespace-nowrap text-xs">
                   {(() => {
-                    const inProgress = paginatedOrders.filter(o => o.stage !== 'delivered').length
-                    const delivered = paginatedOrders.filter(o => o.stage === 'delivered').length
+                    const inProgress = filteredOrders.filter(o => o.stage !== 'delivered').length
+                    const delivered = filteredOrders.filter(o => o.stage === 'delivered').length
                     return (
                       <div className="flex items-center gap-2 text-[11px]">
                         {inProgress > 0 && (
