@@ -712,6 +712,7 @@ export default function Dispatch() {
   // Jurnal STOP filtrat conform orașului, brandului și restaurantului selectat
   const filteredStopAuditLog = useMemo(() => {
     const allowedIds = selectedLocationObj?.ids ? new Set(selectedLocationObj.ids) : null
+    const allowedRestCleanLabel = selectedLocationObj?.label ? selectedLocationObj.label.toUpperCase() : null
     return (stopAuditLog || []).filter(log => {
       if (selectedCity !== 'all') {
         const logCity = getCanonicalCity(log.city || log.restaurant_city || log.restaurant_name)
@@ -722,36 +723,77 @@ export default function Dispatch() {
       }
       if (selectedRestaurantId !== 'all') {
         const matchesId = allowedIds ? allowedIds.has(log.restaurant_id) : (log.restaurant_id === selectedRestaurantId)
-        if (!matchesId) return false
+        const matchesLabel = allowedRestCleanLabel && cleanRestaurantName(log.restaurant_name || '').toUpperCase() === allowedRestCleanLabel
+        if (!matchesId && !matchesLabel) return false
       }
       return true
     })
   }, [stopAuditLog, selectedCity, selectedBrand, selectedRestaurantId, selectedLocationObj])
 
-  // Sume calculate dinamic pentru siguranță instantă
+  // Comenzi din locația/orașul/brandul/perioada selectată + eventual filtrul de canal
+  const channelFilteredOrders = useMemo(() => {
+    if (selectedChannel === 'all') return baseFilteredOrders
+    return baseFilteredOrders.filter(o => {
+      if (selectedChannel === 'kiosk') return o.channel_type === 'kiosk' || o.platform === 'kiosk'
+      if (selectedChannel === 'casierie') return o.channel_type === 'casierie' || o.platform === 'casierie' || o.platform === 'IN-STORE'
+      if (selectedChannel === 'aggregators') return o.channel_type === 'aggregator' || ['glovo', 'wolt', 'bolt', 'bolt food'].includes(o.platform)
+      if (selectedChannel === 'own') return o.channel_type === 'own_delivery'
+      return o.platform === selectedChannel
+    })
+  }, [baseFilteredOrders, selectedChannel])
+
+  // Sume și KPI-uri calculate dinamic strict pe filtrul activ (locație, oraș, brand, perioadă, canal)
   const calculatedTodaySales = useMemo(() => {
-    return baseFilteredOrders.reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0)
-  }, [baseFilteredOrders])
+    return channelFilteredOrders.reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0)
+  }, [channelFilteredOrders])
 
   const calculatedTodayGrossSales = useMemo(() => {
-    return baseFilteredOrders.reduce((sum, o) => sum + (Number(o.gross_amount) || Number(o.total_amount) || 0), 0)
-  }, [baseFilteredOrders])
+    return channelFilteredOrders.reduce((sum, o) => sum + (Number(o.gross_amount) || Number(o.total_amount) || 0), 0)
+  }, [channelFilteredOrders])
 
   const calculatedOrdersCount = useMemo(() => {
-    return baseFilteredOrders.length
-  }, [baseFilteredOrders])
+    return channelFilteredOrders.length
+  }, [channelFilteredOrders])
 
   const countsByStage = useMemo(() => {
     const c = { cooking: 0, ready: 0, on_way: 0, delivered: 0, problems: 0 }
-    baseFilteredOrders.forEach(o => {
+    channelFilteredOrders.forEach(o => {
       if (o.stage === 'wait_cooking' || o.stage === 'cooking') c.cooking++
       else if (o.stage === 'ready') c.ready++
       else if (o.stage === 'on_way') c.on_way++
       else if (o.stage === 'delivered') c.delivered++
       if (o.problem) c.problems++
     })
-    return { ...c, total: baseFilteredOrders.length }
-  }, [baseFilteredOrders])
+    return { ...c, total: channelFilteredOrders.length }
+  }, [channelFilteredOrders])
+
+  const calculatedKpis = useMemo(() => {
+    let kSum = 0, kCnt = 0
+    let wSum = 0, wCnt = 0
+    let dSum = 0, dCnt = 0
+    let tSum = 0, tCnt = 0
+    channelFilteredOrders.forEach(o => {
+      const k = Number(o.kitchen_minutes)
+      const w = Number(o.courier_wait_minutes)
+      const d = Number(o.delivery_minutes)
+      const tot = Number(o.total_minutes || o.lead_time_minutes)
+      if (k > 0) { kSum += k; kCnt++ }
+      if (w > 0) { wSum += w; wCnt++ }
+      if (d > 0) { dSum += d; dCnt++ }
+      if (tot > 0) { tSum += tot; tCnt++ }
+    })
+    return {
+      active_in_kitchen: countsByStage.cooking,
+      waiting_courier: countsByStage.ready,
+      on_way_count: countsByStage.on_way,
+      delivered_count: countsByStage.delivered,
+      problems_count: countsByStage.problems,
+      avg_kitchen_time: kCnt > 0 ? Number((kSum / kCnt).toFixed(1)) : 0,
+      avg_courier_wait_time: wCnt > 0 ? Number((wSum / wCnt).toFixed(1)) : 0,
+      avg_delivery_time: dCnt > 0 ? Number((dSum / dCnt).toFixed(1)) : 0,
+      avg_total_time: tCnt > 0 ? Number((tSum / tCnt).toFixed(1)) : 0
+    }
+  }, [channelFilteredOrders, countsByStage])
 
   // Numărătoare canale pentru selector și butoane rapide
   const channelCounts = useMemo(() => {
@@ -1396,10 +1438,10 @@ export default function Dispatch() {
           </div>
           <div className="mt-1">
             <div className="text-lg font-black tracking-tight text-blue-600 dark:text-blue-400">
-              {kpis?.active_in_kitchen || 0}
+              {calculatedKpis.active_in_kitchen}
             </div>
             <div className="text-[10px] font-bold text-slate-400 mt-0.5">
-              +{kpis?.waiting_courier || 0} {t('dispatch.kpi_waiting_courier', 'așteaptă curier')}
+              +{calculatedKpis.waiting_courier} {t('dispatch.kpi_waiting_courier', 'așteaptă curier')}
             </div>
           </div>
         </div>
@@ -1414,12 +1456,12 @@ export default function Dispatch() {
           </div>
           <div className="mt-1">
             <div className="flex items-baseline gap-1">
-              <span className="text-lg font-black tracking-tight">{kpis?.avg_kitchen_time || 14}</span>
+              <span className="text-lg font-black tracking-tight">{calculatedKpis.avg_kitchen_time}</span>
               <span className="text-[10px] font-bold text-slate-400">{language === 'ru' ? 'мин' : 'min'}</span>
             </div>
             <div className="mt-0.5">
-              <span className={`inline-block px-1.5 py-0.2 rounded-full text-[9px] font-extrabold border ${getTimingColor(kpis?.avg_kitchen_time || 14, 15)}`}>
-                {(kpis?.avg_kitchen_time || 14) <= 15 ? t('dispatch.sla_ok_kitchen', 'În grafic SLA') : t('dispatch.sla_over_kitchen', 'Depășire SLA')}
+              <span className={`inline-block px-1.5 py-0.2 rounded-full text-[9px] font-extrabold border ${getTimingColor(calculatedKpis.avg_kitchen_time, 15)}`}>
+                {calculatedKpis.avg_kitchen_time <= 15 ? t('dispatch.sla_ok_kitchen', 'În grafic SLA') : t('dispatch.sla_over_kitchen', 'Depășire SLA')}
               </span>
             </div>
           </div>
@@ -1435,12 +1477,12 @@ export default function Dispatch() {
           </div>
           <div className="mt-1">
             <div className="flex items-baseline gap-1">
-              <span className="text-lg font-black tracking-tight">{kpis?.avg_courier_wait_time || 6.8}</span>
+              <span className="text-lg font-black tracking-tight">{calculatedKpis.avg_courier_wait_time}</span>
               <span className="text-[10px] font-bold text-slate-400">{language === 'ru' ? 'мин' : 'min'}</span>
             </div>
             <div className="mt-0.5">
-              <span className={`inline-block px-1.5 py-0.2 rounded-full text-[9px] font-extrabold border ${getTimingColor(kpis?.avg_courier_wait_time || 6.8, 8)}`}>
-                {(kpis?.avg_courier_wait_time || 6.8) <= 8 ? t('dispatch.sla_fast_courier', 'Ridicări Rapide') : t('dispatch.sla_high_wait_courier', 'Așteptare Mare')}
+              <span className={`inline-block px-1.5 py-0.2 rounded-full text-[9px] font-extrabold border ${getTimingColor(calculatedKpis.avg_courier_wait_time, 8)}`}>
+                {calculatedKpis.avg_courier_wait_time <= 8 ? t('dispatch.sla_fast_courier', 'Ridicări Rapide') : t('dispatch.sla_high_wait_courier', 'Așteptare Mare')}
               </span>
             </div>
           </div>
@@ -1456,12 +1498,12 @@ export default function Dispatch() {
           </div>
           <div className="mt-1">
             <div className="flex items-baseline gap-1">
-              <span className="text-lg font-black tracking-tight">{kpis?.avg_delivery_time || 23.4}</span>
+              <span className="text-lg font-black tracking-tight">{calculatedKpis.avg_delivery_time}</span>
               <span className="text-[10px] font-bold text-slate-400">{language === 'ru' ? 'мин' : 'min'}</span>
             </div>
             <div className="mt-0.5">
-              <span className={`inline-block px-1.5 py-0.2 rounded-full text-[9px] font-extrabold border ${getTimingColor(kpis?.avg_delivery_time || 23.4, 30)}`}>
-                {kpis?.on_way_count || 0} {t('dispatch.tab_on_way', 'pe drum')}
+              <span className={`inline-block px-1.5 py-0.2 rounded-full text-[9px] font-extrabold border ${getTimingColor(calculatedKpis.avg_delivery_time, 30)}`}>
+                {calculatedKpis.on_way_count} {t('dispatch.tab_on_way', 'pe drum')}
               </span>
             </div>
           </div>
@@ -1477,12 +1519,12 @@ export default function Dispatch() {
           </div>
           <div className="mt-1">
             <div className="flex items-baseline gap-1">
-              <span className="text-lg font-black tracking-tight">{kpis?.avg_total_time || 44.7}</span>
+              <span className="text-lg font-black tracking-tight">{calculatedKpis.avg_total_time}</span>
               <span className="text-[10px] font-bold text-slate-400">{language === 'ru' ? 'мин' : 'min'}</span>
             </div>
             <div className="mt-0.5">
-              <span className={`inline-block px-1.5 py-0.2 rounded-full text-[9px] font-extrabold border ${getTimingColor(kpis?.avg_total_time || 44.7, 45)}`}>
-                {(kpis?.avg_total_time || 44.7) <= 45 ? t('dispatch.sla_ok_total', 'Timp Optim') : t('dispatch.sla_attention_total', 'Atenție Timp')}
+              <span className={`inline-block px-1.5 py-0.2 rounded-full text-[9px] font-extrabold border ${getTimingColor(calculatedKpis.avg_total_time, 45)}`}>
+                {calculatedKpis.avg_total_time <= 45 ? t('dispatch.sla_ok_total', 'Timp Optim') : t('dispatch.sla_attention_total', 'Atenție Timp')}
               </span>
             </div>
           </div>

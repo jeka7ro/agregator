@@ -1,5 +1,14 @@
 # Jurnal de modificări (Antigravity ↔ Paperclip)
 
+### 2026-11-10 12:31 — Adaptarea tuturor celor 6 carduri KPI din Dispecerat (`Dispatch.jsx`) la filtrul de locație / punct de lucru (`msg_21.jpg` de pe `@antygrtybot`)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  1. **Recalculare dinamică a tuturor celor 6 carduri KPI (`calculatedKpis`) în [`src/pages/Dispatch.jsx`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dispatch.jsx):** Anterior, doar cardul 1 (`ПРОДАЖИ СЕГОДНЯ`) se recalcula după filtrul de locație (`BUC CEAIKOVSKI`), în timp ce cardurile 2–6 (`ЧЕКОВ В РАБОТЕ`, `ТАЙМИНГ КУХНИ`, `ОЖИДАНИЕ КУРЬЕРА`, `ВРЕМЯ ДОСТАВКИ`, `ОБЩЕЕ ВРЕМЯ ЗАКАЗА`) citeau din `kpis` global pe tot orașul (afișând `10` în lucru în loc de `4` câte erau pe `BUC CEAIKOVSKI`, și fallback-uri fixe `6.8` / `23.4` când valorile erau `0`). Acum toate cele 6 carduri se calculează în timp real strict din comenzile filtrate pe locația, orașul, brandul, canalul și perioada selectată (`channelFilteredOrders`).
+  2. **Unificare filtru locație în `filteredStopAuditLog`:** Adăugat suport și pentru potrivirea după eticheta curată a punctului fizic unificat (`cleanRestaurantName`).
+- **Fișiere:** `src/pages/Dispatch.jsx`, `.agents/skills/audit-gatekeeper/scripts/run_prepush_audit.py`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (așteaptă acceptul utilizatorului pentru push/deploy după Audit Gatekeeper)
+- **Build / Teste:** `python3 .agents/skills/audit-gatekeeper/scripts/run_prepush_audit.py` -> `23/23 PASS`, Semafor `🟢 VERDE`.
+
 ### 2026-11-10 10:53 — Căutare globală bonuri în Dispecerat (Azi + Ieri + fără blocare în filtre) și curățare metadate istorice DB (`#14034`, `#9441`, `#9442`)
 - **Autor:** Antigravity
 - **Ce s-a făcut:**

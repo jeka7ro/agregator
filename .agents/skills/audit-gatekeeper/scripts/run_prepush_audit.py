@@ -184,6 +184,8 @@ def vector_2_data_integrity_and_filters():
         issues.append("Lipsă buton central `Сбросить фильтры` în `src/layouts/MainLayout.jsx`")
     if "extraSearchOrders" not in disp_src:
         issues.append("Lipsă căutare globală bonuri (`extraSearchOrders`) în `src/pages/Dispatch.jsx`")
+    if "calculatedKpis.active_in_kitchen" not in disp_src or "kpis?.active_in_kitchen" in disp_src:
+        issues.append("KPI-urile din `src/pages/Dispatch.jsx` nu sunt adaptate la filtrul de locație (`calculatedKpis`)")
 
     return len(issues) == 0, checks_run, issues
 
