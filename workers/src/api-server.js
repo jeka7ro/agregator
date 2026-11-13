@@ -771,6 +771,7 @@ app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
                                 whenCookingCompleted: cookTs || prevTimings.whenCookingCompleted || null,
                                 whenSended: sendTs || (isPickedUpEvent ? (prevTimings.whenSended || nowIso) : prevTimings.whenSended) || null,
                                 whenArrivedAtCustomer: isAtCustomerEvent ? nowIso : (prevTimings.whenArrivedAtCustomer || null),
+                                realDeliveredAt: delivTs || (isDeliveredEvent ? nowIso : (prevTimings.realDeliveredAt || null)),
                                 whenDelivered: delivTs || (isDeliveredEvent ? nowIso : (prevTimings.whenDelivered || null)),
                                 whenClosed: delivTs || (isDeliveredEvent ? nowIso : (prevTimings.whenClosed || null))
                             }
@@ -790,6 +791,13 @@ app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
                     if (carrierKey) {
                         const partnerOrderId = `wh_${todayDayPrefix}_${carrierKey}`
                         const matchedRestId = matchingRows[0]?.restaurant_id || restaurants?.[0]?.id || null
+                        const prevPartnerTimings = matchingRows.reduce((acc, r) => {
+                            const rt = r?.items?.[0]?._order_meta?.timings || {}
+                            if (rt.whenSended && (String(rt.whenSended).endsWith('Z') || r?.items?.[0]?._order_meta?.isPartnerMetaOnly)) acc.whenSended = acc.whenSended || rt.whenSended
+                            if (rt.whenArrivedAtCustomer) acc.whenArrivedAtCustomer = acc.whenArrivedAtCustomer || rt.whenArrivedAtCustomer
+                            if (rt.realDeliveredAt) acc.realDeliveredAt = acc.realDeliveredAt || rt.realDeliveredAt
+                            return acc
+                        }, {})
                         if (matchedRestId) {
                             await supabase.from('platform_sales').upsert([{
                                 restaurant_id: matchedRestId,
@@ -823,10 +831,11 @@ app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
                                         },
                                         timings: {
                                             whenCookingCompleted: cookTs || null,
-                                            whenSended: sendTs || (isPickedUpEvent ? nowIso : null),
-                                            whenArrivedAtCustomer: isAtCustomerEvent ? nowIso : null,
-                                            whenDelivered: delivTs || (isDeliveredEvent ? nowIso : null),
-                                            whenClosed: delivTs || (isDeliveredEvent ? nowIso : null)
+                                            whenSended: sendTs || (isPickedUpEvent ? (prevPartnerTimings.whenSended || nowIso) : (prevPartnerTimings.whenSended || null)),
+                                            whenArrivedAtCustomer: isAtCustomerEvent ? nowIso : (prevPartnerTimings.whenArrivedAtCustomer || null),
+                                            realDeliveredAt: delivTs || (isDeliveredEvent ? nowIso : (prevPartnerTimings.realDeliveredAt || null)),
+                                            whenDelivered: delivTs || (isDeliveredEvent ? nowIso : (prevPartnerTimings.realDeliveredAt || null)),
+                                            whenClosed: delivTs || (isDeliveredEvent ? nowIso : (prevPartnerTimings.realDeliveredAt || null))
                                         }
                                     }
                                 }]
@@ -1789,8 +1798,8 @@ async function fetchLiveAndWebhookOrdersForDay(dayStr, allRests = []) {
                     .select('id, restaurant_id, order_id, platform, total_amount, placed_at, created_at, items')
                     .gte('order_id', `wh_${dayStr}_`)
                     .lte('order_id', `wh_${dayStr}_zzzzzzzz`)
-                    .limit(1000),
-                2000
+                    .limit(3000),
+                2500
             )
             if (!error && Array.isArray(data)) return data
         } catch (_) {}
@@ -2520,7 +2529,33 @@ app.get('/api/dispatch/live', async (req, res) => {
             return false
         }
 
-        // Pre-merge metadata (timings, courier, status) across rows sharing the same iiko UUID prefix or orderNumber
+        // Pre-merge metadata (timings, courier, status) across rows sharing the exact same iiko UUID,
+        // and index partner-only courier updates by orderNumber/externalOrderId.
+        // Courier table timestamps (UTC ISO strings ending with 'Z' or realDeliveredAt / whenArrivedAtCustomer)
+        // ALWAYS take priority over iiko cash-register handoff timestamps, and are normalized to Europe/Bucharest local time.
+        const bucharestFmt = new Intl.DateTimeFormat('sv-SE', {
+            timeZone: 'Europe/Bucharest',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        })
+        const bucharestOffset = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Bucharest', timeZoneName: 'longOffset' })
+            .formatToParts(new Date())
+            .find(p => p.type === 'timeZoneName')?.value?.replace('GMT', '') || '+02:00'
+        const toBucharestTsStr = (str) => {
+            if (!str || typeof str !== 'string') return null
+            const trimmed = str.trim()
+            if (!trimmed.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(trimmed)) return trimmed
+            const d = new Date(trimmed)
+            if (isNaN(d.getTime())) return trimmed
+            const ms = String(d.getUTCMilliseconds()).padStart(3, '0')
+            return `${bucharestFmt.format(d)}.${ms}`
+        }
+
         const mergedMetaByUuid = new Map()
         const mergedMetaByOrderNum = new Map()
         for (const o of (rawOrders || [])) {
@@ -2529,17 +2564,37 @@ app.get('/api/dispatch/live', async (req, res) => {
             const m = (o.items || [])[0]?._order_meta || {}
             const numKey = String(m.orderNumber || '').replace(/^#+/, '').trim().toLowerCase()
             const extKey = String(m.externalOrderId || '').replace(/^#+/, '').trim().toLowerCase()
-            const prev = mergedMetaByUuid.get(baseUuid) || (numKey && mergedMetaByOrderNum.get(numKey)) || { timings: {}, courier: null, customer: null, status: null, stage: null }
+            const prev = mergedMetaByUuid.get(baseUuid) || (m.isPartnerMetaOnly && numKey && mergedMetaByOrderNum.get(numKey)) || { timings: {}, courier: null, customer: null, status: null, stage: null }
             const curTimings = m.timings || {}
+
+            const isCourierSend = Boolean(curTimings.whenSended && (m.isPartnerMetaOnly || String(curTimings.whenSended).trim().endsWith('Z')))
+            const isCourierDeliv = Boolean(curTimings.realDeliveredAt || (curTimings.whenDelivered && (m.isPartnerMetaOnly || String(curTimings.whenDelivered).trim().endsWith('Z'))))
+
+            if (isCourierSend && !prev.courierSendTs) prev.courierSendTs = toBucharestTsStr(curTimings.whenSended)
+            if (!isCourierSend && curTimings.whenSended && !prev.iikoSendTs) prev.iikoSendTs = toBucharestTsStr(curTimings.whenSended)
+            if (curTimings.whenArrivedAtCustomer && !prev.courierArrivedTs) prev.courierArrivedTs = toBucharestTsStr(curTimings.whenArrivedAtCustomer)
+            if (isCourierDeliv && !prev.courierDelivTs) prev.courierDelivTs = toBucharestTsStr(curTimings.realDeliveredAt || curTimings.whenDelivered)
+            if (!isCourierDeliv && curTimings.whenDelivered && !prev.iikoDelivTs) prev.iikoDelivTs = toBucharestTsStr(curTimings.whenDelivered)
+            if (!isCourierDeliv && curTimings.whenClosed && !prev.iikoClosedTs) prev.iikoClosedTs = toBucharestTsStr(curTimings.whenClosed)
+            if (m.courierStatus && (!prev.courierStatus || String(m.courierStatus).toUpperCase().includes('DELIVERED'))) {
+                prev.courierStatus = m.courierStatus
+            }
+
+            const cStatusUpper = String(prev.courierStatus || '').toUpperCase()
+            const isCourierOnWayActive = Boolean(!prev.courierDelivTs && (prev.courierSendTs || cStatusUpper.includes('PICKED') || cStatusUpper.includes('AT CUSTOMER') || cStatusUpper.includes('IN_TRANSIT') || cStatusUpper.includes('ON_WAY')))
+
             prev.timings = {
-                whenCreated: prev.timings.whenCreated || curTimings.whenCreated || null,
-                whenConfirmed: prev.timings.whenConfirmed || curTimings.whenConfirmed || null,
-                whenPrinted: prev.timings.whenPrinted || curTimings.whenPrinted || null,
-                whenCookingCompleted: prev.timings.whenCookingCompleted || curTimings.whenCookingCompleted || null,
-                whenSended: prev.timings.whenSended || curTimings.whenSended || null,
-                whenDelivered: prev.timings.whenDelivered || curTimings.whenDelivered || null,
-                whenClosed: prev.timings.whenClosed || curTimings.whenClosed || null,
-                completeBefore: prev.timings.completeBefore || curTimings.completeBefore || null
+                whenCreated: toBucharestTsStr(prev.timings.whenCreated || curTimings.whenCreated || null),
+                whenConfirmed: toBucharestTsStr(prev.timings.whenConfirmed || curTimings.whenConfirmed || null),
+                whenPrinted: toBucharestTsStr(prev.timings.whenPrinted || curTimings.whenPrinted || null),
+                whenCookingCompleted: toBucharestTsStr(prev.timings.whenCookingCompleted || curTimings.whenCookingCompleted || null),
+                whenSended: prev.courierSendTs || prev.iikoSendTs || null,
+                whenArrivedAtCustomer: prev.courierArrivedTs || null,
+                realDeliveredAt: prev.courierDelivTs || null,
+                whenDelivered: prev.courierDelivTs || (isCourierOnWayActive ? null : (prev.iikoDelivTs || null)),
+                whenClosed: prev.courierDelivTs || (isCourierOnWayActive ? null : (prev.iikoClosedTs || null)),
+                completeBefore: toBucharestTsStr(prev.timings.completeBefore || curTimings.completeBefore || null),
+                isCourierActiveOnWay: isCourierOnWayActive
             }
             const validRowCourier = !isCashierOrAutoAggregatorCourier(m.courier, m.operator, o.platform) ? m.courier : null
             if (validRowCourier || m.trackingUrl || m.courierOrderId) {
@@ -2553,7 +2608,13 @@ app.get('/api/dispatch/live', async (req, res) => {
                 prev.customer = { ...(prev.customer || {}), ...m.customer }
             }
             const stLower = String(m.status || m.stage || '').toLowerCase()
-            if (stLower.includes('closed') || stLower.includes('deliv')) {
+            if (prev.courierDelivTs) {
+                prev.status = 'Delivered'
+                prev.stage = 'Delivered'
+            } else if (isCourierOnWayActive) {
+                prev.status = 'OnWay'
+                prev.stage = 'OnWay'
+            } else if (stLower.includes('closed') || stLower.includes('deliv')) {
                 prev.status = m.status || m.stage
                 prev.stage = m.stage || m.status
             } else if (!prev.status && (m.status || m.stage)) {
@@ -2561,8 +2622,10 @@ app.get('/api/dispatch/live', async (req, res) => {
                 prev.stage = m.stage || m.status
             }
             mergedMetaByUuid.set(baseUuid, prev)
-            if (numKey) mergedMetaByOrderNum.set(numKey, prev)
-            if (extKey) mergedMetaByOrderNum.set(extKey, prev)
+            if (m.isPartnerMetaOnly) {
+                if (numKey) mergedMetaByOrderNum.set(numKey, prev)
+                if (extKey) mergedMetaByOrderNum.set(extKey, prev)
+            }
         }
 
         const enrichedOrders = []
@@ -2669,35 +2732,39 @@ app.get('/api/dispatch/live', async (req, res) => {
             const rawTimings = meta.timings || {}
             const parseIikoTs = (str) => {
                 if (!str || typeof str !== 'string') return null
-                const norm = str.includes(' ') && !str.includes('T') ? str.replace(' ', 'T') : str
-                const d = new Date(norm)
+                const trimmed = str.trim()
+                const norm = trimmed.includes(' ') && !trimmed.includes('T') ? trimmed.replace(' ', 'T') : trimmed
+                const withTz = (norm.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(norm)) ? norm : `${norm}${bucharestOffset}`
+                const d = new Date(withTz)
                 return isNaN(d.getTime()) ? null : d
             }
             const extractHHMMSS = (str) => {
                 if (!str || typeof str !== 'string') return null
-                const m = str.match(/(\d{2}:\d{2}:\d{2})/)
+                const norm = toBucharestTsStr(str) || str
+                const m = norm.match(/(\d{2}:\d{2}:\d{2})/)
                 return m ? m[1] : null
             }
             const extractHHMM = (str) => {
                 if (!str || typeof str !== 'string') return null
-                const m = str.match(/(\d{2}:\d{2})/)
+                const norm = toBucharestTsStr(str) || str
+                const m = norm.match(/(\d{2}:\d{2})/)
                 return m ? m[1] : null
             }
 
             const tCreated = parseIikoTs(rawTimings.whenCreated)
             const tCooked = parseIikoTs(rawTimings.whenCookingCompleted)
             const tSended = parseIikoTs(rawTimings.whenSended)
-            const tDelivered = parseIikoTs(rawTimings.whenDelivered || rawTimings.whenClosed)
+            const tDelivered = parseIikoTs(rawTimings.realDeliveredAt || rawTimings.whenDelivered || rawTimings.whenClosed)
             const hasRealIikoTimings = Boolean(tCreated && (tCooked || tSended || tDelivered || rawStatus))
 
             const realCookMin = (tCreated && tCooked) ? Math.max(1, Math.round((tCooked - tCreated) / 60000)) : null
             const realWaitMin = (tCooked && tSended) ? Math.max(0, Math.round((tSended - tCooked) / 60000)) : null
             const realDelivMin = (tSended && tDelivered) ? Math.max(0, Math.round((tDelivered - tSended) / 60000)) : null
             const realTotalMin = (tCreated && tDelivered) ? Math.max(1, Math.round((tDelivered - tCreated) / 60000)) : null
-            const isClosedAtHandoff = Boolean(!isInRestaurant && tSended && tDelivered && Math.abs(tDelivered - tSended) <= 90000)
+            const isClosedAtHandoff = Boolean(!isInRestaurant && !rawTimings.realDeliveredAt && tSended && tDelivered && Math.abs(tDelivered - tSended) <= 90000)
 
             if (hasRealIikoTimings && !isKioskPlat) {
-                if (tDelivered || rawStatus === 'closed' || rawStatus === 'delivered') {
+                if (tDelivered || ((rawStatus === 'closed' || rawStatus === 'delivered') && !rawTimings.isCourierActiveOnWay)) {
                     stage = 'delivered'
                     stageLabel = isInRestaurant ? 'Servit în Restaurant' : 'Livrat'
                     statusColor = 'emerald'
@@ -3032,16 +3099,20 @@ app.get('/api/dispatch/live', async (req, res) => {
                     when_printed: rawTimings.whenPrinted || null,
                     when_cooking_completed: rawTimings.whenCookingCompleted || null,
                     when_sended: rawTimings.whenSended || null,
-                    when_delivered: rawTimings.whenDelivered || null,
-                    when_closed: rawTimings.whenClosed || null,
+                    when_arrived_at_customer: rawTimings.whenArrivedAtCustomer || null,
+                    real_delivered_at: rawTimings.realDeliveredAt || null,
+                    when_delivered: rawTimings.realDeliveredAt || rawTimings.whenDelivered || null,
+                    when_closed: rawTimings.realDeliveredAt || rawTimings.whenClosed || null,
                     complete_before: rawTimings.completeBefore || null,
                     created_time: extractHHMMSS(rawTimings.whenCreated),
                     cooking_completed_time: extractHHMMSS(rawTimings.whenCookingCompleted),
                     sended_time: extractHHMMSS(rawTimings.whenSended),
-                    delivered_time: extractHHMMSS(rawTimings.whenDelivered || rawTimings.whenClosed),
-                    closed_time: extractHHMMSS(rawTimings.whenClosed),
+                    arrived_at_customer_time: extractHHMMSS(rawTimings.whenArrivedAtCustomer),
+                    delivered_time: extractHHMMSS(rawTimings.realDeliveredAt || rawTimings.whenDelivered || rawTimings.whenClosed),
+                    closed_time: extractHHMMSS(rawTimings.realDeliveredAt || rawTimings.whenClosed),
                     complete_before_time: extractHHMM(rawTimings.completeBefore),
-                    delivered_short_time: extractHHMM(rawTimings.whenDelivered || rawTimings.whenClosed),
+                    delivered_short_time: extractHHMM(rawTimings.realDeliveredAt || rawTimings.whenDelivered || rawTimings.whenClosed),
+                    has_courier_delivery_time: Boolean(rawTimings.realDeliveredAt),
                     closed_at_handoff: isClosedAtHandoff
                 },
                 customer: {

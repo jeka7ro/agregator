@@ -1,5 +1,27 @@
 # Jurnal de modificări (Antigravity ↔ Paperclip)
 
+### 2026-11-13 16:20 — Prioritizare Timpi Reali din Tabelul de Curieri (`wh_...` / `realDeliveredAt` / `whenSended` / `whenArrivedAtCustomer`) peste Închiderea din Casa iiko (`msg_31` de la Igor)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  1. **Preluarea timpului final (`whenDelivered`) și a preluării (`whenSended`) din tabelul de curieri (`wh_YYYY-MM-DD_...` / Valentin courier webhook) în loc de închiderea din casa iiko (`workers/src/api-server.js` & `netlify/functions/api.js`):**
+     - Anterior, în `mergedMetaByUuid`, rândul `syrveDirectRows` (din iiko) intra primul și seta `prev.timings.whenSended` și `prev.timings.whenDelivered` la ora închiderii bonului pe casa iiko (la 5 secunde după `Готов`), astfel încât `prev.timings.whenDelivered || curTimings.whenDelivered` ignora `realDeliveredAt` și `whenSended` din tabelul de curieri (`dbWebhookRows`).
+     - În plus, timpii din tabelul de curieri sunt salvați în UTC ISO (`...Z`, ex. `2026-11-13T10:22:13.585Z`), în timp ce iiko folosește ora locală a României fără fus (`2026-11-13 11:29:05.950`), ceea ce făcea ca `extractHHMMSS` să afișeze ora UTC cu 2 ore în urmă și `parseIikoTs` pe servere UTC să calculeze diferențe negative (`0 secunde`).
+     - Acum `courierSendTs`, `courierArrivedTs` și `courierDelivTs` din tabelul de curieri au **prioritate absolută** față de timpii de casă din iiko, sunt convertite automat la fusul `Europe/Bucharest` (`YYYY-MM-DD HH:mm:ss.SSS`), iar când curierul este pe traseu (`PICKED UP` / `AT CUSTOMER`), comanda rămâne activă în `У Курьера` (`on_way`) chiar dacă bonul a fost deja închis în casa iiko.
+  2. **Afișare completă în [`src/components/OrderDetailsModal.jsx`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/OrderDetailsModal.jsx):** Afișează ora reală a curierului (`Доставлен курьером`), ora la ușa clientului (`У двери клиента: HH:mm:ss`) și traduce etichetele din cardul curierului în RU/EN/RO.
+- **Fișiere:** `workers/src/api-server.js`, `netlify/functions/api.js`, `src/components/OrderDetailsModal.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (doar local)
+- **Build / Teste:** Verificat live pe `http://localhost:3002/api/dispatch/live?period=today` (ex. `#17873`: Bucătărie `11 min`, Așteptare curier `22 min`, Livrare curier `20 min`, Total `53 min`; `#25681`: `20m + 17m + 7m = 44m`; `#17866`: `29m + 16m + 28m = 73m`).
+
+### 2026-11-13 14:45 — Fix coliziune `orderNumber` între orașe diferite în `mergedMetaByOrderNum` & Audit Timpi Syrve (întrebările lui Igor #22-#23)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  1. **Restricționare `mergedMetaByOrderNum` strict la rândurile `m.isPartnerMetaOnly` în [`workers/src/api-server.js`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/api-server.js) și [`netlify/functions/api.js`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/netlify/functions/api.js):** Previne combinarea `timings` între două comenzi Syrve diferite din orașe diferite care au întâmplător același număr scurt sau `externalOrderId` (ex: comanda `#16504` din Oradea de la `14:32:00` nu mai preia `whenCookingCompleted: 11:10:40` de la comanda `#398` din Constanța care avea `externalOrderId: 16504`).
+  2. **Audit complet timpi Syrve pe cele 386 comenzi de azi (`2026-11-13`):** Confirmat direct pe payload-urile brute `api-eu.syrve.live/api/1/deliveries/by_delivery_date_and_status` că pe `345 / 352` (`98%`) din bonurile închise azi, casierii din restaurante apasă în `iikoFront` secvența `Готов` (`whenCookingCompleted`) → `Отправлен` (`whenSended`) → `Закрыт` (`whenDelivered` / `whenClosed`) una după alta la predarea pungii către curier, în interval de `0–6 secunde`.
+  3. **Cititor permanent Telegram `@antygrtybot` ([`scripts/check-antigravity-telegram.cjs`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/scripts/check-antigravity-telegram.cjs)):** Salvat scriptul direct în proiect care scanează secvențial `message_id`-urile din chat-ul `1641990960` (`@antygrtybot`), astfel încât mesajele și capturile forwardate de la Igor să fie citite mereu din prima, chiar și când `getUpdates` a fost consumat.
+- **Fișiere:** `workers/src/api-server.js`, `netlify/functions/api.js`, `scripts/check-antigravity-telegram.cjs`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (doar local)
+- **Build / Teste:** Verificat live pe `http://localhost:3002/api/dispatch/live?period=today` (`0` coliziuni de timestamp-uri între comenzi).
+
 ### 2026-11-10 14:30 — Audit Financiar Forensics & Reconciliere 1:1 Încasări + Comenzi între Syrve (iiko), Dispecerat, Dashboard și Rapoarte
 - **Autor:** Antigravity
 - **Ce s-a făcut:**
@@ -17,7 +39,7 @@
      - **Luna Curentă (`this_month`, 1–10 nov. 2026):** **`10.492` bonuri unice Syrve**, **`1.467.268 RON` net** (`1.850.013 RON` brut), bon mediu `139,85 RON`.
      - **Anul Curent / Total (`this_year` / `all`, 2026):** **`192.538` bonuri unice Syrve**, **`25.931.210 RON` net** (`28.335.224 RON` brut), bon mediu `134,68 RON`.
 - **Fișiere:** `data/sales-history-cache.json`, `workers/src/api-server.js`, `netlify/functions/api.js`, `workers/src/services/sales-sync.js`, `src/pages/Reports.jsx`, `src/hooks/useExecutiveSales.js`, `.agents/skills/audit-gatekeeper/scripts/run_prepush_audit.py`, `.agents/CHANGELOG.md`
-- **Ramură / Commit:** `main` (doar local — fără commit/push/deploy până la decizia utilizatorului)
+- **Ramură / Commit:** `main` (`bee74af`)
 - **Build / Teste:** Verificat paritate 1:1 între `/api/dispatch/live` și `/api/sales/executive-summary` + `python3 .agents/skills/audit-gatekeeper/scripts/run_prepush_audit.py` (`🟢 VERDE`).
 
 ### 2026-11-10 13:02 — Audit complet local Dispecerat: Aliniere 1:1 `ЧЕКОВ В РАБОТЕ` ↔ `в работе`, eliminare 100% casieri Syrve POS (`Sherpa Karma`, `Channtel Reema`, `Cosmina`, `GLOVO_DEMAND`) din coloana Curier și traducere completă RU/EN în tabel

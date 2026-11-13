@@ -55,24 +55,43 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
   const meta = rawItems[0]?._order_meta || {}
   const items = rawItems.filter(it => it.product_name || it.name || !it._order_meta)
   const timings = order.timings || meta.timings || {}
-  const extractTimeStr = (s) => (typeof s === 'string' && s.match(/(\d{2}:\d{2}:\d{2})/)) ? s.match(/(\d{2}:\d{2}:\d{2})/)[1] : s
+  const extractTimeStr = (s) => {
+    if (typeof s !== 'string' || !s.trim()) return s
+    const trimmed = s.trim()
+    if (trimmed.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(trimmed)) {
+      const d = new Date(trimmed)
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString('sv-SE', { timeZone: 'Europe/Bucharest', hour12: false })
+      }
+    }
+    return trimmed.match(/(\d{2}:\d{2}:\d{2})/) ? trimmed.match(/(\d{2}:\d{2}:\d{2})/)[1] : s
+  }
   const createdTime = timings.created_time || extractTimeStr(timings.whenCreated || timings.when_created)
   const cookedTime = timings.cooking_completed_time || extractTimeStr(timings.whenCookingCompleted || timings.when_cooking_completed)
   const sendedTime = timings.sended_time || extractTimeStr(timings.whenSended || timings.when_sended)
-  const deliveredTime = timings.delivered_time || extractTimeStr(timings.whenDelivered || timings.when_delivered || timings.whenClosed || timings.when_closed)
+  const arrivedTime = timings.arrived_at_customer_time || extractTimeStr(timings.whenArrivedAtCustomer || timings.when_arrived_at_customer)
+  const deliveredTime = timings.delivered_time || extractTimeStr(timings.realDeliveredAt || timings.real_delivered_at || timings.whenDelivered || timings.when_delivered || timings.whenClosed || timings.when_closed)
+  const hasCourierDelivTime = Boolean(timings.has_courier_delivery_time || timings.real_delivered_at || timings.realDeliveredAt)
   const customerInfo = order.customer || meta.customer || (meta.customerName ? { name: meta.customerName, phone: meta.customerPhone, address: meta.customerAddress } : null)
   const courierInfo = order.courier || meta.courier || (meta.courierName ? { name: meta.courierName, phone: meta.courierPhone } : null)
 
   const lbl = {
-    timelineTitle: language === 'ru' ? 'Хронология времени iiko (Точное время)' : language === 'en' ? 'iiko Order Timeline (Exact Times)' : 'Cronologie Timpi iiko (Ore Exacte)',
+    timelineTitle: hasCourierDelivTime
+      ? (language === 'ru' ? 'Хронология времени (iiko + Таблица курьеров)' : language === 'en' ? 'Order Timeline (iiko + Courier Table)' : 'Cronologie Timpi (iiko + Tabel Curieri)')
+      : (language === 'ru' ? 'Хронология времени iiko (Точное время)' : language === 'en' ? 'iiko Order Timeline (Exact Times)' : 'Cronologie Timpi iiko (Ore Exacte)'),
     stepCreated: language === 'ru' ? 'Поступил' : language === 'en' ? 'Created' : 'Intrată',
     stepCooked: language === 'ru' ? 'Готов на кухне' : language === 'en' ? 'Kitchen Ready' : 'Gata Bucătărie',
     stepSent: language === 'ru' ? 'Передан курьеру' : language === 'en' ? 'Handed to Courier' : 'Predată Curier',
-    stepDelivered: language === 'ru' ? 'Доставлен / Закрыт' : language === 'en' ? 'Delivered / Closed' : 'Livrată / Închisă',
+    stepDelivered: hasCourierDelivTime
+      ? (language === 'ru' ? 'Доставлен курьером' : language === 'en' ? 'Delivered by Courier' : 'Livrat de Curier')
+      : (language === 'ru' ? 'Доставлен / Закрыт' : language === 'en' ? 'Delivered / Closed' : 'Livrată / Închisă'),
+    arrivedAtCustomer: language === 'ru' ? 'У двери клиента:' : language === 'en' ? 'At customer door:' : 'La ușa clientului:',
+    deliveryFeeLbl: language === 'ru' ? 'Стоимость доставки:' : language === 'en' ? 'Delivery fee:' : 'Taxă livrare:',
+    liveTrackingBtn: language === 'ru' ? 'Трекинг курьера Live ↗' : language === 'en' ? 'Live Courier Tracking ↗' : 'Tracking Live Curier ↗',
     client: language === 'ru' ? 'Клиент' : language === 'en' ? 'Customer' : 'Client',
     courier: language === 'ru' ? 'Курьер / Доставка' : language === 'en' ? 'Courier / Fleet' : 'Curier / Flotă',
     pickupCode: language === 'ru' ? 'Код выдачи:' : language === 'en' ? 'Pickup code:' : 'Cod ridicare:',
-    reviewTitle: language === 'ru' ? '★ Отзыв клиента' : language === 'en' ? '★ Customer Review' : '★ Recenzie Client',
+    reviewTitle: language === 'ru' ? 'Отзыв клиента' : language === 'en' ? 'Customer Review' : 'Recenzie Client',
     clickForDetails: language === 'ru' ? 'Нажмите для просмотра фото, состава и описания' : language === 'en' ? 'Click for photo, description & ingredients' : 'Click pentru poză mare, ingrediente și detalii',
     defaultDesc: language === 'ru'
       ? 'Свежее блюдо, приготовленное по официальной рецептуре из каталога iiko Cloud.'
@@ -159,19 +178,19 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                   <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-emerald-100 dark:border-slate-800">
                     <span className="text-[10px] text-slate-400 block">{lbl.stepCreated}</span>
-                    <strong className="font-mono font-extrabold text-slate-900 dark:text-white">{createdTime || '—'}</strong>
+                    <strong className="tabular-nums font-extrabold text-slate-900 dark:text-white">{createdTime || '—'}</strong>
                   </div>
                   <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-emerald-100 dark:border-slate-800">
                     <span className="text-[10px] text-slate-400 block">{lbl.stepCooked}</span>
-                    <strong className="font-mono font-extrabold text-blue-600 dark:text-blue-400">{cookedTime || '—'}</strong>
+                    <strong className="tabular-nums font-extrabold text-blue-600 dark:text-blue-400">{cookedTime || '—'}</strong>
                   </div>
                   <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-emerald-100 dark:border-slate-800">
                     <span className="text-[10px] text-slate-400 block">{lbl.stepSent}</span>
-                    <strong className="font-mono font-extrabold text-amber-600 dark:text-amber-400">{sendedTime || '—'}</strong>
+                    <strong className="tabular-nums font-extrabold text-amber-600 dark:text-amber-400">{sendedTime || '—'}</strong>
                   </div>
                   <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-emerald-100 dark:border-slate-800">
                     <span className="text-[10px] text-slate-400 block">{lbl.stepDelivered}</span>
-                    <strong className="font-mono font-extrabold text-emerald-600 dark:text-emerald-400">{deliveredTime || '—'}</strong>
+                    <strong className="tabular-nums font-extrabold text-emerald-600 dark:text-emerald-400">{deliveredTime || '—'}</strong>
                   </div>
                 </div>
               </div>
@@ -184,7 +203,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                   <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80">
                     <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">{lbl.client}</span>
                     <div className="font-bold text-slate-900 dark:text-white">{customerInfo.name}</div>
-                    {customerInfo.phone && <div className="font-mono text-[11px] text-slate-500 mt-0.5">{customerInfo.phone}</div>}
+                    {customerInfo.phone && <div className="tabular-nums text-[11px] text-slate-500 mt-0.5">{customerInfo.phone}</div>}
                     {customerInfo.address && (() => {
                       const parsedModalAddr = parseDeliveryAddress(customerInfo.address, language)
                       return (
@@ -200,7 +219,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                                   className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
                                 >
                                   <span className="text-slate-400">{b.label}:</span>
-                                  <b className="font-mono text-slate-900 dark:text-white">{b.value}</b>
+                                  <b className="tabular-nums text-slate-900 dark:text-white">{b.value}</b>
                                 </span>
                               ))}
                             </div>
@@ -221,20 +240,25 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                     <div className="font-bold text-emerald-600 dark:text-emerald-400">
                       {courierInfo.name} {courierInfo.company ? <span className="text-[10px] font-normal text-slate-400">({courierInfo.company})</span> : null}
                     </div>
-                    {courierInfo.phone && <div className="font-mono text-[11px] text-slate-500 mt-0.5">{courierInfo.phone}</div>}
+                    {courierInfo.phone && <div className="tabular-nums text-[11px] text-slate-500 mt-0.5">{courierInfo.phone}</div>}
                     {(courierInfo.awb || courierInfo.orderId) && (
-                      <div className="font-mono text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                      <div className="tabular-nums text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
                         AWB: {courierInfo.awb || courierInfo.orderId}
                       </div>
                     )}
                     {courierInfo.status && (
                       <div className="text-[11px] text-slate-500 mt-0.5">
-                        Status: <strong className="font-mono text-amber-600 dark:text-amber-400">{courierInfo.status}</strong>
+                        Status: <strong className="tabular-nums text-amber-600 dark:text-amber-400">{courierInfo.status}</strong>
+                      </div>
+                    )}
+                    {arrivedTime && (
+                      <div className="text-[11px] text-slate-500 mt-0.5">
+                        {lbl.arrivedAtCustomer} <strong className="tabular-nums text-indigo-600 dark:text-indigo-400">{arrivedTime}</strong>
                       </div>
                     )}
                     {courierInfo.deliveryFee && (
                       <div className="text-[11px] text-slate-500 mt-0.5">
-                        Taxă livrare: <strong>{courierInfo.deliveryFee} RON</strong>
+                        {lbl.deliveryFeeLbl} <strong>{courierInfo.deliveryFee} RON</strong>
                       </div>
                     )}
                     {courierInfo.trackingUrl && (
@@ -244,11 +268,11 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/20 text-[11px] font-bold transition-colors"
                       >
-                        Tracking Live Curier ↗
+                        {lbl.liveTrackingBtn}
                       </a>
                     )}
                     {(meta.pickUpCode || customerInfo?.pickUpCode) && (
-                      <div className="text-[11px] text-slate-500 mt-0.5">{lbl.pickupCode} <strong className="font-mono">{meta.pickUpCode || customerInfo?.pickUpCode}</strong></div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">{lbl.pickupCode} <strong className="tabular-nums">{meta.pickUpCode || customerInfo?.pickUpCode}</strong></div>
                     )}
                   </div>
                 )}
@@ -290,7 +314,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                     <span className={`px-2 py-0.5 rounded-full text-xs font-black ${
                       isNeg ? 'bg-rose-600 text-white' : isPos ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'
                     }`}>
-                      ★ {rev.rating}{rev.max_scale === 10 ? '/10' : '/5'}
+                      {rev.rating}{rev.max_scale === 10 ? '/10' : '/5'}
                     </span>
                   </div>
                   {rev.comment && (
@@ -374,7 +398,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
                             {prefix && (
-                              <span className="px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-700 text-[9px] font-mono font-bold text-slate-600 dark:text-slate-300 shrink-0">
+                              <span className="px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-700 text-[9px] tabular-nums font-bold text-slate-600 dark:text-slate-300 shrink-0">
                                 {prefix}
                               </span>
                             )}

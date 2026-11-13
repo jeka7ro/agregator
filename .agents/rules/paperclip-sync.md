@@ -28,3 +28,12 @@ Adaugă o intrare nouă DEASUPRA celor existente în `.agents/CHANGELOG.md` în 
 2. Dacă verdictul este `🔴 BLOCAT`, este **STRICT INTERZIS** să faci `git commit`, `git push` sau `netlify deploy` până când toate erorile nu sunt remediate.
 3. Chiar și când verdictul este `🟢 VERDE — 100% SIGUR PENTRU PUSH`, **prezintă tabelul de audit utilizatorului și cere permisiunea explicită** înainte de a executa `git push` sau `netlify deploy`. Nu rula niciodată `git push` sau `netlify deploy` fără acceptul explicit al utilizatorului!
 
+## Citirea mesajelor de pe Telegram / de la Igor (OBLIGATORIU — `@antygrtybot`)
+Când utilizatorul scrie chiar și un singur cuvânt precum **`telegram`**, **`telgram`**, **`tg`** (sau spune să verifici mesajele pe Telegram / grup / de la Igor):
+1. **NU** căuta în `.env` (`@GetAppAlertBot`) și **NU** te baza doar pe `getUpdates`.
+2. Rulează **IMEDIAT** comanda:
+   ```bash
+   node scripts/check-antigravity-telegram.cjs
+   ```
+3. Acest script citește direct după `message_id` din chat-ul `Antigravity bot` (`@antygrtybot`, `chat_id: 1641990960`) unde utilizatorul dă forward la mesajele și capturile lui Igor, și salvează eventualele poze în `data/telegram_inbox/msg_<id>.jpg`. Citește pozele nou descărcate cu `read_file` și rezolvă / răspunde direct la ce este în ultimele mesaje!
+
