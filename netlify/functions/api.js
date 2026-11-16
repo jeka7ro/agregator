@@ -19,7 +19,7 @@ try {
   customersService.hydrateFromStatic(customersCacheStatic)
   customersService.ingestReviews(reviewsCacheStatic)
   usersService.hydrateFromStatic(appUsersStatic)
-} catch (_) {}
+} catch (_) { }
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://arzxvzjyiwmkxgoagjcq.supabase.co'
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyenh2emp5aXdta3hnb2FnamNxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzE1NTc2MywiZXhwIjoyMDg4NzMxNzYzfQ.2GHl7vyMLCmmIznKP88GK6Xm54uUoiXLmqOfWPxJuB0'
@@ -293,13 +293,22 @@ function resolveMatchingRestaurant(allRests, rawRest, detectedBrand, canonicalCi
   const brandLower = (detectedBrand || '').toLowerCase()
   const metaSubLoc = `${meta?.city || ''} ${meta?.conception || ''}`.toUpperCase()
   const rawSubLoc = `${metaSubLoc} ${rawRest?.city || ''} ${rawRest?.name || ''}`.toUpperCase()
-  const subTag = metaSubLoc.includes('UNIRII') ? 'UNIRII'
-    : (metaSubLoc.includes('TITAN') || metaSubLoc.includes('1 DECEMBRIE')) ? 'TITAN'
-    : metaSubLoc.includes('CEAIKOVSKI') ? 'CEAIKOVSKI'
-    : rawSubLoc.includes('UNIRII') ? 'UNIRII'
-    : (rawSubLoc.includes('TITAN') || rawSubLoc.includes('1 DECEMBRIE')) ? 'TITAN'
-    : rawSubLoc.includes('CEAIKOVSKI') ? 'CEAIKOVSKI'
-    : null
+  let subTag = null
+  if (canonicalCity === 'BUCURESTI' && !metaSubLoc.includes('MURES') && !metaSubLoc.includes('MUREȘ') && !metaSubLoc.includes('BAIA MARE')) {
+    subTag = (metaSubLoc.includes('UNIRII') || metaSubLoc.includes('HALELOR') || metaSubLoc.includes('BUCURESTI-02')) ? 'UNIRII'
+      : (metaSubLoc.includes('TITAN') || metaSubLoc.includes('1 DECEMBRIE') || metaSubLoc.includes('BUCURESTI-01')) ? 'TITAN'
+        : (metaSubLoc.includes('CORA') || metaSubLoc.includes('MANIU') || metaSubLoc.includes('MILITARI') || metaSubLoc.includes('BUCURESTI-03')) ? 'CORA'
+          : (metaSubLoc.includes('CEAIKOVSKI') || metaSubLoc.includes('BUCURESTI-04')) ? 'CEAIKOVSKI'
+            : (rawSubLoc.includes('UNIRII') || rawSubLoc.includes('HALELOR')) ? 'UNIRII'
+              : (rawSubLoc.includes('TITAN') || rawSubLoc.includes('1 DECEMBRIE')) ? 'TITAN'
+                : (rawSubLoc.includes('CORA') || rawSubLoc.includes('MANIU') || rawSubLoc.includes('MILITARI')) ? 'CORA'
+                  : rawSubLoc.includes('CEAIKOVSKI') ? 'CEAIKOVSKI'
+                    : null
+  } else if (canonicalCity === 'IASI') {
+    subTag = (rawSubLoc.includes('IASI#2') || rawSubLoc.includes('IASI-02') || rawSubLoc.includes('VLADIMIRESCU') || rawSubLoc.includes('VLADIMERESCU')) ? 'IASI#2'
+      : (rawSubLoc.includes('IASI#1') || rawSubLoc.includes('IASI-01') || rawSubLoc.includes('VOEVOZILOR') || rawSubLoc.includes('VOIEVOZILOR')) ? 'IASI#1'
+        : null
+  }
 
   const matchesBrand = (r) => {
     const bName = (r.brands?.name || '').toLowerCase()
@@ -474,10 +483,14 @@ async function fetchLiveAndWebhookOrdersForDay(dayStr, allRests = []) {
             isManual: Boolean(ord.courierInfo?.isCourierSelectedManually)
           } : null
 
-          const extractedCustomer = (rawCustName || custPhone || custAddress) ? {
+          const custLat = Number(ord.deliveryPoint?.coordinates?.latitude || 0) || null
+          const custLng = Number(ord.deliveryPoint?.coordinates?.longitude || 0) || null
+          const extractedCustomer = (rawCustName || custPhone || custAddress || (custLat && custLng)) ? {
             name: rawCustName || 'Client',
             phone: custPhone,
             address: custAddress,
+            lat: custLat && custLat > 40 ? custLat : null,
+            lng: custLng && custLng > 20 ? custLng : null,
             pickUpCode,
             externalOrderId: extOrderId
           } : null
@@ -576,7 +589,7 @@ async function fetchLiveAndWebhookOrdersForDay(dayStr, allRests = []) {
         2500
       )
       if (!error && Array.isArray(data)) return data
-    } catch (_) {}
+    } catch (_) { }
     return []
   }
 
@@ -777,7 +790,7 @@ export default async (req, context) => {
             return true
           })
         }
-      } catch (_) {}
+      } catch (_) { }
 
       return new Response(JSON.stringify({
         success: true,
@@ -1050,7 +1063,7 @@ export default async (req, context) => {
             globalThis.__CACHED_ALL_RESTS = fetchedRests
             globalThis.__CACHED_ALL_RESTS_TS = Date.now()
           }
-        } catch (_) {}
+        } catch (_) { }
       }
       allRests = allRests || []
 
@@ -1120,7 +1133,7 @@ export default async (req, context) => {
               rawOrders = data
               break
             }
-          } catch (_) {}
+          } catch (_) { }
         }
         rawOrders = [...(tOrders || []), ...(yOrders || []), ...(rawOrders || [])]
 
@@ -1742,6 +1755,8 @@ export default async (req, context) => {
             name: finalCustomer.name,
             phone: finalCustomer.phone,
             address: finalCustomer.address,
+            lat: finalCustomer.lat || meta.customer?.lat || null,
+            lng: finalCustomer.lng || meta.customer?.lng || null,
             pickUpCode: meta.pickUpCode || finalCustomer.pickUpCode || null,
             externalOrderId: meta.externalOrderId || finalCustomer.externalOrderId || null
           },
@@ -1787,7 +1802,7 @@ export default async (req, context) => {
         if (Array.isArray(fetchedStops)) {
           dbStops = fetchedStops
         }
-      } catch (_) {}
+      } catch (_) { }
 
       const stopAuditLog = (dbStops || [])
         .filter(s => {
@@ -1832,6 +1847,120 @@ export default async (req, context) => {
 
       const avg = (arr) => arr.length > 0 ? parseFloat((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) : 0
 
+      // Delivery Zones & Radius Narrowing Analytics per Kitchen/Hub & Platform (straight-line aerial Haversine from real Syrve GPS coordinates)
+      const KITCHEN_HUB_COORDS = {
+        'TIMISOARA': { coords: [45.7366, 21.2415], normalKm: 5.0 },
+        'ORADEA': { coords: [47.0465, 21.9102], normalKm: 5.0 },
+        'BRASOV': { coords: [45.6408, 25.6182], normalKm: 5.0 },
+        'CLUJ-NAPOCA': { coords: [46.7712, 23.5849], normalKm: 5.5 },
+        'CONSTANTA': { coords: [44.1782, 28.6534], normalKm: 5.0 },
+        'IASI': { coords: [47.1628, 27.5585], normalKm: 5.0 },
+        'CRAIOVA': { coords: [44.3188, 23.8165], normalKm: 4.5 },
+        'GALATI': { coords: [45.4353, 28.0315], normalKm: 4.5 },
+        'SIBIU': { coords: [45.7785, 24.1702], normalKm: 4.5 },
+        'PLOIESTI': { coords: [44.9465, 26.0335], normalKm: 4.5 },
+        'PITESTI': { coords: [44.8522, 24.8785], normalKm: 4.5 },
+        'BACAU': { coords: [46.5785, 26.9165], normalKm: 4.5 },
+        'BRAILA': { coords: [45.2695, 27.9635], normalKm: 4.5 },
+        'TULCEA': { coords: [45.1787, 28.8051], normalKm: 4.0 },
+        'SUCEAVA': { coords: [47.6418, 26.2442], normalKm: 4.5 },
+        'BOTOSANI': { coords: [47.7422, 26.6495], normalKm: 4.5 },
+        'PIATRA NEAMT': { coords: [46.9312, 26.3745], normalKm: 4.5 },
+        'BALOTESTI': { coords: [44.6145, 26.0772], normalKm: 5.0 },
+        'BAIA MARE': { coords: [47.6533, 23.5795], normalKm: 4.5 },
+        'ARAD': { coords: [46.1866, 21.3123], normalKm: 4.5 },
+        'TARGU MURES': { coords: [46.5332, 24.5914], normalKm: 4.5 },
+        'BUCURESTI': { coords: [44.4278, 26.1032], normalKm: 5.0 }
+      }
+      const getKitchenZoneKeyAndCoords = (restName, cityCanon, metaConception = '', metaCity = '') => {
+        const combined = `${restName || ''} ${metaConception || ''} ${metaCity || ''}`.toUpperCase()
+        if (combined.includes('MURES') || combined.includes('MUREȘ')) {
+          return { key: 'TARGU MURES', coords: [46.5332, 24.5914], label: 'TARGU MURES', city: 'TARGU MURES', normalKm: 4.5 }
+        }
+        if (combined.includes('BALOTESTI') || combined.includes('BALOTEȘTI')) {
+          return { key: 'BALOTESTI', coords: [44.6145, 26.0772], label: 'BALOTESTI', city: 'BALOTESTI', normalKm: 5.0 }
+        }
+        if (combined.includes('CEAIKOVSKI') || combined.includes('BUCURESTI-04')) {
+          return { key: 'BUC_CEAIKOVSKI', coords: [44.4678, 26.1025], label: 'BUC CEAIKOVSKI', city: 'BUCURESTI', normalKm: 5.0 }
+        }
+        if (combined.includes('CORA') || combined.includes('MANIU') || combined.includes('MILITARI') || combined.includes('BUCURESTI-03')) {
+          return { key: 'BUC_CORA', coords: [44.4335, 26.0352], label: 'BUC CORA', city: 'BUCURESTI', normalKm: 5.0 }
+        }
+        if (combined.includes('UNIRII') || combined.includes('HALELOR') || combined.includes('BUCURESTI-02')) {
+          return { key: 'BUC_UNIRII', coords: [44.4278, 26.1032], label: 'BUC UNIRII', city: 'BUCURESTI', normalKm: 5.0 }
+        }
+        if (combined.includes('TITAN') || combined.includes('BUCURESTI-01') || combined.includes('DECEMBRIE 1918 33')) {
+          return { key: 'BUC_TITAN', coords: [44.4192, 26.1735], label: 'BUC TITAN', city: 'BUCURESTI', normalKm: 5.0 }
+        }
+        if (combined.includes('BERCENI')) {
+          return { key: 'BUC_BERCENI', coords: [44.3845, 26.1315], label: 'BUC BERCENI', city: 'BUCURESTI', normalKm: 5.0 }
+        }
+        if (combined.includes('IASI#2') || combined.includes('IASI-02') || combined.includes('VLADIMIRESCU') || combined.includes('VLADIMERESCU')) {
+          return { key: 'IASI_2', coords: [47.1552, 27.6068], label: 'IASI#2', city: 'IASI', normalKm: 5.0 }
+        }
+        if (combined.includes('IASI#1') || combined.includes('IASI-01') || combined.includes('VOEVOZILOR') || combined.includes('VOIEVOZILOR')) {
+          return { key: 'IASI_1', coords: [47.1628, 27.5585], label: 'IASI#1', city: 'IASI', normalKm: 5.0 }
+        }
+        const cfg = KITCHEN_HUB_COORDS[cityCanon]
+        if (!cfg) return null
+        return { key: cityCanon, coords: cfg.coords, label: cityCanon, city: cityCanon, normalKm: cfg.normalKm }
+      }
+      const calcAerialKm = (lat1, lon1, lat2, lon2) => {
+        const R = 6371
+        const dLat = (lat2 - lat1) * Math.PI / 180
+        const dLon = (lon2 - lon1) * Math.PI / 180
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+      }
+      const deliveryZones = {}
+      for (const eo of enrichedOrders) {
+        const plat = eo.platform
+        if (!['glovo', 'wolt'].includes(plat)) continue
+        const cCanon = getCanonicalCity(eo.restaurant_city || eo.restaurant_name || '')
+        const ordMeta = (eo.items || [])[0]?._order_meta || {}
+        const hubInfo = getKitchenZoneKeyAndCoords(eo.restaurant_name, cCanon, ordMeta.conception, ordMeta.city)
+        if (!hubInfo) continue
+        let dKm = null
+        if (eo.customer?.lat && eo.customer?.lng) {
+          const rawKm = calcAerialKm(hubInfo.coords[0], hubInfo.coords[1], Number(eo.customer.lat), Number(eo.customer.lng))
+          if (rawKm > 0.1 && rawKm <= 10) dKm = Number(rawKm.toFixed(2))
+        }
+        if (dKm !== null) {
+          eo.distance_km = dKm
+          const zKey = `${hubInfo.key}_${plat}`
+          const z = deliveryZones[zKey] || {
+            zone_key: hubInfo.key,
+            hub_label: hubInfo.label,
+            city: hubInfo.city || cCanon,
+            platform: plat,
+            normal_radius_km: hubInfo.normalKm,
+            active_radius_km: 0,
+            avg_distance_km: 0,
+            orders_count: 0,
+            under_2km: 0,
+            between_2_4km: 0,
+            over_4km: 0,
+            _sumKm: 0
+          }
+          z.orders_count++
+          z._sumKm += dKm
+          if (dKm > z.active_radius_km) z.active_radius_km = dKm
+          if (dKm < 2) z.under_2km++
+          else if (dKm < 4) z.between_2_4km++
+          else z.over_4km++
+          deliveryZones[zKey] = z
+        }
+      }
+      for (const zKey of Object.keys(deliveryZones)) {
+        const z = deliveryZones[zKey]
+        z.avg_distance_km = Number((z._sumKm / Math.max(1, z.orders_count)).toFixed(2))
+        z.active_radius_km = Number(z.active_radius_km.toFixed(2))
+        z.normal_radius_km = Number(Math.min(5.5, Math.max(z.normal_radius_km, Math.min(5.5, z.active_radius_km))).toFixed(2))
+        z.is_narrowed = Boolean(z.orders_count >= 5 && z.active_radius_km <= 3.2 && z.active_radius_km < z.normal_radius_km * 0.68)
+        z.narrowed_pct = z.is_narrowed ? Math.round(((z.normal_radius_km - z.active_radius_km) / z.normal_radius_km) * 100) : 0
+        delete z._sumKm
+      }
+
       const responsePayload = {
         success: true,
         kpis: {
@@ -1855,13 +1984,14 @@ export default async (req, context) => {
         },
         orders: enrichedOrders,
         stop_matrix: stopMatrix,
-        stop_audit_log: stopAuditLog
+        stop_audit_log: stopAuditLog,
+        delivery_zones: deliveryZones
       }
 
       // Salvează automat clienții noi / actualizați în baza de date de clienți
       try {
         customersService.ingestOrders(enrichedOrders)
-      } catch (_) {}
+      } catch (_) { }
 
       // Salvează în cache dacă avem date valide
       if (enrichedOrders.length > 0) {
@@ -2076,7 +2206,7 @@ export default async (req, context) => {
               })
             }
           }
-        } catch (_) {}
+        } catch (_) { }
       }
 
       if (sales.length === 0 && !histBucket) {
@@ -2091,7 +2221,7 @@ export default async (req, context) => {
           if (!error && Array.isArray(data) && data.length > 0) {
             sales = data
           }
-        } catch (_) {}
+        } catch (_) { }
       }
 
       const totalOrders = sales.length + (histBucket?.totalOrders || 0)
@@ -2780,9 +2910,9 @@ export default async (req, context) => {
     if (path === '/auth/login' && req.method === 'POST') {
       const body = await req.json().catch(() => ({}))
       try {
-        await usersService.syncFromSupabase().catch(() => {})
+        await usersService.syncFromSupabase().catch(() => { })
         const result = usersService.login(body.email, body.password)
-        await usersService._saveToSupabase(usersService.state).catch(() => {})
+        await usersService._saveToSupabase(usersService.state).catch(() => { })
         return new Response(JSON.stringify({ success: true, ...result }), { status: 200, headers: CORS_HEADERS })
       } catch (err) {
         return new Response(JSON.stringify({ success: false, error: err.message }), { status: 401, headers: CORS_HEADERS })
@@ -2792,9 +2922,9 @@ export default async (req, context) => {
     if (path === '/auth/first-login-password' && req.method === 'POST') {
       const body = await req.json().catch(() => ({}))
       try {
-        await usersService.syncFromSupabase().catch(() => {})
+        await usersService.syncFromSupabase().catch(() => { })
         const user = usersService.completeFirstLogin(body)
-        await usersService._saveToSupabase(usersService.state).catch(() => {})
+        await usersService._saveToSupabase(usersService.state).catch(() => { })
         return new Response(JSON.stringify({ success: true, user }), { status: 200, headers: CORS_HEADERS })
       } catch (err) {
         return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
@@ -2840,9 +2970,9 @@ export default async (req, context) => {
     if (path === '/users/invite' && req.method === 'POST') {
       const body = await req.json().catch(() => ({}))
       try {
-        await usersService.syncFromSupabase().catch(() => {})
+        await usersService.syncFromSupabase().catch(() => { })
         const result = await usersService.inviteUser(body)
-        await usersService._saveToSupabase(usersService.state).catch(() => {})
+        await usersService._saveToSupabase(usersService.state).catch(() => { })
         return new Response(JSON.stringify({ success: true, ...result }), { status: 200, headers: CORS_HEADERS })
       } catch (err) {
         return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
@@ -2874,9 +3004,9 @@ export default async (req, context) => {
       const userId = decodeURIComponent(path.replace('/users/', '').trim())
       const body = await req.json().catch(() => ({}))
       try {
-        await usersService.syncFromSupabase().catch(() => {})
+        await usersService.syncFromSupabase().catch(() => { })
         const user = usersService.updateUser(userId, body)
-        await usersService._saveToSupabase(usersService.state).catch(() => {})
+        await usersService._saveToSupabase(usersService.state).catch(() => { })
         return new Response(JSON.stringify({ success: true, user }), { status: 200, headers: CORS_HEADERS })
       } catch (err) {
         return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
@@ -2886,9 +3016,9 @@ export default async (req, context) => {
     if (path.startsWith('/users/') && req.method === 'DELETE') {
       const userId = decodeURIComponent(path.replace('/users/', '').trim())
       try {
-        await usersService.syncFromSupabase().catch(() => {})
+        await usersService.syncFromSupabase().catch(() => { })
         usersService.deleteUser(userId)
-        await usersService._saveToSupabase(usersService.state).catch(() => {})
+        await usersService._saveToSupabase(usersService.state).catch(() => { })
         return new Response(JSON.stringify({ success: true }), { status: 200, headers: CORS_HEADERS })
       } catch (err) {
         return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
@@ -2928,7 +3058,7 @@ async function getRestaurantsMap() {
       cachedRestaurants = data
       cachedRestaurantsExpiry = now + 30 * 60 * 1000
     }
-  } catch (_) {}
+  } catch (_) { }
   return cachedRestaurants || []
 }
 
@@ -3191,7 +3321,7 @@ async function processIikoOrders(payload) {
             )
           }
         }
-      } catch (_) {}
+      } catch (_) { }
     }
     if (statusUpdatedCount > 0) {
       liveDispatchCache.clear()
@@ -3509,7 +3639,7 @@ async function processIikoOrders(payload) {
       )
       upsertErr = error
       if (error) console.error('[NETLIFY WEBHOOK] Upsert error:', error)
-    } catch (_) {}
+    } catch (_) { }
     liveDispatchCache.clear()
     executiveSummaryCache.clear()
     return { count: uniqueRows.length + statusUpdatedCount, error: upsertErr?.message }

@@ -1,5 +1,38 @@
 # Jurnal de modificări (Antigravity ↔ Paperclip)
 
+### 2026-11-16 17:08 — Calibrare Prag Îngustare Zonă (`active_radius_km <= 3.2 км`, `normal_radius_km <= 5.5 км`) & Eliminare Steluțe (`★`) în `Monitorizare`
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  1. **Calibrare prag alertă îngustare zonă (`<= 3.2 км`) în [`workers/src/api-server.js`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/api-server.js), [`netlify/functions/api.js`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/netlify/functions/api.js) și [`src/pages/Monitoring.jsx`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Monitoring.jsx):**
+     - Plafonat `normal_radius_km` la `5.5 км` și condiționat `is_narrowed` de `active_radius_km <= 3.2` (pe lângă `orders_count >= 5` și `< 68%` din normal), astfel încât bucătăriile cu rază normală (`BUC CEAIKOVSKI` `4.9 км`) să nu mai afișeze alerte roșii false din cauza unei comenzi izolate din ziua precedentă (`7.7 км`).
+  2. **Eliminare completă pill-uri galbene de rating (`★ 9.9`) + reparare parse JSX (`1239–1334`) în [`src/pages/Monitoring.jsx`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Monitoring.jsx):**
+     - Tabelul `Status Locații & Vitrine` afișează strict **1–2 rânduri**: `[ В сети ]` (+ stop-list inline) pe rândul 1 și `[ 📍 Радиус: X км ]` / alertă îngustare (`Glovo`/`Wolt` exclusiv, fără `Bolt`) pe rândul 2.
+- **Fișiere:** `workers/src/api-server.js`, `netlify/functions/api.js`, `src/pages/Monitoring.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (doar local)
+- **Build / Teste:** Verificat live `http://localhost:3002/api/dispatch/live?period=today` & `yesterday` (`BUC_CEAIKOVSKI_glovo` `is_narrowed: false`), `npm run build` și `python3 .agents/skills/audit-gatekeeper/scripts/run_prepush_audit.py` (`🟢 VERDE`).
+
+### 2026-11-16 15:48 — Rază aeriană per bucătărie (`BUC CEAIKOVSKI` / `BUC BERCENI` / `BUC IULIU MANIU`) & Tab Statistică Zone Livrare + Export Excel în `Monitorizare`
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  1. **Separare per bucătărie și calcul aerian Haversine (`1.0x`) în [`workers/src/api-server.js`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/api-server.js) și [`netlify/functions/api.js`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/netlify/functions/api.js):**
+     - Înlocuit punctul unic pe oraș cu `getKitchenZoneKeyAndCoords(restName, cityCanon)` (`BUC_CEAIKOVSKI`, `BUC_BERCENI`, `BUC_MANIU` + coordonatele reale pe fiecare oraș) și distanța aeriană Haversine (`<= 10 km`) eliminând multiplicatorul `1.25x` care umfla artificial valorile (ex. `12.41 km` devine `4.89 km` pe `BUC CEAIKOVSKI`).
+  2. **Tab dedicat `Zonă & Rază Livrare (Statistică)` + Export Excel în [`src/pages/Monitoring.jsx`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Monitoring.jsx):**
+     - Adăugat selectorul superior cu 2 tab-uri (`Status Locații & Vitrine` vs `Zonă & Rază Livrare (Statistică)`), 4 carduri KPI (`Rază medie max Glovo`, `Rază medie max Wolt`, `Comenzi 4+ km`, `Zone îngustate acum`), tabel comparativ per hub × platformă cu `tfoot` și buton de export Excel `.xlsx`.
+- **Fișiere:** `workers/src/api-server.js`, `netlify/functions/api.js`, `src/pages/Monitoring.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (doar local)
+- **Build / Teste:** Verificat live `http://localhost:3002/api/dispatch/live?period=today` (`26` zone `delivery_zones`), `npm run build` și `python3 .agents/skills/audit-gatekeeper/scripts/run_prepush_audit.py` (`🟢 VERDE`).
+
+### 2026-11-16 15:39 — Monitorizare Rază & Îngustare Zonă de Livrare (`delivery_zones` din GPS Syrve)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  1. **Calcul automat al razei de livrare per oraș și platformă în [`workers/src/api-server.js`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/api-server.js) și [`netlify/functions/api.js`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/netlify/functions/api.js):**
+     - Extrage coordonatele GPS reale ale clienților din `deliveryPoint.coordinates` (Syrve), calculează distanța rutieră estimată în km și agregă `delivery_zones` (`active_radius_km`, `normal_radius_km`, `avg_distance_km`, `under_2km`, `between_2_4km`, `over_4km`, `is_narrowed`, `narrowed_pct`).
+  2. **Afișare în [`src/pages/Monitoring.jsx`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Monitoring.jsx):**
+     - Sub fiecare badge de platformă (`Glovo`, `Wolt`, `Bolt`) afișează raza reală activă sau alerta de îngustare (`is_narrowed`), iar în modalul de detalii afișează cardul complet cu defalcarea pe inele de distanță (`<2km`, `2–4km`, `4+km`).
+- **Fișiere:** `workers/src/api-server.js`, `netlify/functions/api.js`, `src/pages/Monitoring.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (doar local)
+- **Build / Teste:** Verificat live pe `http://localhost:3002/api/dispatch/live?period=today` (`24` zone `delivery_zones` calculate) și `http://localhost:5174` (HTTP 200).
+
 ### 2026-11-16 11:45 — Tracking Live Email (Brevo: Trimis / Primit în Inbox / Deschis / Click) & Status Deschidere Cont în `Utilizatori & Roluri`
 - **Autor:** Antigravity
 - **Ce s-a făcut:**

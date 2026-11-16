@@ -51,7 +51,7 @@ function loadSyncReports() {
         if (fs.existsSync(SYNC_REPORTS_FILE)) {
             return JSON.parse(fs.readFileSync(SYNC_REPORTS_FILE, 'utf8'))
         }
-    } catch (_) {}
+    } catch (_) { }
     return []
 }
 
@@ -320,13 +320,22 @@ export function resolveMatchingRestaurant(allRests, rawRest, detectedBrand, cano
     const brandLower = (detectedBrand || '').toLowerCase()
     const metaSubLoc = `${meta?.city || ''} ${meta?.conception || ''}`.toUpperCase()
     const rawSubLoc = `${metaSubLoc} ${rawRest?.city || ''} ${rawRest?.name || ''}`.toUpperCase()
-    const subTag = metaSubLoc.includes('UNIRII') ? 'UNIRII'
-        : (metaSubLoc.includes('TITAN') || metaSubLoc.includes('1 DECEMBRIE')) ? 'TITAN'
-        : metaSubLoc.includes('CEAIKOVSKI') ? 'CEAIKOVSKI'
-        : rawSubLoc.includes('UNIRII') ? 'UNIRII'
-        : (rawSubLoc.includes('TITAN') || rawSubLoc.includes('1 DECEMBRIE')) ? 'TITAN'
-        : rawSubLoc.includes('CEAIKOVSKI') ? 'CEAIKOVSKI'
-        : null
+    let subTag = null
+    if (canonicalCity === 'BUCURESTI' && !metaSubLoc.includes('MURES') && !metaSubLoc.includes('MUREȘ') && !metaSubLoc.includes('BAIA MARE')) {
+        subTag = (metaSubLoc.includes('UNIRII') || metaSubLoc.includes('HALELOR') || metaSubLoc.includes('BUCURESTI-02')) ? 'UNIRII'
+            : (metaSubLoc.includes('TITAN') || metaSubLoc.includes('1 DECEMBRIE') || metaSubLoc.includes('BUCURESTI-01')) ? 'TITAN'
+                : (metaSubLoc.includes('CORA') || metaSubLoc.includes('MANIU') || metaSubLoc.includes('MILITARI') || metaSubLoc.includes('BUCURESTI-03')) ? 'CORA'
+                    : (metaSubLoc.includes('CEAIKOVSKI') || metaSubLoc.includes('BUCURESTI-04')) ? 'CEAIKOVSKI'
+                        : (rawSubLoc.includes('UNIRII') || rawSubLoc.includes('HALELOR')) ? 'UNIRII'
+                            : (rawSubLoc.includes('TITAN') || rawSubLoc.includes('1 DECEMBRIE')) ? 'TITAN'
+                                : (rawSubLoc.includes('CORA') || rawSubLoc.includes('MANIU') || rawSubLoc.includes('MILITARI')) ? 'CORA'
+                                    : rawSubLoc.includes('CEAIKOVSKI') ? 'CEAIKOVSKI'
+                                        : null
+    } else if (canonicalCity === 'IASI') {
+        subTag = (rawSubLoc.includes('IASI#2') || rawSubLoc.includes('IASI-02') || rawSubLoc.includes('VLADIMIRESCU') || rawSubLoc.includes('VLADIMERESCU')) ? 'IASI#2'
+            : (rawSubLoc.includes('IASI#1') || rawSubLoc.includes('IASI-01') || rawSubLoc.includes('VOEVOZILOR') || rawSubLoc.includes('VOIEVOZILOR')) ? 'IASI#1'
+                : null
+    }
 
     const matchesBrand = (r) => {
         const bName = (r.brands?.name || '').toLowerCase()
@@ -395,10 +404,10 @@ app.get('/api/live-checks', async (req, res) => {
             const isFalsePositive404OrAddress =
                 c.final_status !== 'available' &&
                 (bt.includes('something unexpected happened') ||
-                 bt.includes("couldn't find the content") ||
-                 bt.includes('introdu-ți adresa') ||
-                 bt.includes('această pagină nu') ||
-                 !c.ui_error_message)
+                    bt.includes("couldn't find the content") ||
+                    bt.includes('introdu-ți adresa') ||
+                    bt.includes('această pagină nu') ||
+                    !c.ui_error_message)
             if (isFalsePositive404OrAddress) {
                 c.final_status = 'available'
                 c.ui_is_open = true
@@ -863,9 +872,9 @@ app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
                     matchedRest = (restaurants || []).find(r => r.id === targetRestId)
                 }
                 if (!matchedRest && orgId) {
-                    const matchingRests = (restaurants || []).filter(r => 
-                        r.iiko_restaurant_id === orgId || 
-                        r.iiko_config?.organizationId === orgId || 
+                    const matchingRests = (restaurants || []).filter(r =>
+                        r.iiko_restaurant_id === orgId ||
+                        r.iiko_config?.organizationId === orgId ||
                         r.iiko_config?.organization_id === orgId
                     )
                     if (matchingRests.length === 1) {
@@ -1089,17 +1098,17 @@ app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
                 try {
                     if (typeof localLiveDispatchCache !== 'undefined') localLiveDispatchCache.clear()
                     if (global.__EXEC_SUMMARY_CACHE) global.__EXEC_SUMMARY_CACHE.clear()
-                } catch (_) {}
+                } catch (_) { }
             }
         } catch (procErr) {
             console.error('[API SERVER] Failed to process iiko orders:', procErr)
         }
 
-        res.status(200).json({ 
-            success: true, 
-            status: 'ok', 
+        res.status(200).json({
+            success: true,
+            status: 'ok',
             orders_processed: processedCount,
-            received_at: new Date().toISOString() 
+            received_at: new Date().toISOString()
         })
     } catch (err) {
         console.error('[API SERVER] Iiko webhook error:', err)
@@ -1302,11 +1311,11 @@ app.post(['/api/webhooks/kiosk', '/api/webhooks/kitchen', '/api/webhooks/valenti
         const rawBrand = (orderData.brand || '').toLowerCase().replace(/[^a-z0-9]/g, '')
         const locName = (orderData.locationName || '').toLowerCase()
         const locId = (orderData.locationId || '').toLowerCase()
-        const cityKey = locName.includes('cluj') || locId.includes('cluj') ? 'cluj' 
+        const cityKey = locName.includes('cluj') || locId.includes('cluj') ? 'cluj'
             : locName.includes('constanta') || locId.includes('constanta') ? 'constanta'
-            : locName.includes('iasi') || locId.includes('iasi') ? 'iasi'
-            : locName.includes('timisoara') || locId.includes('timisoara') ? 'timisoara'
-            : ''
+                : locName.includes('iasi') || locId.includes('iasi') ? 'iasi'
+                    : locName.includes('timisoara') || locId.includes('timisoara') ? 'timisoara'
+                        : ''
 
         if (rawBrand && cityKey) {
             matchedRest = (restaurants || []).find(r => {
@@ -1314,10 +1323,10 @@ app.post(['/api/webhooks/kiosk', '/api/webhooks/kitchen', '/api/webhooks/valenti
                 const rCity = (r.city || '').toLowerCase()
                 const bName = (r.brands?.name || '').toLowerCase()
                 const brandMatch = (rawBrand.includes('smash') && (rName.includes('smash') || bName.includes('smash'))) ||
-                                   (rawBrand.includes('poki') && (rName.includes('poki') || bName.includes('poki'))) ||
-                                   (rawBrand.includes('love') && (rName.includes('love') || bName.includes('love'))) ||
-                                   (rawBrand.includes('roll') && (rName.includes('roll') || bName.includes('roll'))) ||
-                                   rName.includes(rawBrand) || bName.includes(rawBrand)
+                    (rawBrand.includes('poki') && (rName.includes('poki') || bName.includes('poki'))) ||
+                    (rawBrand.includes('love') && (rName.includes('love') || bName.includes('love'))) ||
+                    (rawBrand.includes('roll') && (rName.includes('roll') || bName.includes('roll'))) ||
+                    rName.includes(rawBrand) || bName.includes(rawBrand)
                 const locMatch = rCity.includes(cityKey) || rName.includes(cityKey)
                 return brandMatch && locMatch
             })
@@ -1327,9 +1336,9 @@ app.post(['/api/webhooks/kiosk', '/api/webhooks/kitchen', '/api/webhooks/valenti
                 const rName = r.name.toLowerCase()
                 const bName = (r.brands?.name || '').toLowerCase()
                 return (rawBrand.includes('smash') && (rName.includes('smash') || bName.includes('smash'))) ||
-                       (rawBrand.includes('poki') && (rName.includes('poki') || bName.includes('poki'))) ||
-                       (rawBrand.includes('love') && (rName.includes('love') || bName.includes('love'))) ||
-                       (rawBrand.includes('roll') && (rName.includes('roll') || bName.includes('roll')))
+                    (rawBrand.includes('poki') && (rName.includes('poki') || bName.includes('poki'))) ||
+                    (rawBrand.includes('love') && (rName.includes('love') || bName.includes('love'))) ||
+                    (rawBrand.includes('roll') && (rName.includes('roll') || bName.includes('roll')))
             })
         }
         if (!matchedRest && locName) {
@@ -1458,9 +1467,9 @@ app.post('/api/kitchen/verify', async (req, res) => {
         res.json({ success: true, forwarded_to: `${kioskApiUrl}/api/webhooks/kitchen/verify`, kiosk_response: data })
     } catch (err) {
         console.error('[API SERVER] Forwarding verification to Kiosk failed:', err.message)
-        res.status(200).json({ 
-            success: false, 
-            error: `Nu s-a putut trimite confirmarea către Kiosk (${err.message}). Asigurați-vă că serverul Kiosk rulează pe portul configurat.` 
+        res.status(200).json({
+            success: false,
+            error: `Nu s-a putut trimite confirmarea către Kiosk (${err.message}). Asigurați-vă că serverul Kiosk rulează pe portul configurat.`
         })
     }
 })
@@ -1504,7 +1513,7 @@ app.get('/api/kitchen-status', async (req, res) => {
 function getPeriodFilter(period = 'this_month') {
     const pad = (n) => String(n).padStart(2, '0')
     const now = new Date()
-    
+
     // Obținem componentele datei locale din România (Europe/Bucharest)
     const roDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' }) // 'YYYY-MM-DD'
     const [yStr, mStr, dStr] = roDateStr.split('-')
@@ -1593,11 +1602,11 @@ async function fetchLiveAndWebhookOrdersForDay(dayStr, allRests = []) {
     ])
 
     const restByOrgId = {}
-    ;(allRests || []).forEach(r => {
-        if (r.iiko_restaurant_id && !restByOrgId[r.iiko_restaurant_id]) {
-            restByOrgId[r.iiko_restaurant_id] = r
-        }
-    })
+        ; (allRests || []).forEach(r => {
+            if (r.iiko_restaurant_id && !restByOrgId[r.iiko_restaurant_id]) {
+                restByOrgId[r.iiko_restaurant_id] = r
+            }
+        })
 
     const fetchSyrve = async () => {
         global.__SYRVE_TOKEN_CACHE = global.__SYRVE_TOKEN_CACHE || new Map()
@@ -1701,10 +1710,14 @@ async function fetchLiveAndWebhookOrdersForDay(dayStr, allRests = []) {
                         isManual: Boolean(ord.courierInfo?.isCourierSelectedManually)
                     } : null
 
-                    const extractedCustomer = (rawCustName || custPhone || custAddress) ? {
+                    const custLat = Number(ord.deliveryPoint?.coordinates?.latitude || 0) || null
+                    const custLng = Number(ord.deliveryPoint?.coordinates?.longitude || 0) || null
+                    const extractedCustomer = (rawCustName || custPhone || custAddress || (custLat && custLng)) ? {
                         name: rawCustName || 'Client',
                         phone: custPhone,
                         address: custAddress,
+                        lat: custLat && custLat > 40 ? custLat : null,
+                        lng: custLng && custLng > 20 ? custLng : null,
                         pickUpCode,
                         externalOrderId: extOrderId
                     } : null
@@ -1802,7 +1815,7 @@ async function fetchLiveAndWebhookOrdersForDay(dayStr, allRests = []) {
                 2500
             )
             if (!error && Array.isArray(data)) return data
-        } catch (_) {}
+        } catch (_) { }
         return []
     }
 
@@ -1853,11 +1866,11 @@ app.get('/api/sales/executive-summary', async (req, res) => {
                     global.__CACHED_ALL_RESTS_TS = Date.now()
                     saveRestaurantsCache(fetchedRests)
                 }
-            } catch (_) {}
+            } catch (_) { }
         }
 
         const restMap = {}
-        ;(rests || []).forEach(r => { restMap[r.id] = r })
+            ; (rests || []).forEach(r => { restMap[r.id] = r })
 
         try {
             const histPath = path.resolve(__dirname, '..', '..', 'data', 'sales-history-cache.json')
@@ -1869,7 +1882,7 @@ app.get('/api/sales/executive-summary', async (req, res) => {
                     global.__EXEC_SUMMARY_CACHE = new Map()
                 }
             }
-        } catch (_) {}
+        } catch (_) { }
         const salesHistoryCache = global.__SALES_HISTORY_CACHE || null
         const histCutoffDay = salesHistoryCache?.cutoff_date || '2026-11-08'
         const histBucket = reqPeriod === 'last_month'
@@ -1978,7 +1991,7 @@ app.get('/api/sales/executive-summary', async (req, res) => {
                         })
                     }
                 }
-            } catch (_) {}
+            } catch (_) { }
         }
 
         const totalOrders = sales.length + (histBucket?.totalOrders || 0)
@@ -2260,7 +2273,7 @@ app.get('/api/webhooks/orders', async (req, res) => {
 
         const { data: rests } = await supabase.from('restaurants').select('id, name, city, brand_id, brands(name, logo_url)')
         const restMap = {}
-        ;(rests || []).forEach(r => restMap[r.id] = r)
+            ; (rests || []).forEach(r => restMap[r.id] = r)
 
         const enriched = (orders || []).map(o => {
             const rawRest = restMap[o.restaurant_id] || (rests || []).find(r => r.id === o.restaurant_id)
@@ -2422,7 +2435,7 @@ app.get('/api/dispatch/live', async (req, res) => {
                     global.__CACHED_ALL_RESTS_TS = Date.now()
                     saveRestaurantsCache(fetchedRests)
                 }
-            } catch (_) {}
+            } catch (_) { }
         }
         allRests = allRests || []
 
@@ -2431,17 +2444,17 @@ app.get('/api/dispatch/live', async (req, res) => {
         const restMap = {}
         const restByOrgId = {}
         const validRestIds = new Set()
-        ;(allRests || []).forEach(r => {
-            restMap[r.id] = r
-            if (r.iiko_restaurant_id && !restByOrgId[r.iiko_restaurant_id]) {
-                restByOrgId[r.iiko_restaurant_id] = r
-            }
-            if (!targetCityCanon || getCanonicalCity(r.city || r.name) === targetCityCanon) {
-                if (!restaurantFilter || restaurantFilter === 'all' || r.id === restaurantFilter) {
-                    validRestIds.add(r.id)
+            ; (allRests || []).forEach(r => {
+                restMap[r.id] = r
+                if (r.iiko_restaurant_id && !restByOrgId[r.iiko_restaurant_id]) {
+                    restByOrgId[r.iiko_restaurant_id] = r
                 }
-            }
-        })
+                if (!targetCityCanon || getCanonicalCity(r.city || r.name) === targetCityCanon) {
+                    if (!restaurantFilter || restaurantFilter === 'all' || r.id === restaurantFilter) {
+                        validRestIds.add(r.id)
+                    }
+                }
+            })
 
         // 2. Fetch orders from Syrve Cloud (direct live) + indexed webhook orders + platform_sales with base period cache
         let rawOrders = []
@@ -2505,7 +2518,7 @@ app.get('/api/dispatch/live', async (req, res) => {
                         rawOrders = data
                         break
                     }
-                } catch (_) {}
+                } catch (_) { }
             }
             rawOrders = [...(tOrders || []), ...(yOrders || []), ...(rawOrders || [])]
             if (rawOrders.length > 0) {
@@ -3119,6 +3132,8 @@ app.get('/api/dispatch/live', async (req, res) => {
                     name: finalCustomer.name,
                     phone: finalCustomer.phone,
                     address: finalCustomer.address,
+                    lat: finalCustomer.lat || meta.customer?.lat || null,
+                    lng: finalCustomer.lng || meta.customer?.lng || null,
                     pickUpCode: meta.pickUpCode || finalCustomer.pickUpCode || null,
                     externalOrderId: meta.externalOrderId || finalCustomer.externalOrderId || null
                 },
@@ -3233,6 +3248,120 @@ app.get('/api/dispatch/live', async (req, res) => {
 
         const avg = (arr) => arr.length > 0 ? parseFloat((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) : 0
 
+        // 6. Delivery Zones & Radius Narrowing Analytics per Kitchen/Hub & Platform (straight-line aerial Haversine from real Syrve GPS coordinates)
+        const KITCHEN_HUB_COORDS = {
+            'TIMISOARA': { coords: [45.7366, 21.2415], normalKm: 5.0 },
+            'ORADEA': { coords: [47.0465, 21.9102], normalKm: 5.0 },
+            'BRASOV': { coords: [45.6408, 25.6182], normalKm: 5.0 },
+            'CLUJ-NAPOCA': { coords: [46.7712, 23.5849], normalKm: 5.5 },
+            'CONSTANTA': { coords: [44.1782, 28.6534], normalKm: 5.0 },
+            'IASI': { coords: [47.1628, 27.5585], normalKm: 5.0 },
+            'CRAIOVA': { coords: [44.3188, 23.8165], normalKm: 4.5 },
+            'GALATI': { coords: [45.4353, 28.0315], normalKm: 4.5 },
+            'SIBIU': { coords: [45.7785, 24.1702], normalKm: 4.5 },
+            'PLOIESTI': { coords: [44.9465, 26.0335], normalKm: 4.5 },
+            'PITESTI': { coords: [44.8522, 24.8785], normalKm: 4.5 },
+            'BACAU': { coords: [46.5785, 26.9165], normalKm: 4.5 },
+            'BRAILA': { coords: [45.2695, 27.9635], normalKm: 4.5 },
+            'TULCEA': { coords: [45.1787, 28.8051], normalKm: 4.0 },
+            'SUCEAVA': { coords: [47.6418, 26.2442], normalKm: 4.5 },
+            'BOTOSANI': { coords: [47.7422, 26.6495], normalKm: 4.5 },
+            'PIATRA NEAMT': { coords: [46.9312, 26.3745], normalKm: 4.5 },
+            'BALOTESTI': { coords: [44.6145, 26.0772], normalKm: 5.0 },
+            'BAIA MARE': { coords: [47.6533, 23.5795], normalKm: 4.5 },
+            'ARAD': { coords: [46.1866, 21.3123], normalKm: 4.5 },
+            'TARGU MURES': { coords: [46.5332, 24.5914], normalKm: 4.5 },
+            'BUCURESTI': { coords: [44.4278, 26.1032], normalKm: 5.0 }
+        }
+        const getKitchenZoneKeyAndCoords = (restName, cityCanon, metaConception = '', metaCity = '') => {
+            const combined = `${restName || ''} ${metaConception || ''} ${metaCity || ''}`.toUpperCase()
+            if (combined.includes('MURES') || combined.includes('MUREȘ')) {
+                return { key: 'TARGU MURES', coords: [46.5332, 24.5914], label: 'TARGU MURES', city: 'TARGU MURES', normalKm: 4.5 }
+            }
+            if (combined.includes('BALOTESTI') || combined.includes('BALOTEȘTI')) {
+                return { key: 'BALOTESTI', coords: [44.6145, 26.0772], label: 'BALOTESTI', city: 'BALOTESTI', normalKm: 5.0 }
+            }
+            if (combined.includes('CEAIKOVSKI') || combined.includes('BUCURESTI-04')) {
+                return { key: 'BUC_CEAIKOVSKI', coords: [44.4678, 26.1025], label: 'BUC CEAIKOVSKI', city: 'BUCURESTI', normalKm: 5.0 }
+            }
+            if (combined.includes('CORA') || combined.includes('MANIU') || combined.includes('MILITARI') || combined.includes('BUCURESTI-03')) {
+                return { key: 'BUC_CORA', coords: [44.4335, 26.0352], label: 'BUC CORA', city: 'BUCURESTI', normalKm: 5.0 }
+            }
+            if (combined.includes('UNIRII') || combined.includes('HALELOR') || combined.includes('BUCURESTI-02')) {
+                return { key: 'BUC_UNIRII', coords: [44.4278, 26.1032], label: 'BUC UNIRII', city: 'BUCURESTI', normalKm: 5.0 }
+            }
+            if (combined.includes('TITAN') || combined.includes('BUCURESTI-01') || combined.includes('DECEMBRIE 1918 33')) {
+                return { key: 'BUC_TITAN', coords: [44.4192, 26.1735], label: 'BUC TITAN', city: 'BUCURESTI', normalKm: 5.0 }
+            }
+            if (combined.includes('BERCENI')) {
+                return { key: 'BUC_BERCENI', coords: [44.3845, 26.1315], label: 'BUC BERCENI', city: 'BUCURESTI', normalKm: 5.0 }
+            }
+            if (combined.includes('IASI#2') || combined.includes('IASI-02') || combined.includes('VLADIMIRESCU') || combined.includes('VLADIMERESCU')) {
+                return { key: 'IASI_2', coords: [47.1552, 27.6068], label: 'IASI#2', city: 'IASI', normalKm: 5.0 }
+            }
+            if (combined.includes('IASI#1') || combined.includes('IASI-01') || combined.includes('VOEVOZILOR') || combined.includes('VOIEVOZILOR')) {
+                return { key: 'IASI_1', coords: [47.1628, 27.5585], label: 'IASI#1', city: 'IASI', normalKm: 5.0 }
+            }
+            const cfg = KITCHEN_HUB_COORDS[cityCanon]
+            if (!cfg) return null
+            return { key: cityCanon, coords: cfg.coords, label: cityCanon, city: cityCanon, normalKm: cfg.normalKm }
+        }
+        const calcAerialKm = (lat1, lon1, lat2, lon2) => {
+            const R = 6371
+            const dLat = (lat2 - lat1) * Math.PI / 180
+            const dLon = (lon2 - lon1) * Math.PI / 180
+            const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        }
+        const deliveryZones = {}
+        for (const eo of enrichedOrders) {
+            const plat = eo.platform
+            if (!['glovo', 'wolt'].includes(plat)) continue
+            const cCanon = getCanonicalCity(eo.restaurant_city || eo.restaurant_name || '')
+            const ordMeta = (eo.items || [])[0]?._order_meta || {}
+            const hubInfo = getKitchenZoneKeyAndCoords(eo.restaurant_name, cCanon, ordMeta.conception, ordMeta.city)
+            if (!hubInfo) continue
+            let dKm = null
+            if (eo.customer?.lat && eo.customer?.lng) {
+                const rawKm = calcAerialKm(hubInfo.coords[0], hubInfo.coords[1], Number(eo.customer.lat), Number(eo.customer.lng))
+                if (rawKm > 0.1 && rawKm <= 10) dKm = Number(rawKm.toFixed(2))
+            }
+            if (dKm !== null) {
+                eo.distance_km = dKm
+                const zKey = `${hubInfo.key}_${plat}`
+                const z = deliveryZones[zKey] || {
+                    zone_key: hubInfo.key,
+                    hub_label: hubInfo.label,
+                    city: hubInfo.city || cCanon,
+                    platform: plat,
+                    normal_radius_km: hubInfo.normalKm,
+                    active_radius_km: 0,
+                    avg_distance_km: 0,
+                    orders_count: 0,
+                    under_2km: 0,
+                    between_2_4km: 0,
+                    over_4km: 0,
+                    _sumKm: 0
+                }
+                z.orders_count++
+                z._sumKm += dKm
+                if (dKm > z.active_radius_km) z.active_radius_km = dKm
+                if (dKm < 2) z.under_2km++
+                else if (dKm < 4) z.between_2_4km++
+                else z.over_4km++
+                deliveryZones[zKey] = z
+            }
+        }
+        for (const zKey of Object.keys(deliveryZones)) {
+            const z = deliveryZones[zKey]
+            z.avg_distance_km = Number((z._sumKm / Math.max(1, z.orders_count)).toFixed(2))
+            z.active_radius_km = Number(z.active_radius_km.toFixed(2))
+            z.normal_radius_km = Number(Math.min(5.5, Math.max(z.normal_radius_km, Math.min(5.5, z.active_radius_km))).toFixed(2))
+            z.is_narrowed = Boolean(z.orders_count >= 5 && z.active_radius_km <= 3.2 && z.active_radius_km < z.normal_radius_km * 0.68)
+            z.narrowed_pct = z.is_narrowed ? Math.round(((z.normal_radius_km - z.active_radius_km) / z.normal_radius_km) * 100) : 0
+            delete z._sumKm
+        }
+
         res.json({
             success: true,
             period: periodInfo.key,
@@ -3259,7 +3388,8 @@ app.get('/api/dispatch/live', async (req, res) => {
             },
             orders: enrichedOrders,
             stop_matrix: stopMatrix,
-            stop_audit_log: stopAuditLog
+            stop_audit_log: stopAuditLog,
+            delivery_zones: deliveryZones
         })
     } catch (err) {
         console.error('[DispatchLive] Error:', err)
@@ -3480,7 +3610,7 @@ app.post('/api/check-restaurant', async (req, res) => {
             try {
                 const result = await checker.check(restaurant)
                 if (result) {
-                    
+
                     results.push(result)
                     console.log(`  ${result.final_status === 'available' ? '[OK]' : '[ERR]'} ${platform}: ${result.final_status}`)
                 } else {
@@ -3517,7 +3647,7 @@ app.post('/api/check-all', async (req, res) => {
         if (error) throw error
 
         console.log(`[API] Found ${restaurants.length} active restaurants`)
-        
+
         if (!global.liveChecks) global.liveChecks = []
 
         // ─── Manual Check Status ───
@@ -3568,7 +3698,7 @@ app.post('/api/check-all', async (req, res) => {
                     const result = await checker.check(restaurant)
                     if (result) {
                         const isAvailable = result.final_status === 'available'
-                        
+
                         // Populate global.liveChecks so UI updates
                         const existingIdx = global.liveChecks.findIndex(c => c.restaurant_id === restaurant.id && c.platform === platform)
                         const newCheck = {
@@ -3581,7 +3711,7 @@ app.post('/api/check-all', async (req, res) => {
                             ui_error_message: result.ui_error_message || result.raw_data?.scheduleInfo || null,
                             final_status: result.final_status
                         }
-                        
+
                         if (existingIdx >= 0) {
                             global.liveChecks[existingIdx] = newCheck
                         } else {
@@ -3595,10 +3725,10 @@ app.post('/api/check-all', async (req, res) => {
                             status: result.final_status,
                             url: platform === 'iiko' ? 'API' : restaurant[`${platform}_url`]
                         }
-                        
+
                         allResults.push(resItem)
                         global.checkAllStatus.results.push(resItem)
-                        
+
                         if (!isAvailable) global.checkAllStatus.offline++
                         checked++
                     }
@@ -3677,7 +3807,7 @@ app.get('/api/iiko-groups/:restaurantId', async (req, res) => {
             isDeleted: g.isDeleted || false,
             productCount: (data.products || []).filter(p => p.parentGroup === g.id && !p.isDeleted).length
         })).filter(g => !g.isDeleted && g.productCount > 0)
-        .sort((a, b) => b.productCount - a.productCount)
+            .sort((a, b) => b.productCount - a.productCount)
 
         res.json({
             restaurant: restaurant.name,
@@ -3698,10 +3828,10 @@ app.post('/api/sync-sales', (req, res) => {
     }
     const daysBack = parseInt(req.body?.days) || 1
     console.log(`[API] Manual sales sync requested for ${daysBack} days`)
-    
+
     // Fire and forget
     salesSync.syncSales(daysBack).catch(e => console.error("Sync background err:", e))
-    
+
     return res.json({ success: true, message: `Sync started for ${daysBack} days in background` })
 })
 
@@ -3750,7 +3880,7 @@ app.post('/api/sync-test-all', async (req, res) => {
     try {
         console.log('[API] Starting Platform Availability Test (Background)...');
         const reportId = `rep_${Date.now()}`;
-        
+
         // Return immediately
         res.json({ success: true, reportId, message: "Test started in background" });
 
@@ -3781,10 +3911,10 @@ app.post('/api/sync-test-all', async (req, res) => {
                                         restaurant: restaurant.name,
                                         platform,
                                         type: 'store_closed',
-                                        message: `Status: ${result.final_status.toUpperCase()} ${result.scheduleInfo ? '('+result.scheduleInfo+')' : ''}`
+                                        message: `Status: ${result.final_status.toUpperCase()} ${result.scheduleInfo ? '(' + result.scheduleInfo + ')' : ''}`
                                     });
                                 }
-                                
+
                                 if (result.stats && result.stats.indisponibilCount > 0) {
                                     discrepancies.push({
                                         restaurant: restaurant.name,
@@ -4153,7 +4283,7 @@ app.post('/api/competitive/scrape-restaurant', async (req, res) => {
         if (!url || !name) return res.status(400).json({ error: 'url and name required' })
         let products = []
         let platform = 'wolt'
-        
+
         if (url.includes('glovo')) {
             platform = 'glovo'
             products = await competitorScraper.scrapeGlovoProducts(url, name)
@@ -4783,10 +4913,10 @@ app.post('/api/delivery-zone/import-restaurants', async (req, res) => {
                     if (rd && rd.address) {
                         let str = rd.address.road || rd.address.pedestrian || ''
                         if (rd.address.house_number) str += ' ' + rd.address.house_number
-                        if (!str && rd.address.suburb) str = rd.address.suburb 
+                        if (!str && rd.address.suburb) str = rd.address.suburb
                         if (str) streetName = `${str} (~${km}km)`
                     }
-                } catch {}
+                } catch { }
                 await new Promise(res => setTimeout(res, 500))
 
                 addresses.push({
@@ -4892,9 +5022,9 @@ app.post('/api/delivery-zone/check', async (req, res) => {
 app.get('/api/pos/products', async (req, res) => {
     try {
         const { city, brand, restaurant_id } = req.query
-        
+
         let query = supabase.from('restaurants').select('id, name, city, brand:brand_id(name), iiko_config').not('iiko_config', 'is', null).eq('is_active', true)
-        
+
         if (restaurant_id) query = query.eq('id', restaurant_id)
         else {
             if (city && city !== 'all') query = query.eq('city', city)
@@ -4903,13 +5033,13 @@ app.get('/api/pos/products', async (req, res) => {
                 if (brandData) query = query.eq('brand_id', brandData.id)
             }
         }
-        
+
         const { data: restaurants, error: dbErr } = await query
         if (dbErr) throw dbErr
         if (!restaurants || restaurants.length === 0) {
             return res.json({ success: true, results: [], message: 'No POS records found for selected filters' })
         }
-        
+
         const results = []
         for (const rest of restaurants) {
             const client = new IikoClient(rest)
@@ -4937,7 +5067,7 @@ app.get('/api/pos/discrepancies', async (req, res) => {
     try {
         console.log('[API] Checking POS discrepancies...')
         const today = new Date().toISOString().split('T')[0]
-        
+
         // 1. Fetch all configurable restaurants
         const { data: restaurants } = await supabase
             .from('restaurants')
@@ -4955,7 +5085,7 @@ app.get('/api/pos/discrepancies', async (req, res) => {
             const stopList = await client.getStopList()
             // Map true POS stopped ids by name loosely
             const posStoppedNames = stopList.map(s => s.name.toLowerCase().trim())
-            
+
             // 2. Fetch today's platform snapshots
             const { data: snaps } = await supabase
                 .from('own_product_snapshots')
@@ -4964,13 +5094,13 @@ app.get('/api/pos/discrepancies', async (req, res) => {
                 .eq('snapshot_date', today)
 
             const discrepancies = []
-            
+
             // Only check discrepancies if we have platform snapshots
             if (snaps && snaps.length > 0) {
                 // If the item is stopped in POS but active on platform
                 posStoppedNames.forEach(posName => {
-                    const activeOnPlatforms = snaps.filter(s => 
-                        s.is_available && 
+                    const activeOnPlatforms = snaps.filter(s =>
+                        s.is_available &&
                         (s.product_name.toLowerCase().includes(posName) || posName.includes(s.product_name.toLowerCase()))
                     )
                     activeOnPlatforms.forEach(found => {
@@ -4989,15 +5119,15 @@ app.get('/api/pos/discrepancies', async (req, res) => {
                     .select('product_name, platform')
                     .eq('restaurant_id', rest.id)
                     .eq('snapshot_date', new Date(Date.now() - 86400000).toISOString().split('T')[0])
-                    
+
                 if (yesterdaySnaps) {
                     const todayKeys = new Set(snaps.map(s => `${s.platform}|${s.product_name}`))
                     const stoppedOnPlatform = yesterdaySnaps.filter(p => !todayKeys.has(`${p.platform}|${p.product_name}`))
-                    
+
                     stoppedOnPlatform.forEach(platStop => {
                         const lcName = platStop.product_name.toLowerCase()
                         const posHasItStopped = posStoppedNames.some(pName => lcName.includes(pName) || pName.includes(lcName))
-                        
+
                         if (!posHasItStopped) {
                             discrepancies.push({
                                 type: 'active_in_pos_but_stopped_on_platform',
@@ -5028,7 +5158,7 @@ app.get('/api/pos/discrepancies', async (req, res) => {
                     // Find restaurant ID by name to keep structure
                     const restObj = restaurants.find(x => x.name === r.restaurant)
                     const rid = restObj?.id || r.restaurant
-                    
+
                     if (!historyResults[rid]) {
                         historyResults[rid] = {
                             name: r.restaurant,
@@ -5078,11 +5208,11 @@ app.post('/api/ai-chat', async (req, res) => {
 
     try {
         if (/invat|inveti|inteligent|idiot|openai|creier|mai destept/i.test(q)) {
-             if (!process.env.OPENAI_API_KEY && !process.env.GEMINI_API_KEY) {
-                 return res.json({ reply: "🤖 Salut! Am înțeles comanda. Ca să pot răspunde inteligent la ORICE întrebare ca o mini-versiune a AI-ului care m-a creat, trebuie să pui o cheie `GEMINI_API_KEY=AIzaSy...` sau `OPENAI_API_KEY=sk-...` în fișierul `workers/.env` și să restartezi serverul de backend.\n\n✅ Până atunci, folosesc logica mea programată pentru a răspunde la comenzi de analiză!" });
-             } else {
-                 return res.json({ reply: "🧠 Sunt online și conectat la creierul meu AI! Acum pot răspunde la orice întrebare!" });
-             }
+            if (!process.env.OPENAI_API_KEY && !process.env.GEMINI_API_KEY) {
+                return res.json({ reply: "🤖 Salut! Am înțeles comanda. Ca să pot răspunde inteligent la ORICE întrebare ca o mini-versiune a AI-ului care m-a creat, trebuie să pui o cheie `GEMINI_API_KEY=AIzaSy...` sau `OPENAI_API_KEY=sk-...` în fișierul `workers/.env` și să restartezi serverul de backend.\n\n✅ Până atunci, folosesc logica mea programată pentru a răspunde la comenzi de analiză!" });
+            } else {
+                return res.json({ reply: "🧠 Sunt online și conectat la creierul meu AI! Acum pot răspunde la orice întrebare!" });
+            }
         }
 
         // ── LLM Real-time Context Fetching ──
@@ -5095,7 +5225,7 @@ app.post('/api/ai-chat', async (req, res) => {
         // ── Concurenți / prețuri ──
         if (/(?:concurent|competitor|ieftin|scump|pre[tț]|price|cheaper|sushi|suhsi|shushi|roll|maki|meniu|menu|burger|pizza|wolt|glovo|bolt)/i.test(q) && q.split(' ').length < 15) {
             let searchedKeys = getSmartSearchWords(q).filter(w => w.length > 2 && !['unde', 'gasesc', 'găsesc', 'gsesc', 'caut', 'vreau', 'ce', 'are', 'au', 'arată', 'arata', 'concurent', 'competitor', 'ieftin', 'scump', 'pret', 'preț', 'price', 'cheaper', 'wolt', 'glovo', 'bolt', 'care', 'este', 'cel', 'mai', 'bun', 'un', 'o', 'niște', 'de', 'la', 'pe', 'din', 'any', 'the', 'is', 'how', 'show', 'me'].includes(w))
-            
+
             // Auto-correct spelling
             if (searchedKeys.includes('suhsi') || searchedKeys.includes('shushi')) searchedKeys.push('sushi')
 
@@ -5104,15 +5234,15 @@ app.post('/api/ai-chat', async (req, res) => {
                 let prodsQuery = supabase.from('competitor_products').select(qryCols).order('price', { ascending: true })
                 // search all words roughly
                 for (let k of searchedKeys) prodsQuery = prodsQuery.ilike('product_name', `%${k}%`)
-                
+
                 const { data: prods } = await prodsQuery.limit(20)
 
                 const cheapest = prods?.[0]
                 const avgPrice = prods?.length ? (prods.reduce((s, p) => s + Number(p.price || 0), 0) / prods.length).toFixed(2) : null
-                
+
                 let ownInfoLine = '';
                 let ownQuery = supabase.from('own_product_snapshots').select('product_name, price, city, brands(name)')
-                
+
                 // pentru o mai buna acoperire la brandul curent (Sushi Master), eliminam cuvantul "sushi" care lipseste din numele produselor proprii
                 const ownSearchKeys = searchedKeys.filter(k => k !== 'sushi' && k !== 'suhsi')
                 if (ownSearchKeys.length > 0) {
@@ -5146,14 +5276,16 @@ app.post('/api/ai-chat', async (req, res) => {
                         }
                     }
                     const pList = pListUnique.join('\n')
-                    return res.json({ reply: ro
-                    ? `🍣 Am găsit ${pListUnique.length} rezultate unice pentru "${searchedKeys.join(' ')}". Cel mai ieftin este **${cheapest.product_name}** la **${cheapest.price} lei** (${cheapest.platform}, în ${cheapest.city}). Preț mediu pe zonă: **${avgPrice} lei**.\n\nIată rezultatele:\n${pList}${ownInfoLine}`
-                    : `🍣 Found ${pListUnique.length} unique results for "${searchedKeys.join(' ')}". Cheapest: **${cheapest.product_name}** at **${cheapest.price} RON** (${cheapest.platform}, in ${cheapest.city}). Avg: **${avgPrice} RON**.\n\nResults:\n${pList}${ownInfoLine}`
+                    return res.json({
+                        reply: ro
+                            ? `🍣 Am găsit ${pListUnique.length} rezultate unice pentru "${searchedKeys.join(' ')}". Cel mai ieftin este **${cheapest.product_name}** la **${cheapest.price} lei** (${cheapest.platform}, în ${cheapest.city}). Preț mediu pe zonă: **${avgPrice} lei**.\n\nIată rezultatele:\n${pList}${ownInfoLine}`
+                            : `🍣 Found ${pListUnique.length} unique results for "${searchedKeys.join(' ')}". Cheapest: **${cheapest.product_name}** at **${cheapest.price} RON** (${cheapest.platform}, in ${cheapest.city}). Avg: **${avgPrice} RON**.\n\nResults:\n${pList}${ownInfoLine}`
                     })
                 } else {
-                    return res.json({ reply: ro
-                        ? `🍣 Din păcate nu scanez în acest moment niciun produs concurent care să conțină exact cuvintele "${searchedKeys.join(' ')}".\n\nÎncearcă alte cuvinte sau asigură-te că am date proaspete de pe piață!`
-                        : `🍣 Unfortunately I couldn't find any competitor products matching "${searchedKeys.join(' ')}".\n\nTry other keywords!`
+                    return res.json({
+                        reply: ro
+                            ? `🍣 Din păcate nu scanez în acest moment niciun produs concurent care să conțină exact cuvintele "${searchedKeys.join(' ')}".\n\nÎncearcă alte cuvinte sau asigură-te că am date proaspete de pe piață!`
+                            : `🍣 Unfortunately I couldn't find any competitor products matching "${searchedKeys.join(' ')}".\n\nTry other keywords!`
                     })
                 }
             } else {
@@ -5164,9 +5296,10 @@ app.post('/api/ai-chat', async (req, res) => {
                 const totalCompetitors = snaps?.reduce((s, sn) => s + (sn.total_results || 0), 0) || 0
                 const platforms = [...new Set(snaps?.map(s => s.platform) || [])].join(', ')
                 const topRest = restsComp?.[0]?.name
-                return res.json({ reply: ro
-                    ? `🍣 Monitorizez **${totalCompetitors} concurenți** pe **${platforms || 'Wolt, Glovo'}**. ${topRest ? `Top restaurant: **${topRest}**.` : ''}`
-                    : `🍣 Tracking **${totalCompetitors} competitors** on **${platforms || 'Wolt, Glovo'}**. ${topRest ? `Top: **${topRest}**.` : ''}`
+                return res.json({
+                    reply: ro
+                        ? `🍣 Monitorizez **${totalCompetitors} concurenți** pe **${platforms || 'Wolt, Glovo'}**. ${topRest ? `Top restaurant: **${topRest}**.` : ''}`
+                        : `🍣 Tracking **${totalCompetitors} competitors** on **${platforms || 'Wolt, Glovo'}**. ${topRest ? `Top: **${topRest}**.` : ''}`
                 })
             }
         }
@@ -5194,10 +5327,10 @@ app.post('/api/ai-chat', async (req, res) => {
         }
 
         // ── LLM (Mini-versiune Antigravity) - Gemini / OpenAI / Free Fallback ──
-        
+
         const systemPrompt = `Ești Smart Assistant, creat pentru aplicația de monitorizare food delivery. 
 Avem: ${activeCount} restaurante, ${stopCount} opriri active, pierderi ${totalLoss} lei.
-Orașele principale: ${[...new Set((rests || []).map(r => r.city))].filter(Boolean).slice(0,5).join(', ')}.
+Orașele principale: ${[...new Set((rests || []).map(r => r.city))].filter(Boolean).slice(0, 5).join(', ')}.
 
 Trebuie să răspunzi inteligent, profesionist dar politicos și direct (cel mai des în română, dar și în engleză dacă ești întrebat) la orice întrebare primești de la utilizator. Ești expert tehnic.
 Dacă utilizatorul întreabă ceva general, tehnologic sau din afara platformei (ex: cum funcționează un anumit lucru, glume, o rețetă, cod), răspunde exact ca un asistent general și foarte inteligent. Nu refuza nicio solicitare rezonabilă.`
@@ -5241,8 +5374,8 @@ Dacă utilizatorul întreabă ceva general, tehnologic sau din afara platformei 
                 ]
             }
             try {
-                const response = await fetch(pollinationsUrl, { 
-                    method: 'POST', 
+                const response = await fetch(pollinationsUrl, {
+                    method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body),
                     signal: AbortSignal.timeout(10000)
@@ -5251,7 +5384,7 @@ Dacă utilizatorul întreabă ceva general, tehnologic sau din afara platformei 
                 const replyText = data?.choices?.[0]?.message?.content || (ro ? "Am un mic delay pe conexiunea gratuită. Încearcă din nou." : "Delay on free AI endpoint. Try again.")
                 return res.json({ reply: replyText })
             } catch (pollErr) {
-                 return res.json({ reply: ro ? "Serverul AI gratuit a picat. E nevoie să pui GEMINI_API_KEY / OPENAI_API_KEY în .env." : "Free AI server down. You need to set GEMINI or OPENAI key." })
+                return res.json({ reply: ro ? "Serverul AI gratuit a picat. E nevoie să pui GEMINI_API_KEY / OPENAI_API_KEY în .env." : "Free AI server down. You need to set GEMINI or OPENAI key." })
             }
         }
 
@@ -5403,31 +5536,31 @@ app.get('/api/own-brands/products', async (req, res) => {
 
         // Group by restaurant
         const grouped = {}
-        ;(data || []).forEach(p => {
-            const rId = p.restaurants?.id || 'unknown'
-            if (!grouped[rId]) {
-                grouped[rId] = {
-                    restaurant_id: rId,
-                    restaurant_name: p.restaurants?.name || '?',
-                    city: p.city,
-                    brand_name: p.restaurants?.brands?.name || '?',
-                    logo_url: p.restaurants?.brands?.logo_url || null,
-                    platform: p.platform,
-                    snapshot_date: p.snapshot_date,
-                    products: []
+            ; (data || []).forEach(p => {
+                const rId = p.restaurants?.id || 'unknown'
+                if (!grouped[rId]) {
+                    grouped[rId] = {
+                        restaurant_id: rId,
+                        restaurant_name: p.restaurants?.name || '?',
+                        city: p.city,
+                        brand_name: p.restaurants?.brands?.name || '?',
+                        logo_url: p.restaurants?.brands?.logo_url || null,
+                        platform: p.platform,
+                        snapshot_date: p.snapshot_date,
+                        products: []
+                    }
                 }
-            }
-            grouped[rId].products.push({
-                id: p.id,
-                name: p.product_name,
-                category: p.category,
-                price: p.price,
-                image_url: p.image_url,
-                description: p.description,
-                is_available: p.is_available,
-                is_promoted: p.is_promoted,
+                grouped[rId].products.push({
+                    id: p.id,
+                    name: p.product_name,
+                    category: p.category,
+                    price: p.price,
+                    image_url: p.image_url,
+                    description: p.description,
+                    is_available: p.is_available,
+                    is_promoted: p.is_promoted,
+                })
             })
-        })
 
         res.json({ success: true, date: today, restaurants: Object.values(grouped) })
     } catch (err) {
