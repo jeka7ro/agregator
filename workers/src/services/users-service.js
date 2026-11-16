@@ -2,6 +2,9 @@ import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 import { fileURLToPath } from 'url'
+import { supabase } from './supabase.js'
+
+const SUPABASE_USERS_ORDER_ID = 'sys_app_users_registry_v1'
 
 const _usersFileDir = (() => {
   try {
@@ -38,10 +41,10 @@ export const ROLE_DEFINITIONS = {
     labelRo: 'Operațional',
     labelRu: 'Операционный отдел',
     labelEn: 'Operations',
-    descriptionRo: 'Control comenzi live, harta curierilor, monitorizare opriri și alerte în timp real',
-    descriptionRu: 'Контроль живых заказов, карта курьеров, мониторинг стопов и алерты',
-    descriptionEn: 'Live orders dispatch, couriers map, stop monitoring, and real-time alerts',
-    defaultPages: ['dashboard', 'dispatch', 'couriers-map', 'monitoring', 'alerts']
+    descriptionRo: 'Control comenzi live, harta curierilor, monitorizare opriri, recenzii, alerte și rapoarte pe orașele alocate',
+    descriptionRu: 'Контроль живых заказов, карта курьеров, мониторинг стопов, отзывы, алерты и отчеты по выделенным городам',
+    descriptionEn: 'Live orders dispatch, couriers map, stop monitoring, reviews, alerts, and reports for assigned cities',
+    defaultPages: ['dashboard', 'dispatch', 'couriers-map', 'monitoring', 'reputation', 'alerts', 'reports']
   },
   marketing: {
     key: 'marketing',
@@ -223,6 +226,67 @@ class UsersService {
     try {
       fs.writeFileSync('/tmp/app-users.json', serialized)
     } catch (_) {}
+    this._saveToSupabase(toWrite).catch(() => {})
+  }
+
+  async _saveToSupabase(toWrite) {
+    if (!supabase) return
+    try {
+      let restId = this._cachedSysRestId
+      if (!restId) {
+        const { data: rData } = await supabase.from('restaurants').select('id').limit(1)
+        restId = rData?.[0]?.id || null
+        if (restId) this._cachedSysRestId = restId
+      }
+      if (!restId) return
+      await supabase.from('platform_sales').upsert([{
+        restaurant_id: restId,
+        order_id: SUPABASE_USERS_ORDER_ID,
+        platform: 'system_config',
+        total_amount: 0,
+        placed_at: '2020-01-01T00:00:00.000Z',
+        items: [{ _users_state: toWrite, updated_at: new Date().toISOString() }]
+      }], { onConflict: 'order_id' })
+    } catch (_) {}
+  }
+
+  async syncFromSupabase() {
+    if (!supabase) return
+    const now = Date.now()
+    if (this._lastSupabaseSyncTs && (now - this._lastSupabaseSyncTs < 5000)) return
+    this._lastSupabaseSyncTs = now
+    try {
+      const { data } = await supabase
+        .from('platform_sales')
+        .select('items')
+        .eq('order_id', SUPABASE_USERS_ORDER_ID)
+        .limit(1)
+      const remoteState = data?.[0]?.items?.[0]?._users_state
+      if (remoteState && Array.isArray(remoteState.users) && remoteState.users.length > 0) {
+        const byEmail = new Map()
+        for (const u of (this.state?.users || [])) {
+          byEmail.set(String(u.email || '').trim().toLowerCase(), u)
+        }
+        for (const ru of remoteState.users) {
+          const em = String(ru.email || '').trim().toLowerCase()
+          const localU = byEmail.get(em)
+          if (!localU) {
+            byEmail.set(em, ru)
+          } else {
+            // Keep the version with the latest login or activation
+            const remoteLogin = new Date(ru.last_login_at || 0).getTime()
+            const localLogin = new Date(localU.last_login_at || 0).getTime()
+            if (remoteLogin > localLogin || (!localU.must_change_password && ru.must_change_password === false)) {
+              byEmail.set(em, { ...localU, ...ru })
+            }
+          }
+        }
+        this.state.users = Array.from(byEmail.values())
+      } else {
+        // Seed initial state to Supabase so serverless containers share it
+        await this._saveToSupabase(this.state)
+      }
+    } catch (_) {}
   }
 
   sanitizeUser(u, includeHintForAdmin = false) {
@@ -240,10 +304,26 @@ class UsersService {
   }
 
   getUsersList() {
-    const users = (this.state.users || []).map(u => this.sanitizeUser(u, true))
+    const trackingMap = this._cachedBrevoTrackingMap || new Map()
+    const users = (this.state.users || []).map(u => {
+      const sanitized = this.sanitizeUser(u, true)
+      const cleanEmail = String(u.email || '').trim().toLowerCase()
+      const tracked = trackingMap.get(cleanEmail) || null
+      sanitized.email_tracking = tracked || {
+        stage: u.invite_sent_at ? 'sent' : 'not_sent',
+        sent_at: u.invite_sent_at || u.created_at || null,
+        delivered_at: null,
+        opened_at: null,
+        clicked_at: null,
+        bounced_at: null,
+        open_count: 0,
+        click_count: 0
+      }
+      return sanitized
+    })
     const kpis = {
       total: users.length,
-      active: users.filter(u => u.status === 'active').length,
+      active: users.filter(u => u.status === 'active' && !u.must_change_password).length,
       invited: users.filter(u => u.status === 'invited' || u.must_change_password).length,
       blocked: users.filter(u => u.status === 'blocked').length,
       admins: users.filter(u => u.role === 'admin' || u.role === 'supervisor').length,
@@ -256,6 +336,94 @@ class UsersService {
       roles: ROLE_DEFINITIONS,
       modules: ALL_MODULES,
       brevo: this.getBrevoStatus()
+    }
+  }
+
+  async getUsersListWithTracking() {
+    await Promise.all([
+      this.refreshBrevoTracking().catch(() => {}),
+      this.syncFromSupabase().catch(() => {})
+    ])
+    return this.getUsersList()
+  }
+
+  async refreshBrevoTracking() {
+    const now = Date.now()
+    if (this._cachedBrevoTrackingMap && this._cachedBrevoTrackingTs && (now - this._cachedBrevoTrackingTs < 8000)) {
+      return this._cachedBrevoTrackingMap
+    }
+    const cfg = this.state.brevoConfig || {}
+    const apiKey = cfg.apiKey || DEFAULT_BREVO_API_KEY
+    if (!apiKey) return new Map()
+
+    try {
+      const res = await fetch('https://api.brevo.com/v3/smtp/statistics/events?limit=100&sort=desc', {
+        headers: {
+          'accept': 'application/json',
+          'api-key': apiKey
+        }
+      })
+      if (!res.ok) return this._cachedBrevoTrackingMap || new Map()
+      const data = await res.json().catch(() => ({}))
+      const events = Array.isArray(data?.events) ? data.events : []
+      const map = new Map()
+
+      for (const ev of events) {
+        const email = String(ev.email || '').trim().toLowerCase()
+        if (!email) continue
+        const subj = String(ev.subject || '').toLowerCase()
+        // Only track GetApp.FooD platform invitations & password resets (ignore unrelated invoices)
+        if (subj && !subj.includes('getapp') && !subj.includes('invita') && !subj.includes('приглаш') && !subj.includes('parol')) {
+          continue
+        }
+        const entry = map.get(email) || {
+          stage: 'not_sent',
+          sent_at: null,
+          delivered_at: null,
+          opened_at: null,
+          clicked_at: null,
+          bounced_at: null,
+          bounce_reason: null,
+          open_count: 0,
+          click_count: 0,
+          last_subject: ev.subject || null
+        }
+        const evType = String(ev.event || '').trim()
+        const evDate = ev.date || null
+
+        if (evType === 'requests') {
+          if (!entry.sent_at || new Date(evDate) > new Date(entry.sent_at)) entry.sent_at = evDate
+        } else if (evType === 'delivered') {
+          if (!entry.delivered_at || new Date(evDate) > new Date(entry.delivered_at)) entry.delivered_at = evDate
+        } else if (evType === 'opened' || evType === 'uniqueOpened' || evType === 'loadedByProxy') {
+          entry.open_count++
+          if (!entry.opened_at || new Date(evDate) > new Date(entry.opened_at)) entry.opened_at = evDate
+        } else if (evType === 'clicks') {
+          entry.click_count++
+          if (!entry.clicked_at || new Date(evDate) > new Date(entry.clicked_at)) entry.clicked_at = evDate
+          if (!entry.opened_at || new Date(evDate) > new Date(entry.opened_at)) entry.opened_at = evDate
+        } else if (['hardBounces', 'softBounces', 'blocked', 'invalid', 'error'].includes(evType)) {
+          if (!entry.bounced_at || new Date(evDate) > new Date(entry.bounced_at)) {
+            entry.bounced_at = evDate
+            entry.bounce_reason = ev.reason || evType
+          }
+        }
+        map.set(email, entry)
+      }
+
+      for (const [, entry] of map.entries()) {
+        if (entry.clicked_at) entry.stage = 'clicked'
+        else if (entry.opened_at) entry.stage = 'opened'
+        else if (entry.delivered_at) entry.stage = 'delivered'
+        else if (entry.bounced_at) entry.stage = 'bounced'
+        else if (entry.sent_at) entry.stage = 'sent'
+      }
+
+      this._cachedBrevoTrackingMap = map
+      this._cachedBrevoTrackingTs = now
+      return map
+    } catch (_) {
+      return this._cachedBrevoTrackingMap || new Map()
     }
   }
 
@@ -449,9 +617,13 @@ class UsersService {
       throw new Error('Parola introdusă este incorectă.')
     }
 
-    user.last_login_at = new Date().toISOString()
+    const nowIso = new Date().toISOString()
+    if (!user.first_login_at) user.first_login_at = nowIso
+    user.last_login_at = nowIso
+    user.login_count = (Number(user.login_count) || 0) + 1
     if (!user.must_change_password && user.status === 'invited') {
       user.status = 'active'
+      if (!user.activated_at) user.activated_at = nowIso
     }
     this._save()
 
@@ -472,11 +644,14 @@ class UsersService {
       throw new Error('Noua parolă trebuie să conțină cel puțin 6 caractere.')
     }
 
+    const nowIso = new Date().toISOString()
     user.password_hash = hashPassword(String(newPassword).trim())
     user.temp_password_hint = null
     user.must_change_password = false
     user.status = 'active'
-    user.last_login_at = new Date().toISOString()
+    if (!user.first_login_at) user.first_login_at = nowIso
+    user.activated_at = nowIso
+    user.last_login_at = nowIso
 
     if (typeof firstName === 'string' && firstName.trim()) user.first_name = firstName.trim()
     if (typeof lastName === 'string' && lastName.trim()) user.last_name = lastName.trim()
@@ -649,6 +824,11 @@ class UsersService {
           : 'Invitație de acces în platforma GetApp.FooD',
         htmlContent
       })
+      if (emailStatus.sent) {
+        newUser.invite_sent_at = new Date().toISOString()
+        this._cachedBrevoTrackingTs = 0
+        this._save()
+      }
     }
 
     return {
@@ -710,6 +890,11 @@ class UsersService {
         : 'Invitație de acces în platforma GetApp.FooD',
       htmlContent
     })
+    if (emailStatus.sent) {
+      user.invite_sent_at = new Date().toISOString()
+      this._cachedBrevoTrackingTs = 0
+      this._save()
+    }
 
     return {
       user: this.sanitizeUser(user, true),

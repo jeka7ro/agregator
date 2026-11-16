@@ -689,7 +689,7 @@ export default function UsersManagement() {
                 }`}
               >
                 <span>{tab.label}</span>
-                <span className={`text-[10px] font-mono px-1.5 rounded-full ${
+                <span className={`text-[10px] tabular-nums px-1.5 rounded-full ${
                   active ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                 }`}>
                   {tab.count}
@@ -717,7 +717,7 @@ export default function UsersManagement() {
             }`}
           />
           <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-            <span className="text-[10px] font-mono font-bold text-slate-400">
+            <span className="text-[10px] tabular-nums font-bold text-slate-400">
               {filteredUsers.length}/{users.length}
             </span>
             {searchQuery && (
@@ -803,7 +803,7 @@ export default function UsersManagement() {
                   className="py-2.5 px-2 cursor-pointer hover:text-emerald-500 transition-colors"
                 >
                   <div className="flex items-center gap-1">
-                    <span>{tr('Ultima Logare', 'Last Login', 'Вход')}</span>
+                    <span>{tr('Email & Cont Deschis', 'Email & Account Opened', 'Email и Вход')}</span>
                     <span className="text-[10px]">{sortCol === 'last_login' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
                   </div>
                 </th>
@@ -832,7 +832,7 @@ export default function UsersManagement() {
                     }`}
                   >
                     {/* Col 1: Nr (#) */}
-                    <td className="py-2 px-2 w-8 text-center font-mono text-[11px] text-slate-400">
+                    <td className="py-2 px-2 w-8 text-center tabular-nums text-[11px] text-slate-400">
                       {startIndex + idx + 1}
                     </td>
 
@@ -873,7 +873,7 @@ export default function UsersManagement() {
                         </span>
                       ) : (
                         <div className="truncate font-semibold text-slate-700 dark:text-slate-300 text-[11px]" title={(u.allowed_cities || []).join(', ')}>
-                          <span className="font-mono text-slate-500 font-bold mr-1">
+                          <span className="tabular-nums text-slate-500 font-bold mr-1">
                             {(u.allowed_cities || []).length}:
                           </span>
                           {(u.allowed_cities || []).join(', ')}
@@ -899,7 +899,7 @@ export default function UsersManagement() {
                           ))}
                         </div>
                         {allBrands && (
-                          <span className="text-[10px] font-mono font-bold text-slate-400 ml-1">
+                          <span className="text-[10px] tabular-nums font-bold text-slate-400 ml-1">
                             ({AUTHORITATIVE_BRANDS.length})
                           </span>
                         )}
@@ -908,7 +908,7 @@ export default function UsersManagement() {
 
                     {/* Col 6: Module */}
                     <td className="py-2 px-2 text-center whitespace-nowrap">
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                      <span className="px-2 py-0.5 rounded-full text-[11px] tabular-nums font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                         {modCount}/{ALL_MODULES.length}
                       </span>
                     </td>
@@ -936,16 +936,89 @@ export default function UsersManagement() {
                       )}
                     </td>
 
-                    {/* Col 8: Ultima Logare */}
-                    <td className="py-2 px-2 whitespace-nowrap text-[11px] text-slate-500 dark:text-slate-400">
-                      {u.last_login_at
-                        ? new Date(u.last_login_at).toLocaleString('ro-RO', {
+                    {/* Col 8: Status Email Live (Brevo) & Deschidere Cont */}
+                    <td className="py-2 px-2 whitespace-nowrap text-[11px]">
+                      {(() => {
+                        const et = u.email_tracking || {}
+                        const fmtShort = (iso) => {
+                          if (!iso) return ''
+                          const d = new Date(iso)
+                          if (isNaN(d.getTime())) return ''
+                          return d.toLocaleString('ro-RO', {
                             day: '2-digit',
                             month: '2-digit',
                             hour: '2-digit',
                             minute: '2-digit'
                           })
-                        : '—'}
+                        }
+                        const emailBadge = et.stage === 'clicked' ? (
+                          <span
+                            title={tr(
+                              `A deschis emailul și a apăsat pe link la ${fmtShort(et.clicked_at)} (Trimis: ${fmtShort(et.sent_at)}, Livrat: ${fmtShort(et.delivered_at)})`,
+                              `Opened email and clicked link at ${fmtShort(et.clicked_at)}`,
+                              `Открыл письмо и перешел по ссылке в ${fmtShort(et.clicked_at)}`
+                            )}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800"
+                          >
+                            <CheckCircle2 size={10} />
+                            <span>{tr('Click în Email', 'Email Clicked', 'Перешел из письма')} · {fmtShort(et.clicked_at)}</span>
+                          </span>
+                        ) : et.stage === 'opened' ? (
+                          <span
+                            title={tr(
+                              `Email deschis de destinatar la ${fmtShort(et.opened_at)} (Livrat în inbox: ${fmtShort(et.delivered_at)})`,
+                              `Email opened at ${fmtShort(et.opened_at)}`,
+                              `Письмо открыто в ${fmtShort(et.opened_at)}`
+                            )}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800"
+                          >
+                            <Eye size={10} />
+                            <span>{tr('Email Deschis', 'Email Opened', 'Письмо открыто')} · {fmtShort(et.opened_at)}</span>
+                          </span>
+                        ) : et.stage === 'delivered' ? (
+                          <span
+                            title={tr(
+                              `Email primit în Inbox la ${fmtShort(et.delivered_at)} (Trimis la ${fmtShort(et.sent_at)}). Încă nu a fost deschis.`,
+                              `Email delivered to Inbox at ${fmtShort(et.delivered_at)}. Not opened yet.`,
+                              `Доставлено во Входящие в ${fmtShort(et.delivered_at)}. Пока не открыто.`
+                            )}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800"
+                          >
+                            <Mail size={10} />
+                            <span>{tr('Primit în Inbox', 'Delivered to Inbox', 'Доставлено на почту')} · {fmtShort(et.delivered_at)}</span>
+                          </span>
+                        ) : et.stage === 'bounced' ? (
+                          <span
+                            title={et.bounce_reason || 'Bounce'}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800"
+                          >
+                            <AlertCircle size={10} />
+                            <span>{tr('Email Respins', 'Email Bounced', 'Ошибка почты')}</span>
+                          </span>
+                        ) : et.sent_at ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800">
+                            <Send size={10} />
+                            <span>{tr('Email Trimis', 'Email Sent', 'Отправлено')} · {fmtShort(et.sent_at)}</span>
+                          </span>
+                        ) : null
+
+                        return (
+                          <div className="flex flex-col items-start gap-0.5">
+                            {emailBadge}
+                            {u.last_login_at ? (
+                              <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400">
+                                <CheckCircle2 size={10} />
+                                <span>{tr('Cont deschis:', 'Account opened:', 'Вход в аккаунт:')} {fmtShort(u.last_login_at)}</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400">
+                                <Clock size={10} />
+                                <span>{tr('Nu a deschis încă contul', 'Account not opened yet', 'Еще не входил в аккаунт')}</span>
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })()}
                     </td>
 
                     {/* Col 9: Acțiuni */}
@@ -1020,7 +1093,7 @@ export default function UsersManagement() {
               <tr className={`border-t font-extrabold text-[11px] ${
                 isDark ? 'bg-slate-800/80 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
               }`}>
-                <td className="py-2.5 px-2 text-center font-mono text-emerald-600 dark:text-emerald-400">Σ</td>
+                <td className="py-2.5 px-2 text-center tabular-nums text-emerald-600 dark:text-emerald-400">Σ</td>
                 <td className="py-2.5 px-3" colSpan={2}>
                   <div>
                     {tr('Total Pagină:', 'Page Total:', 'Итого на странице:')}{' '}
@@ -1191,6 +1264,95 @@ export default function UsersManagement() {
             </div>
 
             <form onSubmit={handleSaveUser} className="p-6 space-y-4 max-h-[82vh] overflow-y-auto custom-scrollbar">
+              {/* ─── TRASEU LIVE INVITAȚIE EMAIL & DESCHIDERE CONT (DOAR LA EDITARE / VERIFICARE USER EXISTENT) ─── */}
+              {editingUser && (() => {
+                const et = editingUser.email_tracking || {}
+                const fmtFull = (iso) => {
+                  if (!iso) return null
+                  const d = new Date(iso)
+                  if (isNaN(d.getTime())) return null
+                  return d.toLocaleString('ro-RO', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                  })
+                }
+                const steps = [
+                  {
+                    title: tr('1. Email Trimis', '1. Email Sent', '1. Письмо отправлено'),
+                    done: Boolean(et.sent_at || et.delivered_at),
+                    time: fmtFull(et.sent_at || editingUser.created_at),
+                    waitLabel: tr('Netrimis', 'Not sent', 'Не отправлено')
+                  },
+                  {
+                    title: tr('2. Primit în Inbox', '2. Delivered to Inbox', '2. Доставлено на почту'),
+                    done: Boolean(et.delivered_at || et.opened_at || et.clicked_at),
+                    time: fmtFull(et.delivered_at),
+                    waitLabel: et.stage === 'bounced' ? tr('Respins de server', 'Bounced', 'Ошибка доставки') : tr('În curs de livrare...', 'Delivering...', 'Доставляется...')
+                  },
+                  {
+                    title: tr('3. Email Deschis / Click', '3. Email Opened / Clicked', '3. Письмо открыто / Клик'),
+                    done: Boolean(et.opened_at || et.clicked_at),
+                    time: fmtFull(et.clicked_at || et.opened_at),
+                    waitLabel: tr('Nu a deschis încă emailul', 'Email not opened yet', 'Еще не открыл письмо')
+                  },
+                  {
+                    title: tr('4. Cont Deschis (Logat)', '4. Account Opened (Signed In)', '4. Вход в аккаунт'),
+                    done: Boolean(editingUser.last_login_at),
+                    time: fmtFull(editingUser.last_login_at),
+                    waitLabel: tr('Nu s-a logat încă în cont', 'Has not signed in yet', 'Еще не вошел в аккаунт')
+                  }
+                ]
+                return (
+                  <div className={`p-3.5 rounded-2xl border ${
+                    isDark ? 'bg-slate-800/60 border-slate-700/80' : 'bg-emerald-50/50 border-emerald-200/80'
+                  }`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                        {tr('Status Live Invitație Email & Activare Cont (Brevo)', 'Live Email Invite & Account Activation Status', 'Статус приглашения по Email и входа в аккаунт')}
+                      </span>
+                      {editingUser.temp_password_hint && editingUser.must_change_password && (
+                        <span className="text-[11px] font-bold text-slate-500 dark:text-slate-300">
+                          {tr('Parolă temporară:', 'Temp password:', 'Временный пароль:')}{' '}
+                          <code className="px-1.5 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-extrabold text-emerald-600 dark:text-emerald-400">
+                            {editingUser.temp_password_hint}
+                          </code>
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                      {steps.map((st, sIdx) => (
+                        <div
+                          key={sIdx}
+                          className={`p-2 rounded-xl border ${
+                            st.done
+                              ? isDark ? 'bg-emerald-950/30 border-emerald-800/70' : 'bg-white border-emerald-200'
+                              : isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-white/70 border-slate-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
+                            {st.done ? (
+                              <CheckCircle2 size={11} className="text-emerald-500 shrink-0" />
+                            ) : (
+                              <Clock size={11} className="text-amber-500 shrink-0" />
+                            )}
+                            <span className="truncate">{st.title}</span>
+                          </div>
+                          <div className={`mt-1 text-[11px] font-extrabold tabular-nums ${
+                            st.done ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 font-semibold'
+                          }`}>
+                            {st.done ? st.time : st.waitLabel}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+
               {/* Grid Simetric 2 Coloane (Toate câmpurile h-9 identice) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -1286,7 +1448,7 @@ export default function UsersManagement() {
                       value={formTempPassword}
                       onChange={(e) => setFormTempPassword(e.target.value)}
                       placeholder="Ex: GetApp26!"
-                      className={`h-9 w-full pl-3 pr-24 rounded-xl border font-mono text-xs font-bold outline-none transition-colors ${
+                      className={`h-9 w-full pl-3 pr-24 rounded-xl border tabular-nums text-xs font-bold outline-none transition-colors ${
                         isDark ? 'bg-slate-800 border-slate-700 text-emerald-400 focus:border-emerald-500' : 'bg-slate-50 border-slate-200 text-emerald-700 focus:border-emerald-500 focus:bg-white'
                       }`}
                     />

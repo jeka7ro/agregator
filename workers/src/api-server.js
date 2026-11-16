@@ -5792,9 +5792,9 @@ app.put('/api/auth/profile', (req, res) => {
     }
 })
 
-app.get('/api/users', (req, res) => {
+app.get('/api/users', async (req, res) => {
     try {
-        const data = usersService.getUsersList()
+        const data = await usersService.getUsersListWithTracking()
         res.json({ success: true, ...data })
     } catch (err) {
         res.status(500).json({ success: false, error: err.message })

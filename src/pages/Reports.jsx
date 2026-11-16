@@ -458,7 +458,7 @@ export default function Reports() {
 
   const displaySummary = useMemo(() => {
     const hasStructFilter = Boolean(hasScopeRestrictions || filterCity || filterBrand || filterChannel || filterWorkpoint)
-    if (!hasStructFilter || !filteredWorkpoints.length) {
+    if (!hasStructFilter) {
       return {
         totalRevenue: analyticsData?.totals?.totalRevenue || 0,
         totalOrders: analyticsData?.totals?.totalOrders || 0,

@@ -31,7 +31,7 @@ export const ROLE_META = {
     labelRu: 'Операционный',
     labelEn: 'Operations',
     badgeClass: 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700',
-    defaultPages: ['dashboard', 'dispatch', 'couriers-map', 'monitoring', 'alerts']
+    defaultPages: ['dashboard', 'dispatch', 'couriers-map', 'monitoring', 'reputation', 'alerts', 'reports']
   },
   marketing: {
     key: 'marketing',

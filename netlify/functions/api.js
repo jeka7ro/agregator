@@ -2780,7 +2780,9 @@ export default async (req, context) => {
     if (path === '/auth/login' && req.method === 'POST') {
       const body = await req.json().catch(() => ({}))
       try {
+        await usersService.syncFromSupabase().catch(() => {})
         const result = usersService.login(body.email, body.password)
+        await usersService._saveToSupabase(usersService.state).catch(() => {})
         return new Response(JSON.stringify({ success: true, ...result }), { status: 200, headers: CORS_HEADERS })
       } catch (err) {
         return new Response(JSON.stringify({ success: false, error: err.message }), { status: 401, headers: CORS_HEADERS })
@@ -2790,7 +2792,9 @@ export default async (req, context) => {
     if (path === '/auth/first-login-password' && req.method === 'POST') {
       const body = await req.json().catch(() => ({}))
       try {
+        await usersService.syncFromSupabase().catch(() => {})
         const user = usersService.completeFirstLogin(body)
+        await usersService._saveToSupabase(usersService.state).catch(() => {})
         return new Response(JSON.stringify({ success: true, user }), { status: 200, headers: CORS_HEADERS })
       } catch (err) {
         return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
@@ -2829,14 +2833,16 @@ export default async (req, context) => {
     }
 
     if (path === '/users' && req.method === 'GET') {
-      const data = usersService.getUsersList()
+      const data = await usersService.getUsersListWithTracking()
       return new Response(JSON.stringify({ success: true, ...data }), { status: 200, headers: CORS_HEADERS })
     }
 
     if (path === '/users/invite' && req.method === 'POST') {
       const body = await req.json().catch(() => ({}))
       try {
+        await usersService.syncFromSupabase().catch(() => {})
         const result = await usersService.inviteUser(body)
+        await usersService._saveToSupabase(usersService.state).catch(() => {})
         return new Response(JSON.stringify({ success: true, ...result }), { status: 200, headers: CORS_HEADERS })
       } catch (err) {
         return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
@@ -2868,7 +2874,9 @@ export default async (req, context) => {
       const userId = decodeURIComponent(path.replace('/users/', '').trim())
       const body = await req.json().catch(() => ({}))
       try {
+        await usersService.syncFromSupabase().catch(() => {})
         const user = usersService.updateUser(userId, body)
+        await usersService._saveToSupabase(usersService.state).catch(() => {})
         return new Response(JSON.stringify({ success: true, user }), { status: 200, headers: CORS_HEADERS })
       } catch (err) {
         return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
@@ -2878,7 +2886,9 @@ export default async (req, context) => {
     if (path.startsWith('/users/') && req.method === 'DELETE') {
       const userId = decodeURIComponent(path.replace('/users/', '').trim())
       try {
+        await usersService.syncFromSupabase().catch(() => {})
         usersService.deleteUser(userId)
+        await usersService._saveToSupabase(usersService.state).catch(() => {})
         return new Response(JSON.stringify({ success: true }), { status: 200, headers: CORS_HEADERS })
       } catch (err) {
         return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })

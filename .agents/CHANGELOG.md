@@ -1,5 +1,20 @@
 # Jurnal de modificări (Antigravity ↔ Paperclip)
 
+### 2026-11-16 11:45 — Tracking Live Email (Brevo: Trimis / Primit în Inbox / Deschis / Click) & Status Deschidere Cont în `Utilizatori & Roluri`
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  1. **Integrare Brevo Events API (`GET /v3/smtp/statistics/events`) în [`workers/src/services/users-service.js`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/services/users-service.js), [`workers/src/api-server.js`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/api-server.js) și [`netlify/functions/api.js`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/netlify/functions/api.js):**
+     - Atașează fiecărui utilizator obiectul `email_tracking` cu stadiul real (`sent`, `delivered`, `opened`, `clicked`, `bounced`) și orele exacte (`sent_at`, `delivered_at`, `opened_at`, `clicked_at`).
+     - Sincronizează automat lista de utilizatori și în Supabase (`sys_app_users_registry_v1`) + [`data/app-users.json`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/data/app-users.json) (inclusiv contul nou creat `Sergiu Solonenco` — `bucuresti@master-roll.ro`), astfel încât logările și conturile noi să nu se piardă la restartarea containerelor serverless.
+  2. **Afișare în tabelul și modalul [`src/pages/UsersManagement.jsx`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/UsersManagement.jsx):**
+     - În coloana `Email & Cont Deschis` din tabel se vede acum în timp real dacă emailul a fost **Trimis**, **Primit în Inbox**, **Deschis** sau **Click în Email**, plus dacă utilizatorul **a deschis sau nu contul** (`Cont deschis: ZZ.LL HH:mm` vs `Nu a deschis încă contul`).
+     - La click pe utilizator (în fereastra de detalii/editare) apare trackerul în 4 pași: `1. Email Trimis` → `2. Primit în Inbox` → `3. Email Deschis / Click` → `4. Cont Deschis (Logat)`.
+  3. **Extindere module pentru rolul `Operațional` (`reputation` & `reports` strict pe orașele alocate):**
+     - Adăugat `reputation` (`Recenzii & Rating`) și `reports` (`Rapoarte`) în `defaultPages` pentru rolul `operational` în [`src/lib/AuthContext.jsx`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/lib/AuthContext.jsx), [`workers/src/services/users-service.js`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/services/users-service.js) și pe contul `Sergiu Solonenco` (`bucuresti@master-roll.ro`, păstrând restricția strictă pe orașul alocat `BUCURESTI`).
+- **Fișiere:** `workers/src/services/users-service.js`, `workers/src/api-server.js`, `netlify/functions/api.js`, `src/pages/UsersManagement.jsx`, `src/lib/AuthContext.jsx`, `src/pages/Reports.jsx`, `data/app-users.json`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (doar local)
+- **Build / Teste:** Verificat live cu Brevo API + `python3 .agents/skills/audit-gatekeeper/scripts/run_prepush_audit.py`.
+
 ### 2026-11-13 16:20 — Prioritizare Timpi Reali din Tabelul de Curieri (`wh_...` / `realDeliveredAt` / `whenSended` / `whenArrivedAtCustomer`) peste Închiderea din Casa iiko (`msg_31` de la Igor)
 - **Autor:** Antigravity
 - **Ce s-a făcut:**

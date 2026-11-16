@@ -8,6 +8,40 @@
   "resetCodes": {},
   "users": [
     {
+      "id": "usr_1794821382981_rs1f",
+      "first_name": "Sergiu",
+      "last_name": "Solonenco",
+      "email": "bucuresti@master-roll.ro",
+      "phone": "",
+      "role": "operational",
+      "avatar_url": "",
+      "password_hash": "10ce04b7f32c9c354556a39ccd3922e1f2fb57c97b20ab7f3f041a8b788b57fc",
+      "temp_password_hint": "XDSpeux6!",
+      "must_change_password": true,
+      "status": "invited",
+      "allowed_pages": [
+        "dashboard",
+        "dispatch",
+        "couriers-map",
+        "monitoring",
+        "reputation",
+        "alerts",
+        "reports"
+      ],
+      "allowed_cities": [
+        "BUCURESTI"
+      ],
+      "allowed_brands": [
+        "all"
+      ],
+      "allowed_restaurants": [
+        "all"
+      ],
+      "invited_by": "Eugeniu Cazmal",
+      "created_at": "2026-11-16T09:29:42.982Z",
+      "last_login_at": null
+    },
+    {
       "id": "usr_1793805295597_1ljx",
       "first_name": "Игорь",
       "last_name": "Сафонов",
@@ -79,7 +113,7 @@
       ],
       "invited_by": "System",
       "created_at": "2026-10-01T09:00:00.000Z",
-      "last_login_at": "2026-11-04T15:10:52.165Z"
+      "last_login_at": "2026-11-16T08:48:46.712Z"
     }
   ]
 }
