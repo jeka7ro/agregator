@@ -2,9 +2,12 @@ import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 import { fileURLToPath } from 'url'
-import { supabase } from './supabase.js'
+import { createClient } from '@supabase/supabase-js'
 
 const SUPABASE_USERS_ORDER_ID = 'sys_app_users_registry_v1'
+const _SB_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://arzxvzjyiwmkxgoagjcq.supabase.co'
+const _SB_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyenh2emp5aXdta3hnb2FnamNxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzE1NTc2MywiZXhwIjoyMDg4NzMxNzYzfQ.2GHl7vyMLCmmIznKP88GK6Xm54uUoiXLmqOfWPxJuB0'
+const supabase = createClient(_SB_URL, _SB_KEY)
 
 const _usersFileDir = (() => {
   try {
@@ -110,6 +113,26 @@ function getDefaultSeedData() {
     resetCodes: {},
     users: [
       {
+        id: 'usr_1794821382981_rs1f',
+        first_name: 'Sergiu',
+        last_name: 'Solonenco',
+        email: 'bucuresti@master-roll.ro',
+        phone: '',
+        role: 'operational',
+        avatar_url: '',
+        password_hash: hashPassword('XDSpeux6!'),
+        temp_password_hint: 'XDSpeux6!',
+        must_change_password: true,
+        status: 'invited',
+        allowed_pages: ['dashboard', 'dispatch', 'couriers-map', 'monitoring', 'reputation', 'alerts', 'reports'],
+        allowed_cities: ['BUCURESTI'],
+        allowed_brands: ['all'],
+        allowed_restaurants: ['all'],
+        invited_by: 'Eugeniu Cazmal',
+        created_at: '2026-11-16T09:29:42.982Z',
+        last_login_at: null
+      },
+      {
         id: 'usr_igor_1',
         first_name: 'Игорь',
         last_name: 'Сафонов',
@@ -182,29 +205,43 @@ class UsersService {
       } catch (_) {}
     }
 
+    // Do NOT write getDefaultSeedData() to /tmp/app-users.json before hydrateFromStatic(appUsersStatic) runs!
     this.state = getDefaultSeedData()
-    this._save()
   }
 
   hydrateFromStatic(raw) {
     try {
-      // Dacă există deja modificări salvate în /tmp pe serverless, le păstrăm prioritare
-      if (fs.existsSync('/tmp/app-users.json')) {
-        const tmpRaw = JSON.parse(fs.readFileSync('/tmp/app-users.json', 'utf8'))
-        if (tmpRaw && Array.isArray(tmpRaw.users) && tmpRaw.users.length > 0) {
-          raw = tmpRaw
+      const byEmail = new Map()
+      const seedUsers = getDefaultSeedData().users || []
+      for (const u of seedUsers) {
+        byEmail.set(String(u.email || '').trim().toLowerCase(), u)
+      }
+      if (raw && Array.isArray(raw.users)) {
+        for (const u of raw.users) {
+          byEmail.set(String(u.email || '').trim().toLowerCase(), u)
         }
       }
-      if (raw && Array.isArray(raw.users) && raw.users.length > 0) {
+      if (fs.existsSync('/tmp/app-users.json')) {
+        const tmpRaw = JSON.parse(fs.readFileSync('/tmp/app-users.json', 'utf8'))
+        if (tmpRaw && Array.isArray(tmpRaw.users)) {
+          for (const u of tmpRaw.users) {
+            const em = String(u.email || '').trim().toLowerCase()
+            const prev = byEmail.get(em)
+            byEmail.set(em, prev ? { ...prev, ...u } : u)
+          }
+        }
+      }
+      const mergedUsers = Array.from(byEmail.values())
+      if (mergedUsers.length > 0) {
         this.state = {
           brevoConfig: {
-            apiKey: raw.brevoConfig?.apiKey || DEFAULT_BREVO_API_KEY,
-            senderEmail: (raw.brevoConfig?.senderEmail && raw.brevoConfig.senderEmail !== 'noreply@smartdevize.ro') ? raw.brevoConfig.senderEmail : DEFAULT_BREVO_SENDER_EMAIL,
-            senderName: (raw.brevoConfig?.senderName && !raw.brevoConfig.senderName.includes('Central Dispatch')) ? raw.brevoConfig.senderName : DEFAULT_BREVO_SENDER_NAME,
-            enabled: raw.brevoConfig?.enabled !== false
+            apiKey: raw?.brevoConfig?.apiKey || DEFAULT_BREVO_API_KEY,
+            senderEmail: (raw?.brevoConfig?.senderEmail && raw.brevoConfig.senderEmail !== 'noreply@smartdevize.ro') ? raw.brevoConfig.senderEmail : DEFAULT_BREVO_SENDER_EMAIL,
+            senderName: (raw?.brevoConfig?.senderName && !raw.brevoConfig.senderName.includes('Central Dispatch')) ? raw.brevoConfig.senderName : DEFAULT_BREVO_SENDER_NAME,
+            enabled: raw?.brevoConfig?.enabled !== false
           },
-          resetCodes: raw.resetCodes || {},
-          users: raw.users
+          resetCodes: raw?.resetCodes || {},
+          users: mergedUsers
         }
       }
     } catch (_) {}
