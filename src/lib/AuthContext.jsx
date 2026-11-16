@@ -134,26 +134,51 @@ export function AuthProvider({ children }) {
     } catch (_) {}
   }, [])
 
-  // Sync active user profile once on mount if logged in
+  const activeUserId = user?.id || null
+  const activeUserEmail = user?.email || null
+  const activeIsImpersonated = Boolean(user?.is_impersonated)
+
+  // Sync active user profile & send live session heartbeat
   useEffect(() => {
-    if (!user?.id) return
+    if (!activeUserId && !activeUserEmail) return
     let cancelled = false
+
+    const sendHeartbeat = () => {
+      if (activeIsImpersonated) return
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+      fetch(getApiUrl('/api/auth/heartbeat'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: activeUserId, email: activeUserEmail })
+      }).catch(() => {})
+    }
+
+    sendHeartbeat()
+    const hbTimer = setInterval(sendHeartbeat, 3 * 60 * 1000)
+
     fetch(getApiUrl('/api/users'))
       .then(r => r.json())
       .then(data => {
         if (cancelled || !data?.success || !Array.isArray(data.users)) return
-        const fresh = data.users.find(u => u.id === user.id || u.email === user.email)
+        const fresh = data.users.find(u => u.id === activeUserId || u.email === activeUserEmail)
         if (fresh) {
           saveSessionUser({
             ...fresh,
+            status: fresh.status === 'blocked' ? 'blocked' : 'active',
+            must_change_password: false,
+            is_impersonated: activeIsImpersonated,
             // Preserve local avatar if user just updated it
-            avatar_url: fresh.avatar_url || user.avatar_url || ''
+            avatar_url: fresh.avatar_url || user?.avatar_url || ''
           })
         }
       })
       .catch(() => {})
-    return () => { cancelled = true }
-  }, [])
+
+    return () => {
+      cancelled = true
+      clearInterval(hbTimer)
+    }
+  }, [activeUserId, activeUserEmail, activeIsImpersonated])
 
   const login = async (email, password) => {
     const res = await fetch(getApiUrl('/api/auth/login'), {
@@ -170,7 +195,7 @@ export function AuthProvider({ children }) {
       return { mustChangePassword: true, user: data.user }
     }
     setPendingFirstLoginUser(null)
-    saveSessionUser(data.user)
+    saveSessionUser({ ...data.user, is_impersonated: false })
     return { mustChangePassword: false, user: data.user }
   }
 
@@ -185,7 +210,7 @@ export function AuthProvider({ children }) {
       throw new Error(data.error || 'Nu s-a putut salva noua parolă.')
     }
     setPendingFirstLoginUser(null)
-    saveSessionUser(data.user)
+    saveSessionUser({ ...data.user, is_impersonated: false })
     return data.user
   }
 
@@ -213,7 +238,7 @@ export function AuthProvider({ children }) {
       throw new Error(data.error || 'Eroare la resetarea parolei.')
     }
     setPendingFirstLoginUser(null)
-    saveSessionUser(data.user)
+    saveSessionUser({ ...data.user, is_impersonated: false })
     return data.user
   }
 
@@ -228,7 +253,7 @@ export function AuthProvider({ children }) {
     if (!res.ok || !data.success) {
       throw new Error(data.error || 'Eroare la actualizarea profilului.')
     }
-    saveSessionUser(data.user)
+    saveSessionUser({ ...data.user, is_impersonated: Boolean(user?.is_impersonated) })
     return data.user
   }
 
@@ -245,7 +270,7 @@ export function AuthProvider({ children }) {
       return
     }
     setPendingFirstLoginUser(null)
-    saveSessionUser(targetUser)
+    saveSessionUser({ ...targetUser, is_impersonated: true })
   }, [saveSessionUser])
 
   const canAccessPage = useCallback((pageKey) => {

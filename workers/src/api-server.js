@@ -3329,12 +3329,14 @@ app.get('/api/dispatch/live', async (req, res) => {
             if (dKm !== null) {
                 eo.distance_km = dKm
                 const zKey = `${hubInfo.key}_${plat}`
+                const cityVal = hubInfo.city || cCanon
+                const defaultNorm = (plat === 'wolt' && cityVal === 'BUCURESTI') ? 3.5 : hubInfo.normalKm
                 const z = deliveryZones[zKey] || {
                     zone_key: hubInfo.key,
                     hub_label: hubInfo.label,
-                    city: hubInfo.city || cCanon,
+                    city: cityVal,
                     platform: plat,
-                    normal_radius_km: hubInfo.normalKm,
+                    normal_radius_km: defaultNorm,
                     active_radius_km: 0,
                     avg_distance_km: 0,
                     orders_count: 0,
@@ -3354,10 +3356,12 @@ app.get('/api/dispatch/live', async (req, res) => {
         }
         for (const zKey of Object.keys(deliveryZones)) {
             const z = deliveryZones[zKey]
+            const maxCap = (z.platform === 'wolt' && z.city === 'BUCURESTI') ? 4.0 : 5.5
+            const minChokeKm = (z.platform === 'wolt' && z.city === 'BUCURESTI') ? 2.38 : 3.2
             z.avg_distance_km = Number((z._sumKm / Math.max(1, z.orders_count)).toFixed(2))
             z.active_radius_km = Number(z.active_radius_km.toFixed(2))
-            z.normal_radius_km = Number(Math.min(5.5, Math.max(z.normal_radius_km, Math.min(5.5, z.active_radius_km))).toFixed(2))
-            z.is_narrowed = Boolean(z.orders_count >= 5 && z.active_radius_km <= 3.2 && z.active_radius_km < z.normal_radius_km * 0.68)
+            z.normal_radius_km = Number(Math.min(maxCap, Math.max(z.normal_radius_km, Math.min(maxCap, z.active_radius_km))).toFixed(2))
+            z.is_narrowed = Boolean(z.orders_count >= 5 && z.active_radius_km <= minChokeKm && z.active_radius_km < z.normal_radius_km * 0.68)
             z.narrowed_pct = z.is_narrowed ? Math.round(((z.normal_radius_km - z.active_radius_km) / z.normal_radius_km) * 100) : 0
             delete z._sumKm
         }
@@ -5877,19 +5881,34 @@ app.get('/api/settings/status', async (req, res) => {
 })
 
 // ─── AUTHENTICATION, USERS, ROLES & BREVO INVITATIONS ENDPOINTS ───
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
     try {
+        await usersService.syncFromSupabase().catch(() => {})
         const { email, password } = req.body || {}
         const result = usersService.login(email, password)
+        await usersService._saveToSupabase(usersService.state).catch(() => {})
         res.json({ success: true, ...result })
     } catch (err) {
         res.status(401).json({ success: false, error: err.message })
     }
 })
 
-app.post('/api/auth/first-login-password', (req, res) => {
+app.post('/api/auth/heartbeat', async (req, res) => {
     try {
+        await usersService.syncFromSupabase().catch(() => {})
+        const user = usersService.recordHeartbeat(req.body || {})
+        await usersService._saveToSupabase(usersService.state).catch(() => {})
+        res.json({ success: Boolean(user), user })
+    } catch (err) {
+        res.status(400).json({ success: false, error: err.message })
+    }
+})
+
+app.post('/api/auth/first-login-password', async (req, res) => {
+    try {
+        await usersService.syncFromSupabase().catch(() => {})
         const user = usersService.completeFirstLogin(req.body || {})
+        await usersService._saveToSupabase(usersService.state).catch(() => {})
         res.json({ success: true, user })
     } catch (err) {
         res.status(400).json({ success: false, error: err.message })

@@ -1005,12 +1005,20 @@ export default function UsersManagement() {
                         return (
                           <div className="flex flex-col items-start gap-0.5">
                             {emailBadge}
-                            {u.last_login_at ? (
-                              <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400">
-                                <CheckCircle2 size={10} />
-                                <span>{tr('Cont deschis:', 'Account opened:', 'Вход в аккаунт:')} {fmtShort(u.last_login_at)}</span>
-                              </span>
-                            ) : (
+                            {u.last_login_at ? (() => {
+                              const isOnlineNow = (Date.now() - new Date(u.last_login_at).getTime()) < 10 * 60 * 1000
+                              return isOnlineNow ? (
+                                <span className="inline-flex items-center gap-1.5 text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400">
+                                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                                  <span>{tr('Activ acum ·', 'Online now ·', 'Онлайн сейчас ·')} {fmtShort(u.last_login_at)}</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400">
+                                  <CheckCircle2 size={10} />
+                                  <span>{tr('Ultimul acces:', 'Last active:', 'Был в сети:')} {fmtShort(u.last_login_at)}</span>
+                                </span>
+                              )
+                            })() : (
                               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400">
                                 <Clock size={10} />
                                 <span>{tr('Nu a deschis încă contul', 'Account not opened yet', 'Еще не входил в аккаунт')}</span>

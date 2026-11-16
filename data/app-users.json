@@ -9,16 +9,15 @@
   "users": [
     {
       "id": "usr_1794821382981_rs1f",
-      "first_name": "Sergiu",
-      "last_name": "Solonenco",
+      "role": "operational",
       "email": "bucuresti@master-roll.ro",
       "phone": "",
-      "role": "operational",
-      "avatar_url": "",
-      "password_hash": "10ce04b7f32c9c354556a39ccd3922e1f2fb57c97b20ab7f3f041a8b788b57fc",
-      "temp_password_hint": "XDSpeux6!",
-      "must_change_password": true,
       "status": "invited",
+      "last_name": "Solonenco",
+      "avatar_url": "",
+      "created_at": "2026-11-16T09:29:42.982Z",
+      "first_name": "Sergiu",
+      "invited_by": "Eugeniu Cazmal",
       "allowed_pages": [
         "dashboard",
         "dispatch",
@@ -28,31 +27,31 @@
         "alerts",
         "reports"
       ],
+      "last_login_at": null,
+      "password_hash": "10ce04b7f32c9c354556a39ccd3922e1f2fb57c97b20ab7f3f041a8b788b57fc",
+      "allowed_brands": [
+        "all"
+      ],
       "allowed_cities": [
         "BUCURESTI"
       ],
-      "allowed_brands": [
-        "all"
-      ],
+      "temp_password_hint": "XDSpeux6!",
       "allowed_restaurants": [
         "all"
       ],
-      "invited_by": "Eugeniu Cazmal",
-      "created_at": "2026-11-16T09:29:42.982Z",
-      "last_login_at": null
+      "must_change_password": true
     },
     {
       "id": "usr_1793805295597_1ljx",
-      "first_name": "Игорь",
-      "last_name": "Сафонов",
+      "role": "admin",
       "email": "safonov.market@yandex.ru",
       "phone": "",
-      "role": "admin",
+      "status": "active",
+      "last_name": "Сафонов",
       "avatar_url": "",
-      "password_hash": "e6e9d0323256c42d7e515a66039ac4ab979942cd53e7298f4bc98e3f31991ab2",
-      "temp_password_hint": "Igor2026!",
-      "must_change_password": true,
-      "status": "invited",
+      "created_at": "2026-11-04T15:14:55.597Z",
+      "first_name": "Игорь",
+      "invited_by": "Eugeniu Cazmal",
       "allowed_pages": [
         "dashboard",
         "dispatch",
@@ -65,31 +64,32 @@
         "users",
         "settings"
       ],
-      "allowed_cities": [
-        "all"
-      ],
+      "last_login_at": "2026-11-04T19:56:00.000+02:00",
+      "password_hash": "e6e9d0323256c42d7e515a66039ac4ab979942cd53e7298f4bc98e3f31991ab2",
       "allowed_brands": [
         "all"
       ],
+      "allowed_cities": [
+        "all"
+      ],
+      "temp_password_hint": "Igor2026!",
       "allowed_restaurants": [
         "all"
       ],
-      "invited_by": "Eugeniu Cazmal",
-      "created_at": "2026-11-04T15:14:55.597Z",
-      "last_login_at": null
+      "must_change_password": false
     },
     {
       "id": "usr_admin_1",
-      "first_name": "Eugeniu",
-      "last_name": "Cazmal",
+      "role": "admin",
       "email": "jeka7ro@gmail.com",
       "phone": "+40750000001",
-      "role": "admin",
-      "avatar_url": "",
-      "password_hash": "670581b0291d8b79bf0e82c581283293cb5fc1800156561016d28c954228080b",
-      "temp_password_hint": "Admin2026!",
-      "must_change_password": false,
       "status": "active",
+      "last_name": "Cazmal",
+      "avatar_url": "",
+      "created_at": "2026-10-01T09:00:00.000Z",
+      "first_name": "Eugeniu",
+      "invited_by": "System",
+      "activated_at": "2026-11-16T15:31:06.424Z",
       "allowed_pages": [
         "dashboard",
         "dispatch",
@@ -102,18 +102,20 @@
         "users",
         "settings"
       ],
-      "allowed_cities": [
-        "all"
-      ],
+      "last_login_at": "2026-11-16T16:40:35.034Z",
+      "password_hash": "670581b0291d8b79bf0e82c581283293cb5fc1800156561016d28c954228080b",
       "allowed_brands": [
         "all"
       ],
+      "allowed_cities": [
+        "all"
+      ],
+      "first_login_at": "2026-11-16T15:31:06.424Z",
+      "temp_password_hint": "Admin2026!",
       "allowed_restaurants": [
         "all"
       ],
-      "invited_by": "System",
-      "created_at": "2026-10-01T09:00:00.000Z",
-      "last_login_at": "2026-11-16T08:48:46.712Z"
+      "must_change_password": false
     }
   ]
 }

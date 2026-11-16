@@ -133,7 +133,7 @@ function getDefaultSeedData() {
         last_login_at: null
       },
       {
-        id: 'usr_igor_1',
+        id: 'usr_1793805295597_1ljx',
         first_name: 'Игорь',
         last_name: 'Сафонов',
         email: 'safonov.market@yandex.ru',
@@ -142,15 +142,15 @@ function getDefaultSeedData() {
         avatar_url: '',
         password_hash: hashPassword('Igor2026!'),
         temp_password_hint: 'Igor2026!',
-        must_change_password: true,
-        status: 'invited',
+        must_change_password: false,
+        status: 'active',
         allowed_pages: ['dashboard', 'dispatch', 'couriers-map', 'customers', 'monitoring', 'reputation', 'alerts', 'reports', 'users', 'settings'],
         allowed_cities: ['all'],
         allowed_brands: ['all'],
         allowed_restaurants: ['all'],
         invited_by: 'Eugeniu Cazmal',
-        created_at: now,
-        last_login_at: null
+        created_at: '2026-11-04T15:14:55.597Z',
+        last_login_at: '2026-11-04T19:56:00.000+02:00'
       },
       {
         id: 'usr_admin_1',
@@ -276,15 +276,22 @@ class UsersService {
         if (restId) this._cachedSysRestId = restId
       }
       if (!restId) return
-      await supabase.from('platform_sales').upsert([{
+      const { error } = await supabase.from('platform_sales').upsert([{
         restaurant_id: restId,
         order_id: SUPABASE_USERS_ORDER_ID,
-        platform: 'system_config',
+        platform: 'delivery',
         total_amount: 0,
         placed_at: '2020-01-01T00:00:00.000Z',
-        items: [{ _users_state: toWrite, updated_at: new Date().toISOString() }]
+        items: [{
+          _order_meta: { isPartnerMetaOnly: true, status: 'Cancelled' },
+          _users_state: toWrite,
+          updated_at: new Date().toISOString()
+        }]
       }], { onConflict: 'order_id' })
-    } catch (_) {}
+      if (error) console.error('[UsersService] Supabase save error:', error.message)
+    } catch (err) {
+      console.error('[UsersService] Supabase save exception:', err?.message || err)
+    }
   }
 
   async syncFromSupabase() {
@@ -310,12 +317,21 @@ class UsersService {
           if (!localU) {
             byEmail.set(em, ru)
           } else {
-            // Keep the version with the latest login or activation
+            // Merge so active status, disabled must_change_password, and newest last_login_at always win
             const remoteLogin = new Date(ru.last_login_at || 0).getTime()
             const localLogin = new Date(localU.last_login_at || 0).getTime()
-            if (remoteLogin > localLogin || (!localU.must_change_password && ru.must_change_password === false)) {
-              byEmail.set(em, { ...localU, ...ru })
-            }
+            const latestLogin = remoteLogin >= localLogin
+              ? (ru.last_login_at || localU.last_login_at)
+              : localU.last_login_at
+            const isAct = ru.status === 'active' || localU.status === 'active'
+            const mustChg = isAct ? false : (ru.must_change_password && localU.must_change_password)
+            const base = remoteLogin > localLogin ? { ...localU, ...ru } : { ...ru, ...localU }
+            byEmail.set(em, {
+              ...base,
+              status: base.status === 'blocked' ? 'blocked' : (isAct ? 'active' : base.status),
+              must_change_password: mustChg,
+              last_login_at: latestLogin
+            })
           }
         }
         this.state.users = Array.from(byEmail.values())
@@ -694,6 +710,25 @@ class UsersService {
     if (typeof lastName === 'string' && lastName.trim()) user.last_name = lastName.trim()
     if (typeof avatarUrl === 'string') user.avatar_url = avatarUrl
 
+    this._save()
+    return this.sanitizeUser(user, false)
+  }
+
+  recordHeartbeat({ userId, email } = {}) {
+    const cleanEmail = String(email || '').trim().toLowerCase()
+    const user = (this.state.users || []).find(u =>
+      (userId && u.id === userId) ||
+      (cleanEmail && String(u.email || '').trim().toLowerCase() === cleanEmail)
+    )
+    if (!user) return null
+    const nowIso = new Date().toISOString()
+    if (!user.first_login_at) user.first_login_at = nowIso
+    user.last_login_at = nowIso
+    if (user.status !== 'blocked') {
+      user.status = 'active'
+      user.must_change_password = false
+      if (!user.activated_at) user.activated_at = nowIso
+    }
     this._save()
     return this.sanitizeUser(user, false)
   }

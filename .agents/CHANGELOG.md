@@ -1,5 +1,39 @@
 # Jurnal de modificări (Antigravity ↔ Paperclip)
 
+### 2026-11-16 18:10 — Redesign Modal Scanare Globală (`createPortal`, Progress Bar Încadrat în Card, `Закрыть`/`X`/`Остановить` Active & Suport Netlify)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  1. **Modal scanare complet încadrat și fără blocaj în [`src/pages/Monitoring.jsx`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Monitoring.jsx):**
+     - Randat modalul prin `createPortal(..., document.body)` (eliminând decalajul `space-y-5`), mutat bara de progres în interiorul corpului `p-6` într-un card rotunjit cu `overflow-hidden` (`0–100%`, fără bucăți verzi ieșite pe margine), adăugat buton `X`, închidere pe backdrop, buton roșu `Остановить` direct în footer și buton `Закрыть` activ tot timpul (cu reluare modal din butonul de header dacă scanarea continuă în fundal).
+  2. **Suport endpoint-uri `/check-all`, `/check-status` și `/check-stop` în [`netlify/functions/api.js`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/netlify/functions/api.js):**
+     - Returnează starea curentă din Supabase (`monitoring_checks` + `restaurants`), prevenind blocarea scanării pe `404` în serverless.
+- **Fișiere:** `src/pages/Monitoring.jsx`, `netlify/functions/api.js`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (doar local, fără push/deploy)
+- **Build / Teste:** Verificat `npm run build`, `npx vite build --mode development`, transformare live `http://localhost:5174/src/pages/Monitoring.jsx` (HTTP 200) și `python3 .agents/skills/audit-gatekeeper/scripts/run_prepush_audit.py` (`🟢 VERDE`).
+
+### 2026-11-16 18:00 — Calibrare Normă Reală Wolt București (`3.5–4.0 км`), Selector `Сегодня / Вчера` & Badge Neutru `<5` Comenzi în `Monitorizare`
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  1. **Normă dedicată pentru Wolt București (`3.5 км`, plafon `4.0 км`, prag îngustare `<= 2.38 км`) în [`workers/src/api-server.js`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/api-server.js), [`netlify/functions/api.js`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/netlify/functions/api.js) și [`src/pages/Monitoring.jsx`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Monitoring.jsx):**
+     - Eliminat alarmele roșii false pe `BUC CEAIKOVSKI · WOLT` (`2.98 км`) și `BUC UNIRII · WOLT` (`2.51 км`), deoarece în București Wolt livrează în mod normal până la `3.3–3.7 км` (nu `5.0 км` ca Glovo).
+  2. **Separare curată `Сегодня / Вчера` și status neutru `< 5` comenzi în tab-ul Statistică Zone ([`src/pages/Monitoring.jsx`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Monitoring.jsx)):**
+     - Adăugat selector `Сегодня` / `Вчера` (`todayZonesMap` vs `yesterdayZonesMap`), fără amestecarea rândurilor de ieri în lista de azi, și înlocuit badge-ul verde înșelător `Норма (100%)` pentru hub-urile cu `1–4` comenzi cu pill-ul neutru gri `Мало данных (N)`.
+- **Fișiere:** `workers/src/api-server.js`, `netlify/functions/api.js`, `src/pages/Monitoring.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (doar local, fără push/deploy)
+- **Build / Teste:** Verificat live `http://localhost:3002/api/dispatch/live?period=today` & `yesterday`, `npm run build` și `python3 .agents/skills/audit-gatekeeper/scripts/run_prepush_audit.py` (`🟢 VERDE`).
+
+### 2026-11-16 17:32 — Persistență Supabase Reală (`sys_app_users_registry_v1`), Heartbeat Live Sesiune (`/api/auth/heartbeat`) & Activare Status Igor
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  1. **Fix constrângere CHECK la salvarea utilizatorilor în Supabase ([`workers/src/services/users-service.js`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/services/users-service.js)):**
+     - Înlocuit `platform: 'system_config'` (care eșua tăcut din cauza `platform_sales_platform_check`) cu `platform: 'delivery'`, `total_amount: 0`, `placed_at: '2020-01-01T00:00:00.000Z'` și `_order_meta: { isPartnerMetaOnly: true, status: 'Cancelled' }`, plus `syncFromSupabase()` inteligent astfel încât `status: 'active'` și cel mai recent `last_login_at` să nu se mai piardă între containerele serverless.
+     - Actualizat contul **Игорь Сафонов** (`safonov.market@yandex.ru`) la `status: 'active'` (`must_change_password: false`, `last_login_at` din `04.11`) în [`data/app-users.json`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/data/app-users.json) și `getDefaultSeedData()`.
+  2. **Endpoint & tracking live pentru sesiunile deja deschise în browser ([`workers/src/api-server.js`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/api-server.js), [`netlify/functions/api.js`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/netlify/functions/api.js), [`src/lib/AuthContext.jsx`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/lib/AuthContext.jsx), [`src/pages/UsersManagement.jsx`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/UsersManagement.jsx)):**
+     - Adăugat `POST /api/auth/heartbeat` + `usersService.recordHeartbeat()` apelat automat la deschiderea aplicației și la fiecare 3 minute de tab activ (`!is_impersonated`, ignorând butonul `Test` al adminului), și afișat **`Activ acum · ...`** (`Онлайн сейчас`) / **`Ultimul acces: ...`** (`Был в сети`) în tabelul de utilizatori.
+- **Fișiere:** `workers/src/services/users-service.js`, `workers/src/api-server.js`, `netlify/functions/api.js`, `src/lib/AuthContext.jsx`, `src/pages/UsersManagement.jsx`, `data/app-users.json`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (doar local)
+- **Build / Teste:** Verificat live `POST /api/auth/heartbeat`, rândul `sys_app_users_registry_v1` în Supabase (`users_count: 3`), izolare completă față de `/api/dispatch/live` și `/api/sales/executive-summary`, `npm run build` și `python3 .agents/skills/audit-gatekeeper/scripts/run_prepush_audit.py` (`🟢 VERDE`).
+
 ### 2026-11-16 17:08 — Calibrare Prag Îngustare Zonă (`active_radius_km <= 3.2 км`, `normal_radius_km <= 5.5 км`) & Eliminare Steluțe (`★`) în `Monitorizare`
 - **Autor:** Antigravity
 - **Ce s-a făcut:**

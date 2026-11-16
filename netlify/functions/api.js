@@ -810,6 +810,63 @@ export default async (req, context) => {
       }), { status: 200, headers: CORS_HEADERS })
     }
 
+    if (path === '/check-all' && req.method === 'POST') {
+      let totalChecks = 0
+      let offline = 0
+      try {
+        const [{ data: rests }, { data: checks }] = await withTimeout(
+          Promise.all([
+            supabase.from('restaurants').select('id, is_active, glovo_url, wolt_url, bolt_url, iiko_restaurant_id').eq('is_active', true),
+            supabase.from('monitoring_checks').select('restaurant_id, platform, final_status, checked_at').order('checked_at', { ascending: false }).limit(600)
+          ]),
+          3500
+        )
+        const latestMap = new Map()
+        for (const c of (checks || [])) {
+          const k = `${c.restaurant_id}_${c.platform}`
+          if (!latestMap.has(k)) latestMap.set(k, c)
+        }
+        for (const r of (rests || [])) {
+          for (const p of ['glovo', 'wolt', 'bolt', 'iiko']) {
+            const hasPlat = (p !== 'iiko' && r[`${p}_url`] && !String(r[`${p}_url`]).includes('/search')) || (p === 'iiko' && r.iiko_restaurant_id)
+            if (!hasPlat) continue
+            totalChecks++
+            const st = String(latestMap.get(`${r.id}_${p}`)?.final_status || '').toLowerCase()
+            if (st && !['available', 'open', 'online'].includes(st)) offline++
+          }
+        }
+      } catch (_) {
+        const staticChecks = Array.isArray(liveChecksCacheStatic)
+          ? liveChecksCacheStatic
+          : (Array.isArray(liveChecksCacheStatic?.checks) ? liveChecksCacheStatic.checks : [])
+        totalChecks = staticChecks.length
+        offline = staticChecks.filter(c => c.final_status && !['available', 'open', 'online'].includes(String(c.final_status).toLowerCase())).length
+      }
+      globalThis.__NETLIFY_CHECK_STATUS = {
+        isRunning: false,
+        totalChecks,
+        current: totalChecks,
+        errors: 0,
+        offline,
+        results: []
+      }
+      return new Response(JSON.stringify({ success: true, status: globalThis.__NETLIFY_CHECK_STATUS }), { status: 200, headers: CORS_HEADERS })
+    }
+
+    if (path === '/check-status' && req.method === 'GET') {
+      return new Response(JSON.stringify({
+        success: true,
+        status: globalThis.__NETLIFY_CHECK_STATUS || { isRunning: false, totalChecks: 0, current: 0, errors: 0, offline: 0, results: [] }
+      }), { status: 200, headers: CORS_HEADERS })
+    }
+
+    if (path === '/check-stop' && req.method === 'POST') {
+      if (globalThis.__NETLIFY_CHECK_STATUS) {
+        globalThis.__NETLIFY_CHECK_STATUS.isRunning = false
+      }
+      return new Response(JSON.stringify({ success: true, message: 'Check stopped' }), { status: 200, headers: CORS_HEADERS })
+    }
+
     // 6. Settings - Restaurants
     if (path === '/settings/restaurants' && req.method === 'GET') {
       const staticRests = Array.isArray(restaurantsCacheStatic)
@@ -1928,12 +1985,14 @@ export default async (req, context) => {
         if (dKm !== null) {
           eo.distance_km = dKm
           const zKey = `${hubInfo.key}_${plat}`
+          const cityVal = hubInfo.city || cCanon
+          const defaultNorm = (plat === 'wolt' && cityVal === 'BUCURESTI') ? 3.5 : hubInfo.normalKm
           const z = deliveryZones[zKey] || {
             zone_key: hubInfo.key,
             hub_label: hubInfo.label,
-            city: hubInfo.city || cCanon,
+            city: cityVal,
             platform: plat,
-            normal_radius_km: hubInfo.normalKm,
+            normal_radius_km: defaultNorm,
             active_radius_km: 0,
             avg_distance_km: 0,
             orders_count: 0,
@@ -1953,10 +2012,12 @@ export default async (req, context) => {
       }
       for (const zKey of Object.keys(deliveryZones)) {
         const z = deliveryZones[zKey]
+        const maxCap = (z.platform === 'wolt' && z.city === 'BUCURESTI') ? 4.0 : 5.5
+        const minChokeKm = (z.platform === 'wolt' && z.city === 'BUCURESTI') ? 2.38 : 3.2
         z.avg_distance_km = Number((z._sumKm / Math.max(1, z.orders_count)).toFixed(2))
         z.active_radius_km = Number(z.active_radius_km.toFixed(2))
-        z.normal_radius_km = Number(Math.min(5.5, Math.max(z.normal_radius_km, Math.min(5.5, z.active_radius_km))).toFixed(2))
-        z.is_narrowed = Boolean(z.orders_count >= 5 && z.active_radius_km <= 3.2 && z.active_radius_km < z.normal_radius_km * 0.68)
+        z.normal_radius_km = Number(Math.min(maxCap, Math.max(z.normal_radius_km, Math.min(maxCap, z.active_radius_km))).toFixed(2))
+        z.is_narrowed = Boolean(z.orders_count >= 5 && z.active_radius_km <= minChokeKm && z.active_radius_km < z.normal_radius_km * 0.68)
         z.narrowed_pct = z.is_narrowed ? Math.round(((z.normal_radius_km - z.active_radius_km) / z.normal_radius_km) * 100) : 0
         delete z._sumKm
       }
@@ -2916,6 +2977,18 @@ export default async (req, context) => {
         return new Response(JSON.stringify({ success: true, ...result }), { status: 200, headers: CORS_HEADERS })
       } catch (err) {
         return new Response(JSON.stringify({ success: false, error: err.message }), { status: 401, headers: CORS_HEADERS })
+      }
+    }
+
+    if (path === '/auth/heartbeat' && req.method === 'POST') {
+      const body = await req.json().catch(() => ({}))
+      try {
+        await usersService.syncFromSupabase().catch(() => { })
+        const user = usersService.recordHeartbeat(body)
+        await usersService._saveToSupabase(usersService.state).catch(() => { })
+        return new Response(JSON.stringify({ success: Boolean(user), user }), { status: 200, headers: CORS_HEADERS })
+      } catch (err) {
+        return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
       }
     }
 

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 import {
@@ -166,9 +167,12 @@ export default function Monitoring() {
 
   // View Mode: 'status' (Status Locații & Ratinguri) | 'zones' (Rază & Zone Livrare)
   const [monitoringTab, setMonitoringTab] = useState('status')
+  const [zonesPeriod, setZonesPeriod] = useState('today')
   const [activeMainView, setActiveMainView] = useState('status')
   const [reviewsData, setReviewsData] = useState({ reviews: [], kpis: null, ratings_by_restaurant: {} })
   const [deliveryZonesMap, setDeliveryZonesMap] = useState({})
+  const [todayZonesMap, setTodayZonesMap] = useState({})
+  const [yesterdayZonesMap, setYesterdayZonesMap] = useState({})
   const [reviewsLoading, setReviewsLoading] = useState(false)
   const [reviewFilter, setReviewFilter] = useState('all') // 'all' | 'negative' | 'positive' | 'with_comment' | 'matched'
   const [reviewPlatformFilter, setReviewPlatformFilter] = useState('all')
@@ -223,25 +227,31 @@ export default function Monitoring() {
       if (cancelled) return
       const yZones = yData?.delivery_zones || {}
       const tZones = tData?.delivery_zones || {}
-      const merged = { ...yZones }
+      const calibratedToday = {}
+      const statusMerged = { ...yZones }
+
       for (const [k, tz] of Object.entries(tZones)) {
         const yz = yZones[k]
-        if (yz && tz.orders_count < 3) {
-          merged[k] = yz
-        } else if (yz) {
-          const normKm = Number(Math.min(5.5, Math.max(tz.normal_radius_km || 4.5, yz.active_radius_km || 0, tz.active_radius_km || 0)).toFixed(2))
-          const narrowed = Boolean(tz.orders_count >= 5 && tz.active_radius_km <= 3.2 && tz.active_radius_km < normKm * 0.68)
-          merged[k] = {
-            ...tz,
-            normal_radius_km: normKm,
-            is_narrowed: narrowed,
-            narrowed_pct: narrowed ? Math.round(((normKm - tz.active_radius_km) / normKm) * 100) : 0
-          }
-        } else {
-          merged[k] = tz
+        const maxCap = (tz.platform === 'wolt' && tz.city === 'BUCURESTI') ? 4.0 : 5.5
+        const minChokeKm = (tz.platform === 'wolt' && tz.city === 'BUCURESTI') ? 2.38 : 3.2
+        const yNorm = yz ? Math.min(maxCap, yz.active_radius_km || 0) : 0
+        const normKm = Number(Math.min(maxCap, Math.max(tz.normal_radius_km || 4.5, yNorm, Math.min(maxCap, tz.active_radius_km || 0))).toFixed(2))
+        const narrowed = Boolean(tz.orders_count >= 5 && tz.active_radius_km <= minChokeKm && tz.active_radius_km < normKm * 0.68)
+        const nextZone = {
+          ...tz,
+          normal_radius_km: normKm,
+          is_narrowed: narrowed,
+          narrowed_pct: narrowed ? Math.round(((normKm - tz.active_radius_km) / normKm) * 100) : 0
+        }
+        calibratedToday[k] = nextZone
+        if (!yz || tz.orders_count >= 2) {
+          statusMerged[k] = nextZone
         }
       }
-      setDeliveryZonesMap(merged)
+
+      setTodayZonesMap(calibratedToday)
+      setYesterdayZonesMap(yZones)
+      setDeliveryZonesMap(statusMerged)
     })
     return () => { cancelled = true }
   }, [])
@@ -518,7 +528,8 @@ export default function Monitoring() {
     : sortedRestaurants.slice(startIndex, startIndex + rowsPerPage);
 
   const zonesList = useMemo(() => {
-    const rawList = Object.values(deliveryZonesMap || {})
+    const activeMap = zonesPeriod === 'today' ? todayZonesMap : yesterdayZonesMap
+    const rawList = Object.values(activeMap || {})
     const q = search.trim().toLowerCase()
     const targetCityCanon = cityFilter && cityFilter !== 'all' ? getCanonicalCity(cityFilter) : null
     return rawList
@@ -536,7 +547,7 @@ export default function Monitoring() {
         if (cityCmp !== 0) return cityCmp
         return String(a.platform || '').localeCompare(String(b.platform || ''))
       })
-  }, [deliveryZonesMap, cityFilter, search])
+  }, [todayZonesMap, yesterdayZonesMap, zonesPeriod, cityFilter, search])
 
   const zonesKpis = useMemo(() => {
     const glovoRows = zonesList.filter(z => z.platform === 'glovo')
@@ -570,7 +581,7 @@ export default function Monitoring() {
       'Заказов 2-4 км': z.between_2_4km,
       'Заказов 4+ км': z.over_4km,
       'Всего заказов с GPS': z.orders_count,
-      'Статус зоны': z.is_narrowed ? `Сужение (-${z.narrowed_pct}%)` : 'Полный радиус'
+      'Статус зоны': z.is_narrowed ? `Сужение (-${z.narrowed_pct}%)` : z.orders_count < 5 ? `Мало данных (${z.orders_count})` : 'Полный радиус'
     }))
     const ws = XLSX.utils.json_to_sheet(rows)
     const wb = XLSX.utils.book_new()
@@ -635,33 +646,65 @@ export default function Monitoring() {
   const [showReport, setShowReport] = useState(false)
 
   const handleVerifyAll = () => {
+    if (isVerifying) {
+      setShowReport(true)
+      return
+    }
     setIsVerifying(true)
     setShowReport(true)
     setVerifyStatus({ isRunning: true, totalChecks: 0, current: 0, errors: 0, offline: 0, results: [] })
-    fetch(getApiUrl('/api/check-all'), { method: 'POST' }).catch(console.error)
+    fetch(getApiUrl('/api/check-all'), { method: 'POST' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const data = await res.json().catch(() => null)
+        if (data?.status) {
+          setVerifyStatus(data.status)
+          if (!data.status.isRunning) {
+            setIsVerifying(false)
+            fetchData(true)
+          }
+        }
+      })
+      .catch((err) => {
+        console.error(err)
+        setIsVerifying(false)
+      })
   }
 
   const handleStopVerify = () => {
     fetch(getApiUrl('/api/check-stop'), { method: 'POST' }).catch(console.error)
     setIsVerifying(false)
+    setVerifyStatus(prev => prev ? { ...prev, isRunning: false } : null)
   }
 
   useEffect(() => {
     let interval;
+    let consecutiveFailures = 0;
     if (isVerifying) {
       interval = setInterval(async () => {
         try {
           const res = await fetch(getApiUrl('/api/check-status'))
           if (res.ok) {
+            consecutiveFailures = 0
             const data = await res.json()
             setVerifyStatus(data.status)
             if (data.status && !data.status.isRunning) {
               setIsVerifying(false)
               fetchData(true)
             }
+          } else {
+            consecutiveFailures++
+            if (consecutiveFailures >= 2) {
+              setIsVerifying(false)
+              setVerifyStatus(prev => prev ? { ...prev, isRunning: false } : null)
+            }
           }
         } catch (err) {
           console.error(err)
+          consecutiveFailures++
+          if (consecutiveFailures >= 3) {
+            setIsVerifying(false)
+          }
         }
       }, 2000)
     }
@@ -836,11 +879,14 @@ export default function Monitoring() {
 
             <button
               onClick={handleVerifyAll}
-              disabled={isVerifying}
-              className="px-5 h-10 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2 flex-1 sm:flex-none disabled:opacity-50"
+              className="px-5 h-10 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2 flex-1 sm:flex-none cursor-pointer"
             >
               <Loader2 size={16} className={isVerifying ? "animate-spin" : "hidden"} />
-              <span>{isVerifying ? t('monitoring.scanning') : t('monitoring.check_status')}</span>
+              <span>
+                {isVerifying
+                  ? `${t('monitoring.scanning')}${verifyStatus?.totalChecks > 0 ? ` (${verifyStatus.current}/${verifyStatus.totalChecks})` : ''}`
+                  : t('monitoring.check_status')}
+              </span>
             </button>
 
             {isVerifying && (
@@ -982,17 +1028,43 @@ export default function Monitoring() {
                     ? '💡 Source: live customer GPS coordinates from iiko/Syrve orders (aerial radius per kitchen). Glovo & Wolt send GPS; Bolt Food hides coordinates (0, 0).'
                     : '💡 Sursă: coordonatele GPS reale ale clienților din comenzile iiko/Syrve (rază aeriană per bucătărie). Glovo & Wolt transmit GPS; Bolt Food ascunde coordonatele (0, 0).'}
               </div>
-              <button
-                type="button"
-                onClick={handleExportZonesExcel}
-                disabled={zonesList.length === 0}
-                className="px-3.5 h-8 rounded-full text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-40"
-              >
-                <Download size={13} />
-                <span>
-                  {language === 'ru' ? 'Скачать отчет (Excel)' : language === 'en' ? 'Export Report (Excel)' : 'Exportă Raport Excel'}
-                </span>
-              </button>
+              <div className="flex items-center gap-2">
+                <div className={`inline-flex items-center p-0.5 rounded-full border ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
+                  <button
+                    type="button"
+                    onClick={() => setZonesPeriod('today')}
+                    className={`px-3 h-7 rounded-full text-xs font-bold transition-colors cursor-pointer ${
+                      zonesPeriod === 'today'
+                        ? 'bg-emerald-600 text-white shadow-2xs'
+                        : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {language === 'ru' ? 'Сегодня' : language === 'en' ? 'Today' : 'Azi'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setZonesPeriod('yesterday')}
+                    className={`px-3 h-7 rounded-full text-xs font-bold transition-colors cursor-pointer ${
+                      zonesPeriod === 'yesterday'
+                        ? 'bg-emerald-600 text-white shadow-2xs'
+                        : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {language === 'ru' ? 'Вчера' : language === 'en' ? 'Yesterday' : 'Ieri'}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleExportZonesExcel}
+                  disabled={zonesList.length === 0}
+                  className="px-3.5 h-8 rounded-full text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-40"
+                >
+                  <Download size={13} />
+                  <span>
+                    {language === 'ru' ? 'Скачать отчет (Excel)' : language === 'en' ? 'Export Report (Excel)' : 'Exportă Raport Excel'}
+                  </span>
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto flex-1 custom-scrollbar">
@@ -1039,7 +1111,12 @@ export default function Monitoring() {
                       <td className="py-2.5 px-3 text-right tabular-nums text-slate-500 font-semibold">
                         {z.normal_radius_km} {language === 'ru' ? 'км' : 'km'}
                       </td>
-                      <td className={`py-2.5 px-3 text-right tabular-nums font-extrabold ${z.is_narrowed ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
+                      <td className={`py-2.5 px-3 text-right tabular-nums font-extrabold ${
+                        z.is_narrowed
+                          ? 'text-rose-600 dark:text-rose-400'
+                          : z.orders_count < 5
+                            ? 'text-slate-500 dark:text-slate-400'
+                            : 'text-emerald-600 dark:text-emerald-400'
                         }`}>
                         {z.active_radius_km} {language === 'ru' ? 'км' : 'km'}
                       </td>
@@ -1061,6 +1138,11 @@ export default function Monitoring() {
                             <span>
                               {language === 'ru' ? `Сужение -${z.narrowed_pct}%` : `Îngustat -${z.narrowed_pct}%`}
                             </span>
+                          </span>
+                        ) : z.orders_count < 5 ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+                            <Clock size={11} />
+                            <span>{language === 'ru' ? `Мало данных (${z.orders_count})` : `Puține comenzi (${z.orders_count})`}</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800">
@@ -1406,19 +1488,40 @@ export default function Monitoring() {
       )}
 
                 {/* MODAL SCANARE GLOBAL */}
-                {showReport && (
-                  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className={`rounded-2xl w-full max-w-md shadow-2xl border overflow-hidden flex flex-col max-h-[90vh] ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-                      }`}>
+                {showReport && typeof document !== 'undefined' && createPortal(
+                  <div
+                    onClick={() => {
+                      setShowReport(false);
+                      if (!isVerifying) setVerifyStatus(null);
+                    }}
+                    className="fixed inset-0 m-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                  >
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className={`rounded-2xl w-full max-w-md shadow-2xl border overflow-hidden flex flex-col max-h-[90vh] ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+                        }`}
+                    >
+                      <div className={`relative p-6 text-center space-y-2.5 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowReport(false);
+                            if (!isVerifying) setVerifyStatus(null);
+                          }}
+                          aria-label={t('common.close')}
+                          className={`absolute top-4 right-4 w-8 h-8 rounded-full border flex items-center justify-center text-slate-400 transition-colors cursor-pointer ${isDark ? 'border-slate-700 hover:bg-slate-800 hover:text-white' : 'border-slate-200 hover:bg-slate-100 hover:text-slate-700'
+                            }`}
+                        >
+                          <X size={16} />
+                        </button>
 
-                      <div className={`p-6 text-center space-y-3 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
-                        <div className={`w-14 h-14 rounded-full mx-auto flex items-center justify-center ${isVerifying
+                        <div className={`w-12 h-12 rounded-full mx-auto flex items-center justify-center ${isVerifying
                           ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400'
                           : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
                           }`}>
-                          {isVerifying ? <Loader2 size={30} className="animate-spin" /> : <CheckCircle2 size={30} />}
+                          {isVerifying ? <Loader2 size={26} className="animate-spin" /> : <CheckCircle2 size={26} />}
                         </div>
-                        <h3 className="text-xl font-bold">
+                        <h3 className="text-lg font-bold">
                           {isVerifying ? t('monitoring.scan_modal_title_progress') : t('monitoring.scan_modal_title_done')}
                         </h3>
                         <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
@@ -1426,56 +1529,90 @@ export default function Monitoring() {
                         </p>
                       </div>
 
-                      {/* Progress Bar */}
-                      {isVerifying && verifyStatus && (
-                        <div className={`h-1.5 w-full ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
-                          <div
-                            className="h-full bg-emerald-600 transition-all duration-500"
-                            style={{ width: `${Math.min(100, Math.max(5, Math.round((verifyStatus.current / Math.max(1, verifyStatus.totalChecks)) * 100)))}%` }}
-                          />
-                        </div>
-                      )}
+                      <div className="p-6 overflow-y-auto space-y-3">
+                        {verifyStatus && (() => {
+                          const pct = verifyStatus.totalChecks > 0
+                            ? Math.min(100, Math.max(0, Math.round((verifyStatus.current / verifyStatus.totalChecks) * 100)))
+                            : (isVerifying ? 0 : 100);
+                          const lastItem = Array.isArray(verifyStatus.results) && verifyStatus.results.length > 0
+                            ? verifyStatus.results[verifyStatus.results.length - 1]
+                            : null;
+                          return (
+                            <>
+                              {/* Progress Track cleanly contained inside padded modal body */}
+                              <div className={`p-3.5 rounded-2xl border space-y-2 ${isDark ? 'border-slate-800 bg-slate-800/40' : 'border-slate-200 bg-slate-50'}`}>
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className="font-semibold text-slate-600 dark:text-slate-300">
+                                    {language === 'ru' ? 'Прогресс проверки' : language === 'en' ? 'Scan progress' : 'Progres verificare'}
+                                  </span>
+                                  <span className="font-extrabold tabular-nums text-emerald-600 dark:text-emerald-400">
+                                    {pct}%
+                                  </span>
+                                </div>
+                                <div className={`w-full h-2.5 rounded-full overflow-hidden border ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-slate-200/80 border-slate-200'}`}>
+                                  <div
+                                    className="h-full rounded-full bg-emerald-600 transition-all duration-300"
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                                {lastItem && (
+                                  <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-full">
+                                    {cleanRestaurantName(lastItem.restaurant)} · {String(lastItem.platform || '').toUpperCase()}
+                                  </div>
+                                )}
+                              </div>
 
-                      <div className="p-6 overflow-y-auto space-y-4">
-                        {verifyStatus && (
-                          <div className="space-y-3">
-                            <div className={`flex items-center justify-between p-4 rounded-2xl border ${isDark ? 'border-slate-800 bg-slate-800/50' : 'border-slate-200 bg-slate-50'
-                              }`}>
-                              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                                {t('monitoring.scan_modal_verified')}
-                              </span>
-                              <span className="text-base font-bold">
-                                <AnimatedNumber value={verifyStatus.current} key={verifyStatus.current} /> / {verifyStatus.totalChecks || '-'}
-                              </span>
-                            </div>
+                              <div className={`flex items-center justify-between p-4 rounded-2xl border ${isDark ? 'border-slate-800 bg-slate-800/50' : 'border-slate-200 bg-slate-50'
+                                }`}>
+                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                  {t('monitoring.scan_modal_verified')}
+                                </span>
+                                <span className="text-base font-bold tabular-nums">
+                                  <AnimatedNumber value={verifyStatus.current} key={verifyStatus.current} /> / {verifyStatus.totalChecks || '-'}
+                                </span>
+                              </div>
 
-                            <div className="flex items-center justify-between p-4 rounded-2xl border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-950/30">
-                              <span className="text-sm font-medium text-rose-700 dark:text-rose-300">
-                                {t('monitoring.scan_modal_stopped')}
-                              </span>
-                              <span className="text-base font-bold text-rose-600 dark:text-rose-400">
-                                <AnimatedNumber value={verifyStatus.offline} key={verifyStatus.offline} />
-                              </span>
-                            </div>
-                          </div>
-                        )}
+                              <div className="flex items-center justify-between p-4 rounded-2xl border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-950/30">
+                                <span className="text-sm font-medium text-rose-700 dark:text-rose-300">
+                                  {t('monitoring.scan_modal_stopped')}
+                                </span>
+                                <span className="text-base font-bold tabular-nums text-rose-600 dark:text-rose-400">
+                                  <AnimatedNumber value={verifyStatus.offline} key={verifyStatus.offline} />
+                                </span>
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
 
-                      <div className={`p-4 border-t flex justify-end ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+                      <div className={`p-4 border-t flex items-center justify-between gap-2 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+                        <div>
+                          {isVerifying && (
+                            <button
+                              type="button"
+                              onClick={handleStopVerify}
+                              className="px-4 h-9 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold inline-flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                            >
+                              <XCircle size={14} />
+                              <span>{t('monitoring.stop_label')}</span>
+                            </button>
+                          )}
+                        </div>
                         <button
+                          type="button"
                           onClick={() => {
                             setShowReport(false);
-                            setVerifyStatus(null);
+                            if (!isVerifying) setVerifyStatus(null);
                           }}
-                          disabled={isVerifying}
-                          className={`px-5 h-10 rounded-full text-sm font-bold transition-colors disabled:opacity-50 ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                          className={`px-5 h-9 rounded-full text-xs sm:text-sm font-bold transition-colors cursor-pointer ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                             }`}
                         >
                           {t('common.close')}
                         </button>
                       </div>
                     </div>
-                  </div>
+                  </div>,
+                  document.body
                 )}
 
                 {/* MODAL DETALII VERIFICARE */}
