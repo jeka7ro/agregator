@@ -153,10 +153,10 @@ export class BoltChecker {
                 restaurant_id: restaurant.id,
                 platform: this.platform,
                 checked_at: new Date().toISOString(),
-                ui_is_open: false,
-                final_status: 'unavailable',
-                ui_error_message: 'Indisponibil pe Bolt',
-                raw_data: { error: error.message, url: restaurant.bolt_url }
+                ui_is_open: null,
+                final_status: 'error',
+                ui_error_message: `Scraper error: ${error.message}`,
+                raw_data: { error: error.message, is_scraper_error: true, url: restaurant.bolt_url }
             }
 
             try {

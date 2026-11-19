@@ -388,46 +388,279 @@ export function resolveMatchingRestaurant(allRests, rawRest, detectedBrand, cano
 }
 
 
-// ─── BYPASS Supabase RLS pentru UI ───
+// ─── HELPER: Detect pure Puppeteer / WAF / network scraper errors (NOT real store stops) ───
+function isScraperTechnicalError(c) {
+    if (!c) return false
+    const st = String(c.final_status || '').toLowerCase()
+    if (st === 'available' || st === 'open' || st === 'online') return false
+    const errMsg = String(c.ui_error_message || '').toLowerCase().trim()
+    const rawErr = String(c.raw_data?.error || '').toLowerCase().trim()
+    const bt = String(c.raw_data?.bodyText || '').toLowerCase()
+    const combined = `${errMsg} ${rawErr} ${bt}`
+
+    if (
+        errMsg === 'nelistat pe glovo' ||
+        errMsg === 'indisponibil pe wolt' ||
+        errMsg === 'indisponibil pe bolt' ||
+        errMsg === 'page not found or redirect' ||
+        errMsg.startsWith('scraper error:') ||
+        c.raw_data?.is_scraper_error === true
+    ) return true
+
+    if (
+        st === 'error' ||
+        combined.includes('navigation timeout') ||
+        combined.includes('timeout of') ||
+        combined.includes('timeout exceeded') ||
+        combined.includes('frame was detached') ||
+        combined.includes('target closed') ||
+        combined.includes('protocol error') ||
+        combined.includes('err_aborted') ||
+        combined.includes('err_connection') ||
+        combined.includes('something unexpected happened') ||
+        combined.includes("couldn't find the content") ||
+        combined.includes('introdu-ți adresa') ||
+        combined.includes('această pagină nu') ||
+        combined.includes('waf courtesy page') ||
+        combined.includes("problem, but we're working on it") ||
+        !errMsg
+    ) return true
+
+    return false
+}
+
+// ─── BYPASS Supabase RLS pentru UI (LIVE Supabase + Live Syrve cross-verification) ───
 app.get('/api/live-checks', async (req, res) => {
     try {
-        const ratingsMap = await reviewsService.getLatestRatingsMap()
+        const forceRefresh = req.query.refresh === '1'
+        const CACHE_TTL_MS = 45000
+        if (!forceRefresh && global.__LOCAL_LIVE_CHECKS_SNAPSHOT && (Date.now() - global.__LOCAL_LIVE_CHECKS_SNAPSHOT.ts < CACHE_TTL_MS)) {
+            return res.json(global.__LOCAL_LIVE_CHECKS_SNAPSHOT.payload)
+        }
+
+        const withTimeout = (promise, ms) => Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms))
+        ])
+
         if (!global.liveChecks || global.liveChecks.length === 0) {
             global.liveChecks = loadLiveChecksCache() || []
         }
-        const rawChecks = global.liveChecks || []
-        let needsSave = false
-        const enrichedChecks = rawChecks.map(c => {
-            const rKey = `${c.restaurant_id}_${(c.platform || '').toLowerCase()}`
-            const rInfo = ratingsMap.get(rKey)
-            const bt = (c.raw_data?.bodyText || '').toLowerCase()
-            const isFalsePositive404OrAddress =
-                c.final_status !== 'available' &&
-                (bt.includes('something unexpected happened') ||
-                    bt.includes("couldn't find the content") ||
-                    bt.includes('introdu-ți adresa') ||
-                    bt.includes('această pagină nu') ||
-                    !c.ui_error_message)
-            if (isFalsePositive404OrAddress) {
-                c.final_status = 'available'
-                c.ui_is_open = true
-                c.ui_can_order = true
-                c.ui_is_greyed = false
-                c.ui_error_message = null
-                needsSave = true
+        const allRests = loadRestaurantsCache() || []
+        const restById = new Map()
+        allRests.forEach(r => { if (r?.id) restById.set(r.id, r) })
+
+        const now = new Date()
+        const roDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
+        const roWallAsUtc = new Date(now.toLocaleString('sv-SE', { timeZone: 'Europe/Bucharest' }).replace(' ', 'T') + 'Z')
+        const roOffsetMs = roWallAsUtc.getTime() - now.getTime()
+
+        const [ratingsRes, sbChecksRes, liveOrdersRes] = await Promise.allSettled([
+            withTimeout(reviewsService.getLatestRatingsMap(), 1800),
+            withTimeout(
+                supabase
+                    .from('monitoring_checks')
+                    .select('restaurant_id, platform, checked_at, ui_is_open, ui_can_order, ui_is_greyed, ui_error_message, final_status, rating, missing_products, disabled_categories, raw_data')
+                    .order('checked_at', { ascending: false })
+                    .limit(1200),
+                2500
+            ),
+            withTimeout(fetchLiveAndWebhookOrdersForDay(roDateStr, allRests), 3500)
+        ])
+
+        const ratingsMap = (ratingsRes.status === 'fulfilled' && ratingsRes.value instanceof Map) ? ratingsRes.value : new Map()
+        const sbChecks = (sbChecksRes.status === 'fulfilled' && !sbChecksRes.value?.error && Array.isArray(sbChecksRes.value?.data))
+            ? sbChecksRes.value.data
+            : []
+        const liveOrders = (liveOrdersRes.status === 'fulfilled' && Array.isArray(liveOrdersRes.value))
+            ? liveOrdersRes.value
+            : []
+
+        const restPlatActivity = new Map()
+        const orgPlatActivity = new Map()
+        const orgAnyActivity = new Map()
+        const seenLiveOrderKeys = new Set()
+        for (const ord of liveOrders) {
+            const p = String(ord.platform || '').toLowerCase()
+            const rawTs = ord.placed_at || ord.created_at
+            if (!rawTs) continue
+            const rawMs = new Date(rawTs).getTime()
+            if (Number.isNaN(rawMs)) continue
+
+            const rawIdStr = String(ord.order_id || ord.id || '').replace(/^wh_\d{4}-\d{2}-\d{2}_/, '')
+            const baseOrderKey = `${rawIdStr.split('_')[0]}_${p}`
+            if (seenLiveOrderKeys.has(baseOrderKey)) continue
+            seenLiveOrderKeys.add(baseOrderKey)
+
+            const realMs = Math.min(rawMs - roOffsetMs, Date.now())
+            const realIso = new Date(realMs).toISOString()
+
+            const restObj = ord.restaurant_id ? restById.get(ord.restaurant_id) : null
+            const orgId = restObj?.iiko_restaurant_id || null
+
+            if (ord.restaurant_id && ['glovo', 'wolt', 'bolt'].includes(p)) {
+                const k = `${ord.restaurant_id}_${p}`
+                const cur = restPlatActivity.get(k)
+                if (!cur) restPlatActivity.set(k, { count: 1, lastMs: realMs, lastIso: realIso })
+                else {
+                    cur.count += 1
+                    if (realMs > cur.lastMs) { cur.lastMs = realMs; cur.lastIso = realIso }
+                }
             }
-            return {
-                ...c,
-                rating: c.rating ?? rInfo?.rating ?? null,
-                previous_rating: rInfo?.previous_rating ?? null,
-                review_count: c.review_count ?? rInfo?.review_count ?? null,
-                change_direction: rInfo?.change_direction ?? null
+            if (orgId && ['glovo', 'wolt', 'bolt'].includes(p)) {
+                const k = `${orgId}_${p}`
+                const cur = orgPlatActivity.get(k)
+                if (!cur) orgPlatActivity.set(k, { count: 1, lastMs: realMs, lastIso: realIso })
+                else {
+                    cur.count += 1
+                    if (realMs > cur.lastMs) { cur.lastMs = realMs; cur.lastIso = realIso }
+                }
             }
-        })
-        if (needsSave) {
-            saveLiveChecksCache(rawChecks)
+            if (orgId) {
+                const cur = orgAnyActivity.get(orgId)
+                if (!cur) orgAnyActivity.set(orgId, { count: 1, lastMs: realMs, lastIso: realIso })
+                else {
+                    cur.count += 1
+                    if (realMs > cur.lastMs) { cur.lastMs = realMs; cur.lastIso = realIso }
+                }
+            }
         }
-        res.json({ success: true, checks: enrichedChecks })
+
+        const latestSbMap = new Map()
+        const latestValidSbMap = new Map()
+        for (const c of sbChecks) {
+            const k = `${c.restaurant_id}_${String(c.platform || '').toLowerCase()}`
+            if (!latestSbMap.has(k)) latestSbMap.set(k, c)
+            if (!latestValidSbMap.has(k) && !isScraperTechnicalError(c)) latestValidSbMap.set(k, c)
+        }
+
+        const localMap = new Map()
+        for (const c of (global.liveChecks || [])) {
+            const k = `${c.restaurant_id}_${String(c.platform || '').toLowerCase()}`
+            if (!localMap.has(k)) localMap.set(k, c)
+        }
+
+        const allKeys = new Set([...localMap.keys(), ...latestSbMap.keys()])
+        for (const r of allRests) {
+            if (r.is_active === false) continue
+            for (const p of ['glovo', 'wolt', 'bolt', 'iiko']) {
+                const hasPlat = p === 'iiko'
+                    ? Boolean(r.iiko_restaurant_id)
+                    : Boolean(r[`${p}_url`] && !String(r[`${p}_url`]).includes('/search'))
+                if (hasPlat) allKeys.add(`${r.id}_${p}`)
+            }
+        }
+
+        const enrichedChecks = []
+        for (const k of allKeys) {
+            const idx = k.lastIndexOf('_')
+            if (idx <= 0) continue
+            const restaurantId = k.slice(0, idx)
+            const platform = k.slice(idx + 1)
+            const rest = restById.get(restaurantId)
+            const sbLatest = latestSbMap.get(k) || null
+            const sbValid = latestValidSbMap.get(k) || null
+            const locCached = localMap.get(k) || null
+
+            let base = sbValid || sbLatest || locCached
+            if (locCached && base && base !== locCached) {
+                const locMs = new Date(locCached.checked_at || 0).getTime()
+                const baseMs = new Date(base.checked_at || 0).getTime()
+                if (locMs > baseMs && !isScraperTechnicalError(locCached)) {
+                    base = locCached
+                }
+            }
+
+            const check = base ? { ...base } : {
+                restaurant_id: restaurantId,
+                platform,
+                checked_at: now.toISOString(),
+                ui_is_open: true,
+                ui_can_order: true,
+                ui_is_greyed: false,
+                ui_error_message: null,
+                final_status: 'available'
+            }
+
+            const checkMs = check.checked_at ? new Date(check.checked_at).getTime() : 0
+            const scraperErr = isScraperTechnicalError(check)
+
+            const exactAct = restPlatActivity.get(k) || null
+            const kitchenAct = (platform !== 'iiko' && rest?.iiko_restaurant_id)
+                ? (orgPlatActivity.get(`${rest.iiko_restaurant_id}_${platform}`) || null)
+                : null
+            const iikoAct = (platform === 'iiko' && rest?.iiko_restaurant_id)
+                ? (orgAnyActivity.get(rest.iiko_restaurant_id) || null)
+                : null
+
+            if (platform === 'iiko' && iikoAct) {
+                check.live_orders_today = iikoAct.count
+                check.last_order_at = iikoAct.lastIso
+                if (scraperErr || iikoAct.lastMs > checkMs || check.final_status !== 'available') {
+                    check.final_status = 'available'
+                    check.ui_is_open = true
+                    check.ui_can_order = true
+                    check.ui_is_greyed = false
+                    check.ui_error_message = null
+                    check.verified_via = 'live_order'
+                    if (iikoAct.lastMs > checkMs) check.checked_at = iikoAct.lastIso
+                } else if (iikoAct.lastMs > checkMs) {
+                    check.checked_at = iikoAct.lastIso
+                }
+            } else if (exactAct) {
+                check.live_orders_today = exactAct.count
+                check.last_order_at = exactAct.lastIso
+                if (scraperErr || exactAct.lastMs > checkMs) {
+                    check.final_status = 'available'
+                    check.ui_is_open = true
+                    check.ui_can_order = true
+                    check.ui_is_greyed = false
+                    check.ui_error_message = null
+                    check.verified_via = 'live_order'
+                    if (exactAct.lastMs > checkMs) check.checked_at = exactAct.lastIso
+                } else if (check.final_status === 'available' && exactAct.lastMs > checkMs) {
+                    check.checked_at = exactAct.lastIso
+                }
+            } else if (kitchenAct && (scraperErr || (check.final_status === 'available' && kitchenAct.lastMs > checkMs))) {
+                check.final_status = 'available'
+                check.ui_is_open = true
+                check.ui_can_order = true
+                check.ui_is_greyed = false
+                check.ui_error_message = null
+                check.verified_via = 'kitchen_live_order'
+                check.live_orders_today = kitchenAct.count
+                check.last_order_at = kitchenAct.lastIso
+                if (kitchenAct.lastMs > checkMs) check.checked_at = kitchenAct.lastIso
+            } else if (scraperErr) {
+                check.final_status = 'available'
+                check.ui_is_open = true
+                check.ui_can_order = true
+                check.ui_is_greyed = false
+                check.ui_error_message = null
+                check.verified_via = 'scraper_fallback'
+            }
+
+            const rInfo = ratingsMap.get(k)
+            enrichedChecks.push({
+                ...check,
+                rating: check.rating ?? rInfo?.rating ?? null,
+                previous_rating: rInfo?.previous_rating ?? null,
+                review_count: check.review_count ?? rInfo?.review_count ?? null,
+                change_direction: rInfo?.change_direction ?? null
+            })
+        }
+
+        const payload = {
+            success: true,
+            checks: enrichedChecks,
+            meta: {
+                supabase_rows: sbChecks.length,
+                live_orders_today: liveOrders.length,
+                generated_at: now.toISOString()
+            }
+        }
+        global.__LOCAL_LIVE_CHECKS_SNAPSHOT = { ts: Date.now(), payload }
+        res.json(payload)
     } catch (err) {
         res.json({ success: true, checks: global.liveChecks || [] })
     }
@@ -1474,36 +1707,57 @@ app.post('/api/kitchen/verify', async (req, res) => {
     }
 })
 
-// Kitchen Activity Diagnostic (checks recent orders in the last 20 mins)
+// Kitchen Activity Diagnostic (FAST live Syrve/webhook orders — zero full-table scan!)
 app.get('/api/kitchen-status', async (req, res) => {
     try {
-        const { restaurantId, minutes = 20 } = req.query
-        const since = new Date(Date.now() - parseInt(minutes) * 60 * 1000).toISOString()
+        const { restaurantId, minutes = 30 } = req.query
+        const mins = parseInt(minutes) || 30
+        const now = new Date()
+        const roDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
+        const roWallAsUtc = new Date(now.toLocaleString('sv-SE', { timeZone: 'Europe/Bucharest' }).replace(' ', 'T') + 'Z')
+        const roOffsetMs = roWallAsUtc.getTime() - now.getTime()
+        const cutoffMs = Date.now() - mins * 60 * 1000
 
-        let q = supabase
-            .from('platform_sales')
-            .select('id, order_id, platform, total_amount, placed_at, restaurant_id, items')
-            .gte('placed_at', since)
-            .order('placed_at', { ascending: false })
+        const allRests = loadRestaurantsCache() || []
+        const targetRest = restaurantId ? allRests.find(r => r.id === restaurantId) : null
+        const targetOrgId = targetRest?.iiko_restaurant_id || null
+        const restById = new Map(allRests.map(r => [r.id, r]))
 
-        if (restaurantId) q = q.eq('restaurant_id', restaurantId)
+        const liveOrders = await fetchLiveAndWebhookOrdersForDay(roDateStr, allRests).catch(() => [])
+        const seenIds = new Set()
+        const recent = []
+        for (const o of (liveOrders || [])) {
+            const rawId = String(o.order_id || o.id || '').replace(/^wh_\d{4}-\d{2}-\d{2}_/, '').split('_')[0]
+            if (!rawId || seenIds.has(rawId)) continue
+            const rawTs = o.placed_at || o.created_at
+            if (!rawTs) continue
+            const realMs = Math.min(new Date(rawTs).getTime() - roOffsetMs, Date.now())
+            if (Number.isNaN(realMs) || realMs < cutoffMs) continue
 
-        const { data, error } = await q
-        if (error) throw error
+            if (restaurantId) {
+                const oRest = o.restaurant_id ? restById.get(o.restaurant_id) : null
+                const sameRest = o.restaurant_id === restaurantId
+                const sameKitchen = Boolean(targetOrgId && oRest?.iiko_restaurant_id === targetOrgId)
+                if (!sameRest && !sameKitchen) continue
+            }
 
-        const totalOrders = data?.length || 0
-        const restaurantOrders = data?.filter(o => o.platform === 'restaurant' || o.platform === 'dine_in' || o.platform === 'IN-STORE') || []
-        const deliveryOrders = data?.filter(o => o.platform !== 'restaurant' && o.platform !== 'dine_in' && o.platform !== 'IN-STORE') || []
+            seenIds.add(rawId)
+            recent.push({ ...o, placed_at: new Date(realMs).toISOString() })
+        }
+
+        recent.sort((a, b) => new Date(b.placed_at) - new Date(a.placed_at))
+        const restaurantOrders = recent.filter(o => ['restaurant', 'dine_in', 'in-store', 'casierie', 'kiosk'].includes(String(o.platform || '').toLowerCase()))
+        const deliveryOrders = recent.filter(o => !['restaurant', 'dine_in', 'in-store', 'casierie', 'kiosk'].includes(String(o.platform || '').toLowerCase()))
 
         res.json({
             success: true,
-            minutes_window: parseInt(minutes),
-            kitchen_busy: totalOrders > 0,
-            total_orders_count: totalOrders,
+            minutes_window: mins,
+            kitchen_busy: recent.length > 0,
+            total_orders_count: recent.length,
             restaurant_orders_count: restaurantOrders.length,
             delivery_orders_count: deliveryOrders.length,
-            latest_order_at: data?.[0]?.placed_at || null,
-            recent_orders: data?.slice(0, 10) || []
+            latest_order_at: recent[0]?.placed_at || null,
+            recent_orders: recent.slice(0, 10)
         })
     } catch (err) {
         res.status(500).json({ success: false, error: err.message })
@@ -1589,9 +1843,11 @@ function getPeriodFilter(period = 'this_month') {
 async function fetchLiveAndWebhookOrdersForDay(dayStr, allRests = []) {
     if (!dayStr) return []
     const cacheKey = `raw_syrve_day_${dayStr}`
+    const roTodayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
+    const dayTtlMs = dayStr < roTodayStr ? 43200000 : 15000 // 12h for completed past days, 15s for today
     if (typeof localLiveDispatchCache !== 'undefined') {
         const cached = localLiveDispatchCache.get(cacheKey)
-        if (cached && (Date.now() - cached.timestamp < 15000) && Array.isArray(cached.data) && cached.data.length > 0) {
+        if (cached && (Date.now() - cached.timestamp < dayTtlMs) && Array.isArray(cached.data) && cached.data.length > 0) {
             return cached.data
         }
     }
@@ -1884,12 +2140,15 @@ app.get('/api/sales/executive-summary', async (req, res) => {
             }
         } catch (_) { }
         const salesHistoryCache = global.__SALES_HISTORY_CACHE || null
-        const histCutoffDay = salesHistoryCache?.cutoff_date || '2026-11-08'
-        const histBucket = reqPeriod === 'last_month'
+        const histCutoffDay = salesHistoryCache?.cutoff_date || '2026-11-17'
+        const roNowStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
+        const isSameMonthAsCutoff = histCutoffDay.slice(0, 7) === roNowStr.slice(0, 7)
+        const isSameYearAsCutoff = histCutoffDay.slice(0, 4) === roNowStr.slice(0, 4)
+        const histBucket = (reqPeriod === 'last_month' && isSameMonthAsCutoff)
             ? salesHistoryCache?.buckets?.last_month
-            : reqPeriod === 'this_month'
+            : (reqPeriod === 'this_month' && isSameMonthAsCutoff)
                 ? salesHistoryCache?.buckets?.this_month_hist
-                : reqPeriod === 'this_year'
+                : (reqPeriod === 'this_year' && isSameYearAsCutoff)
                     ? salesHistoryCache?.buckets?.this_year_hist
                     : reqPeriod === 'all'
                         ? salesHistoryCache?.buckets?.all_hist
@@ -1897,6 +2156,35 @@ app.get('/api/sales/executive-summary', async (req, res) => {
 
         let sales = []
         const seenOrderIds = new Set()
+
+        const pad2Local = (n) => String(n).padStart(2, '0')
+        const toYmdLocal = (dateObj) => `${dateObj.getFullYear()}-${pad2Local(dateObj.getMonth() + 1)}-${pad2Local(dateObj.getDate())}`
+        const listDaysInclusive = (fromStr, toStr, maxDays = 10) => {
+            if (!fromStr || !toStr || fromStr > toStr) return []
+            const out = []
+            const [fy, fm, fd] = fromStr.split('-').map(Number)
+            const [ty, tm, td] = toStr.split('-').map(Number)
+            if (!fy || !fm || !fd || !ty || !tm || !td) return []
+            const cur = new Date(fy, fm - 1, fd)
+            const endD = new Date(ty, tm - 1, td)
+            let guard = 0
+            while (cur <= endD && guard++ < 45) {
+                out.push(toYmdLocal(cur))
+                cur.setDate(cur.getDate() + 1)
+            }
+            return out.slice(-maxDays)
+        }
+        const fetchDaysInBatches = async (dayList) => {
+            const all = []
+            for (let i = 0; i < dayList.length; i += 4) {
+                const chunk = dayList.slice(i, i + 4)
+                const results = await Promise.all(chunk.map(day => fetchLiveAndWebhookOrdersForDay(day, rests).catch(() => [])))
+                for (const r of results) {
+                    if (Array.isArray(r) && r.length > 0) all.push(...r)
+                }
+            }
+            return all
+        }
 
         const filterValidLiveOrders = (list) => {
             const cancelledBases = new Set()
@@ -1933,20 +2221,29 @@ app.get('/api/sales/executive-summary', async (req, res) => {
                 sales.push(lo)
             }
         } else if (reqPeriod !== 'last_month') {
-            // Historical periods with live tail (this_week, this_month, this_year, all):
-            // 1a. Authoritative live Syrve orders for today + yesterday FIRST
-            if (reqPeriod === 'this_week' || reqPeriod === 'this_month' || reqPeriod === 'this_year' || reqPeriod === 'all') {
-                const todayInfo = getPeriodFilter('today')
-                const yesterdayInfo = getPeriodFilter('yesterday')
-                const todayStr = todayInfo.startDate?.slice(0, 10)
-                const yesterdayStr = yesterdayInfo.startDate?.slice(0, 10)
-                const [todayLive, yesterdayLive] = await Promise.all([
-                    fetchLiveAndWebhookOrdersForDay(todayStr, rests),
-                    fetchLiveAndWebhookOrdersForDay(yesterdayStr, rests)
-                ])
+            // Historical periods with live tail: dynamically fetch EVERY gap day from Syrve + webhooks
+            const yesterdayInfo = getPeriodFilter('yesterday')
+            const yesterdayStr = yesterdayInfo.startDate?.slice(0, 10) || roNowStr
+            let daysToFetch = []
+            if (reqPeriod === 'this_week') {
+                const weekStartStr = periodInfo.startDate ? periodInfo.startDate.slice(0, 10) : yesterdayStr
+                daysToFetch = listDaysInclusive(weekStartStr, roNowStr, 7)
+            } else if (reqPeriod === 'this_month' || reqPeriod === 'this_year' || reqPeriod === 'all') {
+                let fromGapStr = yesterdayStr
+                if (histBucket && histCutoffDay) {
+                    const [cy, cm, cd] = histCutoffDay.split('-').map(Number)
+                    fromGapStr = toYmdLocal(new Date(cy, cm - 1, cd + 1))
+                } else if (periodInfo.startDate) {
+                    fromGapStr = periodInfo.startDate.slice(0, 10)
+                }
+                daysToFetch = listDaysInclusive(fromGapStr, roNowStr, 10)
+            }
+            const fetchedDaySet = new Set(daysToFetch)
+            if (daysToFetch.length > 0) {
+                const liveTailOrders = await fetchDaysInBatches(daysToFetch)
                 const startMs = periodInfo.startDate ? new Date(periodInfo.startDate).getTime() : 0
                 const endMs = periodInfo.endDate ? new Date(periodInfo.endDate).getTime() : Infinity
-                for (const { o: lo, bk: baseKey } of filterValidLiveOrders([...todayLive, ...yesterdayLive])) {
+                for (const { o: lo, bk: baseKey } of filterValidLiveOrders(liveTailOrders)) {
                     const dayStr = String(lo.placed_at || '').slice(0, 10)
                     if (histBucket && dayStr && dayStr <= histCutoffDay) continue
                     const pTime = lo.placed_at ? new Date(lo.placed_at).getTime() : 0
@@ -1957,7 +2254,7 @@ app.get('/api/sales/executive-summary', async (req, res) => {
                 }
             }
 
-            // 1b. Any remaining orders in customersService not in histBucket or live days
+            // 1b. Supplement from customersService only for days NOT already fetched live from Syrve
             try {
                 const allCusts = Array.from(customersService?.customersByKey?.values?.() || [])
                 const startMs = periodInfo.startDate ? new Date(periodInfo.startDate).getTime() : 0
@@ -1967,6 +2264,7 @@ app.get('/api/sales/executive-summary', async (req, res) => {
                     for (const ro of (c.recent_orders || [])) {
                         const dayStr = String(ro.placed_at || '').slice(0, 10)
                         if (histBucket && dayStr && dayStr <= histCutoffDay) continue
+                        if (dayStr && fetchedDaySet.has(dayStr)) continue
                         const baseKey = extractBaseOrderUuid(ro.base_uuid || ro.order_id)
                         if (!baseKey || seenOrderIds.has(baseKey)) continue
                         const pTime = ro.placed_at ? new Date(ro.placed_at).getTime() : 0
@@ -3473,11 +3771,18 @@ app.get('/api/stop-events', async (req, res) => {
 
         let { data, error } = await query
 
+        const nowMs = Date.now()
         const filterValidStops = (list) => (list || []).filter(ev => {
+            const r = String(ev.reason || '').toLowerCase()
+            if (r.includes('temporarily closed') || r.includes('outside delivery hours') || r.includes('closed on glovo')) return false
             const p = String(ev.platform || '').toLowerCase()
             if (p === 'glovo' || p === 'wolt' || p === 'bolt') {
                 const pUrl = ev.restaurants?.[`${p}_url`]
                 if (ev.restaurants && (!pUrl || String(pUrl).includes('/search'))) return false
+            }
+            if (!ev.resumed_at && r.includes('magazin indisponibil')) {
+                const ageMs = nowMs - new Date(ev.stopped_at || 0).getTime()
+                if (ageMs > 12 * 60 * 60 * 1000) return false
             }
             return true
         })
@@ -5400,22 +5705,54 @@ Dacă utilizatorul întreabă ceva general, tehnologic sau din afara platformei 
 
 app.get('/api/reports/verifications', async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 50;
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 50));
         const offset = (page - 1) * limit;
+        const citiesParam = String(req.query.cities || '').trim();
+        const allowedCitiesSet = citiesParam
+            ? new Set(citiesParam.split(',').map(c => getCanonicalCity(c.trim())).filter(Boolean))
+            : null;
 
-        // Try Supabase first
-        let { data, count, error } = await supabase
+        const cachedRests = loadRestaurantsCache() || [];
+        const restMapLocal = new Map(cachedRests.map(r => [r.id, r]));
+
+        // Fast indexed query (no full-table count scan!)
+        const { data: rawRows, error } = await supabase
             .from('monitoring_checks')
-            .select(`
-                *,
-                restaurants (
-                    name,
-                    city
-                )
-            `, { count: 'exact' })
+            .select('id, restaurant_id, platform, checked_at, ui_is_open, ui_can_order, ui_error_message, final_status, rating, missing_products, disabled_categories')
             .order('checked_at', { ascending: false })
-            .range(offset, offset + limit - 1);
+            .limit(1000);
+
+        let data = [];
+        let count = 0;
+        if (!error && Array.isArray(rawRows) && rawRows.length > 0) {
+            const cleaned = [];
+            for (const row of rawRows) {
+                if (String(row.final_status || '').toLowerCase() === 'error') continue;
+                const msg = String(row.ui_error_message || '').toLowerCase();
+                if (
+                    msg === 'nelistat pe glovo' ||
+                    msg === 'indisponibil pe wolt' ||
+                    msg === 'indisponibil pe bolt' ||
+                    msg.includes('navigation timeout') ||
+                    msg.includes('frame was detached') ||
+                    msg.includes('target closed') ||
+                    msg.startsWith('scraper error:')
+                ) continue;
+                const rInfo = restMapLocal.get(row.restaurant_id);
+                const rCity = getCanonicalCity(rInfo?.city || rInfo?.name || '');
+                if (allowedCitiesSet && allowedCitiesSet.size > 0 && !allowedCitiesSet.has(rCity)) continue;
+                cleaned.push({
+                    ...row,
+                    restaurants: {
+                        name: rInfo?.name || 'Necunoscut',
+                        city: rInfo?.city || rCity || '-'
+                    }
+                });
+            }
+            count = cleaned.length;
+            data = cleaned.slice(offset, offset + limit);
+        }
 
         if (!data || data.length === 0) {
             // Fallback to in-memory liveChecks / cache

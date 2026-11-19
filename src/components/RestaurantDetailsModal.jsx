@@ -40,7 +40,7 @@ export default function RestaurantDetailsModal({ restaurant, isOpen, onClose }) 
             .from('stop_events')
             .select('*')
             .eq('restaurant_id', restaurant.id)
-            .order('started_at', { ascending: false })
+            .order('stopped_at', { ascending: false })
             .limit(20)
           if (!error && data) {
             setStops(data)

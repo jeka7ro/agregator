@@ -229,6 +229,13 @@ export async function runMonitoringCycle() {
                     const checkResult = await checker.check(restaurant)
                     if (!checkResult) continue
 
+                    // Never treat scraper crashes / network timeouts as real store stops
+                    const isScraperErr = checkResult.final_status === 'error' || checkResult.raw_data?.is_scraper_error === true
+                    if (isScraperErr) {
+                        console.warn(`  [${platform}] Technical scraper error for ${restaurant.name} — skipping stop event & keeping last known valid status`)
+                        continue
+                    }
+
                     const isAvailable = checkResult.final_status === 'available'
 
                     const newCheck = {

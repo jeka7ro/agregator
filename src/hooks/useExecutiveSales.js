@@ -65,7 +65,12 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
       }
     } catch (_) {}
     fetchSales()
+    // Immutable historical periods never need background polling (0 wasted function invocations)
+    if (period === 'yesterday' || period === 'last_month') return
+
+    const refreshMs = period === 'today' ? 120000 : 300000 // 2 min for today, 5 min for week/month/year
     const timer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return
       try {
         const roHour = Number(
           new Intl.DateTimeFormat('en-GB', {
@@ -77,7 +82,7 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
         if (roHour >= 22 || roHour < 10) return
       } catch (_) {}
       fetchSales()
-    }, 30000) // auto-refresh every 30s (only between 10:00 and 22:00)
+    }, refreshMs)
     return () => clearInterval(timer)
   }, [period, limit])
 

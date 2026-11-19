@@ -195,7 +195,7 @@ function InteractiveDonut({ data = [], activeKey, onSelect, centerTitle, centerV
 export default function Reports() {
   const { isDark } = useTheme()
   const { t, language } = useLanguage()
-  const { canAccessCity, canAccessBrand, canAccessRestaurant, hasScopeRestrictions } = useAuth()
+  const { user, canAccessCity, canAccessBrand, canAccessRestaurant, hasScopeRestrictions } = useAuth()
 
   // Main Tabs: 'analytics' (Executive Suite) vs 'audit' (Scan Logs)
   const [activeTab, setActiveTab] = useState('analytics')
@@ -366,17 +366,29 @@ export default function Reports() {
     fetchAnalytics()
   }, [period])
 
-  // Fetch Audit Scan Logs (Tab 2)
+  // Fetch Audit Scan Logs (Tab 2) — respects city/brand/restaurant scope
   const fetchAuditLogs = async (p) => {
     setLoadingAudit(true)
+    const allowedC = (user?.allowed_cities || ['all']).filter(c => c !== 'all')
+    const citiesQuery = allowedC.length > 0 ? `&cities=${encodeURIComponent(allowedC.join(','))}` : ''
+    const filterScopedRows = (rows) => {
+      if (!hasScopeRestrictions) return rows || []
+      return (rows || []).filter(row => {
+        const c = row.restaurants?.city || row.restaurants?.name || ''
+        if (c && !canAccessCity(c)) return false
+        if (row.restaurant_id && !canAccessRestaurant(row.restaurant_id)) return false
+        return true
+      })
+    }
     try {
-      const res = await fetch(getApiUrl(`/api/reports/verifications?page=${p}&limit=${auditLimit}`))
+      const res = await fetch(getApiUrl(`/api/reports/verifications?page=${p}&limit=${auditLimit}${citiesQuery}`))
       const json = await res.json()
       if (json.success) {
-        setAuditData(json.data)
-        setAuditTotal(json.total)
-        setAuditTotalPages(json.totalPages)
-        setAuditPage(json.page)
+        const scoped = filterScopedRows(json.data)
+        setAuditData(scoped)
+        setAuditTotal(hasScopeRestrictions && allowedC.length === 0 ? scoped.length : (json.total ?? scoped.length))
+        setAuditTotalPages(json.totalPages || 1)
+        setAuditPage(json.page || p)
       }
     } catch (err) {
       console.warn("API audit fetch failed, falling back to Supabase:", err)
@@ -385,13 +397,15 @@ export default function Reports() {
         const { data: dbData, count } = await supabase
           .from('monitoring_checks')
           .select('*, restaurants(name, city)', { count: 'exact' })
+          .neq('final_status', 'error')
           .order('checked_at', { ascending: false })
           .range(offset, offset + auditLimit - 1)
 
         if (dbData) {
-          setAuditData(dbData)
-          setAuditTotal(count || dbData.length)
-          setAuditTotalPages(Math.ceil((count || dbData.length) / auditLimit) || 1)
+          const scoped = filterScopedRows(dbData)
+          setAuditData(scoped)
+          setAuditTotal(hasScopeRestrictions ? scoped.length : (count || scoped.length))
+          setAuditTotalPages(Math.ceil((count || scoped.length) / auditLimit) || 1)
           setAuditPage(p)
         }
       } catch (dbErr) {
@@ -597,9 +611,15 @@ export default function Reports() {
     try {
       let exportRows = auditData
       try {
-        const res = await fetch(getApiUrl(`/api/reports/verifications?page=1&limit=1000`))
+        const allowedC = (user?.allowed_cities || ['all']).filter(c => c !== 'all')
+        const citiesQuery = allowedC.length > 0 ? `&cities=${encodeURIComponent(allowedC.join(','))}` : ''
+        const res = await fetch(getApiUrl(`/api/reports/verifications?page=1&limit=1000${citiesQuery}`))
         const json = await res.json()
-        if (json.success && json.data) exportRows = json.data
+        if (json.success && json.data) {
+          exportRows = hasScopeRestrictions
+            ? json.data.filter(row => canAccessCity(row.restaurants?.city || row.restaurants?.name || ''))
+            : json.data
+        }
       } catch {}
 
       const headers = [

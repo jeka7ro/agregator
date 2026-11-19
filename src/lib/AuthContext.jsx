@@ -143,9 +143,21 @@ export function AuthProvider({ children }) {
     if (!activeUserId && !activeUserEmail) return
     let cancelled = false
 
-    const sendHeartbeat = () => {
+    const sendHeartbeat = (isInitial = false) => {
       if (activeIsImpersonated) return
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+      if (!isInitial) {
+        try {
+          const roHour = Number(
+            new Intl.DateTimeFormat('en-GB', {
+              timeZone: 'Europe/Bucharest',
+              hour: '2-digit',
+              hour12: false
+            }).format(new Date())
+          )
+          if (roHour >= 22 || roHour < 10) return
+        } catch (_) {}
+      }
       fetch(getApiUrl('/api/auth/heartbeat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -153,8 +165,8 @@ export function AuthProvider({ children }) {
       }).catch(() => {})
     }
 
-    sendHeartbeat()
-    const hbTimer = setInterval(sendHeartbeat, 3 * 60 * 1000)
+    sendHeartbeat(true)
+    const hbTimer = setInterval(() => sendHeartbeat(false), 10 * 60 * 1000)
 
     fetch(getApiUrl('/api/users'))
       .then(r => r.json())

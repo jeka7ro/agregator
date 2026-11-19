@@ -1425,6 +1425,10 @@ export default function Monitoring() {
 
                                         if (diffMins < 1) return <span className="text-emerald-600 dark:text-emerald-400 font-bold">{t('common.now')}</span>;
                                         if (diffMins < 60) return `${diffMins}m`;
+                                        const isSameDay = latest.toDateString() === new Date().toDateString();
+                                        if (!isSameDay) {
+                                          return latest.toLocaleString(localeCode, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                                        }
                                         return latest.toLocaleString(localeCode, { hour: '2-digit', minute: '2-digit' });
                                       })()}
                                     </td>
@@ -1685,6 +1689,39 @@ export default function Monitoring() {
                             </div>
                           </div>
                         </div>
+
+                        {/* Confirmare live prin comenzi Syrve */}
+                        {selectedCheckDetail.check.live_orders_today > 0 && (
+                          <div className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${isDark ? 'bg-emerald-950/25 border-emerald-800/60' : 'bg-emerald-50/80 border-emerald-200'}`}>
+                            <div className="flex items-center gap-2.5">
+                              <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                              <div>
+                                <div className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                                  {language === 'ru'
+                                    ? (selectedCheckDetail.check.verified_via === 'kitchen_live_order'
+                                      ? 'Подтверждено живыми заказами кухни (Syrve)'
+                                      : 'Подтверждено живыми заказами Syrve сегодня')
+                                    : language === 'en'
+                                      ? 'Verified via live Syrve orders today'
+                                      : (selectedCheckDetail.check.verified_via === 'kitchen_live_order'
+                                        ? 'Confirmat prin comenzi live ale bucătăriei (Syrve)'
+                                        : 'Confirmat prin comenzi live Syrve azi')}
+                                </div>
+                                <div className="text-[11px] font-medium text-emerald-600/80 dark:text-emerald-400/80">
+                                  {selectedCheckDetail.check.last_order_at && (
+                                    <>
+                                      {language === 'ru' ? 'Последний заказ:' : language === 'en' ? 'Last order:' : 'Ultima comandă:'}{' '}
+                                      {new Date(selectedCheckDetail.check.last_order_at).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <span className="px-2.5 py-1 rounded-full text-xs font-extrabold tabular-nums bg-emerald-600 text-white shrink-0">
+                              {selectedCheckDetail.check.live_orders_today} {language === 'ru' ? 'зак.' : language === 'en' ? 'ord.' : 'com.'}
+                            </span>
+                          </div>
+                        )}
 
                         {/* Контроль зоны и радиуса доставки (GPS заказов) */}
                         {selectedCheckDetail.zoneInfo && (

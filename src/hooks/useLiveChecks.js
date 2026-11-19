@@ -28,7 +28,7 @@ export function useLiveChecks({ rawUnfiltered = false } = {}) {
     try {
       if (!silent && memoryCachedRestaurants.length === 0) setLoading(true)
 
-      const fetchWithTimeout = async (url, ms = 3500) => {
+      const fetchWithTimeout = async (url, ms = 8000) => {
         const ctrl = new AbortController()
         const id = setTimeout(() => ctrl.abort(), ms)
         try {
@@ -39,8 +39,8 @@ export function useLiveChecks({ rawUnfiltered = false } = {}) {
       }
 
       const [restResResult, checksResResult] = await Promise.allSettled([
-        fetchWithTimeout(getApiUrl('/api/settings/restaurants'), 3500),
-        fetchWithTimeout(getApiUrl('/api/live-checks'), 3500)
+        fetchWithTimeout(getApiUrl('/api/settings/restaurants'), 6000),
+        fetchWithTimeout(getApiUrl('/api/live-checks'), 8500)
       ])
 
       let rests = []

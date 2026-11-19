@@ -429,8 +429,23 @@ export default function Dashboard() {
 
   const handleVerifyAll = () => {
     setIsVerifying(true)
-    setVerifyStatus({ isRunning: true, totalChecks: 208, current: 0, errors: 0, offline: 0, results: [] })
-    fetch(getApiUrl('/api/check-all'), { method: 'POST' }).catch(console.error)
+    setVerifyStatus({ isRunning: true, totalChecks: 204, current: 0, errors: 0, offline: 0, results: [] })
+    fetch(getApiUrl('/api/check-all'), { method: 'POST' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const data = await res.json().catch(() => null)
+        if (data?.status) {
+          setVerifyStatus(data.status)
+          if (!data.status.isRunning) {
+            setIsVerifying(false)
+            fetchData(true)
+          }
+        }
+      })
+      .catch((err) => {
+        console.error(err)
+        setIsVerifying(false)
+      })
   }
 
   const handleStopVerify = () => {
@@ -443,43 +458,37 @@ export default function Dashboard() {
     isVerifyingRef.current = isVerifying
   }, [isVerifying])
 
-  // Monitor live check progress
+  // Monitor live check progress ONLY while a verification scan is actively running (0 idle invocations)
   useEffect(() => {
-    let interval
+    if (!isVerifying) return
+    let consecutiveFailures = 0
     const checkStatus = async () => {
+      if (typeof document !== 'undefined' && document.hidden) return
       try {
         const res = await fetch(getApiUrl('/api/check-status'))
         if (res.ok) {
+          consecutiveFailures = 0
           const data = await res.json()
           if (data.success && data.status) {
             setVerifyStatus(data.status)
-            if (data.status.isRunning) {
-              if (!isVerifyingRef.current) setIsVerifying(true)
-            } else if (isVerifyingRef.current) {
+            if (!data.status.isRunning) {
               setIsVerifying(false)
               fetchData(true)
             }
           }
+        } else {
+          consecutiveFailures++
+          if (consecutiveFailures >= 3) setIsVerifying(false)
         }
-      } catch (_) { }
+      } catch (_) {
+        consecutiveFailures++
+        if (consecutiveFailures >= 3) setIsVerifying(false)
+      }
     }
 
-    checkStatus()
-    interval = setInterval(() => {
-      try {
-        const roHour = Number(
-          new Intl.DateTimeFormat('en-GB', {
-            timeZone: 'Europe/Bucharest',
-            hour: '2-digit',
-            hour12: false
-          }).format(new Date())
-        )
-        if ((roHour >= 22 || roHour < 10) && !isVerifyingRef.current) return
-      } catch (_) { }
-      checkStatus()
-    }, 15000)
+    const interval = setInterval(checkStatus, 4000)
     return () => clearInterval(interval)
-  }, [fetchData])
+  }, [isVerifying, fetchData])
 
   if (loading && restaurants.length === 0) {
     return (

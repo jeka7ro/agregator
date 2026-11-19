@@ -230,12 +230,12 @@ export class GlovoChecker {
                 restaurant_id: restaurant.id,
                 platform: this.platform,
                 checked_at: new Date().toISOString(),
-                ui_is_open: false,
-                ui_can_order: false,
-                ui_is_greyed: true,
-                ui_error_message: 'Nelistat pe Glovo',
-                final_status: 'unavailable',
-                raw_data: { error: error.message, url: restaurant.glovo_url }
+                ui_is_open: null,
+                ui_can_order: null,
+                ui_is_greyed: false,
+                ui_error_message: `Scraper error: ${error.message}`,
+                final_status: 'error',
+                raw_data: { error: error.message, is_scraper_error: true, url: restaurant.glovo_url }
             }
 
             try {
