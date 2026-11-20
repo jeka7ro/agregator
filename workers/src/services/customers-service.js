@@ -754,12 +754,22 @@ class CustomersService {
   } = {}) {
     const all = Array.from(this.customersByKey.values())
 
-    // Calculăm filtrele globale & KPI pe setul selectat de oraș/brand/platformă
+    const allowedCitiesList = (city && city !== 'all')
+      ? String(city).split(',').map(c => normalizeCanonicalCity(c.trim())).filter(Boolean)
+      : []
+    const allowedBrandsList = (brand && brand !== 'all')
+      ? String(brand).split(',').map(b => b.trim().toLowerCase()).filter(Boolean)
+      : []
+
+    // Calculăm filtrele globale & KPI pe setul selectat de oraș/brand/platformă (suportă și CSV multi-oraș/multi-brand)
     const baseFiltered = all.filter(c => {
-      if (city && city !== 'all' && String(c.city || '').toUpperCase() !== String(city).toUpperCase()) {
-        return false
+      if (allowedCitiesList.length > 0) {
+        const custCity = normalizeCanonicalCity(c.city || '')
+        if (!allowedCitiesList.includes(custCity) && !allowedCitiesList.includes(String(c.city || '').toUpperCase())) {
+          return false
+        }
       }
-      if (brand && brand !== 'all' && !(c.brands || []).some(b => b.toLowerCase() === brand.toLowerCase())) {
+      if (allowedBrandsList.length > 0 && !(c.brands || []).some(b => allowedBrandsList.includes(String(b || '').toLowerCase()))) {
         return false
       }
       if (platform && platform !== 'all' && !(c.platforms || []).some(p => p.toLowerCase().includes(platform.toLowerCase()))) {

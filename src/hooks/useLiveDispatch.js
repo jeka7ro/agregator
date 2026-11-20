@@ -22,10 +22,10 @@ const DEFAULT_KPIS = {
   avg_total_time: 44.7
 }
 
-function getInitialState(period) {
+function getInitialState(period, scopeKey = 'all') {
   try {
     if (typeof window !== 'undefined' && period === 'today') {
-      const cached = sessionStorage.getItem('dispatch_cache_today_v3')
+      const cached = sessionStorage.getItem(`dispatch_cache_today_v4_${scopeKey}`)
       if (cached) {
         const parsed = JSON.parse(cached)
         if (parsed && Array.isArray(parsed.orders) && parsed.orders.length > 0) {
@@ -56,7 +56,14 @@ function getInitialState(period) {
 
 export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'all', channel = 'all', period = 'today', autoRefreshSeconds = 300 } = {}) {
   const { user, canAccessCity, canAccessBrand, canAccessRestaurant } = useAuth()
-  const [data, setData] = useState(() => getInitialState(period))
+  const scopeKey = useMemo(() => {
+    if (!user || user.role === 'admin') return 'admin'
+    const c = (user.allowed_cities || ['all']).join(',')
+    const b = (user.allowed_brands || ['all']).join(',')
+    const r = (user.allowed_restaurants || ['all']).join(',')
+    return `${c}|${b}|${r}`
+  }, [user?.role, user?.allowed_cities, user?.allowed_brands, user?.allowed_restaurants])
+  const [data, setData] = useState(() => getInitialState(period, scopeKey))
   const [loading, setLoading] = useState(() => data.orders.length === 0)
   const [lastUpdated, setLastUpdated] = useState(() => new Date())
   const [isAutoRefreshEnabled, setIsAutoRefreshEnabled] = useState(true)
@@ -66,7 +73,7 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
   const isFetchingRef = useRef(false)
   const fetchDataRef = useRef(null)
 
-  const fetchData = useCallback(async (silent = false) => {
+  const fetchData = useCallback(async (silent = false, forceRefresh = false) => {
     countdownRef.current = autoRefreshSeconds
     setSecondsUntilRefresh(autoRefreshSeconds)
 
@@ -84,7 +91,10 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
       if (period && period !== 'all') params.set('period', period)
       const fetchLimit = (period === 'today' || period === 'yesterday') ? '3500' : '2500'
       params.set('limit', fetchLimit)
-      params.set('_t', String(Date.now()))
+      if (forceRefresh) {
+        params.set('refresh', '1')
+        params.set('_t', String(Date.now()))
+      }
 
       const res = await fetch(getApiUrl(`/api/dispatch/live?${params.toString()}`))
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -110,7 +120,7 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
 
           if (period === 'today' && incomingOrders.length > 0 && (!city || city === 'all') && (!brand || brand === 'all')) {
             try {
-              sessionStorage.setItem('dispatch_cache_today_v3', JSON.stringify(nextData))
+              sessionStorage.setItem(`dispatch_cache_today_v4_${scopeKey}`, JSON.stringify(nextData))
             } catch (_) {}
           }
 
@@ -125,7 +135,7 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
       isFetchingRef.current = false
       setLoading(false)
     }
-  }, [city, brand, restaurantId, channel, period, autoRefreshSeconds])
+  }, [city, brand, restaurantId, channel, period, autoRefreshSeconds, scopeKey])
 
   fetchDataRef.current = fetchData
 
@@ -209,6 +219,24 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
     })
   }, [data.stop_matrix, user, canAccessCity, canAccessBrand, canAccessRestaurant])
 
+  const scopedStopAuditLog = useMemo(() => {
+    const raw = data.stop_audit_log || []
+    if (!user || user.role === 'admin') return raw
+    const allC = (user.allowed_cities || ['all']).includes('all')
+    const allB = (user.allowed_brands || ['all']).includes('all')
+    const allR = (user.allowed_restaurants || ['all']).includes('all')
+    if (allC && allB && allR) return raw
+
+    return raw.filter(log => {
+      const logCity = getCanonicalCity(log.city || log.restaurant_city || log.restaurant_name || '')
+      const logBrand = log.brand || log.brand_name || getBrandInfo({ name: log.restaurant_name, brand: log.brand })?.name || ''
+      if (!allC && !canAccessCity(logCity || log.city || log.restaurant_name)) return false
+      if (!allB && !canAccessBrand(logBrand || log.restaurant_name)) return false
+      if (!allR && log.restaurant_id && !canAccessRestaurant(log.restaurant_id)) return false
+      return true
+    })
+  }, [data.stop_audit_log, user, canAccessCity, canAccessBrand, canAccessRestaurant])
+
   const scopedKpis = useMemo(() => {
     if (!user || user.role === 'admin') return data.kpis
     const allC = (user.allowed_cities || ['all']).includes('all')
@@ -218,6 +246,7 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
 
     const list = scopedOrders || []
     let todaySales = 0
+    let todayGrossSales = 0
     let kioskCount = 0
     let casierieCount = 0
     let aggregatorsCount = 0
@@ -233,7 +262,10 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
     let tSum = 0, tCnt = 0
 
     list.forEach(o => {
-      todaySales += Number(o.total_amount || 0)
+      const net = Number(o.total_amount || 0)
+      const gross = Number(o.gross_amount || o.total_amount || 0)
+      todaySales += net
+      todayGrossSales += gross >= net ? gross : net
       const ch = String(o.channel_type || '').toLowerCase()
       const pl = String(o.platform || '').toLowerCase()
       if (ch === 'kiosk' || pl === 'kiosk') kioskCount++
@@ -246,7 +278,7 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
       else if (o.stage === 'on_way') onWayCount++
       else if (o.stage === 'delivered') deliveredCount++
 
-      if (o.has_problem || o.sla_breached) problemsCount++
+      if (o.has_problem || o.sla_breached || o.problem) problemsCount++
 
       if (Number(o.kitchen_minutes) > 0) { kSum += Number(o.kitchen_minutes); kCnt++ }
       if (Number(o.courier_wait_minutes) > 0) { wSum += Number(o.courier_wait_minutes); wCnt++ }
@@ -254,9 +286,15 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
       if (Number(o.total_minutes || o.lead_time_minutes) > 0) { tSum += Number(o.total_minutes || o.lead_time_minutes); tCnt++ }
     })
 
+    const roundedNet = Math.round(todaySales * 100) / 100
+    const roundedGross = Math.round(todayGrossSales * 100) / 100
+    const roundedDiscount = Math.max(0, Math.round((roundedGross - roundedNet) * 100) / 100)
+
     return {
       ...data.kpis,
-      today_sales: Math.round(todaySales * 100) / 100,
+      today_sales: roundedNet,
+      today_gross_sales: roundedGross,
+      today_discount_amount: roundedDiscount,
       today_orders_count: list.length,
       kiosk_count: kioskCount,
       casierie_count: casierieCount,
@@ -267,10 +305,10 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
       on_way_count: onWayCount,
       delivered_count: deliveredCount,
       problems_count: problemsCount,
-      avg_kitchen_time: kCnt > 0 ? Number((kSum / kCnt).toFixed(1)) : (data.kpis?.avg_kitchen_time || 14.5),
-      avg_courier_wait_time: wCnt > 0 ? Number((wSum / wCnt).toFixed(1)) : (data.kpis?.avg_courier_wait_time || 5.8),
-      avg_delivery_time: dCnt > 0 ? Number((dSum / dCnt).toFixed(1)) : (data.kpis?.avg_delivery_time || 16.6),
-      avg_total_time: tCnt > 0 ? Number((tSum / tCnt).toFixed(1)) : (data.kpis?.avg_total_time || 36.4)
+      avg_kitchen_time: kCnt > 0 ? Number((kSum / kCnt).toFixed(1)) : 0,
+      avg_courier_wait_time: wCnt > 0 ? Number((wSum / wCnt).toFixed(1)) : 0,
+      avg_delivery_time: dCnt > 0 ? Number((dSum / dCnt).toFixed(1)) : 0,
+      avg_total_time: tCnt > 0 ? Number((tSum / tCnt).toFixed(1)) : 0
     }
   }, [data.kpis, scopedOrders, user])
 
@@ -278,7 +316,7 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
     kpis: scopedKpis,
     orders: scopedOrders,
     stopMatrix: scopedStopMatrix,
-    stopAuditLog: data.stop_audit_log,
+    stopAuditLog: scopedStopAuditLog,
     period: data.period,
     periodLabel: data.period_label,
     periodDateRange: data.period_date_range,

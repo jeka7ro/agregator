@@ -105,6 +105,8 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
       // 1. Check historical stop_events overlapping [slotStart, slotEnd]
       ;(stopEvents || []).forEach(ev => {
         const r = restMap.get(ev.restaurant_id)
+        // Respect user city/brand/restaurant scope: if scoped restaurants list is loaded, ignore events outside it
+        if (activeRests.length > 0 && !r) return
         const p = String(ev.platform || '').toLowerCase()
         if (r && (p === 'glovo' || p === 'wolt' || p === 'bolt')) {
           const pUrl = r[`${p}_url`]
@@ -684,7 +686,7 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
                 </div>
               ) : (
                 <div className="text-[10px] text-emerald-500 font-medium">
-                  {tr('charts.tooltip_no_incidents', '✓ Fără incidente raportate')}
+                  {tr('charts.tooltip_no_incidents', 'Fără incidente raportate')}
                 </div>
               )}
             </div>

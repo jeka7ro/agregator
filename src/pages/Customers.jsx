@@ -218,8 +218,8 @@ export default function Customers() {
     try {
       const allowedC = (user?.allowed_cities || ['all']).filter(c => c !== 'all')
       const allowedB = (user?.allowed_brands || ['all']).filter(b => b !== 'all')
-      const effectiveCity = (cityFilter === 'all' && allowedC.length === 1) ? allowedC[0] : cityFilter
-      const effectiveBrand = (brandFilter === 'all' && allowedB.length === 1) ? allowedB[0] : brandFilter
+      const effectiveCity = (cityFilter === 'all' && allowedC.length > 0) ? allowedC.join(',') : cityFilter
+      const effectiveBrand = (brandFilter === 'all' && allowedB.length > 0) ? allowedB.join(',') : brandFilter
 
       const params = new URLSearchParams({
         city: effectiveCity,
@@ -248,7 +248,7 @@ export default function Customers() {
         if (Array.isArray(json.cities)) setCities(json.cities.filter(c => canAccessCity(c)))
         if (Array.isArray(json.brands)) setBrands(json.brands.filter(b => canAccessBrand(b)))
         setTotalPages(json.total_pages || 1)
-        setTotalFiltered(hasScopeRestrictions ? list.length : (json.total_filtered || 0))
+        setTotalFiltered(json.total_filtered ?? list.length)
         setFilteredTotalRevenue(json.filtered_total_revenue ?? json.kpis?.total_revenue ?? 0)
         setFilteredTotalOrders(json.filtered_total_orders ?? json.kpis?.total_orders ?? 0)
         setFilteredTotalReviews(json.filtered_total_reviews ?? 0)
@@ -493,7 +493,7 @@ export default function Customers() {
             <span>{txt('Total Clienți Reali', 'Всего Клиентов', 'Total Real Customers')}</span>
             <Users size={15} className="text-indigo-500" />
           </div>
-          <div className="text-xl font-black text-slate-900 dark:text-white mt-1 font-mono">
+          <div className="text-xl font-black text-slate-900 dark:text-white mt-1 tabular-nums">
             {Number(kpis.total_customers || 0).toLocaleString('ro-RO')}
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
@@ -506,7 +506,7 @@ export default function Customers() {
             <span>{txt('Clienți Recurenți (2+)', 'Постоянные (2+)', 'Repeat Customers (2+)')}</span>
             <Repeat size={15} className="text-emerald-500" />
           </div>
-          <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1 font-mono">
+          <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
             {Number(kpis.repeat_customers || 0).toLocaleString('ro-RO')}
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
@@ -519,7 +519,7 @@ export default function Customers() {
             <span>{txt('Clienți VIP', 'VIP Клиенты', 'VIP Customers')}</span>
             <Award size={15} className="text-amber-500" />
           </div>
-          <div className="text-xl font-black text-amber-500 mt-1 font-mono">
+          <div className="text-xl font-black text-amber-500 mt-1 tabular-nums">
             {Number(kpis.vip_customers || 0).toLocaleString('ro-RO')}
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
@@ -539,7 +539,7 @@ export default function Customers() {
             <span>{txt('Clienți cu Recenzii', 'Клиенты с Отзывами', 'Customers with Reviews')}</span>
             <MessageSquare size={15} className="text-amber-500" />
           </div>
-          <div className="text-xl font-black text-amber-500 mt-1 font-mono">
+          <div className="text-xl font-black text-amber-500 mt-1 tabular-nums">
             {Number(kpis.with_reviews_count || 0).toLocaleString('ro-RO')}
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
@@ -552,7 +552,7 @@ export default function Customers() {
             <span>{txt('Valoare Totală Comenzi', 'Общая Сумма Заказов', 'Total Customer Revenue')}</span>
             <TrendingUp size={15} className="text-sky-500" />
           </div>
-          <div className="text-xl font-black text-slate-900 dark:text-white mt-1 font-mono">
+          <div className="text-xl font-black text-slate-900 dark:text-white mt-1 tabular-nums">
             {formatMoney(kpis.total_revenue)}
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
@@ -570,7 +570,7 @@ export default function Customers() {
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
               <span>{txt('Tabel Bază de Date Clienți', 'Таблица Клиентов', 'Customers Database Table')}</span>
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-mono">
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 tabular-nums">
                 {totalFiltered} {txt('clienți', 'клиентов', 'customers')}
               </span>
             </h2>
@@ -640,7 +640,7 @@ export default function Customers() {
                   }`}
                 >
                   <span>{seg.label}</span>
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] tabular-nums font-bold ${
                     active
                       ? 'bg-white/20 text-white'
                       : isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600'
@@ -878,7 +878,7 @@ export default function Customers() {
                             </span>
                           )}
                           {isRepeat && (
-                            <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shrink-0 font-mono">
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shrink-0 tabular-nums">
                               {cust.orders_count}x
                             </span>
                           )}
@@ -897,7 +897,7 @@ export default function Customers() {
                           <div>
                             <div className="flex items-center gap-1.5">
                               <Phone size={11} className={cust.is_direct_phone ? 'text-emerald-500 shrink-0' : 'text-slate-400 shrink-0'} />
-                              <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs">
+                              <span className="tabular-nums font-bold text-slate-800 dark:text-slate-200 text-xs">
                                 {cust.phone}
                               </span>
                               <button
@@ -963,7 +963,7 @@ export default function Customers() {
 
                       {/* Col 6: Orders Count */}
                       <td className="py-2 px-2 w-20 text-center whitespace-nowrap">
-                        <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-black font-mono ${
+                        <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-black tabular-nums ${
                           isRepeat
                             ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
                             : isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
@@ -975,7 +975,7 @@ export default function Customers() {
                       {/* Col 7: Reviews Linked */}
                       <td className="py-2 px-2 w-28 text-center whitespace-nowrap">
                         {revCount > 0 ? (
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-black font-mono border ${
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-black tabular-nums border ${
                             hasNegRev
                               ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30'
                               : 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
@@ -993,7 +993,7 @@ export default function Customers() {
                       <td className="py-2 px-2.5 w-36 whitespace-nowrap">
                         {cust.last_order_at ? (
                           <div>
-                            <div className="text-xs font-bold text-slate-800 dark:text-slate-200 font-mono">
+                            <div className="text-xs font-bold text-slate-800 dark:text-slate-200 tabular-nums">
                               {new Date(cust.last_order_at).toLocaleDateString('ro-RO', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                               {' · '}
                               {new Date(cust.last_order_at).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
@@ -1005,7 +1005,7 @@ export default function Customers() {
                                   e.stopPropagation()
                                   openOrderDetailsModal(cust, lastOrder)
                                 }}
-                                className="mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-[10px] font-mono font-black cursor-pointer"
+                                className="mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-[10px] tabular-nums font-black cursor-pointer"
                                 title={txt('Vezi Bonul iiko al Comenzii', 'Открыть чек iiko заказа', 'View Order iiko Receipt')}
                               >
                                 <Receipt size={10} />
@@ -1019,7 +1019,7 @@ export default function Customers() {
                       </td>
 
                       {/* Col 9: Total Spent (RON) */}
-                      <td className="py-2 px-2.5 w-32 text-right whitespace-nowrap font-mono">
+                      <td className="py-2 px-2.5 w-32 text-right whitespace-nowrap tabular-nums">
                         <div className="font-black text-slate-900 dark:text-white text-xs">
                           {formatMoney(cust.total_spent)}
                         </div>
@@ -1095,7 +1095,7 @@ export default function Customers() {
                 <td className="py-2.5 px-2.5 text-slate-400">
                   —
                 </td>
-                <td className="py-2.5 px-2 text-center font-mono">
+                <td className="py-2.5 px-2 text-center tabular-nums">
                   <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">
                     {pageTotalOrders}
                   </div>
@@ -1105,7 +1105,7 @@ export default function Customers() {
                     </div>
                   )}
                 </td>
-                <td className="py-2.5 px-2 text-center font-mono">
+                <td className="py-2.5 px-2 text-center tabular-nums">
                   <div className="text-xs font-black text-amber-500">
                     {pageTotalReviews}
                   </div>
@@ -1118,7 +1118,7 @@ export default function Customers() {
                 <td className="py-2.5 px-2.5 text-right text-xs font-bold text-slate-500 dark:text-slate-400">
                   {totalPages > 1 ? txt('Total Pagină:', 'Итого стр.:', 'Page Total:') : ''}
                 </td>
-                <td className="py-2.5 px-2.5 text-right whitespace-nowrap font-mono">
+                <td className="py-2.5 px-2.5 text-right whitespace-nowrap tabular-nums">
                   <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">
                     {formatMoney(pageTotalRevenue)}
                   </div>
@@ -1166,7 +1166,7 @@ export default function Customers() {
               <span>{txt('Total:', 'Всего:', 'Total:')}</span>
               <span className="font-bold text-slate-900 dark:text-white">{totalFiltered}</span>
               <span>{txt('înregistrări', 'записей', 'records')}</span>
-              <span className="text-slate-400 font-medium ml-1 font-mono">
+              <span className="text-slate-400 font-medium ml-1 tabular-nums">
                 ({formatMoney(filteredTotalRevenue)})
               </span>
             </div>
@@ -1249,12 +1249,12 @@ export default function Customers() {
                     {(selectedCustomer.reviews_count || (selectedCustomer.reviews || []).length) > 0 && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                         <Star size={10} className="fill-current" />
-                        <span>★ {selectedCustomer.avg_rating || '5.0'}/5 ({selectedCustomer.reviews_count || (selectedCustomer.reviews || []).length} {txt('recenzii', 'отзывов', 'reviews')})</span>
+                        <span>{selectedCustomer.avg_rating || '5.0'}/5 ({selectedCustomer.reviews_count || (selectedCustomer.reviews || []).length} {txt('recenzii', 'отзывов', 'reviews')})</span>
                       </span>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400 flex-wrap font-mono">
+                  <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400 flex-wrap tabular-nums">
                     {selectedCustomer.phone && (
                       <span className="inline-flex items-center gap-1 font-bold text-slate-700 dark:text-slate-200">
                         <Phone size={11} className="text-emerald-500" />
@@ -1303,7 +1303,7 @@ export default function Customers() {
                   <span className="text-[10px] font-bold uppercase text-slate-400 block">
                     {txt('Total Comenzi', 'Всего Заказов', 'Total Orders')}
                   </span>
-                  <div className="text-lg font-black font-mono text-slate-900 dark:text-white mt-0.5">
+                  <div className="text-lg font-black tabular-nums text-slate-900 dark:text-white mt-0.5">
                     {selectedCustomer.orders_count || 1}
                   </div>
                   <div className="text-[10px] text-slate-400">
@@ -1315,7 +1315,7 @@ export default function Customers() {
                   <span className="text-[10px] font-bold uppercase text-slate-400 block">
                     {txt('Total Cheltuit', 'Всего Потрачено', 'Total Spent')}
                   </span>
-                  <div className="text-lg font-black font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  <div className="text-lg font-black tabular-nums text-emerald-600 dark:text-emerald-400 mt-0.5">
                     {formatMoney(selectedCustomer.total_spent)}
                   </div>
                   <div className="text-[10px] text-slate-400">
@@ -1327,9 +1327,9 @@ export default function Customers() {
                   <span className="text-[10px] font-bold uppercase text-slate-400 block">
                     {txt('Recenzii Client', 'Отзывы Клиента', 'Customer Reviews')}
                   </span>
-                  <div className="text-lg font-black font-mono text-amber-500 mt-0.5">
+                  <div className="text-lg font-black tabular-nums text-amber-500 mt-0.5">
                     {(selectedCustomer.reviews || []).length > 0
-                      ? `★ ${selectedCustomer.avg_rating || '5.0'} / 5`
+                      ? `${selectedCustomer.avg_rating || '5.0'} / 5`
                       : '—'}
                   </div>
                   <div className="text-[10px] text-slate-400">
@@ -1341,7 +1341,7 @@ export default function Customers() {
                   <span className="text-[10px] font-bold uppercase text-slate-400 block">
                     {txt('Ultima Activitate', 'Последняя Активность', 'Last Activity')}
                   </span>
-                  <div className="text-xs font-black font-mono text-slate-900 dark:text-white mt-1">
+                  <div className="text-xs font-black tabular-nums text-slate-900 dark:text-white mt-1">
                     {selectedCustomer.last_order_at ? new Date(selectedCustomer.last_order_at).toLocaleString('ro-RO') : '—'}
                   </div>
                   <div className="flex items-center gap-1.5 mt-1">
@@ -1386,7 +1386,7 @@ export default function Customers() {
                         type="text"
                         value={editForm.phone}
                         onChange={e => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
-                        className={`w-full px-3 py-2 rounded-xl border text-xs font-mono font-bold outline-none ${
+                        className={`w-full px-3 py-2 rounded-xl border text-xs tabular-nums font-bold outline-none ${
                           isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
                         }`}
                       />
@@ -1508,7 +1508,7 @@ export default function Customers() {
                             isDark ? 'bg-slate-900 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
                           }`}
                         >
-                          {b.label}: <strong className="font-mono">{b.value}</strong>
+                          {b.label}: <strong className="tabular-nums">{b.value}</strong>
                         </span>
                       ))}
                     </div>
@@ -1583,13 +1583,13 @@ export default function Customers() {
                               </span>
 
                               {rev.order_id && (
-                                <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-mono text-[11px] font-black">
+                                <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 tabular-nums text-[11px] font-black">
                                   #{rev.order_id}
                                 </span>
                               )}
                             </div>
 
-                            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
+                            <div className="flex items-center gap-2 text-[11px] text-slate-400 tabular-nums">
                               {rev.reviewed_at && (
                                 <span>{new Date(rev.reviewed_at).toLocaleString('ro-RO')}</span>
                               )}
@@ -1661,7 +1661,7 @@ export default function Customers() {
                         {/* Order Header Row */}
                         <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-200/80 dark:border-slate-700/70">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-mono text-xs font-black border border-emerald-500/30">
+                            <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 tabular-nums text-xs font-black border border-emerald-500/30">
                               #{ro.order_number}
                             </span>
                             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-extrabold uppercase">
@@ -1674,14 +1674,14 @@ export default function Customers() {
                                 {ro.restaurant_name || ro.brand_name}
                               </span>
                             </div>
-                            <span className="text-xs text-slate-400 font-mono flex items-center gap-1">
+                            <span className="text-xs text-slate-400 tabular-nums flex items-center gap-1">
                               <Clock size={12} />
                               {ro.placed_at ? new Date(ro.placed_at).toLocaleString('ro-RO') : ''}
                             </span>
                           </div>
 
                           <div className="flex items-center gap-2.5">
-                            <span className="font-mono font-black text-sm text-emerald-600 dark:text-emerald-400">
+                            <span className="tabular-nums font-black text-sm text-emerald-600 dark:text-emerald-400">
                               {formatMoney(ro.total_amount)}
                             </span>
                             <button
@@ -1698,7 +1698,7 @@ export default function Customers() {
                         {/* iiko Timings & Courier Strip (if available) */}
                         {(roTimings.created_time || roTimings.cooking_completed_time || roTimings.sended_time || roTimings.delivered_time || ro.courier?.name) && (
                           <div className="flex flex-wrap items-center justify-between gap-2 py-2.5 border-b border-slate-200/60 dark:border-slate-700/50 text-[11px]">
-                            <div className="flex flex-wrap items-center gap-3 font-mono">
+                            <div className="flex flex-wrap items-center gap-3 tabular-nums">
                               {roTimings.created_time && (
                                 <span className="text-slate-500 dark:text-slate-400">
                                   {txt('Intrată:', 'Поступил:', 'Created:')} <strong className="text-slate-900 dark:text-white">{roTimings.created_time}</strong>
@@ -1725,7 +1725,7 @@ export default function Customers() {
                               <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                                 <Truck size={12} />
                                 <span>{ro.courier.name}</span>
-                                {ro.courier.phone && <span className="font-mono text-slate-400">({ro.courier.phone})</span>}
+                                {ro.courier.phone && <span className="tabular-nums text-slate-400">({ro.courier.phone})</span>}
                               </div>
                             )}
                           </div>
@@ -1769,13 +1769,13 @@ export default function Customers() {
                                       <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
                                         {cleanPName}
                                       </div>
-                                      <div className="text-[10px] font-mono text-slate-400">
+                                      <div className="text-[10px] tabular-nums text-slate-400">
                                         {qty}x · {lineSum > 0 ? `${lineSum.toFixed(2)} RON` : ''}
                                       </div>
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center gap-2 shrink-0 font-mono">
+                                  <div className="flex items-center gap-2 shrink-0 tabular-nums">
                                     <span className="px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 text-[11px] font-black">
                                       {qty}x
                                     </span>

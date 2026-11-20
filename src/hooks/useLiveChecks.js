@@ -24,7 +24,7 @@ export function useLiveChecks({ rawUnfiltered = false } = {}) {
   const [loading, setLoading] = useState(() => memoryCachedRestaurants.length === 0)
   const [lastRefresh, setLastRefresh] = useState(new Date())
 
-  const fetchData = useCallback(async (silent = false) => {
+  const fetchData = useCallback(async (silent = false, forceRefresh = false) => {
     try {
       if (!silent && memoryCachedRestaurants.length === 0) setLoading(true)
 
@@ -38,9 +38,13 @@ export function useLiveChecks({ rawUnfiltered = false } = {}) {
         }
       }
 
+      const checksEndpoint = forceRefresh
+        ? getApiUrl(`/api/live-checks?refresh=1&_t=${Date.now()}`)
+        : getApiUrl('/api/live-checks')
+
       const [restResResult, checksResResult] = await Promise.allSettled([
         fetchWithTimeout(getApiUrl('/api/settings/restaurants'), 6000),
-        fetchWithTimeout(getApiUrl('/api/live-checks'), 8500)
+        fetchWithTimeout(checksEndpoint, 8500)
       ])
 
       let rests = []

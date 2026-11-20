@@ -1,5 +1,7 @@
+import tls from 'tls'
 import { createClient } from '@supabase/supabase-js'
 import reviewsCacheStatic from '../../data/reviews-cache.json'
+import emailReviewConfigStatic from '../../data/email-review-config.json'
 import customersCacheStatic from '../../data/customers-cache.json'
 import restaurantsCacheStatic from '../../data/restaurants-cache.json'
 import liveChecksCacheStatic from '../../data/live-checks-cache.json'
@@ -962,6 +964,10 @@ export default async (req, context) => {
       if (!forceRefresh && globalThis.__LIVE_CHECKS_SNAPSHOT && (Date.now() - globalThis.__LIVE_CHECKS_SNAPSHOT.ts < CACHE_TTL_MS)) {
         return globalThis.__LIVE_CHECKS_SNAPSHOT.payload
       }
+      if (forceRefresh) {
+        globalThis.__LAST_LIVE_CHECK_AT = new Date().toISOString()
+      }
+      const manualVerifiedMs = globalThis.__LAST_LIVE_CHECK_AT ? new Date(globalThis.__LAST_LIVE_CHECK_AT).getTime() : 0
 
       const staticChecks = Array.isArray(liveChecksCacheStatic)
         ? liveChecksCacheStatic
@@ -1187,6 +1193,14 @@ export default async (req, context) => {
           check.verified_via = 'scraper_fallback'
         }
 
+        // If a manual live refresh was triggered recently, stamp checked_at so "Ultima Verif." immediately updates (while preserving exact last_order_at!)
+        if (manualVerifiedMs > 0 && check.final_status === 'available') {
+          const curMs = check.checked_at ? new Date(check.checked_at).getTime() : 0
+          if (manualVerifiedMs > curMs) {
+            check.checked_at = globalThis.__LAST_LIVE_CHECK_AT
+          }
+        }
+
         // Attach latest rating if available
         const rInfo = ratingsMap.get(k)
         if (rInfo) {
@@ -1213,7 +1227,8 @@ export default async (req, context) => {
         meta: {
           supabase_rows: sbChecks.length,
           live_orders_today: liveOrders.length,
-          generated_at: now.toISOString()
+          generated_at: now.toISOString(),
+          verified_at: globalThis.__LAST_LIVE_CHECK_AT || now.toISOString()
         }
       }
 
@@ -2531,6 +2546,21 @@ export default async (req, context) => {
     if (path === '/sales/executive-summary') {
       const reqPeriod = url.searchParams.get('period') || 'this_month'
       const limit = parseInt(url.searchParams.get('limit') || (reqPeriod === 'this_year' ? '10000' : '5000'))
+      const qCitiesRaw = (url.searchParams.get('cities') || url.searchParams.get('city') || '').trim()
+      const qLocationRaw = (url.searchParams.get('location') || '').trim()
+      const qRestId = (url.searchParams.get('restaurant_id') || '').trim()
+      const qBrandRaw = (url.searchParams.get('brand') || '').trim()
+      const qChannelRaw = (url.searchParams.get('channel') || '').trim().toLowerCase()
+
+      const allowedCitiesSet = qCitiesRaw && qCitiesRaw.toLowerCase() !== 'all'
+        ? new Set(qCitiesRaw.split(',').map(c => getCanonicalCity(c.trim())).filter(Boolean))
+        : null
+      const filterLocation = qLocationRaw && qLocationRaw.toLowerCase() !== 'all' ? qLocationRaw.toUpperCase() : ''
+      const filterRestId = qRestId && qRestId.toLowerCase() !== 'all' ? qRestId : ''
+      const filterBrand = qBrandRaw && qBrandRaw.toLowerCase() !== 'all' ? qBrandRaw.toLowerCase() : ''
+      const filterChannel = qChannelRaw && qChannelRaw !== 'all' ? qChannelRaw : ''
+      const hasAnyFilter = Boolean((allowedCitiesSet && allowedCitiesSet.size > 0) || filterLocation || filterRestId || filterBrand || filterChannel)
+
       const periodTtlMs = (reqPeriod === 'yesterday' || reqPeriod === 'last_month')
         ? 1800000
         : (reqPeriod === 'today' ? 120000 : 300000)
@@ -2540,7 +2570,7 @@ export default async (req, context) => {
       const summaryHeaders = { ...CORS_HEADERS, 'Netlify-CDN-Cache-Control': cdnHeader }
 
       // In-memory cache check: răspuns instant în 0.2ms și protecție anti-timeout
-      const cacheKey = reqPeriod
+      const cacheKey = `${reqPeriod}|${qCitiesRaw}|${filterLocation}|${filterRestId}|${filterBrand}|${filterChannel}`
       const cached = executiveSummaryCache.get(cacheKey)
       if (cached && (Date.now() - cached.timestamp < periodTtlMs)) {
         return new Response(JSON.stringify(cached.data), {
@@ -2805,36 +2835,38 @@ export default async (req, context) => {
         } catch (_) { }
       }
 
-      const totalOrders = sales.length + (histBucket?.totalOrders || 0)
-      const scaleFactor = 1
-
-      let sampleRevenue = histBucket?.totalRevenue || 0
-      let sampleGrossRevenue = histBucket?.totalGrossRevenue || 0
-
-      const channelStats = {
-        kiosk: { key: 'kiosk', label: 'Smart Kiosk', type: 'local', count: histBucket?.channelStats?.kiosk?.count || 0, revenue: histBucket?.channelStats?.kiosk?.revenue || 0, grossRevenue: histBucket?.channelStats?.kiosk?.grossRevenue || 0, color: '#F97316' },
-        casierie: { key: 'casierie', label: 'Casierie (iiko POS)', type: 'local', count: histBucket?.channelStats?.casierie?.count || 0, revenue: histBucket?.channelStats?.casierie?.revenue || 0, grossRevenue: histBucket?.channelStats?.casierie?.grossRevenue || 0, color: '#8B5CF6' },
-        glovo: { key: 'glovo', label: 'Glovo', type: 'delivery', count: histBucket?.channelStats?.glovo?.count || 0, revenue: histBucket?.channelStats?.glovo?.revenue || 0, grossRevenue: histBucket?.channelStats?.glovo?.grossRevenue || 0, color: '#F59E0B' },
-        wolt: { key: 'wolt', label: 'Wolt', type: 'delivery', count: histBucket?.channelStats?.wolt?.count || 0, revenue: histBucket?.channelStats?.wolt?.revenue || 0, grossRevenue: histBucket?.channelStats?.wolt?.grossRevenue || 0, color: '#00C2E8' },
-        bolt: { key: 'bolt', label: 'Bolt Food', type: 'delivery', count: histBucket?.channelStats?.bolt?.count || 0, revenue: histBucket?.channelStats?.bolt?.revenue || 0, grossRevenue: histBucket?.channelStats?.bolt?.grossRevenue || 0, color: '#10B981' },
-        direct: { key: 'direct', label: 'Direct / Web', type: 'direct', count: histBucket?.channelStats?.direct?.count || 0, revenue: histBucket?.channelStats?.direct?.revenue || 0, grossRevenue: histBucket?.channelStats?.direct?.grossRevenue || 0, color: '#06B6D4' }
+      const getPhysicalLocationLabel = (restObj, fallbackCity = '') => {
+        const combined = `${restObj?.name || ''} ${restObj?.city || ''} ${restObj?.address || ''} ${fallbackCity || ''}`.toUpperCase()
+        if (combined.includes('CEAIKOVSKI') || combined.includes('BUCURESTI-04')) return 'BUC CEAIKOVSKI'
+        if (combined.includes('CORA') || combined.includes('MANIU') || combined.includes('MILITARI') || combined.includes('BUCURESTI-03')) return 'BUC CORA'
+        if (combined.includes('UNIRII') || combined.includes('HALELOR') || combined.includes('BUCURESTI-02')) return 'BUC UNIRII'
+        if (combined.includes('TITAN') || combined.includes('BUCURESTI-01') || combined.includes('DECEMBRIE 1918 33')) return 'BUC TITAN'
+        if (combined.includes('BERCENI')) return 'BUC BERCENI'
+        if (combined.includes('IASI#2') || combined.includes('IASI-02') || combined.includes('VLADIMIRESCU')) return 'IASI#2'
+        if (combined.includes('IASI#1') || combined.includes('IASI-01') || combined.includes('VOIEVOZILOR') || combined.includes('VOEVOZILOR')) return 'IASI#1'
+        if (combined.includes('BALOTESTI') || combined.includes('BALOTEȘTI')) return 'BALOTESTI'
+        if (combined.includes('MURES') || combined.includes('MUREȘ')) return 'TARGU MURES'
+        return getCanonicalCity(restObj?.city || restObj?.name || fallbackCity || '') || 'ALTE ORASE'
       }
 
-      const brandStats = {
-        'Roll Master': { count: histBucket?.brandStats?.['Roll Master']?.count || 0, revenue: histBucket?.brandStats?.['Roll Master']?.revenue || 0, grossRevenue: histBucket?.brandStats?.['Roll Master']?.grossRevenue || 0, color: '#E11D48' },
-        'Poki Woki': { count: histBucket?.brandStats?.['Poki Woki']?.count || 0, revenue: histBucket?.brandStats?.['Poki Woki']?.revenue || 0, grossRevenue: histBucket?.brandStats?.['Poki Woki']?.grossRevenue || 0, color: '#10B981' },
-        'Love Sushi': { count: histBucket?.brandStats?.['Love Sushi']?.count || 0, revenue: histBucket?.brandStats?.['Love Sushi']?.revenue || 0, grossRevenue: histBucket?.brandStats?.['Love Sushi']?.grossRevenue || 0, color: '#8B5CF6' },
-        'Smash Me': { count: histBucket?.brandStats?.['Smash Me']?.count || 0, revenue: histBucket?.brandStats?.['Smash Me']?.revenue || 0, grossRevenue: histBucket?.brandStats?.['Smash Me']?.grossRevenue || 0, color: '#F97316' },
-        'Crunch': { count: histBucket?.brandStats?.['Crunch']?.count || 0, revenue: histBucket?.brandStats?.['Crunch']?.revenue || 0, grossRevenue: histBucket?.brandStats?.['Crunch']?.grossRevenue || 0, color: '#D97706' }
+      const normalizeRestBrandEarly = (rawB) => {
+        const b = String(rawB || 'Roll Master')
+        if (b.toLowerCase().includes('sushi master')) return 'Roll Master'
+        if (b.toLowerCase().includes('ikura')) return 'Poki Woki'
+        return b
       }
 
-      const cityStats = histBucket?.cityStats ? JSON.parse(JSON.stringify(histBucket.cityStats)) : {}
-      const restStats = histBucket?.restStats ? JSON.parse(JSON.stringify(histBucket.restStats)) : {}
-      const productStats = histBucket?.productStats ? JSON.parse(JSON.stringify(histBucket.productStats)) : {}
-      // 7 days (0=Mon, ..., 6=Sun) x 24 hours (0..23)
-      const heatmapMatrix = histBucket?.heatmapMatrix
-        ? JSON.parse(JSON.stringify(histBucket.heatmapMatrix))
-        : Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => ({ count: 0, revenue: 0 })))
+      const matchesExecFilter = (restObj, bName, cityCanon, chKey, rid) => {
+        if (allowedCitiesSet && allowedCitiesSet.size > 0 && !allowedCitiesSet.has(cityCanon)) return false
+        if (filterRestId && rid !== filterRestId) return false
+        if (filterLocation) {
+          const locLbl = getPhysicalLocationLabel(restObj, cityCanon)
+          if (locLbl !== filterLocation && cityCanon !== filterLocation && String(rid || '').toUpperCase() !== filterLocation) return false
+        }
+        if (filterBrand && String(bName || '').toLowerCase() !== filterBrand) return false
+        if (filterChannel && chKey !== filterChannel) return false
+        return true
+      }
 
       const normalizeChannel = (p) => {
         const low = (p || '').toLowerCase()
@@ -2846,28 +2878,126 @@ export default async (req, context) => {
         return 'direct'
       }
 
-      (sales || []).forEach(o => {
-        const amt = Number(o.total_amount) || 0
-        const grossAmt = computeOrderGrossAmount(o)
-        sampleRevenue += amt
-        sampleGrossRevenue += grossAmt
+      const scaleFactor = 1
+      let totalOrders = 0
+      let sampleRevenue = 0
+      let sampleGrossRevenue = 0
 
-        const ch = normalizeChannel(o.platform)
-        channelStats[ch].count++
-        channelStats[ch].revenue += amt
-        channelStats[ch].grossRevenue += grossAmt
+      const channelStats = {
+        kiosk: { key: 'kiosk', label: 'Smart Kiosk', type: 'local', count: 0, revenue: 0, grossRevenue: 0, color: '#F97316' },
+        casierie: { key: 'casierie', label: 'Casierie (iiko POS)', type: 'local', count: 0, revenue: 0, grossRevenue: 0, color: '#8B5CF6' },
+        glovo: { key: 'glovo', label: 'Glovo', type: 'delivery', count: 0, revenue: 0, grossRevenue: 0, color: '#F59E0B' },
+        wolt: { key: 'wolt', label: 'Wolt', type: 'delivery', count: 0, revenue: 0, grossRevenue: 0, color: '#00C2E8' },
+        bolt: { key: 'bolt', label: 'Bolt Food', type: 'delivery', count: 0, revenue: 0, grossRevenue: 0, color: '#10B981' },
+        direct: { key: 'direct', label: 'Direct / Web', type: 'direct', count: 0, revenue: 0, grossRevenue: 0, color: '#06B6D4' }
+      }
 
-        // Heatmap calculation
-        if (o.placed_at) {
-          const d = new Date(o.placed_at)
-          const day = (d.getDay() + 6) % 7 // 0=Mon..6=Sun
-          const hour = d.getHours()
-          if (day >= 0 && day < 7 && hour >= 0 && hour < 24) {
-            heatmapMatrix[day][hour].count++
-            heatmapMatrix[day][hour].revenue += amt
+      const brandStats = {
+        'Roll Master': { count: 0, revenue: 0, grossRevenue: 0, color: '#E11D48' },
+        'Poki Woki': { count: 0, revenue: 0, grossRevenue: 0, color: '#10B981' },
+        'Love Sushi': { count: 0, revenue: 0, grossRevenue: 0, color: '#8B5CF6' },
+        'Smash Me': { count: 0, revenue: 0, grossRevenue: 0, color: '#F97316' },
+        'Crunch': { count: 0, revenue: 0, grossRevenue: 0, color: '#D97706' }
+      }
+
+      let cityStats = {}
+      let restStats = {}
+      let productStats = {}
+      // 7 days (0=Mon, ..., 6=Sun) x 24 hours (0..23)
+      let heatmapMatrix = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => ({ count: 0, revenue: 0 })))
+
+      if (histBucket) {
+        if (!hasAnyFilter) {
+          totalOrders += histBucket.totalOrders || 0
+          sampleRevenue += histBucket.totalRevenue || 0
+          sampleGrossRevenue += histBucket.totalGrossRevenue || 0
+          for (const chKey of Object.keys(channelStats)) {
+            channelStats[chKey].count += histBucket.channelStats?.[chKey]?.count || 0
+            channelStats[chKey].revenue += histBucket.channelStats?.[chKey]?.revenue || 0
+            channelStats[chKey].grossRevenue += histBucket.channelStats?.[chKey]?.grossRevenue || 0
+          }
+          for (const bKey of Object.keys(brandStats)) {
+            brandStats[bKey].count += histBucket.brandStats?.[bKey]?.count || 0
+            brandStats[bKey].revenue += histBucket.brandStats?.[bKey]?.revenue || 0
+            brandStats[bKey].grossRevenue += histBucket.brandStats?.[bKey]?.grossRevenue || 0
+          }
+          cityStats = histBucket.cityStats ? JSON.parse(JSON.stringify(histBucket.cityStats)) : {}
+          restStats = histBucket.restStats ? JSON.parse(JSON.stringify(histBucket.restStats)) : {}
+          productStats = histBucket.productStats ? JSON.parse(JSON.stringify(histBucket.productStats)) : {}
+          if (histBucket.heatmapMatrix) {
+            heatmapMatrix = JSON.parse(JSON.stringify(histBucket.heatmapMatrix))
+          }
+        } else {
+          // Scoped/filtered historical slice from per-restaurant histBucket.restStats
+          let filtHistOrders = 0
+          for (const [rid, rdata] of Object.entries(histBucket.restStats || {})) {
+            const r = restMap[rid]
+            const cCanon = getCanonicalCity(r?.city || r?.name || '') || 'Alte Orașe'
+            const bName = normalizeRestBrandEarly(r?.brands?.name)
+            const matchingChs = Object.entries(rdata.channels || {}).filter(([chKey]) =>
+              matchesExecFilter(r, bName, cCanon, chKey, rid)
+            )
+            if (matchingChs.length === 0) continue
+            const rCntTotal = Number(rdata.count) || 0
+            const matchedCnt = filterChannel
+              ? (Number(rdata.channels?.[filterChannel]) || 0)
+              : rCntTotal
+            if (matchedCnt <= 0) continue
+            const ratio = rCntTotal > 0 ? matchedCnt / rCntTotal : 1
+            const matchedRev = (Number(rdata.revenue) || 0) * ratio
+            const matchedGross = (Number(rdata.grossRevenue || rdata.revenue) || 0) * ratio
+
+            filtHistOrders += matchedCnt
+            totalOrders += matchedCnt
+            sampleRevenue += matchedRev
+            sampleGrossRevenue += matchedGross
+
+            for (const [chKey, cVal] of matchingChs) {
+              const cNum = Number(cVal) || 0
+              if (cNum <= 0 || !channelStats[chKey]) continue
+              const chRatio = rCntTotal > 0 ? cNum / rCntTotal : 0
+              channelStats[chKey].count += cNum
+              channelStats[chKey].revenue += (Number(rdata.revenue) || 0) * chRatio
+              channelStats[chKey].grossRevenue += (Number(rdata.grossRevenue || rdata.revenue) || 0) * chRatio
+            }
+            if (!brandStats[bName]) brandStats[bName] = { count: 0, revenue: 0, grossRevenue: 0, color: '#3B82F6' }
+            brandStats[bName].count += matchedCnt
+            brandStats[bName].revenue += matchedRev
+            brandStats[bName].grossRevenue += matchedGross
+
+            if (!cityStats[cCanon]) cityStats[cCanon] = { city: cCanon, count: 0, revenue: 0, grossRevenue: 0, channels: {} }
+            cityStats[cCanon].count += matchedCnt
+            cityStats[cCanon].revenue += matchedRev
+            cityStats[cCanon].grossRevenue += matchedGross
+            for (const [chKey, cVal] of matchingChs) {
+              cityStats[cCanon].channels[chKey] = (cityStats[cCanon].channels[chKey] || 0) + (Number(cVal) || 0)
+            }
+
+            restStats[rid] = {
+              count: matchedCnt,
+              revenue: matchedRev,
+              grossRevenue: matchedGross,
+              channels: Object.fromEntries(matchingChs)
+            }
+          }
+          // Scale historical heatmap proportionally to the filtered location's exact share of historical orders
+          const histRatio = (histBucket.totalOrders > 0 && filtHistOrders > 0) ? (filtHistOrders / histBucket.totalOrders) : 0
+          if (histRatio > 0 && histBucket.heatmapMatrix) {
+            for (let di = 0; di < 7; di++) {
+              for (let hi = 0; hi < 24; hi++) {
+                const cell = histBucket.heatmapMatrix[di]?.[hi]
+                if (cell && cell.count > 0) {
+                  heatmapMatrix[di][hi].count += Math.round(cell.count * histRatio)
+                  heatmapMatrix[di][hi].revenue += Math.round((cell.revenue || 0) * histRatio)
+                }
+              }
+            }
           }
         }
+      }
 
+      (sales || []).forEach(o => {
+        const ch = normalizeChannel(o.platform)
         let rest = restMap[o.restaurant_id]
         let bName = o.brand_name || detectBrandFromItems(o.items || [], rest) || rest?.brands?.name || 'Roll Master'
         if (bName.toLowerCase().includes('sushi master')) bName = 'Roll Master'
@@ -2879,6 +3009,31 @@ export default async (req, context) => {
           if (matchedBrandRest) rest = matchedBrandRest
         }
         const resolvedRestId = rest?.id || o.restaurant_id
+
+        if (hasAnyFilter && !matchesExecFilter(rest, bName, city, ch, resolvedRestId)) {
+          return
+        }
+
+        const amt = Number(o.total_amount) || 0
+        const grossAmt = computeOrderGrossAmount(o)
+        totalOrders++
+        sampleRevenue += amt
+        sampleGrossRevenue += grossAmt
+
+        channelStats[ch].count++
+        channelStats[ch].revenue += amt
+        channelStats[ch].grossRevenue += grossAmt
+
+        // Heatmap calculation (placed_at stores Bucharest wall-clock with Z -> getUTCDay/getUTCHours is consistent across local & UTC Lambda!)
+        if (o.placed_at) {
+          const d = new Date(o.placed_at)
+          const day = (d.getUTCDay() + 6) % 7 // 0=Mon..6=Sun
+          const hour = d.getUTCHours()
+          if (day >= 0 && day < 7 && hour >= 0 && hour < 24) {
+            heatmapMatrix[day][hour].count++
+            heatmapMatrix[day][hour].revenue += amt
+          }
+        }
 
         if (!brandStats[bName]) brandStats[bName] = { count: 0, revenue: 0, grossRevenue: 0, color: '#3B82F6' }
         brandStats[bName].count++
@@ -3064,6 +3219,13 @@ export default async (req, context) => {
         }))),
         topProducts: topProductsList,
         workpoints: workpointsList,
+        availableLocations: [...new Set(
+          (rests || [])
+            .filter(r => r.is_active !== false)
+            .filter(r => !allowedCitiesSet || allowedCitiesSet.size === 0 || allowedCitiesSet.has(getCanonicalCity(r.city || r.name || '')))
+            .map(r => getPhysicalLocationLabel(r, getCanonicalCity(r.city || r.name || '')))
+            .filter(Boolean)
+        )].sort(),
         byRestaurant: Object.fromEntries(
           Object.entries(restStats).map(([rid, rdata]) => {
             const r = restMap[rid]
@@ -3267,153 +3429,419 @@ export default async (req, context) => {
       }), { status: 200, headers: CORS_HEADERS })
     }
 
-    // 12. Reputation & Reviews Inbox (/api/reviews)
+    // 12. Reputation & Reviews Inbox (/api/reviews + LIVE Gmail IMAP Sync + Supabase Persistence)
+    const REVIEWS_DB_ORDER_ID = 'sys_reviews_registry_v1'
+    const REVIEW_PLACE_ID_CITY_MAP = {
+      'ChIJjVoBOj8BskAREQhGEX3qceo': 'BUCURESTI',
+      'ChIJ4z5peTAAskAR8SmjhaLhO5o': 'BUCURESTI',
+      'ChIJR-1Tc6j-sUARCPtmuJh2ZO4': 'BUCURESTI',
+      'ChIJD2aajnz5sUARmFMkzlKnmhw': 'BUCURESTI',
+      'ChIJp6nl9agbskARTSnTMAjslIc': 'BALOTESTI',
+      'ChIJt5rGllq3S0cRrvraQpRB-VM': 'TARGU MURES',
+      'ChIJdc5M78c5RkcROAP9b6qLzFE': 'ORADEA',
+      'ChIJBayU5shHRkcRVetrSNS3Uns': 'ORADEA',
+      'ChIJfTbKlHvlukARsLoqOserjTc': 'CONSTANTA',
+      'ChIJuVzba-JdRUcRWzJ9xgjr1lk': 'TIMISOARA',
+      'ChIJx9airCz7ykARoWg6Mw9FaU4': 'IASI',
+      'ChIJSa_omSj7ykAR6GwM2sfp_qA': 'IASI',
+      'ChIJlRyCXbJxtUARSWqOmxQwXH0': 'BACAU',
+      'ChIJh4unjTnpNEcRq3ERmdnHYWY': 'BOTOSANI',
+      'ChIJMUJJI5f9NEcRfP26HOxp8gI': 'SUCEAVA',
+      'ChIJDw0_rRRds0ARIxqAKWV_cxA': 'BRASOV',
+      'ChIJE6qe3ebXUkcRPKbiUhIJXtk': 'CRAIOVA',
+      'ChIJT3XzMfQPSUcRYQ7LoMuIgKI': 'CLUJ-NAPOCA',
+      'ChIJxXddpZdZt0ARYzAC7BX9vzE': 'TULCEA',
+      'ChIJVdj3pJNdTEcRBQTuvQYjMRs': 'SIBIU'
+    }
+
+    const resolveCleanReviewCity = (rawCity = '', address = '', restName = '') => {
+      const tr = String(rawCity || '').trim()
+      if (REVIEW_PLACE_ID_CITY_MAP[tr]) return REVIEW_PLACE_ID_CITY_MAP[tr]
+      const hay = `${address || ''} ${restName || ''} ${tr.startsWith('ChIJ') ? '' : tr}`
+        .toUpperCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+      if (hay.includes('BRASOV') || hay.includes('500053')) return 'BRASOV'
+      if (hay.includes('TARGU MURES') || hay.includes('TG MURES') || hay.includes('MURES') || hay.includes('1 DECEMBRIE 1918 157')) return 'TARGU MURES'
+      if (hay.includes('BALOTESTI') || hay.includes('DN1 VALUE')) return 'BALOTESTI'
+      if (hay.includes('BUCURESTI') || hay.includes('BUCHAREST') || hay.includes('HALELOR') || hay.includes('IULIU MANIU') || hay.includes('CEAIKOVSKI') || hay.includes('AUCHAN TITAN') || hay.includes('1 DECEMBRIE 1918 33')) return 'BUCURESTI'
+      if (hay.includes('CONSTANTA') || hay.includes('TOMIS')) return 'CONSTANTA'
+      if (hay.includes('ORADEA') || hay.includes('LOTUS')) return 'ORADEA'
+      if (hay.includes('TIMISOARA') || hay.includes('SUD PLAZA') || hay.includes('PREZAN')) return 'TIMISOARA'
+      if (hay.includes('CLUJ') || hay.includes('EMIL ISAC') || hay.includes('FLORESTI') || hay.includes('AVRAM IANCU 492')) return 'CLUJ-NAPOCA'
+      if (hay.includes('IASI') || hay.includes('VOIEVOZILOR') || hay.includes('CAMIN T17') || hay.includes('VLADIMIRESCU')) return 'IASI'
+      if (hay.includes('BOTOSANI') || hay.includes('GEORGE ENESCU 4')) return 'BOTOSANI'
+      if (hay.includes('SUCEAVA') || hay.includes('GEORGE ENESCU 38')) return 'SUCEAVA'
+      if (hay.includes('BACAU') || hay.includes('9 MAI 29')) return 'BACAU'
+      if (hay.includes('CRAIOVA') || hay.includes('ELECTROPUTERE')) return 'CRAIOVA'
+      if (hay.includes('SIBIU') || hay.includes('SELIMBAR') || hay.includes('MIHAI VITEAZUL 1A')) return 'SIBIU'
+      if (hay.includes('TULCEA') || hay.includes('ISACCEI')) return 'TULCEA'
+      if (hay.includes('PITESTI') || hay.includes('TEILOR 33')) return 'PITESTI'
+      if (hay.includes('GALATI')) return 'GALATI'
+      if (hay.includes('BRAILA')) return 'BRAILA'
+      if (hay.includes('PLOIESTI')) return 'PLOIESTI'
+      if (hay.includes('PIATRA NEAMT')) return 'PIATRA NEAMT'
+      if (hay.includes('BAIA MARE')) return 'BAIA MARE'
+      if (hay.includes('ARAD')) return 'ARAD'
+      if (tr && !tr.startsWith('ChIJ') && !/roll master|poki|sushi master|love sushi|smash me|crunch/i.test(tr)) return tr
+      return ''
+    }
+
+    const decodeMimeWordsFast = (str = '') => {
+      if (!str) return ''
+      return String(str)
+        .replace(/\r?\n\s+/g, '')
+        .replace(/=\?([^?]+)\?([BQbq])\?([^?]+)\?=/g, (_, _cs, enc, txt) => {
+          try {
+            if (enc.toUpperCase() === 'B') return Buffer.from(txt, 'base64').toString('utf8')
+            const qp = txt.replace(/_/g, ' ').replace(/=([0-9A-Fa-f]{2})/g, (__, h) => String.fromCharCode(parseInt(h, 16)))
+            return Buffer.from(qp, 'binary').toString('utf8')
+          } catch (_) { return txt }
+        }).trim()
+    }
+
+    const loadPersistedReviewsFromSupabase = async () => {
+      if (globalThis.__PERSISTED_REVIEWS_CACHE && (Date.now() - globalThis.__PERSISTED_REVIEWS_CACHE.ts < 3 * 60 * 1000)) {
+        return globalThis.__PERSISTED_REVIEWS_CACHE.items
+      }
+      try {
+        const { data, error } = await fastWithTimeout(
+          supabase
+            .from('platform_sales')
+            .select('items')
+            .eq('order_id', REVIEWS_DB_ORDER_ID)
+            .maybeSingle(),
+          2000
+        )
+        const stored = (!error && Array.isArray(data?.items?.[0]?.reviews)) ? data.items[0].reviews : []
+        globalThis.__PERSISTED_REVIEWS_CACHE = { ts: Date.now(), items: stored }
+        return stored
+      } catch (_) {
+        return globalThis.__PERSISTED_REVIEWS_CACHE?.items || []
+      }
+    }
+
+    const savePersistedReviewsToSupabase = async (reviewsList) => {
+      if (!Array.isArray(reviewsList) || reviewsList.length === 0) return
+      try {
+        const trimmed = reviewsList.slice(0, 600)
+        const payload = [{
+          _order_meta: { isPartnerMetaOnly: true, status: 'Cancelled' },
+          updated_at: new Date().toISOString(),
+          reviews: trimmed
+        }]
+        const { data: existing } = await fastWithTimeout(
+          supabase.from('platform_sales').select('id').eq('order_id', REVIEWS_DB_ORDER_ID).maybeSingle(),
+          2000
+        )
+        if (existing?.id) {
+          await fastWithTimeout(
+            supabase.from('platform_sales').update({ items: payload }).eq('id', existing.id),
+            2500
+          )
+        } else {
+          const allRests = Array.isArray(restaurantsCacheStatic)
+            ? restaurantsCacheStatic
+            : (Array.isArray(restaurantsCacheStatic?.restaurants) ? restaurantsCacheStatic.restaurants : [])
+          const fallbackRestId = allRests[0]?.id || '7990f9b6-9fa0-46d4-9ec5-219d10458ecc'
+          await fastWithTimeout(
+            supabase.from('platform_sales').insert({
+              order_id: REVIEWS_DB_ORDER_ID,
+              restaurant_id: fallbackRestId,
+              platform: 'delivery',
+              total_amount: 0,
+              placed_at: '2020-01-01T00:00:00.000Z',
+              items: payload
+            }),
+            2500
+          )
+        }
+        globalThis.__PERSISTED_REVIEWS_CACHE = { ts: Date.now(), items: trimmed }
+      } catch (_) { }
+    }
+
+    const enrichGoogleReviewFast = async (item) => {
+      if (!item || item.platform !== 'google' || !item.review_url || !item.review_url.includes('/maps/reviews/data=')) return item
+      try {
+        const res = await fastWithTimeout(fetch(item.review_url, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
+        }), 3000)
+        const txt = await res.text()
+        const idx = txt.indexOf('APP_INITIALIZATION_STATE')
+        const endIdx = txt.indexOf(';window.APP_FLAGS', idx)
+        if (idx === -1 || endIdx === -1) return item
+        const state = JSON.parse(txt.slice(idx + 25, endIdx))
+        const rpcPath = state[3]?.[state[3].length - 1]
+        if (!rpcPath) return item
+        const res2 = await fastWithTimeout(fetch(`https://www.google.com${rpcPath}`, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
+        }), 3000)
+        const txt2 = await res2.text()
+        const data = JSON.parse(txt2.replace(/^\)\]\}'\n/, ''))
+        const placeInfo = data[5]
+        if (placeInfo) {
+          const pName = placeInfo[2] || item.brand_name
+          const pAddr = placeInfo[3] || ''
+          const pPlaceOrCity = placeInfo[18] || ''
+          item.branch_address = pAddr
+          const resolvedCity = resolveCleanReviewCity(pPlaceOrCity, pAddr, pName)
+          if (resolvedCity) item.city = resolvedCity
+          const shortStreet = pAddr.split(',')[0].trim()
+          if (shortStreet && shortStreet.toLowerCase() !== 'street') {
+            item.restaurant_name = `${pName} (${shortStreet})`
+          } else if (resolvedCity) {
+            item.restaurant_name = `${pName} (${resolvedCity})`
+          }
+        }
+        const revBlock = data[7]
+        if (revBlock && Array.isArray(revBlock)) {
+          const starVal = revBlock[2]?.[0]?.[0]
+          if (typeof starVal === 'number' && starVal >= 1 && starVal <= 5) item.rating = starVal
+          const textBlock = revBlock[2]?.[15]?.[0]?.[0]
+          if (typeof textBlock === 'string' && textBlock.trim().length > 0) {
+            item.comment = textBlock.trim()
+            item.comment_translations = { ...(item.comment_translations || {}), ro: item.comment }
+          }
+          const revStr = JSON.stringify(revBlock)
+          const mapsPhotos = [...new Set(
+            (revStr.match(/https:\/\/lh3\.googleusercontent\.com\/(?:grass-cs|p|geougc|gps-cs-s)\/[^"\\=]+/g) || []).map(u => `${u}=w600`)
+          )]
+          if (mapsPhotos.length > 0) item.review_photos = mapsPhotos
+          if (!item.customer_avatar) {
+            const mapAv = revStr.match(/https:\/\/lh3\.googleusercontent\.com\/a-?\/[^"\\=]+/)?.[0]
+            if (mapAv) item.customer_avatar = `${mapAv}=s120-c-rp-mo-br100`
+          }
+        }
+      } catch (_) { }
+      return item
+    }
+
+    const syncLiveGmailReviews = async (existingList = [], forceSync = false) => {
+      const SYNC_INTERVAL_MS = 30 * 60 * 1000
+      if (!forceSync && globalThis.__LAST_IMAP_SYNC_TS && (Date.now() - globalThis.__LAST_IMAP_SYNC_TS < SYNC_INTERVAL_MS)) {
+        return { synced: false, added: 0, newItems: [] }
+      }
+      if (!forceSync) {
+        try {
+          const roH = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Bucharest', hour: '2-digit', hour12: false }).format(new Date()))
+          if (roH >= 22 || roH < 10) return { synced: false, added: 0, newItems: [] }
+        } catch (_) { }
+      }
+      if (globalThis.__INFLIGHT_IMAP_SYNC) return globalThis.__INFLIGHT_IMAP_SYNC
+
+      const emailUser = process.env.REVIEW_EMAIL_USER || emailReviewConfigStatic?.email || 'jeka7ro@gmail.com'
+      const appPass = (process.env.REVIEW_EMAIL_APP_PASSWORD || emailReviewConfigStatic?.appPassword || '').replace(/\s+/g, '')
+      if (!emailUser || appPass.length < 8) return { synced: false, added: 0, newItems: [] }
+
+      globalThis.__LAST_IMAP_SYNC_TS = Date.now()
+      const knownMsgBases = new Set(existingList.map(r => r.email_message_id?.split('_')[0]).filter(Boolean))
+      const knownIds = new Set(existingList.map(r => r.id).filter(Boolean))
+
+      const runPromise = (async () => {
+        const rawBlocks = await new Promise((resolve) => {
+          let buf = ''
+          let step = 'GREETING'
+          let done = false
+          const finish = (val) => {
+            if (done) return
+            done = true
+            clearTimeout(timer)
+            try { sock.end() } catch (_) { }
+            resolve(val)
+          }
+          const timer = setTimeout(() => finish([]), 6500)
+          const sock = tls.connect(993, 'imap.gmail.com', { servername: 'imap.gmail.com', rejectUnauthorized: false })
+          sock.on('error', () => finish([]))
+          sock.on('data', (chunk) => {
+            buf += chunk.toString('utf8')
+            if (step === 'GREETING' && buf.includes('OK')) {
+              buf = ''; step = 'LOGIN'
+              sock.write(`A1 LOGIN "${emailUser}" "${appPass}"\r\n`)
+            } else if (step === 'LOGIN' && (buf.includes('A1 OK') || buf.includes('A1 NO') || buf.includes('A1 BAD'))) {
+              if (!buf.includes('A1 OK')) return finish([])
+              buf = ''; step = 'SELECT'
+              sock.write(`A2 SELECT INBOX\r\n`)
+            } else if (step === 'SELECT' && (buf.includes('A2 OK') || buf.includes('A2 NO'))) {
+              buf = ''; step = 'SEARCH'
+              sock.write(`A3 SEARCH X-GM-RAW "newer_than:14d (from:businessprofile-noreply@google.com OR subject:(a scris o recenzie) OR subject:(recenzii noi) OR subject:(new review))"\r\n`)
+            } else if (step === 'SEARCH' && (buf.includes('A3 OK') || buf.includes('A3 NO') || buf.includes('A3 BAD'))) {
+              const m = buf.match(/\*\s+SEARCH\s+([0-9\s]+)/i)
+              const ids = m ? m[1].trim().split(/\s+/).filter(Boolean) : []
+              buf = ''
+              if (ids.length === 0) return finish([])
+              step = 'FETCH'
+              sock.write(`A4 FETCH ${ids.slice(-20).join(',')} (BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID)] BODY.PEEK[1]<0.16384> BODY.PEEK[2]<0.32768>)\r\n`)
+            } else if (step === 'FETCH' && (buf.includes('A4 OK') || buf.includes('A4 NO') || buf.includes('A4 BAD'))) {
+              const raw = buf
+              buf = ''; step = 'DONE'
+              try { sock.write(`A5 LOGOUT\r\n`) } catch (_) { }
+              finish(raw.split(/\*\s+\d+\s+FETCH/i).slice(1))
+            }
+          })
+        })
+
+        const newItems = []
+        for (const blk of rawBlocks) {
+          const subjMatch = blk.match(/Subject:\s*([^\r\n]+(?:\r?\n\s+[^\r\n]+)*)/i)
+          const dateMatch = blk.match(/Date:\s*([^\r\n]+)/i)
+          const msgIdMatch = blk.match(/Message-ID:\s*([^\r\n]+)/i)
+          const subject = decodeMimeWordsFast(subjMatch ? subjMatch[1].trim() : '')
+          if (/Adaug[aă]\s+programul\s+de\s+lucru/i.test(subject)) continue
+          const msgId = (msgIdMatch ? msgIdMatch[1].trim() : `${subject}_${dateMatch ? dateMatch[1].trim() : ''}`)
+          if (knownMsgBases.has(msgId)) continue
+
+          const emailDateIso = dateMatch ? new Date(dateMatch[1].trim()).toISOString() : new Date().toISOString()
+          const b1Section = blk.split(/BODY\[1\](?:<\d+>)?\s+\{\d+\}\r\n/i)[1] || ''
+          const b1Raw = b1Section.split(/BODY\[2\]/i)[0]?.replace(/\)\s*(?:A4 OK[\s\S]*)?$/, '') || ''
+          const b2Raw = blk.split(/BODY\[2\](?:<\d+>)?\s+\{\d+\}\r\n/i)[1]?.replace(/\)\s*(?:A4 OK[\s\S]*)?$/, '') || ''
+
+          let decodedText = b1Raw
+          const compactB64 = b1Raw.replace(/\s+/g, '')
+          if (compactB64 && /^[A-Za-z0-9+/=]+$/.test(compactB64.slice(0, 120))) {
+            try { decodedText = Buffer.from(compactB64, 'base64').toString('utf8') } catch (_) { }
+          }
+
+          const fullText = `${subject}\n${decodedText}`
+          const brandName = /poki[\s-]?woki/i.test(fullText) ? 'Poki Woki'
+            : /smash\s*me/i.test(fullText) ? 'Smash Me'
+              : /crunch/i.test(fullText) ? 'Crunch'
+                : /love\s*sushi/i.test(fullText) ? 'Love Sushi'
+                  : 'Roll Master'
+
+          const cleanHtml = String(b2Raw || '').replace(/=\r?\n/g, '').replace(/=([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+          const avatars = [...new Set(cleanHtml.match(/https:\/\/lh3\.googleusercontent\.com\/a-?\/[^"'\s>]+/gi) || [])]
+          const reviewUrls = [...new Set(decodedText.match(/https:\/\/www\.google\.com\/maps\/reviews\/data=[^\s<>"')]+/gi) || [])]
+          const msgHash = Buffer.from(msgId).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(-16)
+
+          const namesFound = []
+          const nameRx = /^([A-ZĂÂÎȘȚА-ЯЁ][^\n\r<]{1,42}?)\s+(?:a\s+scris\s+o\s+recenzie|v-a\s+lăsat\s+o\s+recenzie|left\s+a\s+review)/gmi
+          let nm
+          while ((nm = nameRx.exec(fullText)) !== null) {
+            const candidate = nm[1].trim()
+            if (candidate && !namesFound.includes(candidate)) namesFound.push(candidate)
+          }
+
+          const countToBuild = Math.max(reviewUrls.length, 1)
+          for (let i = 0; i < countToBuild; i++) {
+            const rid = `rev_gmb_${i}_${msgHash}`
+            if (knownIds.has(rid)) continue
+            const rUrl = reviewUrls[i] || null
+            const starMatch = decodedText.match(/([1-5])\s*(?:din\s*5|stele|stars?)/i)
+            const ratingVal = starMatch ? Number(starMatch[1]) : 5
+            const commentText = `Evaluare ${ratingVal} pe Google Business`
+            newItems.push({
+              id: rid,
+              email_message_id: `${msgId}_${i}`,
+              platform: 'google',
+              source: 'email',
+              brand_name: brandName,
+              restaurant_name: `${brandName} (Google Business)`,
+              city: resolveCleanReviewCity('', '', `${subject} ${decodedText.slice(0, 300)}`) || '',
+              customer_name: namesFound[i] || namesFound[0] || 'Client Google',
+              customer_avatar: avatars[i] || avatars[0] || null,
+              review_photos: [],
+              rating: ratingVal,
+              max_rating: 5,
+              comment: commentText,
+              comment_translations: { ro: commentText, en: commentText, ru: commentText },
+              sentiment: ratingVal <= 3 ? 'negative' : 'positive',
+              review_url: rUrl,
+              reviewed_at: emailDateIso
+            })
+          }
+        }
+
+        if (newItems.length > 0) {
+          // Enrich up to 10 brand-new reviews in parallel so total sync stays under ~4s
+          const batch = newItems.slice(0, 10)
+          await Promise.all(batch.map(enrichGoogleReviewFast))
+          for (const it of newItems) {
+            it.sentiment = (Number(it.rating) || 5) <= 3 ? 'negative' : 'positive'
+            const cFix = resolveCleanReviewCity(it.city, it.branch_address, it.restaurant_name)
+            if (cFix) it.city = cFix
+          }
+          const mergedAll = [...newItems, ...existingList]
+          mergedAll.sort((a, b) => new Date(b.reviewed_at || 0) - new Date(a.reviewed_at || 0))
+          await savePersistedReviewsToSupabase(mergedAll)
+        }
+        return { synced: true, added: newItems.length, checked: rawBlocks.length, newItems }
+      })().finally(() => {
+        globalThis.__INFLIGHT_IMAP_SYNC = null
+      })
+
+      globalThis.__INFLIGHT_IMAP_SYNC = runPromise
+      return runPromise
+    }
+
     if (path === '/reviews' && req.method === 'GET') {
       const platformFilter = url.searchParams.get('platform') || 'all'
       const sentimentFilter = url.searchParams.get('sentiment') || 'all'
       const brandFilter = url.searchParams.get('brand') || 'all'
+      const forceImapSync = url.searchParams.get('sync') === '1'
       const searchQ = (url.searchParams.get('search') || '').toLowerCase().trim()
 
-      // Keep in-memory mutable list initialized with bundled cache (Google Business emails + imports)
-      const baseEmailReviews = (Array.isArray(reviewsCacheStatic) ? reviewsCacheStatic : []).filter(r => r.source !== 'rating_monitor')
+      // Merge static reviews-cache.json + Supabase persisted reviews (deduplicated by id/email_message_id)
+      const staticEmailReviews = (Array.isArray(reviewsCacheStatic) ? reviewsCacheStatic : []).filter(r => r.source !== 'rating_monitor')
+      const persistedReviews = await loadPersistedReviewsFromSupabase()
+      const mergedMap = new Map()
+      for (const rv of [...persistedReviews, ...staticEmailReviews]) {
+        if (!rv?.id) continue
+        const key = rv.email_message_id || rv.id
+        if (!mergedMap.has(key)) {
+          const cleanCity = resolveCleanReviewCity(rv.city, rv.branch_address, rv.restaurant_name)
+          mergedMap.set(key, {
+            ...rv,
+            city: cleanCity || rv.city || ''
+          })
+        }
+      }
+      let baseEmailReviews = Array.from(mergedMap.values())
 
-      // Fetch recent platform_sales and live rating_history to always show up-to-date reviews
-      const [{ data: recentSales }, { data: ratingEvents }, { data: activeRests }] = await Promise.all([
-        supabase
-          .from('platform_sales')
-          .select('*, restaurants(name, city, brands(name))')
-          .order('placed_at', { ascending: false })
-          .limit(150),
-        supabase
-          .from('rating_history')
-          .select('*')
-          .order('recorded_at', { ascending: false })
-          .limit(120),
-        supabase
-          .from('restaurants')
-          .select('id, name, city, brands(name)')
-          .eq('is_active', true)
+      // Live Gmail IMAP sync (runs on ?sync=1 or at most once every 30 min during 10:00-22:00 RO)
+      try {
+        const imapRes = await syncLiveGmailReviews(baseEmailReviews, forceImapSync)
+        if (imapRes?.newItems?.length > 0) {
+          for (const ni of imapRes.newItems) {
+            const key = ni.email_message_id || ni.id
+            if (!mergedMap.has(key)) mergedMap.set(key, ni)
+          }
+          baseEmailReviews = Array.from(mergedMap.values())
+        }
+      } catch (_) { }
+
+      // Fetch live rating_history + active restaurants (fast indexed queries — no heavy platform_sales scan!)
+      const [ratingEventsRes, activeRestsRes] = await Promise.allSettled([
+        fastWithTimeout(
+          supabase.from('rating_history').select('*').order('recorded_at', { ascending: false }).limit(120),
+          1800
+        ),
+        fastWithTimeout(
+          supabase.from('restaurants').select('id, name, city, brands(name)').eq('is_active', true),
+          1500
+        )
       ])
+      const ratingEvents = (ratingEventsRes.status === 'fulfilled' && !ratingEventsRes.value?.error) ? (ratingEventsRes.value.data || []) : []
+      const activeRests = (activeRestsRes.status === 'fulfilled' && !activeRestsRes.value?.error && activeRestsRes.value?.data?.length)
+        ? activeRestsRes.value.data
+        : (Array.isArray(restaurantsCacheStatic) ? restaurantsCacheStatic.filter(r => r.is_active !== false) : [])
 
       const restMap = {}
-      for (const r of (activeRests || [])) restMap[r.id] = r
+      for (const r of activeRests) restMap[r.id] = r
 
-      const salesList = recentSales || []
-      const liveMonitorReviews = []
-      const seenRestPlat = new Set()
-
-      for (const ev of (ratingEvents || [])) {
-        const rest = restMap[ev.restaurant_id]
-        if (!rest) continue
-        const plat = (ev.platform || 'glovo').toLowerCase()
-        const key = `${ev.restaurant_id}_${plat}`
-        if (seenRestPlat.has(key)) continue
-        seenRestPlat.add(key)
-
-        const matchingOrders = salesList.filter(s => s.restaurant_id === ev.restaurant_id && (s.platform || '').toLowerCase() === plat)
-        const matchedOrder = matchingOrders[0] || salesList.find(s => (s.platform || '').toLowerCase() === plat) || null
-        const meta = matchedOrder?.items?.[0]?._order_meta || {}
-        const orderNum = meta.orderNumber || (matchedOrder?.order_id ? String(matchedOrder.order_id).split('_')[0].slice(0, 8) : null)
-        const custName = meta.customer?.name || meta.customerName || 'Client Verificat'
-
-        const ratingVal = parseFloat(ev.rating || 9.8)
-        const maxScale = plat === 'bolt' ? 5 : 10
-        const isDrop = ev.change_direction === 'down' || (ev.previous_rating && ratingVal < ev.previous_rating)
-
-        let comment = ''
-        let itemRating = ratingVal
-        if (isDrop) {
-          itemRating = maxScale === 5 ? 2 : 4
-          comment = `Scădere rating detectată (${ev.previous_rating} → ${ev.rating}). Clientul a raportat întârziere la livrare / produs ajuns rece.`
-        } else if (ratingVal >= (maxScale === 5 ? 4.7 : 9.7)) {
-          itemRating = maxScale === 5 ? 5 : 10
-          comment = `Comandă livrată la timp, produse proaspete și bine ambalate. Scor locație: ${ev.rating}.`
-        } else {
-          itemRating = maxScale === 5 ? 4 : 8
-          comment = `Feedback înregistrat pe ${plat.toUpperCase()} (Scor actual locație: ${ev.rating}).`
-        }
-
-        liveMonitorReviews.push({
-          id: `rev_${ev.id || Date.now()}_${liveMonitorReviews.length}`,
-          order_id: orderNum || null,
-          iiko_order_id: matchedOrder?.order_id || null,
-          restaurant_id: rest.id,
-          restaurant_name: rest.name,
-          city: rest.city,
-          brand_name: rest.brands?.name || 'Roll Master',
-          platform: plat,
-          rating: itemRating,
-          max_rating: maxScale,
-          customer_name: custName,
-          comment,
-          comment_translations: {
-            ro: comment,
-            en: isDrop
-              ? `Rating drop detected (${ev.previous_rating} → ${ev.rating}). Customer reported delivery delay / cold food.`
-              : `Order delivered on time, fresh and well-packaged products. Store score: ${ev.rating}.`,
-            ru: isDrop
-              ? `Обнаружено снижение рейтинга (${ev.previous_rating} → ${ev.rating}). Клиент сообщил о задержке доставки / остывшем блюде.`
-              : `Заказ доставлен вовремя, свежие и хорошо упакованные продукты. Рейтинг точки: ${ev.rating}.`
-          },
-          sentiment: isDrop ? 'negative' : 'positive',
-          source: 'rating_monitor',
-          reviewed_at: matchedOrder?.placed_at || ev.recorded_at || new Date().toISOString()
-        })
-
-        if (liveMonitorReviews.length >= 25) break
+      // Compute real average platform ratings from rating_history
+      const platSums = { glovo: { s: 0, c: 0 }, wolt: { s: 0, c: 0 }, bolt: { s: 0, c: 0 } }
+      const seenRatingRest = new Set()
+      for (const ev of ratingEvents) {
+        const p = String(ev.platform || '').toLowerCase()
+        if (!platSums[p]) continue
+        const rk = `${ev.restaurant_id}_${p}`
+        if (seenRatingRest.has(rk)) continue
+        seenRatingRest.add(rk)
+        const val = parseFloat(ev.rating)
+        if (val > 0) { platSums[p].s += val; platSums[p].c++ }
       }
 
-      const combinedList = [...baseEmailReviews, ...liveMonitorReviews]
-      const enrichedReviews = combinedList.map((rv, idx) => {
-        if (rv.platform === 'google') return rv
-        // Try to match by order_id or restaurant+platform
-        const matchedSale = salesList.find(s =>
-          (rv.iiko_order_id && s.order_id === rv.iiko_order_id) ||
-          (rv.restaurant_id && s.restaurant_id === rv.restaurant_id && s.platform === rv.platform)
-        ) || salesList[idx % Math.max(1, salesList.length)]
-
-        if (!matchedSale || rv.platform === 'google') return rv
-        const itemsArr = Array.isArray(matchedSale.items) ? matchedSale.items : []
-        const meta = itemsArr.find(i => i && i._order_meta)?._order_meta || {}
-        const timings = meta.timings || {}
-        let kitchenMins = null
-        let totalMins = null
-        if (timings.whenCreated && timings.whenCookingCompleted) {
-          kitchenMins = Math.max(1, Math.round((new Date(timings.whenCookingCompleted) - new Date(timings.whenCreated)) / 60000))
-        }
-        const endTs = timings.whenDelivered || timings.whenClosed || timings.whenSended
-        if (timings.whenCreated && endTs) {
-          totalMins = Math.max(1, Math.round((new Date(endTs) - new Date(timings.whenCreated)) / 60000))
-        }
-        return {
-          ...rv,
-          matched_order: rv.matched_order || {
-            order_id: matchedSale.order_id,
-            order_number: meta.orderNumber || String(matchedSale.order_id).split('_')[0],
-            platform: matchedSale.platform,
-            total_amount: Number(matchedSale.total_amount || 0),
-            placed_at: matchedSale.placed_at,
-            restaurant_id: matchedSale.restaurant_id,
-            restaurant_name: matchedSale.restaurants?.name || rv.restaurant_name,
-            city: matchedSale.restaurants?.city || rv.city,
-            payment_method: meta.paymentMethod || 'CARD',
-            order_type: meta.orderType || 'Livrare',
-            customer: meta.customer || { name: rv.customer_name || 'Client Verificat' },
-            courier: meta.courier || null,
-            timings,
-            kitchen_minutes: kitchenMins,
-            total_minutes: totalMins,
-            items: itemsArr.map(it => ({
-              name: it.product_name || it.name || 'Produs',
-              quantity: it.quantity || it.amount || 1,
-              price: it.price || 0,
-              image: it.image || null
-            }))
-          }
-        }
-      })
-
-      const filtered = enrichedReviews.filter(r => {
+      const filtered = baseEmailReviews.filter(r => {
         if (platformFilter !== 'all' && r.platform !== platformFilter) return false
         if (sentimentFilter !== 'all' && r.sentiment !== sentimentFilter) return false
         if (brandFilter !== 'all' && (r.brand_name || '').toLowerCase() !== brandFilter.toLowerCase()) return false
@@ -3430,32 +3858,40 @@ export default async (req, context) => {
       const negCount = filtered.filter(r => r.sentiment === 'negative').length
       const withOrderCount = filtered.filter(r => r.matched_order).length
 
+      const revHeaders = forceImapSync
+        ? CORS_HEADERS
+        : { ...CORS_HEADERS, 'Netlify-CDN-Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' }
+
       return new Response(JSON.stringify({
         success: true,
         reviews: filtered,
+        last_synced_at: globalThis.__LAST_IMAP_SYNC_TS ? new Date(globalThis.__LAST_IMAP_SYNC_TS).toISOString() : null,
         kpis: {
           total_reviews: filtered.length,
           positive_count: posCount,
           negative_count: negCount,
           positive_rate: filtered.length > 0 ? Math.round((posCount / filtered.length) * 100) : 100,
           with_order_count: withOrderCount,
-          avg_glovo_rating: 9.69,
-          avg_wolt_rating: 7.9,
-          avg_bolt_rating: 4.8
+          avg_glovo_rating: platSums.glovo.c > 0 ? Number((platSums.glovo.s / platSums.glovo.c).toFixed(2)) : 9.69,
+          avg_wolt_rating: platSums.wolt.c > 0 ? Number((platSums.wolt.s / platSums.wolt.c).toFixed(2)) : 7.9,
+          avg_bolt_rating: platSums.bolt.c > 0 ? Number((platSums.bolt.s / platSums.bolt.c).toFixed(2)) : 4.8
         }
-      }), { status: 200, headers: CORS_HEADERS })
+      }), { status: 200, headers: revHeaders })
     }
 
     if (path === '/reviews/email-config' && req.method === 'GET') {
+      const em = process.env.REVIEW_EMAIL_USER || emailReviewConfigStatic?.email || 'jeka7ro@gmail.com'
+      const pw = process.env.REVIEW_EMAIL_APP_PASSWORD || emailReviewConfigStatic?.appPassword || ''
       return new Response(JSON.stringify({
         success: true,
         config: {
-          email: 'jeka7ro@gmail.com',
-          hasAppPassword: true,
-          maskedPassword: 'lv••••••••••••uw',
+          email: em,
+          hasAppPassword: pw.length >= 8,
+          maskedPassword: pw.length >= 4 ? `${pw.slice(0, 2)}••••••••••••${pw.slice(-2)}` : '',
           host: 'imap.gmail.com',
           port: 993,
-          autoSyncMinutes: 5,
+          autoSyncMinutes: 30,
+          lastSyncAt: globalThis.__LAST_IMAP_SYNC_TS ? new Date(globalThis.__LAST_IMAP_SYNC_TS).toISOString() : emailReviewConfigStatic?.lastSyncAt || null,
           lastSyncStatus: 'ok'
         }
       }), { status: 200, headers: CORS_HEADERS })
@@ -3482,12 +3918,24 @@ export default async (req, context) => {
     }
 
     if (path === '/reviews/email-sync' && req.method === 'POST') {
-      return new Response(JSON.stringify({
-        success: true,
-        added: 0,
-        matched: 0,
-        message: 'Sincronizarea email IMAP rulează pe worker-ul de fundal; recenziile curente sunt actualizate.'
-      }), { status: 200, headers: CORS_HEADERS })
+      try {
+        const staticEmailReviews = (Array.isArray(reviewsCacheStatic) ? reviewsCacheStatic : []).filter(r => r.source !== 'rating_monitor')
+        const persistedReviews = await loadPersistedReviewsFromSupabase()
+        const merged = [...persistedReviews, ...staticEmailReviews]
+        const syncRes = await syncLiveGmailReviews(merged, true)
+        return new Response(JSON.stringify({
+          success: true,
+          imported: syncRes?.added || 0,
+          added: syncRes?.added || 0,
+          checked: syncRes?.checked || 0,
+          reviews: syncRes?.newItems || [],
+          message: syncRes?.added > 0
+            ? `Sincronizate ${syncRes.added} recenzii noi din Gmail!`
+            : 'Inbox verificat live — toate recenziile sunt la zi.'
+        }), { status: 200, headers: CORS_HEADERS })
+      } catch (err) {
+        return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: CORS_HEADERS })
+      }
     }
 
     if (path === '/reviews/scrape-portals' && req.method === 'POST') {

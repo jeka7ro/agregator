@@ -5,11 +5,19 @@ import { getCanonicalCity } from '../lib/orderUtils'
 import { getBrandInfo } from '../components/BrandAvatar'
 
 export function useExecutiveSales(period = 'this_month', limit = 2000) {
-  const { canAccessCity, canAccessBrand, canAccessRestaurant, hasScopeRestrictions } = useAuth()
+  const { user, canAccessCity, canAccessBrand, canAccessRestaurant, hasScopeRestrictions } = useAuth()
+  const allowedCitiesKey = useMemo(() => {
+    if (!user || user.role === 'admin') return ''
+    const allowedC = (user.allowed_cities || ['all']).filter(c => c && c !== 'all')
+    return allowedC.join(',')
+  }, [user?.role, user?.allowed_cities])
+
+  const cacheKey = `exec_sales_v5_${period}_${allowedCitiesKey || 'all'}`
+
   const [salesData, setSalesData] = useState(() => {
     try {
       if (typeof window !== 'undefined') {
-        const cached = sessionStorage.getItem(`exec_sales_v4_${period}`)
+        const cached = sessionStorage.getItem(cacheKey)
         if (cached) {
           const parsed = JSON.parse(cached)
           if (parsed && parsed.success) return parsed
@@ -24,14 +32,16 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
   const fetchSales = useCallback(async () => {
     try {
       if (!salesData) setLoading(true)
-      const res = await fetch(getApiUrl(`/api/sales/executive-summary?period=${encodeURIComponent(period)}&limit=${limit}`))
+      const params = new URLSearchParams({ period, limit: String(limit) })
+      if (allowedCitiesKey) params.set('cities', allowedCitiesKey)
+      const res = await fetch(getApiUrl(`/api/sales/executive-summary?${params.toString()}`))
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       if (data && data.success) {
         setSalesData(data)
         setError(null)
         try {
-          sessionStorage.setItem(`exec_sales_v4_${period}`, JSON.stringify(data))
+          sessionStorage.setItem(cacheKey, JSON.stringify(data))
         } catch (_) {}
       } else {
         throw new Error(data?.error || 'Failed to fetch sales summary')
@@ -41,7 +51,7 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
       setError(err.message)
       // Anti-Wipe: fallback la cache dacă serverul are un glitch temporar
       try {
-        const cached = sessionStorage.getItem(`exec_sales_v4_${period}`)
+        const cached = sessionStorage.getItem(cacheKey)
         if (cached) {
           const parsed = JSON.parse(cached)
           if (parsed && parsed.success) {
@@ -52,11 +62,11 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
     } finally {
       setLoading(false)
     }
-  }, [period, limit])
+  }, [period, limit, allowedCitiesKey, cacheKey])
 
   useEffect(() => {
     try {
-      const cached = sessionStorage.getItem(`exec_sales_v4_${period}`)
+      const cached = sessionStorage.getItem(cacheKey)
       if (cached) {
         const parsed = JSON.parse(cached)
         if (parsed && parsed.success) {
@@ -84,7 +94,7 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
       fetchSales()
     }, refreshMs)
     return () => clearInterval(timer)
-  }, [period, limit])
+  }, [period, limit, allowedCitiesKey, cacheKey, fetchSales])
 
   const scopedSalesData = useMemo(() => {
     if (!salesData || !hasScopeRestrictions) return salesData
@@ -130,14 +140,16 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
       })
 
       if (rawBrand) {
-        if (!brandMap[rawBrand]) brandMap[rawBrand] = { name: rawBrand, count: 0, revenue: 0 }
+        if (!brandMap[rawBrand]) brandMap[rawBrand] = { name: rawBrand, count: 0, revenue: 0, grossRevenue: 0 }
         brandMap[rawBrand].count += cnt
         brandMap[rawBrand].revenue += rev
+        brandMap[rawBrand].grossRevenue += grossRev
       }
       if (rCity) {
-        if (!cityMap[rCity]) cityMap[rCity] = { city: rCity, name: rCity, count: 0, revenue: 0, locationsCount: 0, channels: {} }
+        if (!cityMap[rCity]) cityMap[rCity] = { city: rCity, name: rCity, count: 0, revenue: 0, grossRevenue: 0, locationsCount: 0, channels: {} }
         cityMap[rCity].count += cnt
         cityMap[rCity].revenue += rev
+        cityMap[rCity].grossRevenue += grossRev
         cityMap[rCity].locationsCount += 1
         Object.keys(chTotals).forEach(k => {
           cityMap[rCity].channels[k] = (cityMap[rCity].channels[k] || 0) + Number(chObj[k] || 0)
@@ -152,14 +164,16 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
       .map(b => {
         const bOverride = brandMap[b.name]
         if (hasByRest && !bOverride) {
-          return { ...b, count: 0, revenue: 0, share: 0 }
+          return { ...b, count: 0, revenue: 0, grossRevenue: 0, share: 0 }
         }
         const rev = (hasByRest && bOverride) ? Math.round(bOverride.revenue) : b.revenue
+        const grossRev = (hasByRest && bOverride) ? Math.round(bOverride.grossRevenue) : (b.grossRevenue || rev)
         const cnt = (hasByRest && bOverride) ? bOverride.count : b.count
         return {
           ...b,
           count: cnt,
           revenue: rev,
+          grossRevenue: grossRev,
           share: totalRevenue > 0 ? Math.round((rev / totalRevenue) * 100) : 100
         }
       })
@@ -171,9 +185,10 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
         const canon = getCanonicalCity(cityLabel)
         const cOverride = cityMap[canon]
         if (hasByRest && !cOverride) {
-          return { ...c, city: cityLabel, name: cityLabel, count: 0, revenue: 0, share: 0 }
+          return { ...c, city: cityLabel, name: cityLabel, count: 0, revenue: 0, grossRevenue: 0, share: 0 }
         }
         const rev = (hasByRest && cOverride) ? Math.round(cOverride.revenue) : c.revenue
+        const grossRev = (hasByRest && cOverride) ? Math.round(cOverride.grossRevenue) : (c.grossRevenue || rev)
         const cnt = (hasByRest && cOverride) ? cOverride.count : c.count
         return {
           ...c,
@@ -181,6 +196,7 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
           name: cityLabel,
           count: cnt,
           revenue: rev,
+          grossRevenue: grossRev,
           channels: (hasByRest && cOverride?.channels) ? cOverride.channels : (c.channels || {}),
           locationsCount: cOverride ? cOverride.locationsCount : c.locationsCount,
           share: totalRevenue > 0 ? Math.round((rev / totalRevenue) * 100) : 100

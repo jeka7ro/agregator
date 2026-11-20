@@ -39,6 +39,7 @@ import {
 } from 'lucide-react'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
+import { useAuth } from '../lib/AuthContext'
 import { useLiveChecks } from '../hooks/useLiveChecks'
 import PlatformLogo from '../components/PlatformLogo'
 import BrandAvatar, { getBrandInfo, cleanRestaurantName } from '../components/BrandAvatar'
@@ -69,6 +70,7 @@ function getKitchenZoneKey(name = '', city = '', address = '') {
 export default function Monitoring() {
   const { isDark } = useTheme()
   const { t, language } = useLanguage()
+  const { canAccessCity, canAccessBrand, hasScopeRestrictions } = useAuth()
   const navigate = useNavigate()
 
   const { restaurants, checks, loading, getLatestCheck, fetchData } = useLiveChecks()
@@ -218,13 +220,13 @@ export default function Monitoring() {
     fetchReviews()
   }, [fetchReviews])
 
-  useEffect(() => {
-    let cancelled = false
-    Promise.all([
-      fetch(getApiUrl('/api/dispatch/live?period=today&limit=1500')).then(r => (r.ok ? r.json() : null)).catch(() => null),
-      fetch(getApiUrl('/api/dispatch/live?period=yesterday&limit=1500')).then(r => (r.ok ? r.json() : null)).catch(() => null)
-    ]).then(([tData, yData]) => {
-      if (cancelled) return
+  const fetchZones = useCallback(async (forceRefresh = false) => {
+    const suffix = forceRefresh ? `&refresh=1&_t=${Date.now()}` : ''
+    try {
+      const [tData, yData] = await Promise.all([
+        fetch(getApiUrl(`/api/dispatch/live?period=today&limit=1500${suffix}`)).then(r => (r.ok ? r.json() : null)).catch(() => null),
+        fetch(getApiUrl(`/api/dispatch/live?period=yesterday&limit=1500`)).then(r => (r.ok ? r.json() : null)).catch(() => null)
+      ])
       const yZones = yData?.delivery_zones || {}
       const tZones = tData?.delivery_zones || {}
       const calibratedToday = {}
@@ -252,9 +254,12 @@ export default function Monitoring() {
       setTodayZonesMap(calibratedToday)
       setYesterdayZonesMap(yZones)
       setDeliveryZonesMap(statusMerged)
-    })
-    return () => { cancelled = true }
+    } catch (_) {}
   }, [])
+
+  useEffect(() => {
+    fetchZones(false)
+  }, [fetchZones])
 
   // MECANISMUL 1: Import Manual din Excel / CSV (handleFileUpload cu XLSX)
   const handleFileUpload = async (e) => {
@@ -433,11 +438,15 @@ export default function Monitoring() {
       }
     })
 
+    const visibleBrands = authoritativeBrands.filter(b =>
+      canAccessBrand(b) && (!hasScopeRestrictions || (grouped[b] && grouped[b].length > 0))
+    )
+
     return {
       groupedByBrand: grouped,
-      allBrands: ['all', ...authoritativeBrands]
+      allBrands: ['all', ...visibleBrands]
     }
-  }, [restaurants])
+  }, [restaurants, canAccessBrand, hasScopeRestrictions])
 
   const availableCities = useMemo(() => {
     const set = new Set()
@@ -534,7 +543,9 @@ export default function Monitoring() {
     const targetCityCanon = cityFilter && cityFilter !== 'all' ? getCanonicalCity(cityFilter) : null
     return rawList
       .filter(z => {
-        if (targetCityCanon && z.city !== targetCityCanon) return false
+        const zCityCanon = getCanonicalCity(z.city || z.hub_label || '')
+        if (hasScopeRestrictions && !canAccessCity(zCityCanon || z.city || z.hub_label || '')) return false
+        if (targetCityCanon && zCityCanon !== targetCityCanon) return false
         if (q) {
           const hay = `${z.hub_label || ''} ${z.city || ''} ${z.platform || ''}`.toLowerCase()
           if (!hay.includes(q)) return false
@@ -547,7 +558,7 @@ export default function Monitoring() {
         if (cityCmp !== 0) return cityCmp
         return String(a.platform || '').localeCompare(String(b.platform || ''))
       })
-  }, [todayZonesMap, yesterdayZonesMap, zonesPeriod, cityFilter, search])
+  }, [todayZonesMap, yesterdayZonesMap, zonesPeriod, cityFilter, search, hasScopeRestrictions, canAccessCity])
 
   const zonesKpis = useMemo(() => {
     const glovoRows = zonesList.filter(z => z.platform === 'glovo')
@@ -661,13 +672,23 @@ export default function Monitoring() {
           setVerifyStatus(data.status)
           if (!data.status.isRunning) {
             setIsVerifying(false)
-            fetchData(true)
+            await Promise.all([fetchData(true, true), fetchZones(true)])
+            const timeStr = new Date().toLocaleTimeString(language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-US' : 'ro-RO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            showToast(
+              'success',
+              language === 'ru'
+                ? `Данные обновлены live в ${timeStr} (${data.status.totalChecks || 0} каналов проверено, оффлайн: ${data.status.offline || 0})`
+                : language === 'en'
+                  ? `Live data refreshed at ${timeStr} (${data.status.totalChecks || 0} channels checked, offline: ${data.status.offline || 0})`
+                  : `Date actualizate live la ${timeStr} (${data.status.totalChecks || 0} canale verificate, oprite: ${data.status.offline || 0})`
+            )
           }
         }
       })
       .catch((err) => {
         console.error(err)
         setIsVerifying(false)
+        showToast('error', language === 'ru' ? 'Не удалось обновить статус. Попробуйте ещё раз.' : 'Eroare la actualizarea live. Încearcă din nou.')
       })
   }
 
@@ -1416,7 +1437,22 @@ export default function Monitoring() {
                       })}
 
                       {/* Ultima verificare */}
-                                    <td className="px-4 py-2.5 text-right text-xs font-medium text-slate-500 dark:text-slate-400">
+                                    <td
+                                      className="px-4 py-2.5 text-right text-xs font-medium text-slate-500 dark:text-slate-400"
+                                      title={(() => {
+                                        const checksForR = checks.filter(c => c.restaurant_id === r.id);
+                                        const orderTimes = checksForR.map(c => c.last_order_at).filter(Boolean).map(t => new Date(t).getTime());
+                                        const checkTimes = checksForR.map(c => c.checked_at).filter(Boolean).map(t => new Date(t).getTime());
+                                        const parts = [];
+                                        if (checkTimes.length > 0) {
+                                          parts.push(`${language === 'ru' ? 'Проверка' : 'Verificat'}: ${new Date(Math.max(...checkTimes)).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })}`);
+                                        }
+                                        if (orderTimes.length > 0) {
+                                          parts.push(`${language === 'ru' ? 'Последний заказ' : 'Ultima comandă'}: ${new Date(Math.max(...orderTimes)).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })}`);
+                                        }
+                                        return parts.join(' · ');
+                                      })()}
+                                    >
                                       {(() => {
                                         const checksForR = checks.filter(c => c.restaurant_id === r.id);
                                         if (checksForR.length === 0) return <span className="opacity-40">{t('common.never')}</span>;

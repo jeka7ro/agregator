@@ -2,25 +2,25 @@ import { useState, useEffect, useMemo } from 'react'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
 import { useAuth } from '../lib/AuthContext'
-import { 
-  Loader2, 
-  ChevronLeft, 
-  ChevronRight, 
-  CheckCircle2, 
-  XCircle, 
-  Clock, 
-  Download, 
-  BarChart3, 
-  PieChart, 
-  Flame, 
-  MapPin, 
-  Store, 
-  TrendingUp, 
-  ShoppingBag, 
-  Filter, 
-  X, 
-  RefreshCw, 
-  UtensilsCrossed, 
+import {
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Download,
+  BarChart3,
+  PieChart,
+  Flame,
+  MapPin,
+  Store,
+  TrendingUp,
+  ShoppingBag,
+  Filter,
+  X,
+  RefreshCw,
+  UtensilsCrossed,
   Calendar,
   Layers,
   Sparkles,
@@ -37,11 +37,10 @@ function StatusBadge({ status }) {
   const { t } = useLanguage()
   const isOnline = status === 'available' || status === 'open' || status === 'online'
   return (
-    <span className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap border inline-flex items-center gap-1.5 shadow-2xs ${
-      isOnline 
-        ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
-        : 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800'
-    }`}>
+    <span className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap border inline-flex items-center gap-1.5 shadow-2xs ${isOnline
+      ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
+      : 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800'
+      }`}>
       {isOnline ? (
         <>
           <CheckCircle2 size={12} className="shrink-0" />
@@ -85,7 +84,7 @@ function ProductPhoto({ src, name, brand }) {
 function InteractiveDonut({ data = [], activeKey, onSelect, centerTitle, centerValue, isDark }) {
   const [hovered, setHovered] = useState(null)
   const total = useMemo(() => data.reduce((sum, d) => sum + (Number(d.value) || 0), 0), [data])
-  
+
   const size = 220
   const strokeWidth = 26
   const radius = (size - strokeWidth) / 2
@@ -154,7 +153,7 @@ function InteractiveDonut({ data = [], activeKey, onSelect, centerTitle, centerV
             {currentHoverItem ? currentHoverItem.label : centerTitle}
           </span>
           <span className="text-lg font-black text-slate-900 dark:text-white mt-0.5">
-            {currentHoverItem 
+            {currentHoverItem
               ? `${Math.round(currentHoverItem.val).toLocaleString('ro-RO')} ${currentHoverItem.unit || ''}`
               : centerValue}
           </span>
@@ -172,11 +171,10 @@ function InteractiveDonut({ data = [], activeKey, onSelect, centerTitle, centerV
           <button
             key={slice.key}
             onClick={() => onSelect(slice.key === activeKey ? null : slice.key)}
-            className={`flex items-center justify-between p-1.5 px-2 rounded-xl text-xs transition-all ${
-              activeKey === slice.key 
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm font-bold scale-[1.02]' 
-                : 'hover:bg-slate-100 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300 font-medium'
-            }`}
+            className={`flex items-center justify-between p-1.5 px-2 rounded-xl text-xs transition-all ${activeKey === slice.key
+              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm font-bold scale-[1.02]'
+              : 'hover:bg-slate-100 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300 font-medium'
+              }`}
           >
             <div className="flex items-center gap-1.5 truncate">
               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: slice.color }} />
@@ -205,22 +203,10 @@ export default function Reports() {
     try {
       const p = new URLSearchParams(window.location.search).get('period')
       if (p) return p
-    } catch (_) {}
+    } catch (_) { }
     return 'this_week'
   })
-  const [analyticsData, setAnalyticsData] = useState(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        const initialPeriod = new URLSearchParams(window.location.search).get('period') || 'this_week'
-        const cached = sessionStorage.getItem(`reports_cache_v4_${initialPeriod}`)
-        if (cached) {
-          const parsed = JSON.parse(cached)
-          if (parsed && parsed.success) return parsed
-        }
-      }
-    } catch (_) {}
-    return null
-  })
+  const [analyticsData, setAnalyticsData] = useState(null)
   const [loadingAnalytics, setLoadingAnalytics] = useState(() => !analyticsData)
 
   // Cross-Filter States
@@ -228,19 +214,26 @@ export default function Reports() {
     try {
       const p = new URLSearchParams(window.location.search).get('city')
       if (p && p !== 'all') return p
-    } catch (_) {}
+    } catch (_) { }
     return null
   })
   const [filterBrand, setFilterBrand] = useState(() => {
     try {
       const p = new URLSearchParams(window.location.search).get('brand')
       if (p && p !== 'all') return p
-    } catch (_) {}
+    } catch (_) { }
     return null
   })
   const [filterChannel, setFilterChannel] = useState(() => {
     try {
       const p = new URLSearchParams(window.location.search).get('channel')
+      if (p && p !== 'all') return p
+    } catch (_) { }
+    return null
+  })
+  const [filterLocation, setFilterLocation] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('location')
       if (p && p !== 'all') return p
     } catch (_) {}
     return null
@@ -248,6 +241,7 @@ export default function Reports() {
   const [filterWorkpoint, setFilterWorkpoint] = useState(null)
   const [filterSlot, setFilterSlot] = useState(null) // { day, hour }
   const [hoveredHeatCell, setHoveredHeatCell] = useState(null)
+  const [knownLocations, setKnownLocations] = useState([])
 
   const updateUrlFilter = (key, value) => {
     try {
@@ -258,7 +252,7 @@ export default function Reports() {
         url.searchParams.delete(key)
       }
       window.history.replaceState({}, '', url.toString())
-    } catch (_) {}
+    } catch (_) { }
   }
 
   const handleSetBrand = (b) => {
@@ -269,6 +263,12 @@ export default function Reports() {
   const handleSetCity = (c) => {
     setFilterCity(c)
     updateUrlFilter('city', c)
+  }
+
+  const handleSetLocation = (loc) => {
+    const val = loc && loc !== 'all' ? loc : null
+    setFilterLocation(val)
+    updateUrlFilter('location', val)
   }
 
   const handleSetChannel = (ch) => {
@@ -292,10 +292,11 @@ export default function Reports() {
         setFilterBrand(pBrand && pBrand !== 'all' ? pBrand : null)
         const pChannel = new URLSearchParams(window.location.search).get('channel')
         setFilterChannel(pChannel && pChannel !== 'all' ? pChannel : null)
-      } catch (_) {}
+      } catch (_) { }
     }
     const onGlobalReset = () => {
       setFilterCity(null)
+      setFilterLocation(null)
       setFilterBrand(null)
       setFilterChannel(null)
       setFilterWorkpoint(null)
@@ -321,50 +322,72 @@ export default function Reports() {
   const [auditTotalPages, setAuditTotalPages] = useState(1)
   const auditLimit = 25
 
-  // Fetch Executive Analytics Data
+  // Fetch Executive Analytics Data (passes city scope + location/brand/channel filters so BOTH KPIs AND 24x7 Heatmap match 100%)
+  const allowedCitiesKey = useMemo(() => {
+    const allowedC = (user?.allowed_cities || ['all']).filter(c => c !== 'all')
+    return allowedC.join(',')
+  }, [user?.allowed_cities])
+
   const fetchAnalytics = async () => {
     if (!analyticsData) setLoadingAnalytics(true)
+    const params = new URLSearchParams({ period, limit: '10000' })
+    const effectiveCities = filterCity ? filterCity : allowedCitiesKey
+    if (effectiveCities) params.set('cities', effectiveCities)
+    if (filterLocation) params.set('location', filterLocation)
+    if (filterWorkpoint) params.set('restaurant_id', filterWorkpoint)
+    if (filterBrand) params.set('brand', filterBrand)
+    if (filterChannel) params.set('channel', filterChannel)
+    const cacheStorageKey = `reports_cache_v5_${params.toString()}`
     try {
-      const res = await fetch(getApiUrl(`/api/sales/executive-summary?period=${encodeURIComponent(period)}&limit=10000`))
+      const res = await fetch(getApiUrl(`/api/sales/executive-summary?${params.toString()}`))
       const json = await res.json()
       if (json.success) {
         setAnalyticsData(json)
+        if (Array.isArray(json.availableLocations) && json.availableLocations.length > 0) {
+          setKnownLocations(json.availableLocations)
+        }
         try {
-          sessionStorage.setItem(`reports_cache_v4_${period}`, JSON.stringify(json))
-        } catch (_) {}
+          sessionStorage.setItem(cacheStorageKey, JSON.stringify(json))
+        } catch (_) { }
       } else {
         throw new Error(json.error || 'Failed to fetch executive summary')
       }
     } catch (err) {
       console.error("Executive analytics fetch error:", err)
-      // Anti-Wipe: dacă există date în cache-ul sesiunii, le recuperăm
       try {
-        const cached = sessionStorage.getItem(`reports_cache_v4_${period}`)
+        const cached = sessionStorage.getItem(cacheStorageKey)
         if (cached) {
           const parsed = JSON.parse(cached)
           if (parsed && parsed.success) {
             setAnalyticsData(parsed)
           }
         }
-      } catch (_) {}
+      } catch (_) { }
     } finally {
       setLoadingAnalytics(false)
     }
   }
 
   useEffect(() => {
-    // La schimbarea perioadei, dacă avem cache pentru noua perioadă, îl afișăm instant
+    const params = new URLSearchParams({ period, limit: '10000' })
+    const effectiveCities = filterCity ? filterCity : allowedCitiesKey
+    if (effectiveCities) params.set('cities', effectiveCities)
+    if (filterLocation) params.set('location', filterLocation)
+    if (filterWorkpoint) params.set('restaurant_id', filterWorkpoint)
+    if (filterBrand) params.set('brand', filterBrand)
+    if (filterChannel) params.set('channel', filterChannel)
+    const cacheStorageKey = `reports_cache_v5_${params.toString()}`
     try {
-      const cached = sessionStorage.getItem(`reports_cache_v4_${period}`)
+      const cached = sessionStorage.getItem(cacheStorageKey)
       if (cached) {
         const parsed = JSON.parse(cached)
         if (parsed && parsed.success) {
           setAnalyticsData(parsed)
         }
       }
-    } catch (_) {}
+    } catch (_) { }
     fetchAnalytics()
-  }, [period])
+  }, [period, allowedCitiesKey, filterCity, filterLocation, filterWorkpoint, filterBrand, filterChannel])
 
   // Fetch Audit Scan Logs (Tab 2) — respects city/brand/restaurant scope
   const fetchAuditLogs = async (p) => {
@@ -426,7 +449,7 @@ export default function Reports() {
   const formatDate = (isoString) => {
     if (!isoString) return '-'
     const d = new Date(isoString)
-    return d.toLocaleString(localeCode, { 
+    return d.toLocaleString(localeCode, {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit'
     })
@@ -588,10 +611,11 @@ export default function Reports() {
   }, [heatmapMatrix])
 
   // Active filters count
-  const hasActiveFilters = Boolean(filterCity || filterBrand || filterChannel || filterWorkpoint || filterSlot)
+  const hasActiveFilters = Boolean(filterCity || filterLocation || filterBrand || filterChannel || filterWorkpoint || filterSlot)
 
   const clearAllFilters = () => {
     setFilterCity(null)
+    setFilterLocation(null)
     setFilterBrand(null)
     setFilterChannel(null)
     setFilterWorkpoint(null)
@@ -599,10 +623,11 @@ export default function Reports() {
     try {
       const url = new URL(window.location.href)
       url.searchParams.delete('city')
+      url.searchParams.delete('location')
       url.searchParams.delete('brand')
       url.searchParams.delete('channel')
       window.history.replaceState({}, '', url.toString())
-    } catch (_) {}
+    } catch (_) { }
   }
 
   // Export CSV for Audit Logs
@@ -620,7 +645,7 @@ export default function Reports() {
             ? json.data.filter(row => canAccessCity(row.restaurants?.city || row.restaurants?.name || ''))
             : json.data
         }
-      } catch {}
+      } catch { }
 
       const headers = [
         t('reports.th_nr', 'Nr.'),
@@ -666,7 +691,7 @@ export default function Reports() {
 
   return (
     <div className="flex flex-col h-full w-full space-y-6 pb-12">
-      
+
       {/* Top Header & Master Switchers */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-2 border-b border-slate-200/80 dark:border-slate-800">
         <div>
@@ -676,8 +701,8 @@ export default function Reports() {
             </div>
             <div>
               <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                {activeTab === 'analytics' 
-                  ? t('reports.executive_title', 'Rapoarte & Inteligență Operațională') 
+                {activeTab === 'analytics'
+                  ? t('reports.executive_title', 'Rapoarte & Inteligență Operațională')
                   : t('reports.title', 'Jurnal & Rapoarte Scanări')}
               </h1>
             </div>
@@ -689,22 +714,20 @@ export default function Reports() {
           <div className="inline-flex p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 shadow-inner flex-nowrap shrink-0">
             <button
               onClick={() => setActiveTab('analytics')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 select-none ${
-                activeTab === 'analytics'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 select-none ${activeTab === 'analytics'
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
             >
               <Flame size={14} className="text-amber-500 shrink-0" />
               <span className="whitespace-nowrap">{t('reports.tab_analytics', 'Vânzări & Heatmap')}</span>
             </button>
             <button
               onClick={() => setActiveTab('audit')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 select-none ${
-                activeTab === 'audit'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 select-none ${activeTab === 'audit'
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
             >
               <Clock size={14} className="text-blue-500 shrink-0" />
               <span className="whitespace-nowrap">{t('reports.tab_audit', 'Jurnal Scanări')}</span>
@@ -746,27 +769,80 @@ export default function Reports() {
                 <button
                   key={p.key}
                   onClick={() => handleSetPeriod(p.key)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
-                    period === p.key
-                      ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
-                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/80 border border-slate-200/60 dark:border-slate-700/60'
-                  }`}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${period === p.key
+                    ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/80 border border-slate-200/60 dark:border-slate-700/60'
+                    }`}
                 >
                   {p.label}
                 </button>
               ))}
             </div>
 
-            {/* Quick cross-filters reset or info */}
-            {hasActiveFilters && (
-              <button
-                onClick={clearAllFilters}
-                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap self-start md:self-auto"
-              >
-                <X size={13} />
-                <span>{t('reports.clear_filters', 'Resetează Filtrele')}</span>
-              </button>
-            )}
+            {/* Location & Brand Selectors (filters KPI cards + 24x7 Heatmap + Channels + Top Products) */}
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              {knownLocations.length > 0 && (
+                <div className="relative flex items-center">
+                  <MapPin size={13} className="absolute left-2.5 text-emerald-500 pointer-events-none" />
+                  <select
+                    value={filterLocation || 'all'}
+                    onChange={(e) => handleSetLocation(e.target.value)}
+                    className={`pl-7 pr-6 py-1.5 rounded-xl text-xs font-bold border outline-none cursor-pointer transition-all ${
+                      filterLocation
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-emerald-400'
+                    }`}
+                  >
+                    <option value="all" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">
+                      {language === 'ru'
+                        ? `Все локации (${knownLocations.length})`
+                        : language === 'en'
+                          ? `All locations (${knownLocations.length})`
+                          : `Toate locațiile (${knownLocations.length})`}
+                    </option>
+                    {knownLocations.map(loc => (
+                      <option key={loc} value={loc} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">
+                        {loc}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="relative flex items-center">
+                <Store size={13} className="absolute left-2.5 text-amber-500 pointer-events-none" />
+                <select
+                  value={filterBrand || 'all'}
+                  onChange={(e) => handleSetBrand(e.target.value === 'all' ? null : e.target.value)}
+                  className={`pl-7 pr-6 py-1.5 rounded-xl text-xs font-bold border outline-none cursor-pointer transition-all ${
+                    filterBrand
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-emerald-400'
+                  }`}
+                >
+                  <option value="all" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">
+                    {language === 'ru' ? 'Все бренды' : language === 'en' ? 'All brands' : 'Toate brandurile'}
+                  </option>
+                  {['Roll Master', 'Poki Woki', 'Love Sushi', 'Smash Me', 'Crunch']
+                    .filter(b => !hasScopeRestrictions || canAccessBrand(b))
+                    .map(b => (
+                      <option key={b} value={b} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">
+                        {b}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {hasActiveFilters && (
+                <button
+                  onClick={clearAllFilters}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap"
+                >
+                  <X size={13} />
+                  <span>{t('reports.clear_filters', 'Resetează Filtrele')}</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Active Cross-Filters Ribbon */}
@@ -775,6 +851,12 @@ export default function Reports() {
               <span className="font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5 mr-1 whitespace-nowrap">
                 <Filter size={13} /> {t('reports.filter_active', 'Filtru activ')}:
               </span>
+              {filterLocation && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold bg-emerald-600 text-white whitespace-nowrap">
+                  <MapPin size={11} /> {language === 'ru' ? 'Локация' : 'Locație'}: {filterLocation}
+                  <button onClick={() => handleSetLocation(null)} className="hover:opacity-75"><X size={12} /></button>
+                </span>
+              )}
               {filterCity && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold bg-indigo-600 text-white whitespace-nowrap">
                   {t('reports.filter_city_label', 'Oraș')}: {filterCity}
@@ -935,8 +1017,8 @@ export default function Reports() {
                     {heatmapMatrix.map((row, dayIdx) => {
                       const dayTotalOrders = row.reduce((s, c) => s + c.count, 0)
                       return (
-                        <div 
-                          key={dayIdx} 
+                        <div
+                          key={dayIdx}
                           className="grid grid-cols-[80px_repeat(24,1fr)_70px] gap-1 items-center mb-1.5"
                         >
                           {/* Day Label */}
@@ -971,9 +1053,8 @@ export default function Reports() {
                                 }}
                                 onMouseEnter={() => setHoveredHeatCell({ day: dayIdx, hour: hourIdx, cell })}
                                 onMouseLeave={() => setHoveredHeatCell(null)}
-                                className={`h-8 rounded-lg flex items-center justify-center text-[10px] transition-all transform duration-150 relative ${bgClass} ${
-                                  isCellSelected ? 'ring-2 ring-indigo-500 ring-offset-2 scale-110 z-10' : 'hover:scale-105'
-                                }`}
+                                className={`h-8 rounded-lg flex items-center justify-center text-[10px] transition-all transform duration-150 relative ${bgClass} ${isCellSelected ? 'ring-2 ring-indigo-500 ring-offset-2 scale-110 z-10' : 'hover:scale-105'
+                                  }`}
                                 title={`${dayNames[dayIdx]} ${hourIdx}:00 - ${count} ${t('reports.orders_unit', 'comenzi')} (${Math.round(cell.revenue).toLocaleString(localeCode)} RON)`}
                               >
                                 {count > 0 ? count : ''}
@@ -1106,11 +1187,10 @@ export default function Reports() {
                         <button
                           key={ct.city}
                           onClick={() => handleSetCity(isSelected ? null : ct.city)}
-                          className={`w-full text-left p-2.5 rounded-2xl transition-all border ${
-                            isSelected 
-                              ? 'bg-rose-50/80 dark:bg-rose-950/40 border-rose-300 dark:border-rose-700 shadow-xs'
-                              : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 border-transparent'
-                          }`}
+                          className={`w-full text-left p-2.5 rounded-2xl transition-all border ${isSelected
+                            ? 'bg-rose-50/80 dark:bg-rose-950/40 border-rose-300 dark:border-rose-700 shadow-xs'
+                            : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 border-transparent'
+                            }`}
                         >
                           <div className="flex items-center justify-between text-xs font-bold mb-1">
                             <span className="flex items-center gap-1.5 text-slate-900 dark:text-white">
@@ -1131,11 +1211,10 @@ export default function Reports() {
 
                           {/* Progress bar */}
                           <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                            <div 
-                              style={{ width: `${pct}%` }} 
-                              className={`h-full rounded-full transition-all duration-500 ${
-                                isSelected ? 'bg-rose-500' : 'bg-emerald-500'
-                              }`} 
+                            <div
+                              style={{ width: `${pct}%` }}
+                              className={`h-full rounded-full transition-all duration-500 ${isSelected ? 'bg-rose-500' : 'bg-emerald-500'
+                                }`}
                             />
                           </div>
                         </button>
@@ -1173,15 +1252,14 @@ export default function Reports() {
                         >
                           <div className="flex items-center justify-between gap-3 mb-2">
                             <div className="flex items-center gap-2.5 min-w-0">
-                              <span className={`w-6 h-6 rounded-xl text-xs font-black flex items-center justify-center shrink-0 ${
-                                idx === 0 
-                                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' 
-                                  : idx === 1 
-                                  ? 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200' 
-                                  : idx === 2 
-                                  ? 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300'
-                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
-                              }`}>
+                              <span className={`w-6 h-6 rounded-xl text-xs font-black flex items-center justify-center shrink-0 ${idx === 0
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                : idx === 1
+                                  ? 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
+                                  : idx === 2
+                                    ? 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                                }`}>
                                 {idx + 1}
                               </span>
 
@@ -1246,58 +1324,57 @@ export default function Reports() {
                       </div>
                     ) : (
                       filteredWorkpoints.map((wp) => {
-                      const isSelected = filterWorkpoint === wp.id
-                      return (
-                        <div
-                          key={wp.id}
-                          onClick={() => setFilterWorkpoint(isSelected ? null : wp.id)}
-                          className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
-                            isSelected
+                        const isSelected = filterWorkpoint === wp.id
+                        return (
+                          <div
+                            key={wp.id}
+                            onClick={() => setFilterWorkpoint(isSelected ? null : wp.id)}
+                            className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${isSelected
                               ? 'bg-blue-50/80 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700 shadow-xs'
                               : 'border-slate-100 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800/40'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-3 mb-2">
-                            <div className="flex items-center gap-2.5 truncate">
-                              <BrandAvatar brand={wp.brand || wp.name} size={32} />
-                              <div className="truncate">
-                                <h4 className="text-xs font-black text-slate-900 dark:text-white truncate">
-                                  {cleanRestaurantName(wp.name)}
-                                </h4>
-                                <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                  <MapPin size={10} /> {wp.city} • {wp.brand}
-                                </span>
+                              }`}
+                          >
+                            <div className="flex items-center justify-between gap-3 mb-2">
+                              <div className="flex items-center gap-2.5 truncate">
+                                <BrandAvatar brand={wp.brand || wp.name} size={32} />
+                                <div className="truncate">
+                                  <h4 className="text-xs font-black text-slate-900 dark:text-white truncate">
+                                    {cleanRestaurantName(wp.name)}
+                                  </h4>
+                                  <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                    <MapPin size={10} /> {wp.city} • {wp.brand}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="text-right shrink-0 whitespace-nowrap">
+                                <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">
+                                  {Math.round(wp.revenue).toLocaleString(localeCode)} RON
+                                </div>
+                                <div className="text-[10px] text-slate-400 font-semibold whitespace-nowrap">
+                                  {wp.count} {t('reports.orders_unit', 'comenzi')}
+                                </div>
                               </div>
                             </div>
 
-                            <div className="text-right shrink-0 whitespace-nowrap">
-                              <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">
-                                {Math.round(wp.revenue).toLocaleString(localeCode)} RON
-                              </div>
-                              <div className="text-[10px] text-slate-400 font-semibold whitespace-nowrap">
-                                {wp.count} {t('reports.orders_unit', 'comenzi')}
-                              </div>
+                            {/* Channels badges for this workpoint */}
+                            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100 dark:border-slate-800/60">
+                              {Object.entries(wp.channels || {}).map(([ch, cnt]) => {
+                                if (!cnt || cnt <= 0) return null
+                                return (
+                                  <span
+                                    key={ch}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                                  >
+                                    <PlatformLogo platform={ch} size={11} />
+                                    <span>{cnt}</span>
+                                  </span>
+                                )
+                              })}
                             </div>
                           </div>
-
-                          {/* Channels badges for this workpoint */}
-                          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100 dark:border-slate-800/60">
-                            {Object.entries(wp.channels || {}).map(([ch, cnt]) => {
-                              if (!cnt || cnt <= 0) return null
-                              return (
-                                <span 
-                                  key={ch}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
-                                >
-                                  <PlatformLogo platform={ch} size={11} />
-                                  <span>{cnt}</span>
-                                </span>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )
-                    }))}
+                        )
+                      }))}
                   </div>
                 </div>
 
@@ -1324,7 +1401,7 @@ export default function Reports() {
             </div>
 
             <div className="flex items-center gap-2.5">
-              <button 
+              <button
                 onClick={handleExportCSV}
                 disabled={isExporting || (loadingAudit && auditData.length === 0)}
                 className="px-4 h-9 rounded-full text-xs font-bold border transition-colors flex items-center gap-2 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800/60 dark:text-emerald-400"
@@ -1333,7 +1410,7 @@ export default function Reports() {
                 {isExporting ? t('reports.exporting') : t('reports.export_csv')}
               </button>
 
-              <button 
+              <button
                 onClick={() => fetchAuditLogs(auditPage)}
                 disabled={loadingAudit}
                 className="px-4 h-9 rounded-full text-xs font-bold border transition-colors flex items-center gap-2 bg-slate-100 border-slate-200 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200"

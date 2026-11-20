@@ -59,11 +59,11 @@ const UI_TEXT = {
     kpiNegSub1: 'necesită verificare bon & bucătărie',
     kpiNegSub2: 'Atașate automat ca alertă pe comanda din Dispecerat',
     filterAll: 'Toate Recenziile',
-    filterNegative: '🚨 Negative / Alerte',
-    filterPositive: '👍 Pozitive',
+    filterNegative: 'Negative / Alerte',
+    filterPositive: 'Pozitive',
     filterWithPhotos: 'Cu Fotografii',
     filterWithComment: 'Cu Comentariu Text',
-    filterMatched: '🔗 Legate de Bon iiko',
+    filterMatched: 'Legate de Bon iiko',
     viewPhotosBtn: 'Vezi Foto',
     filterAllPlatforms: 'Toate Platformele',
     autoTranslateLabel: 'Traducere Automată Recenzii',
@@ -88,15 +88,15 @@ const UI_TEXT = {
     ofLbl: 'din',
     loadingReviews: 'Se încarcă recenziile și bonurile iiko asociate...',
     emptyReviews: 'Nu există recenzii pentru filtrele selectate. Poți importa un fișier Excel/CSV sau adăuga un email din Glovo/Wolt/Bolt.',
-    sourceEmail: '📧 Email (jeka7ro)',
-    sourceExcel: '📊 Import Excel',
-    sourcePortal: '🤖 Portal B2B',
-    sourceWebhook: '⚡ Webhook Live',
-    sourceAlert: '📉 Alertă Scădere Rating',
-    sourcePublic: '🌐 Evaluare Platformă',
+    sourceEmail: 'Email (jeka7ro)',
+    sourceExcel: 'Import Excel',
+    sourcePortal: 'Portal B2B',
+    sourceWebhook: 'Webhook Live',
+    sourceAlert: 'Alertă Scădere Rating',
+    sourcePublic: 'Evaluare Platformă',
     clientLbl: 'Client:',
-    sentimentNeg: 'Negativ 🚨',
-    sentimentPos: 'Pozitiv 👍',
+    sentimentNeg: 'Negativ ',
+    sentimentPos: 'Pozitiv ',
     sentimentNeu: 'Neutru',
     noComment: 'Evaluare fără comentariu text',
     receiptBtn: 'Vezi Bonul iiko',
@@ -114,7 +114,7 @@ const UI_TEXT = {
     emailSubjectLbl: 'Subiect Email (ex: „New review on Glovo - Smash Me Constanța - Order #118248”)',
     emailSubjectPlaceholder: 'Subiectul emailului primit pe jeka7ro@gmail.com...',
     emailBodyLbl: 'Conținutul / Textul Emailului de Recenzie',
-    emailBodyPlaceholder: 'Lipește aici corpul emailului (include ID-ul comenzii dacă apare în mail, nota 1-5⭐ sau 👍/👎 și comentariul clientului)...',
+    emailBodyPlaceholder: 'Lipește aici corpul emailului (include ID-ul comenzii dacă apare în mail, nota 1-5⭐ sau /și comentariul clientului)...',
     cancelBtn: 'Anulează',
     extractEmailBtn: 'Extrage Recenzia & Leagă de Bonul iiko',
     scraperModalTitle: 'Scrapere B2B — Glovo Partner & Wolt Merchant',
@@ -143,11 +143,11 @@ const UI_TEXT = {
     kpiNegSub1: 'requires receipt & kitchen check',
     kpiNegSub2: 'Automatically attached as alert on Dispatch order',
     filterAll: 'All Reviews',
-    filterNegative: '🚨 Negative / Alerts',
-    filterPositive: '👍 Positive',
+    filterNegative: 'Negative / Alerts',
+    filterPositive: 'Positive',
     filterWithPhotos: 'With Photos',
     filterWithComment: 'With Text Comment',
-    filterMatched: '🔗 Linked to iiko Receipt',
+    filterMatched: 'Linked to iiko Receipt',
     viewPhotosBtn: 'View Photo',
     filterAllPlatforms: 'All Platforms',
     autoTranslateLabel: 'Auto-Translate Reviews (EN)',
@@ -172,15 +172,15 @@ const UI_TEXT = {
     ofLbl: 'of',
     loadingReviews: 'Loading reviews and linked iiko receipts...',
     emptyReviews: 'No reviews match the selected filters. You can import an Excel/CSV file or parse a review email from Glovo/Wolt/Bolt.',
-    sourceEmail: '📧 Email (jeka7ro)',
-    sourceExcel: '📊 Excel Import',
-    sourcePortal: '🤖 B2B Portal',
-    sourceWebhook: '⚡ Live Webhook',
-    sourceAlert: '📉 Rating Drop Alert',
-    sourcePublic: '🌐 Platform Rating',
+    sourceEmail: 'Email (jeka7ro)',
+    sourceExcel: 'Excel Import',
+    sourcePortal: 'B2B Portal',
+    sourceWebhook: 'Live Webhook',
+    sourceAlert: 'Rating Drop Alert',
+    sourcePublic: 'Platform Rating',
     clientLbl: 'Customer:',
-    sentimentNeg: 'Negative 🚨',
-    sentimentPos: 'Positive 👍',
+    sentimentNeg: 'Negative ',
+    sentimentPos: 'Positive ',
     sentimentNeu: 'Neutral',
     noComment: 'Rating without text comment',
     receiptBtn: 'View iiko Receipt',
@@ -198,7 +198,7 @@ const UI_TEXT = {
     emailSubjectLbl: 'Email Subject (e.g. "New review on Glovo - Smash Me Constanta - Order #118248")',
     emailSubjectPlaceholder: 'Subject of the email received on jeka7ro@gmail.com...',
     emailBodyLbl: 'Review Email Body / Content',
-    emailBodyPlaceholder: 'Paste the email body here (include order ID if present, 1-5⭐ or 👍/👎 score and customer comment)...',
+    emailBodyPlaceholder: 'Paste the email body here (include order ID if present, 1-5⭐ or /score and customer comment)...',
     cancelBtn: 'Cancel',
     extractEmailBtn: 'Extract Review & Link to iiko Receipt',
     scraperModalTitle: 'B2B Scrapers — Glovo Partner & Wolt Merchant',
@@ -227,11 +227,11 @@ const UI_TEXT = {
     kpiNegSub1: 'требует проверки чека и кухни',
     kpiNegSub2: 'Автоматически прикрепляется как алерт к заказу в Диспетчерской',
     filterAll: 'Все отзывы',
-    filterNegative: '🚨 Негативные / Алерты',
-    filterPositive: '👍 Позитивные',
+    filterNegative: 'Негативные / Алерты',
+    filterPositive: 'Позитивные',
     filterWithPhotos: 'С фото',
     filterWithComment: 'С текстом отзыва',
-    filterMatched: '🔗 Связанные с чеком iiko',
+    filterMatched: 'Связанные с чеком iiko',
     viewPhotosBtn: 'Смотреть фото',
     filterAllPlatforms: 'Все платформы',
     autoTranslateLabel: 'Автоперевод отзывов (RU)',
@@ -256,15 +256,15 @@ const UI_TEXT = {
     ofLbl: 'из',
     loadingReviews: 'Загрузка отзывов и связанных чеков iiko...',
     emptyReviews: 'Нет отзывов по выбранным фильтрам. Вы можете импортировать файл Excel/CSV или добавить письмо из Glovo/Wolt/Bolt.',
-    sourceEmail: '📧 Почта (jeka7ro)',
-    sourceExcel: '📊 Импорт Excel',
-    sourcePortal: '🤖 B2B Портал',
-    sourceWebhook: '⚡ Live Вебхук',
-    sourceAlert: '📉 Алерт снижения рейтинга',
-    sourcePublic: '🌐 Оценка платформы',
+    sourceEmail: 'Почта (jeka7ro)',
+    sourceExcel: 'Импорт Excel',
+    sourcePortal: 'B2B Портал',
+    sourceWebhook: 'Live Вебхук',
+    sourceAlert: 'Алерт снижения рейтинга',
+    sourcePublic: 'Оценка платформы',
     clientLbl: 'Клиент:',
-    sentimentNeg: 'Негативный 🚨',
-    sentimentPos: 'Позитивный 👍',
+    sentimentNeg: 'Негативный ',
+    sentimentPos: 'Позитивный ',
     sentimentNeu: 'Нейтральный',
     noComment: 'Оценка без текстового комментария',
     receiptBtn: 'Открыть чек iiko',
@@ -282,7 +282,7 @@ const UI_TEXT = {
     emailSubjectLbl: 'Тема письма (напр.: «New review on Glovo - Smash Me Constanta - Order #118248»)',
     emailSubjectPlaceholder: 'Тема письма, полученного на jeka7ro@gmail.com...',
     emailBodyLbl: 'Текст / Содержимое письма с отзывом',
-    emailBodyPlaceholder: 'Вставьте сюда текст письма (включая номер заказа, оценку 1-5⭐ или 👍/👎 и комментарий клиента)...',
+    emailBodyPlaceholder: 'Вставьте сюда текст письма (включая номер заказа, оценку 1-5⭐ или /и комментарий клиента)...',
     cancelBtn: 'Отмена',
     extractEmailBtn: 'Извлечь отзыв и связать с чеком iiko',
     scraperModalTitle: 'B2B Скраперы — Glovo Partner и Wolt Merchant',
@@ -354,10 +354,13 @@ export default function Reputation() {
     setTimeout(() => setToastNotice(null), 5500)
   }, [])
 
-  const fetchReviews = useCallback(async () => {
+  const fetchReviews = useCallback(async (forceSync = false) => {
     setReviewsLoading(true)
     try {
-      const res = await fetch(getApiUrl('/api/reviews?limit=300'))
+      const endpoint = forceSync
+        ? `/api/reviews?limit=300&sync=1&_t=${Date.now()}`
+        : '/api/reviews?limit=300'
+      const res = await fetch(getApiUrl(endpoint))
       if (res.ok) {
         const data = await res.json()
         if (data.success) {
@@ -366,6 +369,17 @@ export default function Reputation() {
             kpis: data.kpis || null,
             ratings_by_restaurant: data.ratings_by_restaurant || {}
           })
+          if (forceSync) {
+            const timeStr = new Date().toLocaleTimeString(language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-US' : 'ro-RO', { hour: '2-digit', minute: '2-digit' })
+            showToast(
+              'success',
+              language === 'ru'
+                ? `Отзывы синхронизированы в ${timeStr}`
+                : language === 'en'
+                  ? `Reviews synced at ${timeStr}`
+                  : `Recenziile au fost sincronizate live la ${timeStr}`
+            )
+          }
         }
       }
     } catch (err) {
@@ -373,7 +387,7 @@ export default function Reputation() {
     } finally {
       setReviewsLoading(false)
     }
-  }, [])
+  }, [language, showToast])
 
   useEffect(() => {
     fetchReviews()
@@ -520,7 +534,7 @@ export default function Reputation() {
         let numRating = parseFloat(String(rawRating).replace(',', '.'))
         if (isNaN(numRating)) {
           const strVal = String(rawRating).toLowerCase()
-          numRating = (strVal.includes('neg') || strVal.includes('down') || strVal.includes('👎')) ? 2 : 5
+          numRating = (strVal.includes('neg') || strVal.includes('down') || strVal.includes('')) ? 2 : 5
         }
         const maxScale = numRating > 5 ? 10 : 5
         const comment = String(findKey(row, ['comment', 'review', 'comentariu', 'feedback', 'text', 'mesaj', 'reason', 'motiv']) || '').trim()
@@ -623,7 +637,8 @@ export default function Reputation() {
     }
   }
 
-  const filteredReviews = useMemo(() => {
+  // Scoped base reviews (respects user city/brand permissions + selected brand tab) — used for accurate scoped KPI cards & photo counts!
+  const scopedBaseReviews = useMemo(() => {
     let list = [...(reviewsData.reviews || [])]
     if (hasScopeRestrictions) {
       list = list.filter(rv => {
@@ -641,6 +656,28 @@ export default function Reputation() {
         return deduceBrandName(restObj) === activeBrand
       })
     }
+    return list
+  }, [reviewsData.reviews, hasScopeRestrictions, canAccessCity, canAccessBrand, activeBrand, restaurants])
+
+  const scopedKpis = useMemo(() => {
+    const totalCount = scopedBaseReviews.length
+    const posCount = scopedBaseReviews.filter(r => r.sentiment === 'positive').length
+    const negCount = scopedBaseReviews.filter(r => r.sentiment === 'negative').length
+    const withOrder = scopedBaseReviews.filter(r => !!r.matched_order).length
+    const withPhotos = scopedBaseReviews.filter(r => Array.isArray(r.review_photos) && r.review_photos.length > 0).length
+    const posRate = totalCount > 0 ? Math.round((posCount / totalCount) * 100) : 0
+    return {
+      total_reviews: totalCount,
+      positive_count: posCount,
+      negative_count: negCount,
+      positive_rate: posRate,
+      with_order_count: withOrder,
+      with_photos_count: withPhotos
+    }
+  }, [scopedBaseReviews])
+
+  const filteredReviews = useMemo(() => {
+    let list = [...scopedBaseReviews]
     if (reviewPlatformFilter !== 'all') {
       list = list.filter(rv => (rv.platform || '').toLowerCase() === reviewPlatformFilter)
     }
@@ -698,7 +735,7 @@ export default function Reputation() {
     })
 
     return list
-  }, [reviewsData.reviews, activeBrand, reviewPlatformFilter, reviewFilter, search, restaurants, language, translateComments, dynamicTranslations, showOriginalMap, sortConfig])
+  }, [scopedBaseReviews, reviewPlatformFilter, reviewFilter, search, language, translateComments, dynamicTranslations, showOriginalMap, sortConfig])
 
   // Reset page when filters or rowsPerPage change
   useEffect(() => {
@@ -808,10 +845,10 @@ export default function Reputation() {
               <Bot size={16} className={isScrapingPortals ? 'animate-spin' : ''} />
             </button>
 
-            {/* 4. Refresh Recenzii */}
+            {/* 4. Refresh Recenzii (forțează sincronizare live Gmail IMAP) */}
             <button
               type="button"
-              onClick={fetchReviews}
+              onClick={() => fetchReviews(true)}
               title={L.btnRefresh}
               className={`w-10 h-10 rounded-full border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
                 isDark ? 'border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300' : 'border-slate-200 bg-white hover:bg-slate-100 text-slate-700'
@@ -889,9 +926,9 @@ export default function Reputation() {
             {L.kpiTotalTitle}
           </span>
           <div className="flex items-baseline gap-1.5 shrink-0">
-            <span className="text-lg font-black">{reviewsData.kpis?.total_reviews || filteredReviews.length}</span>
+            <span className="text-lg font-black">{scopedKpis.total_reviews}</span>
             <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-              ({reviewsData.kpis?.with_order_count ?? reviewsData.kpis?.matched_orders_count ?? 0} iiko)
+              ({scopedKpis.with_order_count} iiko)
             </span>
           </div>
         </div>
@@ -904,10 +941,10 @@ export default function Reputation() {
           </span>
           <div className="flex items-baseline gap-1.5 shrink-0">
             <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">
-              {reviewsData.kpis?.positive_rate ?? reviewsData.kpis?.positive_pct ?? 92}%
+              {scopedKpis.positive_rate}%
             </span>
             <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
-              ({reviewsData.kpis?.positive_count || 0})
+              ({scopedKpis.positive_count})
             </span>
           </div>
         </div>
@@ -920,7 +957,7 @@ export default function Reputation() {
           </span>
           <div className="flex items-baseline gap-1.5 shrink-0">
             <span className="text-lg font-black text-rose-600 dark:text-rose-400">
-              {reviewsData.kpis?.negative_count || 0}
+              {scopedKpis.negative_count}
             </span>
             <ThumbsDown size={13} className="text-rose-500" />
           </div>
@@ -936,7 +973,7 @@ export default function Reputation() {
             { id: 'all', label: L.filterAll },
             { id: 'negative', label: L.filterNegative },
             { id: 'positive', label: L.filterPositive },
-            { id: 'with_photos', label: `${L.filterWithPhotos} (${(reviewsData.reviews || []).filter(r => Array.isArray(r.review_photos) && r.review_photos.length > 0).length})` },
+            { id: 'with_photos', label: `${L.filterWithPhotos} (${scopedKpis.with_photos_count})` },
             { id: 'with_comment', label: L.filterWithComment },
             { id: 'matched', label: L.filterMatched }
           ].map(tab => (
@@ -1132,7 +1169,7 @@ export default function Reputation() {
                       <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
                         {new Date(rv.reviewed_at).toLocaleDateString(localeCode, { day: '2-digit', month: '2-digit', year: 'numeric' })}
                       </div>
-                      <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                      <div className="text-[11px] tabular-nums text-slate-500 dark:text-slate-400">
                         {new Date(rv.reviewed_at).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })}
                       </div>
                       <span className={`inline-block mt-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border truncate max-w-[105px] ${
@@ -1216,10 +1253,10 @@ export default function Reputation() {
                               <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-[10px] font-bold">
                                 <span>
                                   {language === 'ru'
-                                    ? '🗑️ Удалён клиентом из Google Maps (позже оставлен отзыв 5★)'
+                                    ? 'Удалён клиентом из Google Maps (позже оставлен отзыв 5)'
                                     : language === 'en'
-                                      ? '🗑️ Deleted by customer on Google Maps (later replaced with 5★)'
-                                      : '🗑️ Ștearsă de client de pe Google Maps (înlocuită ulterior cu 5★)'}
+                                      ? 'Deleted by customer on Google Maps (later replaced with 5)'
+                                      : 'Ștearsă de client de pe Google Maps (înlocuită ulterior cu 5)'}
                                 </span>
                               </div>
                             )}
@@ -1288,7 +1325,7 @@ export default function Reputation() {
                         }`}>
                           <div className="flex items-center justify-between gap-1.5">
                             <div className="flex items-center gap-1 min-w-0">
-                              <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-mono text-[11px] font-black shrink-0">
+                              <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 tabular-nums text-[11px] font-black shrink-0">
                                 #{ord.order_number || ord.order_id}
                               </span>
                               <span className="text-[11px] font-extrabold text-slate-900 dark:text-white truncate">
@@ -1594,9 +1631,9 @@ export default function Reputation() {
             {/* Tabs pentru cele 3 metode de conectare a mailului */}
             <div className={`px-6 pt-3 pb-2 border-b flex flex-wrap gap-1.5 ${isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-100 bg-slate-50/70'}`}>
               {[
-                { id: 'imap', label: '⚡ 1. Conectare Directă Gmail (IMAP Auto-Sync)' },
-                { id: 'script', label: '🤖 2. Google Apps Script (Fără Parolă, 60s)' },
-                { id: 'paste', label: '📋 3. Lipește Manual un Email' }
+                { id: 'imap', label: '1. Conectare Directă Gmail (IMAP Auto-Sync)' },
+                { id: 'script', label: '2. Google Apps Script (Fără Parolă, 60s)' },
+                { id: 'paste', label: '3. Lipește Manual un Email' }
               ].map(tItem => (
                 <button
                   key={tItem.id}
@@ -1642,7 +1679,7 @@ export default function Reputation() {
                     </ol>
                     {imapConfigInfo?.hasAppPassword && (
                       <div className="pt-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                        ✓ Parolă de aplicație salvată ({imapConfigInfo.maskedPassword})
+                        Parolă de aplicație salvată ({imapConfigInfo.maskedPassword})
                         {imapConfigInfo.lastSyncAt && ` • Ultima sincronizare: ${new Date(imapConfigInfo.lastSyncAt).toLocaleTimeString(localeCode)}`}
                       </div>
                     )}
@@ -1672,7 +1709,7 @@ export default function Reputation() {
                         value={imapAppPassword}
                         onChange={e => setImapAppPassword(e.target.value)}
                         placeholder={imapConfigInfo?.hasAppPassword ? 'Salvată (lasă gol sau introdu una nouă)' : 'xxxx xxxx xxxx xxxx'}
-                        className={`w-full px-3.5 h-10 rounded-xl border text-xs font-mono outline-none ${
+                        className={`w-full px-3.5 h-10 rounded-xl border text-xs tabular-nums outline-none ${
                           isDark ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
                         }`}
                       />
@@ -1735,7 +1772,7 @@ export default function Reputation() {
                       </ol>
                     </div>
                     <div className="relative">
-                      <pre className={`p-3.5 rounded-xl border font-mono text-[11px] overflow-x-auto ${
+                      <pre className={`p-3.5 rounded-xl border tabular-nums text-[11px] overflow-x-auto ${
                         isDark ? 'bg-slate-950 border-slate-800 text-emerald-300' : 'bg-slate-900 border-slate-800 text-emerald-300'
                       }`}>
                         {gasCode}
@@ -1870,7 +1907,7 @@ export default function Reputation() {
                 <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
                   {L.scraperGlovoDesc}
                 </p>
-                <div className="p-2 rounded-lg bg-slate-900 text-emerald-400 font-mono text-[11px]">
+                <div className="p-2 rounded-lg bg-slate-900 text-emerald-400 tabular-nums text-[11px]">
                   node workers/src/scrapers/glv-init.js
                 </div>
               </div>
@@ -1883,7 +1920,7 @@ export default function Reputation() {
                 <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
                   {L.scraperWoltDesc}
                 </p>
-                <div className="p-2 rounded-lg bg-slate-900 text-emerald-400 font-mono text-[11px]">
+                <div className="p-2 rounded-lg bg-slate-900 text-emerald-400 tabular-nums text-[11px]">
                   node workers/src/scrapers/run-reputation.js
                 </div>
               </div>

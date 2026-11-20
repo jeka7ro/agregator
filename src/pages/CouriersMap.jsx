@@ -1585,7 +1585,7 @@ export default function CouriersMap() {
             {isAutoRefreshEnabled ? (
               <>
                 <span>{language === 'ru' ? 'Авто-Обновление (5м)' : 'Auto-Refresh (5m)'}</span>
-                <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-200 font-mono font-extrabold text-[11px] min-w-[38px] text-center">
+                <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-200 tabular-nums font-extrabold text-[11px] min-w-[38px] text-center">
                   {secondsUntilRefresh >= 60
                     ? `${Math.floor(secondsUntilRefresh / 60)}:${String(secondsUntilRefresh % 60).padStart(2, '0')}`
                     : `${secondsUntilRefresh}${language === 'ru' ? 'с' : 's'}`}
@@ -1597,7 +1597,7 @@ export default function CouriersMap() {
           </button>
 
           <button
-            onClick={() => fetchData(false)}
+            onClick={() => fetchData(false, true)}
             disabled={loading}
             className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
               isDark
@@ -1703,7 +1703,7 @@ export default function CouriersMap() {
                     }`}
                   >
                     <span className="font-semibold">{ui.allBrands}</span>
-                    <span className="text-[10px] font-mono text-slate-400">{brandCounts.all}</span>
+                    <span className="text-[10px] tabular-nums text-slate-400">{brandCounts.all}</span>
                   </button>
                   {availableBrands.map(brandName => (
                     <button
@@ -1724,7 +1724,7 @@ export default function CouriersMap() {
                         <BrandAvatar brand={brandName} size={20} className="rounded-full shrink-0" />
                         <span className="font-semibold">{brandName}</span>
                       </div>
-                      <span className="text-[10px] font-mono text-slate-400">{brandCounts[brandName] || 0}</span>
+                      <span className="text-[10px] tabular-nums text-slate-400">{brandCounts[brandName] || 0}</span>
                     </button>
                   ))}
                 </div>
@@ -1777,7 +1777,7 @@ export default function CouriersMap() {
                 >
                   {fl.plat && <PlatformLogo platform={fl.plat} size={13} />}
                   <span>{fl.label}</span>
-                  <span className={`text-[10px] font-mono px-1.5 rounded-full ${active ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
+                  <span className={`text-[10px] tabular-nums px-1.5 rounded-full ${active ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
                     {fl.count}
                   </span>
                 </button>
@@ -1832,7 +1832,7 @@ export default function CouriersMap() {
               >
                 {tab.isAlert && <ShieldAlert size={12} className={active ? 'text-white' : 'text-rose-500'} />}
                 <span>{tab.label}</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] tabular-nums font-bold ${
                   active
                     ? 'bg-white/20 text-white'
                     : tab.isAlert && tab.count > 0
@@ -2042,7 +2042,7 @@ export default function CouriersMap() {
               <Bike size={15} className="text-emerald-500" />
               <span>{ui.panelTitle}</span>
             </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-black bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+            <span className="px-2 py-0.5 rounded-full text-[10px] tabular-nums font-black bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
               {filteredDeliveries.length} {ui.deliveriesCount}
             </span>
           </div>
@@ -2081,7 +2081,7 @@ export default function CouriersMap() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <PlatformLogo platform={ord.courier?.company?.toLowerCase() || ord.platform} size={18} />
-                        <span className="font-mono font-black text-xs text-slate-900 dark:text-white">
+                        <span className="tabular-nums font-black text-xs text-slate-900 dark:text-white">
                           {displayNum}
                         </span>
                         <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate">
@@ -2113,7 +2113,7 @@ export default function CouriersMap() {
                         <User size={11} className="text-sky-500 shrink-0" />
                         <span className="truncate">{ord.customer?.name || '—'}</span>
                       </button>
-                      <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
+                      <span className="tabular-nums font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
                         {Number(ord.total_amount || 0).toFixed(2)} RON
                       </span>
                     </div>
@@ -2158,12 +2158,12 @@ export default function CouriersMap() {
                         <span className="text-slate-500 dark:text-slate-400 inline-flex items-center gap-0.5 whitespace-nowrap shrink-0">
                           <Store size={10} className="text-amber-500 shrink-0" />
                           <span>{ui.depTimeLabel}:</span>
-                          <b className="font-mono text-amber-500">
+                          <b className="tabular-nums text-amber-500">
                             {routeInfo.isDepEstimated && routeInfo.depTime !== '—' ? `~${routeInfo.depTime}` : routeInfo.depTime}
                           </b>
                         </span>
 
-                        <span className="font-mono text-[9px] font-extrabold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-full border border-emerald-500/20 inline-flex items-center gap-0.5 whitespace-nowrap shrink-0">
+                        <span className="tabular-nums text-[9px] font-extrabold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-full border border-emerald-500/20 inline-flex items-center gap-0.5 whitespace-nowrap shrink-0">
                           <Bike size={9} className="shrink-0" />
                           <span className="whitespace-nowrap">{routeInfo.distanceKm}{ui.kmShort} · ~{routeInfo.driveMin}{ui.minShort}</span>
                         </span>
@@ -2171,7 +2171,7 @@ export default function CouriersMap() {
                         <span className="text-slate-500 dark:text-slate-400 inline-flex items-center gap-0.5 whitespace-nowrap shrink-0">
                           <MapPin size={10} className="text-emerald-500 shrink-0" />
                           <span>{routeInfo.isDelivered ? ui.deliveredAtLabel : ui.estDeliveryLabel}:</span>
-                          <b className="font-mono text-emerald-500">{routeInfo.estArrTime}</b>
+                          <b className="tabular-nums text-emerald-500">{routeInfo.estArrTime}</b>
                         </span>
                       </div>
 
@@ -2185,7 +2185,7 @@ export default function CouriersMap() {
                             style={{ width: `${routeInfo.progressPct}%` }}
                           />
                         </div>
-                        <span className="font-mono text-[10px] font-black text-emerald-600 dark:text-emerald-400 w-8 text-right shrink-0">
+                        <span className="tabular-nums text-[10px] font-black text-emerald-600 dark:text-emerald-400 w-8 text-right shrink-0">
                           {routeInfo.progressPct}%
                         </span>
                       </div>
@@ -2249,7 +2249,7 @@ export default function CouriersMap() {
                             </span>
 
                             {routeInfo.extraCourierMin > 0 && (
-                              <span className="font-mono text-[9.5px] text-slate-500 dark:text-slate-400">
+                              <span className="tabular-nums text-[9.5px] text-slate-500 dark:text-slate-400">
                                 <b className={routeInfo.auditStatus === 'suboptimal' ? 'text-rose-500 underline decoration-dotted' : 'text-amber-500 underline decoration-dotted'}>
                                   ~{routeInfo.actualKm}{ui.kmShort} · {routeInfo.actualCourierMin}{ui.minShort}
                                 </b>
@@ -2292,7 +2292,7 @@ export default function CouriersMap() {
                                 </button>
                               </div>
 
-                              <div className="grid grid-cols-2 gap-1.5 font-mono text-[10px] mb-1.5">
+                              <div className="grid grid-cols-2 gap-1.5 tabular-nums text-[10px] mb-1.5">
                                 <div className={`p-1.5 rounded-lg border ${isDark ? 'bg-slate-900/80 border-slate-800 text-slate-200' : 'bg-white/90 border-slate-200 text-slate-800'}`}>
                                   <div className="text-[9px] font-sans font-bold text-slate-400">
                                     {language === 'ru' ? 'Оптимальный маршрут:' : language === 'en' ? 'Optimal Route:' : 'Traseu Optim (Direct):'}
@@ -2314,7 +2314,7 @@ export default function CouriersMap() {
                               <div className="space-y-1 text-[10px]">
                                 <div className="flex items-center justify-between font-bold">
                                   <span>{language === 'ru' ? 'Потеря времени / Крюк:' : language === 'en' ? 'Time lost / Detour:' : 'Timp pierdut / Ocolire:'}</span>
-                                  <span className="font-mono font-black text-rose-500">
+                                  <span className="tabular-nums font-black text-rose-500">
                                     +{routeInfo.extraCourierMin} {ui.minShort} ({routeInfo.extraKm > 0 ? `+${routeInfo.extraKm} ${ui.kmShort} · ` : ''}{routeInfo.efficiencyPct}%)
                                   </span>
                                 </div>
@@ -2346,7 +2346,7 @@ export default function CouriersMap() {
 
                     {/* AWB, Taxă livrare & Butoane */}
                     <div className="mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between gap-2 whitespace-nowrap">
-                      <div className="text-[10px] font-mono text-slate-500 dark:text-slate-400 truncate">
+                      <div className="text-[10px] tabular-nums text-slate-500 dark:text-slate-400 truncate">
                         {ord.courier?.awb ? (
                           <span>AWB: <b className="text-emerald-500">{ord.courier.awb}</b></span>
                         ) : (
@@ -2456,25 +2456,25 @@ export default function CouriersMap() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                   <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
                     <div className="text-[10px] text-slate-400">{ui.step1}</div>
-                    <div className="font-mono font-black text-sm mt-0.5">
+                    <div className="tabular-nums font-black text-sm mt-0.5">
                       {modalOrder.timings?.created_time || parseExactTime(modalOrder.exact_timings?.created_at || modalOrder.placed_at)}
                     </div>
                   </div>
                   <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
                     <div className="text-[10px] text-slate-400">{ui.step2}</div>
-                    <div className="font-mono font-black text-sm text-blue-500 mt-0.5">
+                    <div className="tabular-nums font-black text-sm text-blue-500 mt-0.5">
                       {modalOrder.timings?.cooking_completed_time || parseExactTime(modalOrder.exact_timings?.cooking_completed_at)}
                     </div>
                   </div>
                   <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
                     <div className="text-[10px] text-slate-400">{ui.step3}</div>
-                    <div className="font-mono font-black text-sm text-amber-500 mt-0.5">
+                    <div className="tabular-nums font-black text-sm text-amber-500 mt-0.5">
                       {modalOrder.timings?.sended_time || parseExactTime(modalOrder.exact_timings?.sent_at)}
                     </div>
                   </div>
                   <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
                     <div className="text-[10px] text-slate-400">{ui.step4}</div>
-                    <div className="font-mono font-black text-sm text-emerald-500 mt-0.5">
+                    <div className="tabular-nums font-black text-sm text-emerald-500 mt-0.5">
                       {modalOrder.timings?.delivered_time || parseExactTime(modalOrder.exact_timings?.delivered_at || modalOrder.exact_timings?.closed_at)}
                     </div>
                   </div>
@@ -2503,7 +2503,7 @@ export default function CouriersMap() {
                     {modalOrder.customer?.name || '—'}
                   </button>
                   {modalOrder.customer?.phone && (
-                    <div className="font-mono text-slate-500 mt-1">{modalOrder.customer.phone}</div>
+                    <div className="tabular-nums text-slate-500 mt-1">{modalOrder.customer.phone}</div>
                   )}
                   {modalOrder.customer?.address && (() => {
                     const parsedModalAddr = parseDeliveryAddress(modalOrder.customer.address, language)
@@ -2523,7 +2523,7 @@ export default function CouriersMap() {
                                 }`}
                               >
                                 <span className="text-slate-400">{b.label}:</span>
-                                <b className="font-mono text-slate-900 dark:text-white">{b.value}</b>
+                                <b className="tabular-nums text-slate-900 dark:text-white">{b.value}</b>
                               </span>
                             ))}
                           </div>
@@ -2551,9 +2551,9 @@ export default function CouriersMap() {
                     <span className="text-[11px] font-normal text-slate-400">({modalOrder.courier?.company || modalOrder.platform})</span>
                   </div>
                   {modalOrder.courier?.awb && (
-                    <div className="font-mono text-emerald-500 font-bold mt-1">AWB: {modalOrder.courier.awb}</div>
+                    <div className="tabular-nums text-emerald-500 font-bold mt-1">AWB: {modalOrder.courier.awb}</div>
                   )}
-                  <div className="mt-1">{ui.liveStatusLabel} <b className="font-mono text-amber-500">{formatCourierStatusBadge(modalOrder, ui)}</b></div>
+                  <div className="mt-1">{ui.liveStatusLabel} <b className="tabular-nums text-amber-500">{formatCourierStatusBadge(modalOrder, ui)}</b></div>
                   {modalOrder.courier?.deliveryFee && (
                     <div className="mt-0.5 text-slate-500">{ui.courierFeeLabel} <b>{modalOrder.courier.deliveryFee} RON</b></div>
                   )}
@@ -2605,7 +2605,7 @@ export default function CouriersMap() {
                           <div className="text-[11px] text-slate-400">{qty} x {price.toFixed(2)} RON</div>
                         </div>
                       </div>
-                      <div className="font-mono font-black text-xs shrink-0">
+                      <div className="tabular-nums font-black text-xs shrink-0">
                         {(qty * price).toFixed(2)} RON
                       </div>
                     </div>
@@ -2615,7 +2615,7 @@ export default function CouriersMap() {
 
               <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
                 <span className="font-bold text-sm">{ui.orderTotalLabel}</span>
-                <span className="text-xl font-black text-emerald-500 font-mono">
+                <span className="text-xl font-black text-emerald-500 tabular-nums">
                   {Number(modalOrder.total_amount || 0).toFixed(2)} RON
                 </span>
               </div>

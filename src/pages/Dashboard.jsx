@@ -110,7 +110,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const { isDark } = useTheme()
   const { t, language } = useLanguage()
-  const { canAccessBrand } = useAuth()
+  const { canAccessBrand, hasScopeRestrictions } = useAuth()
   const { restaurants, checks, loading, lastRefresh, fetchData } = useLiveChecks()
   const [selectedPeriod, setSelectedPeriod] = useState(() => {
     try {
@@ -316,9 +316,6 @@ export default function Dashboard() {
       if (localOrders + deliveryOrders > 0) {
         localShare = Math.round((localOrders / (localOrders + deliveryOrders)) * 100)
         deliveryShare = 100 - localShare
-      } else {
-        localShare = brandName === 'Smash Me' ? 82 : brandName === 'Crunch' ? 70 : brandName === 'Poki Woki' ? 28 : 20
-        deliveryShare = 100 - localShare
       }
 
       // Live health / uptime pe platforme
@@ -327,11 +324,11 @@ export default function Dashboard() {
       let stoppedChecks = 0
       brandRests.forEach(r => {
         ;['glovo', 'wolt', 'bolt'].forEach(p => {
-          if (r[`${p}_url`]) {
+          if (r[`${p}_url`] && !String(r[`${p}_url`]).includes('/search')) {
             totalChecks++
             const c = checks.find(chk => chk.restaurant_id === r.id && chk.platform === p)
             const st = c?.final_status?.toLowerCase()
-            if (st === 'available' || st === 'open' || st === 'online') onlineChecks++
+            if (!c || !st || st === 'available' || st === 'open' || st === 'online' || st === 'unchecked') onlineChecks++
             else stoppedChecks++
           }
         })
@@ -339,7 +336,7 @@ export default function Dashboard() {
           totalChecks++
           const c = checks.find(chk => chk.restaurant_id === r.id && chk.platform === 'iiko')
           const st = c?.final_status?.toLowerCase()
-          if (st === 'available' || st === 'open' || st === 'online') onlineChecks++
+          if (!c || !st || st === 'available' || st === 'open' || st === 'online' || st === 'unchecked') onlineChecks++
           else stoppedChecks++
         }
       })
@@ -362,8 +359,8 @@ export default function Dashboard() {
         onlineChecks,
         color: sBrand.color
       }
-    })
-  }, [restaurants, salesData, checks])
+    }).filter(b => !hasScopeRestrictions || b.locationsCount > 0 || b.orders > 0)
+  }, [restaurants, salesData, checks, canAccessBrand, hasScopeRestrictions])
 
   // Top Orașe & Hub-uri de Vânzări
   const topCities = useMemo(() => {
@@ -429,7 +426,7 @@ export default function Dashboard() {
 
   const handleVerifyAll = () => {
     setIsVerifying(true)
-    setVerifyStatus({ isRunning: true, totalChecks: 204, current: 0, errors: 0, offline: 0, results: [] })
+    setVerifyStatus({ isRunning: true, totalChecks: tableRows.length || 204, current: 0, errors: 0, offline: 0, results: [] })
     fetch(getApiUrl('/api/check-all'), { method: 'POST' })
       .then(async (res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -980,7 +977,11 @@ export default function Dashboard() {
                   </span>
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  {t('dashboard.network_all_operational_sub', 'Toate cele 52 locații primesc comenzi în mod normal pe Glovo, Wolt, Bolt și iiko. Nicio oprire semnalată.')}
+                  {language === 'ru'
+                    ? `Все ${stats.activeRestaurants} локаций принимают заказы в штатном режиме на Glovo, Wolt, Bolt и iiko. Остановок не зафиксировано.`
+                    : language === 'en'
+                      ? `All ${stats.activeRestaurants} locations are receiving orders normally on Glovo, Wolt, Bolt and iiko. No stops detected.`
+                      : `Toate cele ${stats.activeRestaurants} locații primesc comenzi în mod normal pe Glovo, Wolt, Bolt și iiko. Nicio oprire semnalată.`}
                 </p>
               </div>
             </div>
@@ -989,7 +990,13 @@ export default function Dashboard() {
               onClick={() => navigate('/monitoring' + (window.location.search || ''))}
               className="px-4 h-9 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap shrink-0"
             >
-              <span>{t('dashboard.btn_open_monitoring', 'Deschide Monitorizarea Live Tehnică (208 verificări) →')}</span>
+              <span>
+                {language === 'ru'
+                  ? `Открыть Live-Мониторинг (${tableRows.length} проверок) →`
+                  : language === 'en'
+                    ? `Open Live Technical Monitoring (${tableRows.length} checks) →`
+                    : `Deschide Monitorizarea Live Tehnică (${tableRows.length} verificări) →`}
+              </span>
               <ArrowUpRight size={14} />
             </button>
           </div>
@@ -1007,7 +1014,13 @@ export default function Dashboard() {
                 onClick={() => navigate('/monitoring' + (window.location.search || ''))}
                 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
               >
-                <span>{t('dashboard.btn_open_monitoring', 'Deschide Monitorizarea Live Tehnică (208 verificări) →')}</span>
+                <span>
+                  {language === 'ru'
+                    ? `Открыть Live-Мониторинг (${tableRows.length} проверок) →`
+                    : language === 'en'
+                      ? `Open Live Technical Monitoring (${tableRows.length} checks) →`
+                      : `Deschide Monitorizarea Live Tehnică (${tableRows.length} verificări) →`}
+                </span>
                 <ArrowUpRight size={13} />
               </button>
             </div>

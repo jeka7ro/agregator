@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useLiveChecks } from '../hooks/useLiveChecks'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
+import { useAuth } from '../lib/AuthContext'
 import { AlertOctagon, TrendingDown, Clock, ExternalLink, Loader2, AlertCircle, CheckCircle2, X, Check } from 'lucide-react'
 import BrandAvatar, { cleanRestaurantName, getBrandInfo } from '../components/BrandAvatar'
 import PlatformLogo from '../components/PlatformLogo'
@@ -14,6 +15,7 @@ const HOURLY_LOSS_RATE = 50 // 50 RON per hour fallback if restaurant metadata i
 export default function Alerts() {
   const { isDark } = useTheme()
   const { t, language } = useLanguage()
+  const { canAccessCity, canAccessBrand, hasScopeRestrictions } = useAuth()
   const { restaurants, checks, loading } = useLiveChecks()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -81,6 +83,19 @@ export default function Alerts() {
   useEffect(() => {
     localStorage.setItem('resolved_incidents_history', JSON.stringify(resolvedHistory))
   }, [resolvedHistory])
+
+  const scopedResolvedHistory = useMemo(() => {
+    if (!hasScopeRestrictions) return resolvedHistory
+    return (resolvedHistory || []).filter(item => {
+      const city = item.city || item.restaurant?.city || item.restaurant?.name || ''
+      if (city && !canAccessCity(getCanonicalCity(city) || city)) return false
+      if (item.restaurant) {
+        const b = getBrandInfo(item.restaurant)?.name
+        if (b && !canAccessBrand(b)) return false
+      }
+      return true
+    })
+  }, [resolvedHistory, hasScopeRestrictions, canAccessCity, canAccessBrand])
 
   // Compute alerts
   const alertsData = useMemo(() => {
@@ -346,7 +361,7 @@ export default function Alerts() {
               <span className={`px-2 py-0.2 rounded-full text-[10px] ${
                 activeTab === 'resolved' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
               }`}>
-                {resolvedHistory.length}
+                {scopedResolvedHistory.length}
               </span>
             </button>
           </div>
@@ -469,14 +484,14 @@ export default function Alerts() {
 
               {/* RESOLVED TAB ROWS */}
               {activeTab === 'resolved' && (
-                resolvedHistory.length === 0 ? (
+                scopedResolvedHistory.length === 0 ? (
                   <tr>
                     <td colSpan="6" className="px-6 py-20 text-center text-slate-500 dark:text-slate-400 font-medium">
                       Nu există incidente rezolvate în istoric.
                     </td>
                   </tr>
                 ) : (
-                  resolvedHistory.map((item, idx) => {
+                  scopedResolvedHistory.map((item, idx) => {
                     const cleanedName = cleanRestaurantName(item.restaurant?.name || '')
                     return (
                       <tr 

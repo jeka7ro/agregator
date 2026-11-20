@@ -151,7 +151,7 @@ function computeElapsedMinutes(placedAt, createdAt, fallbackMin = 0) {
 export default function Dispatch() {
   const { isDark } = useTheme()
   const { t, language } = useLanguage()
-  const { canAccessCity, canAccessBrand } = useAuth()
+  const { canAccessCity, canAccessBrand, canAccessRestaurant, hasScopeRestrictions } = useAuth()
   const navigate = useNavigate()
 
   const openCustomerDossier = (ord, e) => {
@@ -583,43 +583,31 @@ export default function Dispatch() {
     })
   }, [orders, selectedCity, selectedBrand, selectedRestaurantId, selectedLocationObj, selectedPeriod])
 
-  // Păstrează în memorie și comenzile din cealaltă zi (Azi <-> Ieri) + rezultate căutate pe server
-  // astfel încât căutarea după numărul bonului (ex. #14034, #9441) să găsească bonul indiferent de filtrul Azi/Ieri
+  // Păstrează în memorie rezultate căutate pe server (Azi + Ieri) DOAR când utilizatorul caută activ (>= 2 caractere)
+  // și filtrează strict pe scope-ul utilizatorului (oraș/brand/restaurant) pentru zero scurgeri între orașe
   const [extraSearchOrders, setExtraSearchOrders] = useState([])
-
-  useEffect(() => {
-    let cancelled = false
-    const altPeriod = selectedPeriod === 'today' ? 'yesterday' : 'today'
-    fetch(getApiUrl(`/api/dispatch/live?period=${altPeriod}&limit=3500&_t=${Date.now()}`))
-      .then(r => (r.ok ? r.json() : null))
-      .then(json => {
-        if (!cancelled && json && Array.isArray(json.orders)) {
-          setExtraSearchOrders(prev => {
-            const byKey = new Map()
-            ;[...json.orders, ...prev].forEach(o => {
-              const k = o.order_id || `${o.order_number}_${o.restaurant_id}_${o.placed_at || o.created_at}`
-              if (!byKey.has(k)) byKey.set(k, o)
-            })
-            return Array.from(byKey.values())
-          })
-        }
-      })
-      .catch(() => {})
-    return () => { cancelled = true }
-  }, [selectedPeriod])
 
   useEffect(() => {
     const q = searchQuery.trim()
     if (q.length < 2) return
     let cancelled = false
     const timer = setTimeout(() => {
-      fetch(getApiUrl(`/api/dispatch/live?search=${encodeURIComponent(q)}&limit=500&_t=${Date.now()}`))
-        .then(r => (r.ok ? r.json() : null))
-        .then(json => {
-          if (!cancelled && json && Array.isArray(json.orders) && json.orders.length > 0) {
+      const cityParam = selectedCity !== 'all' ? `&city=${encodeURIComponent(selectedCity)}` : ''
+      const altPeriod = selectedPeriod === 'today' ? 'yesterday' : 'today'
+      Promise.all([
+        fetch(getApiUrl(`/api/dispatch/live?search=${encodeURIComponent(q)}${cityParam}&limit=500`)).then(r => (r.ok ? r.json() : null)).catch(() => null),
+        fetch(getApiUrl(`/api/dispatch/live?period=${altPeriod}${cityParam}&limit=1500`)).then(r => (r.ok ? r.json() : null)).catch(() => null)
+      ])
+        .then(([searchJson, altJson]) => {
+          if (cancelled) return
+          const merged = [
+            ...(Array.isArray(searchJson?.orders) ? searchJson.orders : []),
+            ...(Array.isArray(altJson?.orders) ? altJson.orders : [])
+          ]
+          if (merged.length > 0) {
             setExtraSearchOrders(prev => {
               const byKey = new Map()
-              ;[...json.orders, ...prev].forEach(o => {
+              ;[...merged, ...prev].forEach(o => {
                 const k = o.order_id || `${o.order_number}_${o.restaurant_id}_${o.placed_at || o.created_at}`
                 if (!byKey.has(k)) byKey.set(k, o)
               })
@@ -628,15 +616,15 @@ export default function Dispatch() {
           }
         })
         .catch(() => {})
-    }, 150)
+    }, 200)
     return () => {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [searchQuery])
+  }, [searchQuery, selectedPeriod, selectedCity])
 
   // Comenzi filtrate conform canalului, tab-ului activ și căutării
-  // Când se caută în bara de căutare (ex. după nr. bon #14034), căutarea se face global (Azi + Ieri + toate filtrele)
+  // Când se caută în bara de căutare (ex. după nr. bon #14034), căutarea acoperă Azi + Ieri STRICT în scope-ul permis al utilizatorului
   const filteredOrders = useMemo(() => {
     const qRaw = searchQuery.trim()
     if (qRaw) {
@@ -644,6 +632,13 @@ export default function Dispatch() {
       const qNoHash = q.replace(/^#+/, '').trim()
       const combinedMap = new Map()
       ;[...orders, ...extraSearchOrders].forEach(o => {
+        if (hasScopeRestrictions) {
+          const ordCity = getCanonicalCity(o.restaurant_city || o.city || o.restaurant_name || '')
+          const ordBrand = o.brand_name || o.brand || getBrandInfo({ name: o.restaurant_name, brand: o.brand_name })?.name || ''
+          if (!canAccessCity(ordCity || o.restaurant_city || o.restaurant_name)) return
+          if (!canAccessBrand(ordBrand || o.restaurant_name)) return
+          if (o.restaurant_id && !canAccessRestaurant(o.restaurant_id)) return
+        }
         const k = o.order_id || `${o.order_number}_${o.restaurant_id}_${o.placed_at || o.created_at}`
         if (!combinedMap.has(k)) {
           const liveElapsed = computeElapsedMinutes(o.placed_at, o.created_at, o.elapsed_minutes || 0)
@@ -694,7 +689,7 @@ export default function Dispatch() {
 
       return true
     })
-  }, [baseFilteredOrders, orders, extraSearchOrders, selectedChannel, activeTab, searchQuery])
+  }, [baseFilteredOrders, orders, extraSearchOrders, selectedChannel, activeTab, searchQuery, hasScopeRestrictions, canAccessCity, canAccessBrand, canAccessRestaurant])
 
   // Păstrează modalul deschis sincronizat cu datele live
   useEffect(() => {
@@ -1009,7 +1004,7 @@ export default function Dispatch() {
           </button>
 
           <button
-            onClick={() => fetchData(false)}
+            onClick={() => fetchData(false, true)}
             disabled={loading}
             className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 ${
               isDark 

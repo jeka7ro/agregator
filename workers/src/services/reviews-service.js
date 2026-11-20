@@ -399,6 +399,71 @@ export class ReviewsService {
     }
 
     /**
+     * Resolve a clean canonical Romanian city from Google Maps address / placeId / branch name.
+     * Never returns a raw Google Place ID ("ChIJ...") or brand name as a city!
+     */
+    _resolveCityFromAddressOrPlace(rawCity = '', address = '', restName = '') {
+        const PLACE_ID_CITY_MAP = {
+            'ChIJjVoBOj8BskAREQhGEX3qceo': 'BUCURESTI',
+            'ChIJ4z5peTAAskAR8SmjhaLhO5o': 'BUCURESTI',
+            'ChIJR-1Tc6j-sUARCPtmuJh2ZO4': 'BUCURESTI',
+            'ChIJD2aajnz5sUARmFMkzlKnmhw': 'BUCURESTI',
+            'ChIJp6nl9agbskARTSnTMAjslIc': 'BALOTESTI',
+            'ChIJt5rGllq3S0cRrvraQpRB-VM': 'TARGU MURES',
+            'ChIJdc5M78c5RkcROAP9b6qLzFE': 'ORADEA',
+            'ChIJBayU5shHRkcRVetrSNS3Uns': 'ORADEA',
+            'ChIJfTbKlHvlukARsLoqOserjTc': 'CONSTANTA',
+            'ChIJuVzba-JdRUcRWzJ9xgjr1lk': 'TIMISOARA',
+            'ChIJx9airCz7ykARoWg6Mw9FaU4': 'IASI',
+            'ChIJSa_omSj7ykAR6GwM2sfp_qA': 'IASI',
+            'ChIJlRyCXbJxtUARSWqOmxQwXH0': 'BACAU',
+            'ChIJh4unjTnpNEcRq3ERmdnHYWY': 'BOTOSANI',
+            'ChIJMUJJI5f9NEcRfP26HOxp8gI': 'SUCEAVA',
+            'ChIJDw0_rRRds0ARIxqAKWV_cxA': 'BRASOV',
+            'ChIJE6qe3ebXUkcRPKbiUhIJXtk': 'CRAIOVA',
+            'ChIJT3XzMfQPSUcRYQ7LoMuIgKI': 'CLUJ-NAPOCA',
+            'ChIJxXddpZdZt0ARYzAC7BX9vzE': 'TULCEA',
+            'ChIJVdj3pJNdTEcRBQTuvQYjMRs': 'SIBIU'
+        }
+        const trimmedRaw = String(rawCity || '').trim()
+        if (PLACE_ID_CITY_MAP[trimmedRaw]) return PLACE_ID_CITY_MAP[trimmedRaw]
+
+        const hay = `${address || ''} ${restName || ''} ${trimmedRaw.startsWith('ChIJ') ? '' : trimmedRaw}`
+            .toUpperCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+
+        // Specific street/mall disambiguation BEFORE generic city matches (e.g. "Calea București 107, Brașov" -> BRASOV!)
+        if (hay.includes('BRASOV') || hay.includes('500053')) return 'BRASOV'
+        if (hay.includes('TARGU MURES') || hay.includes('TG MURES') || hay.includes('MURES') || hay.includes('1 DECEMBRIE 1918 157')) return 'TARGU MURES'
+        if (hay.includes('BALOTESTI') || hay.includes('DN1 VALUE')) return 'BALOTESTI'
+        if (hay.includes('BUCURESTI') || hay.includes('BUCHAREST') || hay.includes('HALELOR') || hay.includes('IULIU MANIU') || hay.includes('CEAIKOVSKI') || hay.includes('AUCHAN TITAN') || hay.includes('1 DECEMBRIE 1918 33')) return 'BUCURESTI'
+        if (hay.includes('CONSTANTA') || hay.includes('TOMIS')) return 'CONSTANTA'
+        if (hay.includes('ORADEA') || hay.includes('LOTUS')) return 'ORADEA'
+        if (hay.includes('TIMISOARA') || hay.includes('SUD PLAZA') || hay.includes('PREZAN')) return 'TIMISOARA'
+        if (hay.includes('CLUJ') || hay.includes('EMIL ISAC') || hay.includes('FLORESTI') || hay.includes('AVRAM IANCU 492')) return 'CLUJ-NAPOCA'
+        if (hay.includes('IASI') || hay.includes('VOIEVOZILOR') || hay.includes('CAMIN T17') || hay.includes('VLADIMIRESCU')) return 'IASI'
+        if (hay.includes('BOTOSANI') || hay.includes('GEORGE ENESCU 4')) return 'BOTOSANI'
+        if (hay.includes('SUCEAVA') || hay.includes('GEORGE ENESCU 38')) return 'SUCEAVA'
+        if (hay.includes('BACAU') || hay.includes('9 MAI 29')) return 'BACAU'
+        if (hay.includes('CRAIOVA') || hay.includes('ELECTROPUTERE')) return 'CRAIOVA'
+        if (hay.includes('SIBIU') || hay.includes('SELIMBAR') || hay.includes('MIHAI VITEAZUL 1A')) return 'SIBIU'
+        if (hay.includes('TULCEA') || hay.includes('ISACCEI')) return 'TULCEA'
+        if (hay.includes('PITESTI') || hay.includes('TEILOR 33')) return 'PITESTI'
+        if (hay.includes('GALATI')) return 'GALATI'
+        if (hay.includes('BRAILA')) return 'BRAILA'
+        if (hay.includes('PLOIESTI')) return 'PLOIESTI'
+        if (hay.includes('PIATRA NEAMT')) return 'PIATRA NEAMT'
+        if (hay.includes('BAIA MARE')) return 'BAIA MARE'
+        if (hay.includes('ARAD')) return 'ARAD'
+
+        if (trimmedRaw && !trimmedRaw.startsWith('ChIJ') && !/roll master|poki|sushi master|love sushi|smash me|crunch/i.test(trimmedRaw)) {
+            return trimmedRaw
+        }
+        return ''
+    }
+
+    /**
      * Fetch full untruncated review text, exact star rating, branch address, and attached photos from Google Maps RPC
      */
     async _enrichGoogleReviewFromMaps(item) {
@@ -406,9 +471,19 @@ export class ReviewsService {
         try {
             const mapsUrl = item.review_url
             if (!mapsUrl.includes('/maps/reviews/data=')) return item
-            const res = await fetch(mapsUrl, {
-                headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
-            })
+            const fetchFast = async (u, ms = 4500) => {
+                const ctrl = new AbortController()
+                const t = setTimeout(() => ctrl.abort(), ms)
+                try {
+                    return await fetch(u, {
+                        signal: ctrl.signal,
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
+                    })
+                } finally {
+                    clearTimeout(t)
+                }
+            }
+            const res = await fetchFast(mapsUrl, 4500)
             const txt = await res.text()
             const idx = txt.indexOf('APP_INITIALIZATION_STATE')
             const endIdx = txt.indexOf(';window.APP_FLAGS', idx)
@@ -417,9 +492,7 @@ export class ReviewsService {
             const rpcPath = state[3]?.[state[3].length - 1]
             if (!rpcPath) return item
 
-            const res2 = await fetch(`https://www.google.com${rpcPath}`, {
-                headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
-            })
+            const res2 = await fetchFast(`https://www.google.com${rpcPath}`, 4500)
             const txt2 = await res2.text()
             const data = JSON.parse(txt2.replace(/^\)\]\}'\n/, ''))
 
@@ -427,11 +500,16 @@ export class ReviewsService {
             if (placeInfo) {
                 const pName = placeInfo[2] || item.brand_name
                 const pAddr = placeInfo[3] || ''
-                const pCity = placeInfo[18] || ''
+                const pPlaceOrCity = placeInfo[18] || ''
                 item.branch_address = pAddr
-                if (pCity) item.city = pCity
+                const resolvedCity = this._resolveCityFromAddressOrPlace(pPlaceOrCity, pAddr, pName)
+                if (resolvedCity) item.city = resolvedCity
                 const shortStreet = pAddr.split(',')[0].trim()
-                if (shortStreet) item.restaurant_name = `${pName} (${shortStreet})`
+                if (shortStreet && shortStreet.toLowerCase() !== 'street') {
+                    item.restaurant_name = `${pName} (${shortStreet})`
+                } else if (resolvedCity) {
+                    item.restaurant_name = `${pName} (${resolvedCity})`
+                }
             }
 
             const revBlock = data[7]
@@ -550,6 +628,7 @@ export class ReviewsService {
                     const rawFetch = buffer
                     buffer = ''
                     step = 'DONE'
+                    clearTimeout(hardTimer) // IMAP socket work done — do not kill enrichment prematurely!
                     try { socket.write(`A5 LOGOUT\r\n`) } catch (_) {}
 
                     const blocks = rawFetch.split(/\*\s+\d+\s+FETCH/i).slice(1)
@@ -643,12 +722,15 @@ export class ReviewsService {
                     }
 
                     if (toIngest.length > 0) {
-                        // First enrich any Google Business review from Google Maps RPC (fetches 100% full untruncated text, exact rating & branch street address)
-                        for (const item of toIngest) {
+                        // Enrich in parallel batches of 5 (fast ~3-5s instead of 50s sequential timeout!)
+                        const enrichOne = async (item) => {
                             if (item.platform === 'google') {
                                 await this._enrichGoogleReviewFromMaps(item)
                             }
-                            if (item.comment && !item.comment.startsWith('Evaluare 5★')) {
+                            const fixedCity = this._resolveCityFromAddressOrPlace(item.city, item.branch_address, item.restaurant_name)
+                            if (fixedCity) item.city = fixedCity
+
+                            if (item.comment && !item.comment.startsWith('Evaluare 5★') && !item.comment.startsWith('Evaluare 5 pe')) {
                                 try {
                                     const rawRo = item.comment || ''
                                     const rawEn = item.comment_translations?.en || ''
@@ -657,20 +739,23 @@ export class ReviewsService {
                                         rawRo === rawEn
                                     ) ? rawEn : rawRo
 
-                                    const roTrans = sourceForTranslation === rawEn
-                                        ? await this.translateTextOnline(rawEn, 'ro')
-                                        : rawRo
-                                    const ruTrans = await this.translateTextOnline(sourceForTranslation, 'ru')
-                                    const enTrans = rawEn || await this.translateTextOnline(roTrans, 'en')
+                                    const [roTrans, ruTrans, enTrans] = await Promise.all([
+                                        sourceForTranslation === rawEn ? this.translateTextOnline(rawEn, 'ro') : Promise.resolve(rawRo),
+                                        this.translateTextOnline(sourceForTranslation, 'ru'),
+                                        rawEn ? Promise.resolve(rawEn) : this.translateTextOnline(sourceForTranslation, 'en')
+                                    ])
 
-                                    item.comment = roTrans
+                                    item.comment = roTrans || rawRo
                                     item.comment_translations = {
-                                        ro: roTrans,
-                                        en: enTrans,
-                                        ru: ruTrans
+                                        ro: roTrans || rawRo,
+                                        en: enTrans || rawEn || rawRo,
+                                        ru: ruTrans || rawRo
                                     }
                                 } catch (_) {}
                             }
+                        }
+                        for (let i = 0; i < toIngest.length; i += 5) {
+                            await Promise.all(toIngest.slice(i, i + 5).map(enrichOne))
                         }
                         const res = await this.ingestReviews(toIngest, 'email')
                         importedCount += (res.added || toIngest.length)

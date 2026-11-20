@@ -105,12 +105,16 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
           map[b].rests.push(r)
           
           let isOnline = false
+          let hasConfigured = false
           ;['glovo', 'wolt', 'bolt'].forEach(p => {
-            const chk = checks.find(c => c.restaurant_id === r.id && c.platform === p)
-            const st = chk?.final_status?.toLowerCase()
-            if (st === 'available' || st === 'open' || st === 'online') isOnline = true
+            if (r[`${p}_url`] && !String(r[`${p}_url`]).includes('/search')) {
+              hasConfigured = true
+              const chk = checks.find(c => c.restaurant_id === r.id && c.platform === p)
+              const st = chk?.final_status?.toLowerCase()
+              if (!chk || !st || st === 'available' || st === 'open' || st === 'online' || st === 'unchecked') isOnline = true
+            }
           })
-          if (isOnline) map[b].online++
+          if (isOnline || !hasConfigured) map[b].online++
           else map[b].stopped++
         })
         return Object.values(map)
@@ -124,13 +128,13 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
           let stopped = 0
           const rests = []
           activeRests.forEach(r => {
-            const hasPlatform = p === 'iiko' ? !!r.iiko_restaurant_id : !!r[`${p}_url`]
+            const hasPlatform = p === 'iiko' ? !!r.iiko_restaurant_id : (!!r[`${p}_url`] && !String(r[`${p}_url`]).includes('/search'))
             if (hasPlatform) {
               count++
               rests.push(r)
               const chk = checks.find(c => c.restaurant_id === r.id && c.platform === p)
               const st = chk?.final_status?.toLowerCase()
-              if (st === 'available' || st === 'open' || st === 'online') online++
+              if (!chk || !st || st === 'available' || st === 'open' || st === 'online' || st === 'unchecked') online++
               else stopped++
             }
           })
@@ -149,10 +153,10 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
         activeRests.forEach(r => {
           let hasOnline = false, hasStopped = false, hasClosed = false, hasError = false
           ;['glovo', 'wolt', 'bolt'].forEach(p => {
-            if (r[`${p}_url`]) {
+            if (r[`${p}_url`] && !String(r[`${p}_url`]).includes('/search')) {
               const chk = checks.find(c => c.restaurant_id === r.id && c.platform === p)
               const st = chk?.final_status?.toLowerCase()
-              if (st === 'available' || st === 'open' || st === 'online') hasOnline = true
+              if (!chk || !st || st === 'available' || st === 'open' || st === 'online' || st === 'unchecked') hasOnline = true
               else if (st === 'closed') hasClosed = true
               else if (st === 'error') hasError = true
               else if (st === 'unavailable') hasStopped = true
@@ -175,13 +179,7 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
       }
 
       if (dimension === 'sales_channel') {
-        const channels = salesData?.channels || [
-          { key: 'kiosk', label: 'Smart Kiosk', type: 'local', count: 283, revenue: 17356, color: '#F97316' },
-          { key: 'casierie', label: 'Casierie (iiko POS)', type: 'local', count: 47, revenue: 5452, color: '#8B5CF6' },
-          { key: 'glovo', label: 'Glovo', type: 'delivery', count: 413, revenue: 37716, color: '#F59E0B' },
-          { key: 'wolt', label: 'Wolt', type: 'delivery', count: 258, revenue: 23685, color: '#00C2E8' },
-          { key: 'bolt', label: 'Bolt Food', type: 'delivery', count: 118, revenue: 11080, color: '#10B981' }
-        ]
+        const channels = salesData?.channels || []
         return channels.filter(c => c.count > 0).map(c => {
           const typeBadge = c.type === 'local' ? '(Local)' : '(Delivery)'
           return {
@@ -311,8 +309,8 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
         isSales: true,
         total: curTotal || totals.totalOrders || 0,
         revenue: curRevenue ? `${curRevenue.toLocaleString()} RON` : (totals.totalRevenue ? `${totals.totalRevenue.toLocaleString()} RON` : '0 RON'),
-        localShare: `${lvd.local?.share || 57}%`,
-        deliveryShare: `${lvd.delivery?.share || 43}%`,
+        localShare: `${lvd.local?.share ?? 0}%`,
+        deliveryShare: `${lvd.delivery?.share ?? 0}%`,
         localCount: lvd.local?.count || 0,
         deliveryCount: lvd.delivery?.count || 0
       }

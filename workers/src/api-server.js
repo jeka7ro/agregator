@@ -437,6 +437,10 @@ app.get('/api/live-checks', async (req, res) => {
         if (!forceRefresh && global.__LOCAL_LIVE_CHECKS_SNAPSHOT && (Date.now() - global.__LOCAL_LIVE_CHECKS_SNAPSHOT.ts < CACHE_TTL_MS)) {
             return res.json(global.__LOCAL_LIVE_CHECKS_SNAPSHOT.payload)
         }
+        if (forceRefresh) {
+            global.__LOCAL_LAST_LIVE_CHECK_AT = new Date().toISOString()
+        }
+        const manualVerifiedMs = global.__LOCAL_LAST_LIVE_CHECK_AT ? new Date(global.__LOCAL_LAST_LIVE_CHECK_AT).getTime() : 0
 
         const withTimeout = (promise, ms) => Promise.race([
             promise,
@@ -638,6 +642,11 @@ app.get('/api/live-checks', async (req, res) => {
                 check.ui_is_greyed = false
                 check.ui_error_message = null
                 check.verified_via = 'scraper_fallback'
+            }
+
+            if (manualVerifiedMs > 0 && check.final_status === 'available') {
+                const curMs = check.checked_at ? new Date(check.checked_at).getTime() : 0
+                if (manualVerifiedMs > curMs) check.checked_at = global.__LOCAL_LAST_LIVE_CHECK_AT
             }
 
             const rInfo = ratingsMap.get(k)
@@ -2096,9 +2105,25 @@ async function fetchLiveAndWebhookOrdersForDay(dayStr, allRests = []) {
 app.get('/api/sales/executive-summary', async (req, res) => {
     try {
         const reqPeriod = req.query.period || 'this_month'
+        const qCitiesRaw = String(req.query.cities || req.query.city || '').trim()
+        const qLocationRaw = String(req.query.location || '').trim()
+        const qRestId = String(req.query.restaurant_id || '').trim()
+        const qBrandRaw = String(req.query.brand || '').trim()
+        const qChannelRaw = String(req.query.channel || '').trim().toLowerCase()
+
+        const allowedCitiesSet = qCitiesRaw && qCitiesRaw.toLowerCase() !== 'all'
+            ? new Set(qCitiesRaw.split(',').map(c => getCanonicalCity(c.trim())).filter(Boolean))
+            : null
+        const filterLocation = qLocationRaw && qLocationRaw.toLowerCase() !== 'all' ? qLocationRaw.toUpperCase() : ''
+        const filterRestId = qRestId && qRestId.toLowerCase() !== 'all' ? qRestId : ''
+        const filterBrand = qBrandRaw && qBrandRaw.toLowerCase() !== 'all' ? qBrandRaw.toLowerCase() : ''
+        const filterChannel = qChannelRaw && qChannelRaw !== 'all' ? qChannelRaw : ''
+        const hasAnyFilter = Boolean((allowedCitiesSet && allowedCitiesSet.size > 0) || filterLocation || filterRestId || filterBrand || filterChannel)
+
         global.__EXEC_SUMMARY_CACHE = global.__EXEC_SUMMARY_CACHE || new Map()
         const cacheTtlMs = (reqPeriod === 'today' || reqPeriod === 'yesterday') ? 15000 : 60000
-        const cachedSummary = global.__EXEC_SUMMARY_CACHE.get(reqPeriod)
+        const summaryCacheKey = `${reqPeriod}|${qCitiesRaw}|${filterLocation}|${filterRestId}|${filterBrand}|${filterChannel}`
+        const cachedSummary = global.__EXEC_SUMMARY_CACHE.get(summaryCacheKey)
         if (cachedSummary && (Date.now() - cachedSummary.ts < cacheTtlMs)) {
             return res.json(cachedSummary.payload)
         }
@@ -2292,36 +2317,38 @@ app.get('/api/sales/executive-summary', async (req, res) => {
             } catch (_) { }
         }
 
-        const totalOrders = sales.length + (histBucket?.totalOrders || 0)
-        const scaleFactor = 1
-
-        let sampleRevenue = histBucket?.totalRevenue || 0
-        let sampleGrossRevenue = histBucket?.totalGrossRevenue || 0
-
-        const channelStats = {
-            kiosk: { key: 'kiosk', label: 'Smart Kiosk', type: 'local', count: histBucket?.channelStats?.kiosk?.count || 0, revenue: histBucket?.channelStats?.kiosk?.revenue || 0, grossRevenue: histBucket?.channelStats?.kiosk?.grossRevenue || 0, color: '#F97316' },
-            casierie: { key: 'casierie', label: 'Casierie (iiko POS)', type: 'local', count: histBucket?.channelStats?.casierie?.count || 0, revenue: histBucket?.channelStats?.casierie?.revenue || 0, grossRevenue: histBucket?.channelStats?.casierie?.grossRevenue || 0, color: '#8B5CF6' },
-            glovo: { key: 'glovo', label: 'Glovo', type: 'delivery', count: histBucket?.channelStats?.glovo?.count || 0, revenue: histBucket?.channelStats?.glovo?.revenue || 0, grossRevenue: histBucket?.channelStats?.glovo?.grossRevenue || 0, color: '#F59E0B' },
-            wolt: { key: 'wolt', label: 'Wolt', type: 'delivery', count: histBucket?.channelStats?.wolt?.count || 0, revenue: histBucket?.channelStats?.wolt?.revenue || 0, grossRevenue: histBucket?.channelStats?.wolt?.grossRevenue || 0, color: '#00C2E8' },
-            bolt: { key: 'bolt', label: 'Bolt Food', type: 'delivery', count: histBucket?.channelStats?.bolt?.count || 0, revenue: histBucket?.channelStats?.bolt?.revenue || 0, grossRevenue: histBucket?.channelStats?.bolt?.grossRevenue || 0, color: '#10B981' },
-            direct: { key: 'direct', label: 'Direct / Web', type: 'direct', count: histBucket?.channelStats?.direct?.count || 0, revenue: histBucket?.channelStats?.direct?.revenue || 0, grossRevenue: histBucket?.channelStats?.direct?.grossRevenue || 0, color: '#06B6D4' }
+        const getPhysicalLocationLabel = (restObj, fallbackCity = '') => {
+            const combined = `${restObj?.name || ''} ${restObj?.city || ''} ${restObj?.address || ''} ${fallbackCity || ''}`.toUpperCase()
+            if (combined.includes('CEAIKOVSKI') || combined.includes('BUCURESTI-04')) return 'BUC CEAIKOVSKI'
+            if (combined.includes('CORA') || combined.includes('MANIU') || combined.includes('MILITARI') || combined.includes('BUCURESTI-03')) return 'BUC CORA'
+            if (combined.includes('UNIRII') || combined.includes('HALELOR') || combined.includes('BUCURESTI-02')) return 'BUC UNIRII'
+            if (combined.includes('TITAN') || combined.includes('BUCURESTI-01') || combined.includes('DECEMBRIE 1918 33')) return 'BUC TITAN'
+            if (combined.includes('BERCENI')) return 'BUC BERCENI'
+            if (combined.includes('IASI#2') || combined.includes('IASI-02') || combined.includes('VLADIMIRESCU')) return 'IASI#2'
+            if (combined.includes('IASI#1') || combined.includes('IASI-01') || combined.includes('VOIEVOZILOR') || combined.includes('VOEVOZILOR')) return 'IASI#1'
+            if (combined.includes('BALOTESTI') || combined.includes('BALOTEȘTI')) return 'BALOTESTI'
+            if (combined.includes('MURES') || combined.includes('MUREȘ')) return 'TARGU MURES'
+            return getCanonicalCity(restObj?.city || restObj?.name || fallbackCity || '') || 'ALTE ORASE'
         }
 
-        const brandStats = {
-            'Roll Master': { count: histBucket?.brandStats?.['Roll Master']?.count || 0, revenue: histBucket?.brandStats?.['Roll Master']?.revenue || 0, grossRevenue: histBucket?.brandStats?.['Roll Master']?.grossRevenue || 0, color: '#E11D48' },
-            'Poki Woki': { count: histBucket?.brandStats?.['Poki Woki']?.count || 0, revenue: histBucket?.brandStats?.['Poki Woki']?.revenue || 0, grossRevenue: histBucket?.brandStats?.['Poki Woki']?.grossRevenue || 0, color: '#10B981' },
-            'Love Sushi': { count: histBucket?.brandStats?.['Love Sushi']?.count || 0, revenue: histBucket?.brandStats?.['Love Sushi']?.revenue || 0, grossRevenue: histBucket?.brandStats?.['Love Sushi']?.grossRevenue || 0, color: '#8B5CF6' },
-            'Smash Me': { count: histBucket?.brandStats?.['Smash Me']?.count || 0, revenue: histBucket?.brandStats?.['Smash Me']?.revenue || 0, grossRevenue: histBucket?.brandStats?.['Smash Me']?.grossRevenue || 0, color: '#F97316' },
-            'Crunch': { count: histBucket?.brandStats?.['Crunch']?.count || 0, revenue: histBucket?.brandStats?.['Crunch']?.revenue || 0, grossRevenue: histBucket?.brandStats?.['Crunch']?.grossRevenue || 0, color: '#D97706' }
+        const normalizeRestBrandEarly = (rawB) => {
+            const b = String(rawB || 'Roll Master')
+            if (b.toLowerCase().includes('sushi master')) return 'Roll Master'
+            if (b.toLowerCase().includes('ikura')) return 'Poki Woki'
+            return b
         }
 
-        const cityStats = histBucket?.cityStats ? JSON.parse(JSON.stringify(histBucket.cityStats)) : {}
-        const restStats = histBucket?.restStats ? JSON.parse(JSON.stringify(histBucket.restStats)) : {}
-        const productStats = histBucket?.productStats ? JSON.parse(JSON.stringify(histBucket.productStats)) : {}
-        // 7 days (0=Mon, ..., 6=Sun) x 24 hours (0..23)
-        const heatmapMatrix = histBucket?.heatmapMatrix
-            ? JSON.parse(JSON.stringify(histBucket.heatmapMatrix))
-            : Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => ({ count: 0, revenue: 0 })))
+        const matchesExecFilter = (restObj, bName, cityCanon, chKey, rid) => {
+            if (allowedCitiesSet && allowedCitiesSet.size > 0 && !allowedCitiesSet.has(cityCanon)) return false
+            if (filterRestId && rid !== filterRestId) return false
+            if (filterLocation) {
+                const locLbl = getPhysicalLocationLabel(restObj, cityCanon)
+                if (locLbl !== filterLocation && cityCanon !== filterLocation && String(rid || '').toUpperCase() !== filterLocation) return false
+            }
+            if (filterBrand && String(bName || '').toLowerCase() !== filterBrand) return false
+            if (filterChannel && chKey !== filterChannel) return false
+            return true
+        }
 
         const normalizeChannel = (p) => {
             const low = (p || '').toLowerCase()
@@ -2333,28 +2360,111 @@ app.get('/api/sales/executive-summary', async (req, res) => {
             return 'direct'
         }
 
-        (sales || []).forEach(o => {
-            const amt = Number(o.total_amount) || 0
-            const grossAmt = computeOrderGrossAmount(o)
-            sampleRevenue += amt
-            sampleGrossRevenue += grossAmt
+        const scaleFactor = 1
+        let totalOrders = 0
+        let sampleRevenue = 0
+        let sampleGrossRevenue = 0
 
-            const ch = normalizeChannel(o.platform)
-            channelStats[ch].count++
-            channelStats[ch].revenue += amt
-            channelStats[ch].grossRevenue = (channelStats[ch].grossRevenue || 0) + grossAmt
+        const channelStats = {
+            kiosk: { key: 'kiosk', label: 'Smart Kiosk', type: 'local', count: 0, revenue: 0, grossRevenue: 0, color: '#F97316' },
+            casierie: { key: 'casierie', label: 'Casierie (iiko POS)', type: 'local', count: 0, revenue: 0, grossRevenue: 0, color: '#8B5CF6' },
+            glovo: { key: 'glovo', label: 'Glovo', type: 'delivery', count: 0, revenue: 0, grossRevenue: 0, color: '#F59E0B' },
+            wolt: { key: 'wolt', label: 'Wolt', type: 'delivery', count: 0, revenue: 0, grossRevenue: 0, color: '#00C2E8' },
+            bolt: { key: 'bolt', label: 'Bolt Food', type: 'delivery', count: 0, revenue: 0, grossRevenue: 0, color: '#10B981' },
+            direct: { key: 'direct', label: 'Direct / Web', type: 'direct', count: 0, revenue: 0, grossRevenue: 0, color: '#06B6D4' }
+        }
 
-            // Heatmap calculation
-            if (o.placed_at) {
-                const d = new Date(o.placed_at)
-                const day = (d.getDay() + 6) % 7 // 0=Mon..6=Sun
-                const hour = d.getHours()
-                if (day >= 0 && day < 7 && hour >= 0 && hour < 24) {
-                    heatmapMatrix[day][hour].count++
-                    heatmapMatrix[day][hour].revenue += amt
+        const brandStats = {
+            'Roll Master': { count: 0, revenue: 0, grossRevenue: 0, color: '#E11D48' },
+            'Poki Woki': { count: 0, revenue: 0, grossRevenue: 0, color: '#10B981' },
+            'Love Sushi': { count: 0, revenue: 0, grossRevenue: 0, color: '#8B5CF6' },
+            'Smash Me': { count: 0, revenue: 0, grossRevenue: 0, color: '#F97316' },
+            'Crunch': { count: 0, revenue: 0, grossRevenue: 0, color: '#D97706' }
+        }
+
+        let cityStats = {}
+        let restStats = {}
+        let productStats = {}
+        let heatmapMatrix = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => ({ count: 0, revenue: 0 })))
+
+        if (histBucket) {
+            if (!hasAnyFilter) {
+                totalOrders += histBucket.totalOrders || 0
+                sampleRevenue += histBucket.totalRevenue || 0
+                sampleGrossRevenue += histBucket.totalGrossRevenue || 0
+                for (const chKey of Object.keys(channelStats)) {
+                    channelStats[chKey].count += histBucket.channelStats?.[chKey]?.count || 0
+                    channelStats[chKey].revenue += histBucket.channelStats?.[chKey]?.revenue || 0
+                    channelStats[chKey].grossRevenue += histBucket.channelStats?.[chKey]?.grossRevenue || 0
+                }
+                for (const bKey of Object.keys(brandStats)) {
+                    brandStats[bKey].count += histBucket.brandStats?.[bKey]?.count || 0
+                    brandStats[bKey].revenue += histBucket.brandStats?.[bKey]?.revenue || 0
+                    brandStats[bKey].grossRevenue += histBucket.brandStats?.[bKey]?.grossRevenue || 0
+                }
+                cityStats = histBucket.cityStats ? JSON.parse(JSON.stringify(histBucket.cityStats)) : {}
+                restStats = histBucket.restStats ? JSON.parse(JSON.stringify(histBucket.restStats)) : {}
+                productStats = histBucket.productStats ? JSON.parse(JSON.stringify(histBucket.productStats)) : {}
+                if (histBucket.heatmapMatrix) heatmapMatrix = JSON.parse(JSON.stringify(histBucket.heatmapMatrix))
+            } else {
+                let filtHistOrders = 0
+                for (const [rid, rdata] of Object.entries(histBucket.restStats || {})) {
+                    const r = restMap[rid]
+                    const cCanon = getCanonicalCity(r?.city || r?.name || '') || 'Alte Orașe'
+                    const bName = normalizeRestBrandEarly(r?.brands?.name)
+                    const matchingChs = Object.entries(rdata.channels || {}).filter(([chKey]) => matchesExecFilter(r, bName, cCanon, chKey, rid))
+                    if (matchingChs.length === 0) continue
+                    const rCntTotal = Number(rdata.count) || 0
+                    const matchedCnt = filterChannel ? (Number(rdata.channels?.[filterChannel]) || 0) : rCntTotal
+                    if (matchedCnt <= 0) continue
+                    const ratio = rCntTotal > 0 ? matchedCnt / rCntTotal : 1
+                    const matchedRev = (Number(rdata.revenue) || 0) * ratio
+                    const matchedGross = (Number(rdata.grossRevenue || rdata.revenue) || 0) * ratio
+
+                    filtHistOrders += matchedCnt
+                    totalOrders += matchedCnt
+                    sampleRevenue += matchedRev
+                    sampleGrossRevenue += matchedGross
+
+                    for (const [chKey, cVal] of matchingChs) {
+                        const cNum = Number(cVal) || 0
+                        if (cNum <= 0 || !channelStats[chKey]) continue
+                        const chRatio = rCntTotal > 0 ? cNum / rCntTotal : 0
+                        channelStats[chKey].count += cNum
+                        channelStats[chKey].revenue += (Number(rdata.revenue) || 0) * chRatio
+                        channelStats[chKey].grossRevenue += (Number(rdata.grossRevenue || rdata.revenue) || 0) * chRatio
+                    }
+                    if (!brandStats[bName]) brandStats[bName] = { count: 0, revenue: 0, grossRevenue: 0, color: '#3B82F6' }
+                    brandStats[bName].count += matchedCnt
+                    brandStats[bName].revenue += matchedRev
+                    brandStats[bName].grossRevenue += matchedGross
+
+                    if (!cityStats[cCanon]) cityStats[cCanon] = { city: cCanon, count: 0, revenue: 0, grossRevenue: 0, channels: {} }
+                    cityStats[cCanon].count += matchedCnt
+                    cityStats[cCanon].revenue += matchedRev
+                    cityStats[cCanon].grossRevenue += matchedGross
+                    for (const [chKey, cVal] of matchingChs) {
+                        cityStats[cCanon].channels[chKey] = (cityStats[cCanon].channels[chKey] || 0) + (Number(cVal) || 0)
+                    }
+                    restStats[rid] = { count: matchedCnt, revenue: matchedRev, grossRevenue: matchedGross, channels: Object.fromEntries(matchingChs) }
+                }
+                const histRatio = (histBucket.totalOrders > 0 && filtHistOrders > 0) ? (filtHistOrders / histBucket.totalOrders) : 0
+                if (histRatio > 0 && histBucket.heatmapMatrix) {
+                    for (let di = 0; di < 7; di++) {
+                        for (let hi = 0; hi < 24; hi++) {
+                            const cell = histBucket.heatmapMatrix[di]?.[hi]
+                            if (cell && cell.count > 0) {
+                                heatmapMatrix[di][hi].count += Math.round(cell.count * histRatio)
+                                heatmapMatrix[di][hi].revenue += Math.round((cell.revenue || 0) * histRatio)
+                            }
+                        }
+                    }
                 }
             }
+        }
 
+        (sales || []).forEach(o => {
+            const ch = normalizeChannel(o.platform)
             let rest = restMap[o.restaurant_id]
             let bName = o.brand_name || detectBrandFromItems(o.items || [], rest) || rest?.brands?.name || 'Roll Master'
             if (bName.toLowerCase().includes('sushi master')) bName = 'Roll Master'
@@ -2366,6 +2476,31 @@ app.get('/api/sales/executive-summary', async (req, res) => {
                 if (matchedByBrand) rest = matchedByBrand
             }
             const resolvedRestId = rest?.id || o.restaurant_id
+
+            if (hasAnyFilter && !matchesExecFilter(rest, bName, city, ch, resolvedRestId)) {
+                return
+            }
+
+            const amt = Number(o.total_amount) || 0
+            const grossAmt = computeOrderGrossAmount(o)
+            totalOrders++
+            sampleRevenue += amt
+            sampleGrossRevenue += grossAmt
+
+            channelStats[ch].count++
+            channelStats[ch].revenue += amt
+            channelStats[ch].grossRevenue = (channelStats[ch].grossRevenue || 0) + grossAmt
+
+            // Heatmap calculation (consistent UTC wall-clock)
+            if (o.placed_at) {
+                const d = new Date(o.placed_at)
+                const day = (d.getUTCDay() + 6) % 7 // 0=Mon..6=Sun
+                const hour = d.getUTCHours()
+                if (day >= 0 && day < 7 && hour >= 0 && hour < 24) {
+                    heatmapMatrix[day][hour].count++
+                    heatmapMatrix[day][hour].revenue += amt
+                }
+            }
 
             if (!brandStats[bName]) brandStats[bName] = { count: 0, revenue: 0, grossRevenue: 0, color: '#3B82F6' }
             brandStats[bName].count++
@@ -2517,6 +2652,13 @@ app.get('/api/sales/executive-summary', async (req, res) => {
             }))),
             topProducts: topProductsList,
             workpoints: workpointsList,
+            availableLocations: [...new Set(
+                (rests || [])
+                    .filter(r => r.is_active !== false)
+                    .filter(r => !allowedCitiesSet || allowedCitiesSet.size === 0 || allowedCitiesSet.has(getCanonicalCity(r.city || r.name || '')))
+                    .map(r => getPhysicalLocationLabel(r, getCanonicalCity(r.city || r.name || '')))
+                    .filter(Boolean)
+            )].sort(),
             byRestaurant: Object.fromEntries(
                 Object.entries(restStats).map(([rid, rdata]) => {
                     const r = restMap[rid]
@@ -2537,7 +2679,7 @@ app.get('/api/sales/executive-summary', async (req, res) => {
                 })
             )
         }
-        global.__EXEC_SUMMARY_CACHE.set(reqPeriod, { ts: Date.now(), payload: responsePayload })
+        global.__EXEC_SUMMARY_CACHE.set(summaryCacheKey, { ts: Date.now(), payload: responsePayload })
         res.json(responsePayload)
     } catch (err) {
         res.status(500).json({ success: false, error: err.message })
@@ -6220,10 +6362,10 @@ app.get('/api/settings/status', async (req, res) => {
 // ─── AUTHENTICATION, USERS, ROLES & BREVO INVITATIONS ENDPOINTS ───
 app.post('/api/auth/login', async (req, res) => {
     try {
-        await usersService.syncFromSupabase().catch(() => {})
+        await usersService.syncFromSupabase().catch(() => { })
         const { email, password } = req.body || {}
         const result = usersService.login(email, password)
-        await usersService._saveToSupabase(usersService.state).catch(() => {})
+        await usersService._saveToSupabase(usersService.state).catch(() => { })
         res.json({ success: true, ...result })
     } catch (err) {
         res.status(401).json({ success: false, error: err.message })
@@ -6232,9 +6374,9 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.post('/api/auth/heartbeat', async (req, res) => {
     try {
-        await usersService.syncFromSupabase().catch(() => {})
+        await usersService.syncFromSupabase().catch(() => { })
         const user = usersService.recordHeartbeat(req.body || {})
-        await usersService._saveToSupabase(usersService.state).catch(() => {})
+        await usersService._saveToSupabase(usersService.state).catch(() => { })
         res.json({ success: Boolean(user), user })
     } catch (err) {
         res.status(400).json({ success: false, error: err.message })
@@ -6243,9 +6385,9 @@ app.post('/api/auth/heartbeat', async (req, res) => {
 
 app.post('/api/auth/first-login-password', async (req, res) => {
     try {
-        await usersService.syncFromSupabase().catch(() => {})
+        await usersService.syncFromSupabase().catch(() => { })
         const user = usersService.completeFirstLogin(req.body || {})
-        await usersService._saveToSupabase(usersService.state).catch(() => {})
+        await usersService._saveToSupabase(usersService.state).catch(() => { })
         res.json({ success: true, user })
     } catch (err) {
         res.status(400).json({ success: false, error: err.message })
