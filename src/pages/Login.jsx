@@ -54,7 +54,7 @@ export default function Login() {
   })()
 
   const [email, setEmail] = useState(savedCreds?.email || '')
-  const [password, setPassword] = useState(savedCreds?.password || '')
+  const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(savedCreds ? Boolean(savedCreds.rememberMe) : true)
   const [showPass, setShowPass] = useState(false)
 
@@ -93,14 +93,14 @@ export default function Login() {
     }
   }, [user, pendingFirstLoginUser, navigate])
 
-  const persistRememberedCredentials = (targetEmail, targetPassword, shouldRemember = rememberMe) => {
+  const persistRememberedCredentials = (targetEmail, _targetPassword, shouldRemember = rememberMe) => {
     try {
-      if (shouldRemember && targetEmail && targetPassword) {
+      if (shouldRemember && targetEmail) {
+        // Security: persist ONLY email & preference — never store plaintext passwords in localStorage
         localStorage.setItem(
           'monitoring_remember_creds',
           JSON.stringify({
             email: targetEmail.trim(),
-            password: targetPassword,
             rememberMe: true
           })
         )
@@ -747,7 +747,7 @@ export default function Login() {
                     value={resetCode}
                     onChange={(e) => setResetCode(e.target.value)}
                     placeholder="123456"
-                    className={`w-full px-3.5 py-2.5 rounded-xl border text-center tracking-widest font-mono text-sm font-extrabold outline-none ${
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-center tracking-widest tabular-nums text-sm font-extrabold outline-none ${
                       isDark ? 'bg-slate-800 border-slate-700 text-emerald-400' : 'bg-slate-50 border-slate-200 text-emerald-700'
                     }`}
                   />
@@ -824,7 +824,7 @@ export default function Login() {
 
       {/* Footer */}
       <div className="relative z-10 text-center text-[11px] font-semibold text-white/80 drop-shadow-xs">
-        GetApp.FooD
+        GetApp.Food
       </div>
     </div>
   )

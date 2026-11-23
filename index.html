@@ -1,13 +1,32 @@
 <!doctype html>
-<html lang="ro" class="dark">
+<html lang="ro">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
-    <link rel="apple-touch-icon" href="/favicon.svg?v=2" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GetApp.FooD</title>
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('app-theme-v2');
+          var isDark = saved === 'dark';
+          var d = document.documentElement;
+          if (isDark) {
+            d.classList.add('dark');
+            d.style.colorScheme = 'dark';
+            d.style.backgroundColor = '#0B0F0E';
+          } else {
+            d.classList.remove('dark');
+            d.style.colorScheme = 'light';
+            d.style.backgroundColor = '#EEF1F0';
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
+    <link rel="apple-touch-icon" href="/favicon.svg?v=3" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>GetApp.Food</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   </head>
   <body>
     <div id="root"></div>

@@ -64,7 +64,7 @@ function describeArc(cx, cy, innerRadius, outerRadius, startAngle, endAngle) {
   ].join(' ')
 }
 
-export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesData = null, isDark = false, t }) {
+export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesData = null, isDark = false, isExpanded = false, t }) {
   const { t: contextT } = useLanguage()
   const tr = t || contextT
   // Dimension: 'brand' | 'platform' | 'status'
@@ -111,10 +111,10 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
               hasConfigured = true
               const chk = checks.find(c => c.restaurant_id === r.id && c.platform === p)
               const st = chk?.final_status?.toLowerCase()
-              if (!chk || !st || st === 'available' || st === 'open' || st === 'online' || st === 'unchecked') isOnline = true
+              if (st === 'available' || st === 'open' || st === 'online') isOnline = true
             }
           })
-          if (isOnline || !hasConfigured) map[b].online++
+          if (isOnline && hasConfigured) map[b].online++
           else map[b].stopped++
         })
         return Object.values(map)
@@ -134,7 +134,7 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
               rests.push(r)
               const chk = checks.find(c => c.restaurant_id === r.id && c.platform === p)
               const st = chk?.final_status?.toLowerCase()
-              if (!chk || !st || st === 'available' || st === 'open' || st === 'online' || st === 'unchecked') online++
+              if (st === 'available' || st === 'open' || st === 'online') online++
               else stopped++
             }
           })
@@ -156,8 +156,8 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
             if (r[`${p}_url`] && !String(r[`${p}_url`]).includes('/search')) {
               const chk = checks.find(c => c.restaurant_id === r.id && c.platform === p)
               const st = chk?.final_status?.toLowerCase()
-              if (!chk || !st || st === 'available' || st === 'open' || st === 'online' || st === 'unchecked') hasOnline = true
-              else if (st === 'closed') hasClosed = true
+              if (st === 'available' || st === 'open' || st === 'online') hasOnline = true
+              else if (st === 'closed' || chk?.outside_working_hours) hasClosed = true
               else if (st === 'error') hasError = true
               else if (st === 'unavailable') hasStopped = true
             }
@@ -167,7 +167,7 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
           else if (hasStopped) { stopped++; stoppedRests.push(r); }
           else if (hasClosed) { closed++; closedRests.push(r); }
           else if (hasError) { error++; errorRests.push(r); }
-          else { online++; onlineRests.push(r); }
+          else { closed++; closedRests.push(r); }
         })
 
         return [
@@ -255,15 +255,21 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
     // Level 2: Drilled into a City -> list individual restaurants
     if (currentDrill.level === 2) {
       if (dimension === 'sales_channel') {
-        const cityName = currentDrill.city
+        const normCity = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim()
+        const cityName = normCity(currentDrill.city)
         const chKey = currentDrill.channelKey
-        const cityRests = restaurants.filter(r => r.city === cityName && r.is_active)
-        return (cityRests.length > 0 ? cityRests : restaurants.filter(r => r.is_active).slice(0, 6)).map(r => {
-          const restOrders = salesData?.byRestaurant?.[r.id]?.channels?.[chKey] || Math.max(1, Math.round(currentDrill.count / (cityRests.length || 1)))
+        const cityRests = restaurants.filter(r => r.is_active && (normCity(r.city) === cityName || normCity(r.name).includes(cityName)))
+        const matchedRests = cityRests.length > 0 ? cityRests : restaurants.filter(r => r.is_active).slice(0, 6)
+        return matchedRests.map(r => {
+          const restEntry = salesData?.byRestaurant?.[r.id]
+          const restOrders = restEntry?.channels?.[chKey] ?? Math.max(0, Math.round((currentDrill.count || 0) / (matchedRests.length || 1)))
+          const restRev = restEntry?.revenue != null
+            ? Math.round(restEntry.revenue)
+            : Math.round((currentDrill.revenue || 0) / (matchedRests.length || 1))
           return {
             label: r.name,
             count: restOrders,
-            revenue: Math.round((salesData?.byRestaurant?.[r.id]?.revenue || currentDrill.revenue || 0) / (cityRests.length || 1)),
+            revenue: restRev,
             rests: [r],
             online: 1,
             stopped: 0,
@@ -341,8 +347,9 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
     return sliceData.map((item, idx) => {
       const portion = item.count / totalValue
       const angleLength = portion * (2 * Math.PI)
-      const startAngle = currentAngle + padAngle / 2
-      const endAngle = currentAngle + angleLength - padAngle / 2
+      const effPad = Math.min(padAngle, angleLength * 0.4)
+      const startAngle = currentAngle + effPad / 2
+      const endAngle = currentAngle + angleLength - effPad / 2
       const midAngle = (startAngle + endAngle) / 2
       currentAngle += angleLength
 
@@ -400,142 +407,129 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
     })
   }
 
-  // SVG Geometry
-  const size = 300
+  // SVG Geometry — Sized cleanly so full donut + ALL 5 brand rows fit above the fold on laptop!
+  const size = isExpanded ? 268 : 210
   const cx = size / 2
   const cy = size / 2
-  const outerRadius = 125
-  const innerRadius = 72
+  const outerRadius = isExpanded ? 112 : 88
+  const innerRadius = isExpanded ? 66 : 52
 
   return (
     <div 
       ref={containerRef}
       onMouseMove={handleMouseMove}
-      className={`relative p-5 rounded-3xl border shadow-sm flex flex-col justify-between transition-all select-none overflow-hidden h-[540px] ${
+      className={`relative p-3.5 rounded-2xl border shadow-sm flex flex-col justify-between transition-all select-none overflow-hidden ${isExpanded ? 'h-[540px]' : 'h-[430px]'} ${
         isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
       }`}
     >
-      {/* SECTION 1: Top Header (Streamlined & aligned) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800/80 min-h-[46px] shrink-0">
-        <div>
-          <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <PieIcon size={16} className="text-emerald-500" />
-            <span>{tr('charts.pie_title', 'Distribuție & Structură Rețea')}</span>
+      {/* SECTION 1: Top Header — Compact Single Row on Laptop */}
+      <div className="flex flex-wrap items-center justify-between gap-1.5 pb-2 border-b border-black/[0.06] dark:border-white/[0.08] shrink-0">
+        <div className="min-w-0">
+          <h3 className="text-[12.5px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] flex items-center gap-1.5 truncate">
+            <PieIcon size={14} className="text-[#047857] dark:text-[#10B981] shrink-0" />
+            <span className="truncate">{tr('charts.pie_title', 'Distribuție & Structură Rețea')}</span>
           </h3>
         </div>
 
-        {/* Dimension Selector */}
+        {/* Dimension Selector — Apple Segmented Control */}
         {drillStack.length === 0 ? (
-          <div className={`p-1 rounded-xl border flex items-center gap-1 shrink-0 ${
-            isDark ? 'bg-slate-800/80 border-slate-700/60' : 'bg-slate-100 border-slate-200'
-          }`}>
+          <div role="group" className="apple-segmented shrink-0">
             <button
+              type="button"
               onClick={() => { setDimension('brand'); handleReset(); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                dimension === 'brand' 
-                  ? 'bg-emerald-600 text-white shadow-xs' 
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+              className={`apple-segment !h-[23px] !px-2 !text-[10.5px] ${dimension === 'brand' ? 'apple-segment-active' : ''}`}
             >
               {tr('charts.dim_brand', 'Branduri')}
             </button>
             <button
+              type="button"
               onClick={() => { setDimension('platform'); handleReset(); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                dimension === 'platform' 
-                  ? 'bg-emerald-600 text-white shadow-xs' 
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+              className={`apple-segment !h-[23px] !px-2 !text-[10.5px] ${dimension === 'platform' ? 'apple-segment-active' : ''}`}
             >
               {tr('charts.dim_platform', 'Platforme')}
             </button>
             <button
+              type="button"
               onClick={() => { setDimension('status'); handleReset(); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                dimension === 'status' 
-                  ? 'bg-emerald-600 text-white shadow-xs' 
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+              className={`apple-segment !h-[23px] !px-2 !text-[10.5px] ${dimension === 'status' ? 'apple-segment-active' : ''}`}
             >
               {tr('charts.dim_status', 'Status')}
             </button>
             <button
+              type="button"
               onClick={() => { setDimension('sales_channel'); handleReset(); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                dimension === 'sales_channel' 
-                  ? 'bg-amber-500 text-white shadow-xs' 
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+              className={`apple-segment !h-[23px] !px-2 !text-[10.5px] ${dimension === 'sales_channel' ? 'apple-segment-active' : ''}`}
             >
               {tr('charts.dim_channels', 'Canale Vânzări')}
             </button>
           </div>
         ) : (
           <button
+            type="button"
             onClick={handleStepBack}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+            className="apple-btn-secondary !h-6 !px-2.5 !text-[11px] shrink-0"
           >
-            <ArrowLeft size={13} />
+            <ArrowLeft size={11} />
             <span>{tr('charts.step_back', 'Înapoi un nivel')}</span>
           </button>
         )}
       </div>
 
-      {/* SECTION 2: 4-Metric Ribbon (Exact height and layout matching right card) */}
-      <div className="grid grid-cols-4 gap-2 my-3 shrink-0">
-        <div className={`p-2 rounded-2xl border text-center ${
-          isDark ? 'bg-slate-800/30 border-slate-800' : 'bg-slate-50 border-slate-100'
+      {/* SECTION 2: 4-Metric Ribbon — Compact Laptop Strip */}
+      <div className="grid grid-cols-4 gap-1.5 my-2 shrink-0">
+        <div className={`px-2 py-1.5 rounded-xl border text-center ${
+          isDark ? 'bg-white/[0.03] border-white/[0.08]' : 'bg-[#F5F5F7]/80 border-black/[0.05]'
         }`}>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">
+          <div className="text-[10px] font-medium text-[#515154] dark:text-[#AEAEB2] truncate">
             {ribbonStats.isSales ? tr('charts.ribbon_orders', 'Total Comenzi') : tr('charts.ribbon_total_units', 'Total Unități')}
           </div>
-          <div className="text-base font-extrabold text-cyan-500 mt-0.5">{ribbonStats.total}</div>
+          <div className="text-[14px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] leading-tight mt-0.5 tabular-nums">{ribbonStats.total}</div>
         </div>
-        <div className={`p-2 rounded-2xl border text-center ${
-          isDark ? 'bg-slate-800/30 border-slate-800' : 'bg-slate-50 border-slate-100'
+        <div className={`px-2 py-1.5 rounded-xl border text-center ${
+          isDark ? 'bg-white/[0.03] border-white/[0.08]' : 'bg-[#F5F5F7]/80 border-black/[0.05]'
         }`}>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">
+          <div className="text-[10px] font-medium text-[#515154] dark:text-[#AEAEB2] truncate">
             {ribbonStats.isSales ? tr('charts.ribbon_revenue', 'Vânzări Totale') : tr('charts.ribbon_online', 'Online')}
           </div>
-          <div className="text-base font-extrabold text-emerald-500 mt-0.5 truncate">
+          <div className="text-[14px] font-semibold text-[#0A7B5C] dark:text-emerald-400 leading-tight mt-0.5 truncate tabular-nums">
             {ribbonStats.isSales ? ribbonStats.revenue : ribbonStats.online}
           </div>
         </div>
-        <div className={`p-2 rounded-2xl border text-center ${
-          isDark ? 'bg-slate-800/30 border-slate-800' : 'bg-slate-50 border-slate-100'
+        <div className={`px-2 py-1.5 rounded-xl border text-center ${
+          isDark ? 'bg-white/[0.03] border-white/[0.08]' : 'bg-[#F5F5F7]/80 border-black/[0.05]'
         }`}>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">
+          <div className="text-[10px] font-medium text-[#515154] dark:text-[#AEAEB2] truncate">
             {ribbonStats.isSales ? tr('charts.ribbon_local_share', 'Local (Kiosk+POS)') : tr('charts.ribbon_stopped', 'Oprite / STOP')}
           </div>
-          <div className="text-base font-extrabold text-rose-500 mt-0.5 truncate">
+          <div className="text-[14px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] leading-tight mt-0.5 truncate tabular-nums">
             {ribbonStats.isSales ? ribbonStats.localShare : ribbonStats.stopped}
           </div>
         </div>
-        <div className={`p-2 rounded-2xl border text-center ${
-          isDark ? 'bg-slate-800/30 border-slate-800' : 'bg-slate-50 border-slate-100'
+        <div className={`px-2 py-1.5 rounded-xl border text-center ${
+          isDark ? 'bg-white/[0.03] border-white/[0.08]' : 'bg-[#F5F5F7]/80 border-black/[0.05]'
         }`}>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">
+          <div className="text-[10px] font-medium text-[#515154] dark:text-[#AEAEB2] truncate">
             {ribbonStats.isSales ? tr('charts.ribbon_delivery_share', 'Delivery (Aplicații)') : tr('charts.ribbon_online_rate', 'Rată Online')}
           </div>
-          <div className="text-base font-extrabold text-amber-500 mt-0.5 truncate">
+          <div className="text-[14px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] leading-tight mt-0.5 truncate tabular-nums">
             {ribbonStats.isSales ? ribbonStats.deliveryShare : `${ribbonStats.rate}%`}
           </div>
         </div>
       </div>
 
-      {/* SECTION 3: Main Visual Area (Donut + Side Legend, height matched to right chart) */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center flex-1 my-auto overflow-hidden">
+      {/* SECTION 3: Main Visual Area (Balanced Donut + Full Unclipped 5-Brand Legend) */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center flex-1 min-h-0 overflow-hidden">
         {/* SVG Donut */}
-        <div className="md:col-span-7 flex justify-center relative">
+        <div className="md:col-span-6 flex justify-center items-center relative">
           <svg 
             width={size} 
             height={size} 
             viewBox={`0 0 ${size} ${size}`}
-            className="overflow-visible"
+            className="overflow-visible max-w-full h-auto"
           >
             <defs>
               <filter id="pieGlow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="6" result="blur" />
+                <feGaussianBlur stdDeviation="5" result="blur" />
                 <feComposite in="SourceGraphic" in2="blur" operator="over" />
               </filter>
             </defs>
@@ -555,7 +549,7 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
               const isHovered = hoveredSlice?.label === slice.label
               const path = describeArc(cx, cy, innerRadius, outerRadius, slice.startAngle, slice.endAngle)
 
-              const explodeDistance = isHovered ? 10 : 0
+              const explodeDistance = isHovered ? 7 : 0
               const dx = explodeDistance * Math.sin(slice.midAngle)
               const dy = -explodeDistance * Math.cos(slice.midAngle)
 
@@ -574,7 +568,7 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
                     opacity={hoveredSlice && !isHovered ? 0.45 : 1}
                     filter={isHovered ? 'url(#pieGlow)' : undefined}
                     className="transition-all duration-300 hover:brightness-110"
-                    stroke={isDark ? '#0f172a' : '#ffffff'}
+                    stroke={isDark ? '#1C1C1E' : '#ffffff'}
                     strokeWidth={2}
                   />
                 </g>
@@ -589,36 +583,36 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
               <circle
                 cx={cx}
                 cy={cy}
-                r={innerRadius - 4}
-                fill={isDark ? '#0b1329' : '#ffffff'}
-                stroke={drillStack.length > 0 ? '#10b981' : isDark ? '#1e293b' : '#e2e8f0'}
-                strokeWidth={drillStack.length > 0 ? 2 : 1}
+                r={innerRadius - 3}
+                fill={isDark ? '#1C1C1E' : '#ffffff'}
+                stroke={drillStack.length > 0 ? '#047857' : isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}
+                strokeWidth={drillStack.length > 0 ? 1.5 : 1}
                 strokeDasharray={drillStack.length > 0 ? '4 2' : 'none'}
                 className="transition-all duration-300"
               />
 
               {drillStack.length > 0 ? (
                 <g className="transition-transform hover:scale-105 select-none" transform={`translate(${cx}, ${cy})`}>
-                  <circle r={innerRadius - 12} fill="transparent" />
-                  <text y="-10" textAnchor="middle" fill="#10b981" fontSize="10" fontWeight="bold">
+                  <circle r={innerRadius - 10} fill="transparent" />
+                  <text y="-9" textAnchor="middle" fill="#047857" fontSize="9" fontWeight="700">
                     {tr('charts.hud_back', '⬅ ÎNAPOI')}
                   </text>
-                  <text y="8" textAnchor="middle" fill={isDark ? '#ffffff' : '#0f172a'} fontSize="14" fontWeight="800">
+                  <text y="7" textAnchor="middle" fill={isDark ? '#ffffff' : '#1D1D1F'} fontSize="14" fontWeight="800">
                     {totalValue}
                   </text>
-                  <text y="22" textAnchor="middle" fill={isDark ? '#94a3b8' : '#64748b'} fontSize="9" fontWeight="bold">
+                  <text y="19" textAnchor="middle" fill={isDark ? '#8E8E93' : '#636366'} fontSize="8" fontWeight="600">
                     {tr('charts.hud_subunits', 'SUB-UNITĂȚI')}
                   </text>
                 </g>
               ) : (
                 <g className="select-none" transform={`translate(${cx}, ${cy})`}>
-                  <text y="-8" textAnchor="middle" fill={isDark ? '#94a3b8' : '#64748b'} fontSize="9" fontWeight="bold" letterSpacing="1">
+                  <text y="-8" textAnchor="middle" fill={isDark ? '#8E8E93' : '#636366'} fontSize="8.5" fontWeight="600">
                     {tr('charts.hud_total', 'TOTAL')}
                   </text>
-                  <text y="14" textAnchor="middle" fill={isDark ? '#ffffff' : '#0f172a'} fontSize="20" fontWeight="900">
+                  <text y="11" textAnchor="middle" fill={isDark ? '#ffffff' : '#1D1D1F'} fontSize="18" fontWeight="800">
                     {totalValue}
                   </text>
-                  <text y="28" textAnchor="middle" fill={dimension === 'sales_channel' ? '#f59e0b' : '#10b981'} fontSize="9" fontWeight="bold">
+                  <text y="23" textAnchor="middle" fill={dimension === 'sales_channel' ? '#f59e0b' : '#10b981'} fontSize="8.5" fontWeight="700">
                     {dimension === 'sales_channel' ? 'COMENZI' : tr('charts.hud_locations', 'LOCAȚII')}
                   </text>
                 </g>
@@ -627,8 +621,8 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
           </svg>
         </div>
 
-        {/* Interactive Legend List */}
-        <div className="md:col-span-5 flex flex-col justify-center space-y-1.5 max-h-[250px] overflow-y-auto pr-1">
+        {/* Interactive Legend List — Compact rows so ALL 5 brands fit without clipping */}
+        <div className="md:col-span-6 flex flex-col justify-center space-y-1 max-h-full overflow-y-auto custom-scrollbar pr-0.5">
           {slicesWithAngles.map((slice) => {
             const isHovered = hoveredSlice?.label === slice.label
             return (
@@ -637,37 +631,37 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
                 onClick={() => handleSliceClick(slice)}
                 onMouseEnter={() => setHoveredSlice(slice)}
                 onMouseLeave={() => setHoveredSlice(null)}
-                className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                className={`px-2 py-1 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
                   isHovered
-                    ? (isDark ? 'bg-slate-800 border-emerald-500/80 shadow-md scale-[1.02]' : 'bg-slate-50 border-emerald-500/80 shadow-md scale-[1.02]')
-                    : (isDark ? 'bg-slate-800/40 border-slate-800 hover:bg-slate-800/70' : 'bg-slate-50/60 border-slate-100 hover:bg-slate-100/60')
+                    ? (isDark ? 'bg-white/[0.08] border-[#10B981]/60' : 'bg-[#047857]/[0.06] border-[#047857]/40')
+                    : (isDark ? 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06]' : 'bg-[#F5F6F9]/80 border-black/[0.05] hover:bg-black/[0.04]')
                 }`}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   {dimension === 'brand' || ['Roll Master', 'Poki Woki', 'Love Sushi', 'Smash Me', 'Crunch'].includes(slice.label) ? (
-                    <BrandAvatar brand={slice.label} size={22} className="rounded-full shrink-0 shadow-xs" />
+                    <BrandAvatar brand={slice.label} size={18} className="rounded-full shrink-0" />
                   ) : (
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs" style={{ backgroundColor: slice.color }} />
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: slice.color }} />
                   )}
-                  <div className="truncate">
-                    <div className="text-[11px] font-bold truncate">{slice.label}</div>
-                    <div className="text-[9px] text-slate-400 font-medium">
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-semibold truncate text-[#1D1D1F] dark:text-white leading-tight">{slice.label}</div>
+                    <div className="text-[9.5px] text-[#636366] dark:text-[#8E8E93] leading-tight truncate tabular-nums">
                       {dimension === 'sales_channel' && slice.revenue ? (
-                        <span>{slice.count} comenzi • {slice.revenue.toLocaleString()} RON</span>
+                        <span>{slice.count} · {slice.revenue.toLocaleString()} RON</span>
                       ) : (
-                        <span>{slice.online} {tr('charts.legend_online', 'Online')} • {slice.stopped} {tr('charts.legend_stopped', 'Oprite')}</span>
+                        <span>{slice.online} {tr('charts.legend_online', 'Online')} · {slice.stopped} {tr('charts.legend_stopped', 'Oprite')}</span>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                    isDark ? 'bg-slate-800 text-slate-300' : 'bg-white text-slate-700 border border-slate-200'
+                <div className="flex items-center gap-1.5 shrink-0 tabular-nums">
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
+                    isDark ? 'bg-white/[0.08] text-slate-200' : 'bg-white text-slate-700 border border-black/[0.07]'
                   }`}>
                     {slice.count}
                   </span>
-                  <span className="text-[11px] font-black min-w-[32px] text-right" style={{ color: slice.color }}>
+                  <span className="text-[11px] font-bold min-w-[28px] text-right" style={{ color: slice.color }}>
                     {slice.percent}%
                   </span>
                 </div>
@@ -720,10 +714,10 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
         </div>
       )}
 
-      {/* SECTION 4: Bottom Navigator (Exact twin of right card's timeline navigator) */}
-      <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
-        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 mb-1.5">
-          <span>{tr('charts.drilldown_nav_title', 'DRILLDOWN NAVIGATOR (Ierarhie & Pondere)')}</span>
+      {/* SECTION 4: Bottom Navigator — Compact Laptop Track (h-7) */}
+      <div className="mt-2 pt-2 border-t border-black/[0.06] dark:border-white/[0.08] shrink-0">
+        <div className="flex items-center justify-between text-[10px] font-medium text-[#636366] dark:text-[#8E8E93] mb-1">
+          <span>{tr('charts.drilldown_nav_title', 'Navigator ierarhie')}</span>
           <span>
             {tr('charts.level_prefix', 'Nivel:')}{' '}
             {drillStack.length === 0 
@@ -738,8 +732,8 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
           </span>
         </div>
 
-        {/* Proportional Segmented Spectrum Track (h-10 matching right scrubber) */}
-        <div className="relative h-10 w-full rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex">
+        {/* Proportional Segmented Spectrum Track (h-7 matching right scrubber) */}
+        <div className="relative h-7 w-full rounded-lg overflow-hidden border border-black/[0.07] dark:border-white/10 bg-[#F5F6F9] dark:bg-white/[0.04] flex">
           {slicesWithAngles.map((slice, i) => {
             const isHovered = hoveredSlice?.label === slice.label
             return (
@@ -754,11 +748,11 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
                   backgroundColor: slice.color,
                 }}
                 className={`h-full transition-all duration-200 cursor-pointer relative flex items-center justify-center overflow-hidden border-r last:border-r-0 border-white/20 dark:border-slate-900/40 ${
-                  isHovered ? 'brightness-125 saturate-125 z-10' : 'opacity-85 hover:opacity-100'
+                  isHovered ? 'brightness-115 saturate-125 z-10' : 'opacity-90 hover:opacity-100'
                 }`}
               >
                 {slice.percent >= 10 && (
-                  <span className="text-[10px] font-black text-white px-1 truncate drop-shadow-sm select-none">
+                  <span className="text-[10px] font-bold text-white px-1 truncate drop-shadow-sm select-none tabular-nums">
                     {slice.label} {slice.percent}%
                   </span>
                 )}
@@ -767,15 +761,15 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
           })}
         </div>
 
-        {/* Action / Reset Row matching right card */}
-        <div className="flex items-center justify-between mt-2 text-[10px] text-slate-400 gap-2 min-w-0">
-          <div className="flex items-center gap-1.5 min-w-0 truncate">
-            <Info size={12} className="text-slate-400 shrink-0" />
+        {/* Action / Reset Row */}
+        <div className="flex items-center justify-between mt-1.5 text-[10px] text-[#636366] dark:text-[#8E8E93] gap-2 min-w-0">
+          <div className="flex items-center gap-1 min-w-0 truncate">
+            <Info size={11} className="shrink-0 opacity-75" />
             <span className="truncate">{tr('charts.drilldown_hint', 'Click pe o felie pentru explorare în profunzime.')}</span>
           </div>
           <button
             onClick={handleReset}
-            className="text-emerald-500 font-bold hover:underline cursor-pointer shrink-0 whitespace-nowrap"
+            className="text-[#047857] dark:text-[#10B981] font-semibold hover:underline cursor-pointer shrink-0 whitespace-nowrap"
           >
             {drillStack.length > 0 ? tr('charts.reset_level', 'Reset Nivel (100%)') : tr('charts.reset_filter', 'Resetare (100%)')}
           </button>

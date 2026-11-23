@@ -188,7 +188,7 @@ function extractBaseOrderUuid(orderId) {
   const s = String(orderId || '').trim()
   if (!s) return ''
   const parts = s.split('_')
-  if (parts[0] === 'wh' && /^\d{4}-\d{2}-\d{2}$/.test(parts[1] || '')) {
+  if ((parts[0] === 'wh' || parts[0] === 'pos') && /^\d{4}-\d{2}-\d{2}$/.test(parts[1] || '')) {
     return parts[2] || s
   }
   return parts[0] || s
@@ -381,228 +381,311 @@ async function fetchLiveAndWebhookOrdersForDay(dayStr, allRests = []) {
 
   const runFetch = (async () => {
 
-  const withTimeout = (promise, ms) => Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms))
-  ])
+    const withTimeout = (promise, ms) => Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms))
+    ])
 
-  const restByOrgId = {}
-    ; (allRests || []).forEach(r => {
-      if (r.iiko_restaurant_id && !restByOrgId[r.iiko_restaurant_id]) {
-        restByOrgId[r.iiko_restaurant_id] = r
+    const restByOrgId = {}
+      ; (allRests || []).forEach(r => {
+        if (!r.iiko_restaurant_id) return
+        const prev = restByOrgId[r.iiko_restaurant_id]
+        const rActive = r.is_active !== false
+        const prevActive = prev ? prev.is_active !== false : false
+        const rIsPrimary = !String(r.name || '').toLowerCase().includes('crunch')
+        const prevIsPrimary = prev ? !String(prev.name || '').toLowerCase().includes('crunch') : false
+        if (!prev || (rActive && !prevActive) || (rActive === prevActive && rIsPrimary && !prevIsPrimary)) {
+          restByOrgId[r.iiko_restaurant_id] = r
+        }
+      })
+
+    const fetchSyrve = async () => {
+      globalThis.__SYRVE_TOKEN_CACHE = globalThis.__SYRVE_TOKEN_CACHE || new Map()
+      globalThis.__SYRVE_ORGS_CACHE = globalThis.__SYRVE_ORGS_CACHE || new Map()
+      globalThis.__SYRVE_DEAD_KEY_CACHE = globalThis.__SYRVE_DEAD_KEY_CACHE || new Map()
+
+      // Collect all unique Syrve apiLogin keys (primary SM/RM/PW account + SmashMe Cluj Kiosk account + env + active restaurants)
+      const keySet = new Set([
+        '93a34e75123e47b897e390f31ecfa4cb',
+        'd2879e94add948599051d37154e0ad7d'
+      ])
+      if (process.env.SYRVE_SMASHME_API_LOGIN) keySet.add(String(process.env.SYRVE_SMASHME_API_LOGIN).trim())
+      if (process.env.SYRVE_API_LOGINS) {
+        String(process.env.SYRVE_API_LOGINS).split(',').map(s => s.trim()).filter(Boolean).forEach(k => keySet.add(k))
       }
-    })
-
-  const fetchSyrve = async () => {
-    globalThis.__SYRVE_TOKEN_CACHE = globalThis.__SYRVE_TOKEN_CACHE || new Map()
-    globalThis.__SYRVE_ORGS_CACHE = globalThis.__SYRVE_ORGS_CACHE || new Map()
-    const apiKey = '93a34e75123e47b897e390f31ecfa4cb'
-    const rows = []
-    try {
-      let tokenObj = globalThis.__SYRVE_TOKEN_CACHE.get(apiKey)
-      if (!tokenObj || Date.now() - tokenObj.ts > 900000) {
-        const authRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/access_token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ apiLogin: apiKey })
-        }), 3000)
-        if (!authRes.ok) return []
-        const authJson = await authRes.json()
-        if (!authJson.token) return []
-        tokenObj = { token: authJson.token, ts: Date.now() }
-        globalThis.__SYRVE_TOKEN_CACHE.set(apiKey, tokenObj)
+      for (const r of (allRests || [])) {
+        const k = r.iiko_config?.api_login || r.iiko_config?.apiLogin
+        if (k && typeof k === 'string' && k.trim().length >= 16) keySet.add(k.trim())
       }
 
-      let orgs = globalThis.__SYRVE_ORGS_CACHE.get(apiKey)
-      if (!orgs) {
-        const orgRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/organizations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenObj.token}` },
-          body: JSON.stringify({})
-        }), 3000)
-        if (!orgRes.ok) return []
-        const orgJson = await orgRes.json()
-        orgs = orgJson.organizations || []
-        globalThis.__SYRVE_ORGS_CACHE.set(apiKey, orgs)
-      }
-      if (!orgs.length) return []
+      const seenOrgIds = new Set()
+      const rows = []
 
-      const orgNameById = {}
-      orgs.forEach(o => { orgNameById[o.id] = o.name || '' })
+      const fetchForKey = async (apiKey) => {
+        const deadTs = globalThis.__SYRVE_DEAD_KEY_CACHE.get(apiKey)
+        if (deadTs && (Date.now() - deadTs < 900000)) return [] // Skip known 401 key for 15 min (0ms penalty)
 
-      const delivRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/deliveries/by_delivery_date_and_status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenObj.token}` },
-        body: JSON.stringify({
-          organizationIds: orgs.map(o => o.id),
-          deliveryDateFrom: `${dayStr} 00:00:00.000`,
-          deliveryDateTo: `${dayStr} 23:59:59.999`
-        })
-      }), 4500)
-      if (!delivRes.ok) return []
-      const delivData = await delivRes.json()
-
-      for (const grp of (delivData.ordersByOrganizations || [])) {
-        const orgId = grp.organizationId
-        const matchedRest = restByOrgId[orgId] || null
-        const orgName = orgNameById[orgId] || matchedRest?.city || matchedRest?.name || ''
-        const cityCanon = getCanonicalCity(orgName || matchedRest?.city || matchedRest?.name || '')
-        for (const item of (grp.orders || [])) {
-          const ord = item.order
-          if (!ord) continue
-          const stLow = String(ord.status || '').toLowerCase()
-          if (stLow.includes('cancel') || stLow.includes('delet')) continue
-
-          const baseId = item.id || ord.id || `ord_${ord.number}`
-          const rawSource = (ord.sourceKey || '').toLowerCase()
-          const orderTypeName = (ord.orderType?.name || '').toLowerCase()
-          const operatorName = (ord.operator?.name || '').toLowerCase()
-          const conceptionName = (ord.conception?.name || '').toLowerCase()
-          const customerNameLower = (ord.customer?.name || '').toLowerCase()
-          const isKiosk = rawSource.includes('kiosk') || orderTypeName.includes('kiosk') || operatorName.includes('kiosk') || conceptionName.includes('kiosk') || customerNameLower.includes('kiosk')
-
-          let platform = 'casierie'
-          if (rawSource.includes('glovo') || orderTypeName.includes('glovo')) platform = 'glovo'
-          else if (rawSource.includes('wolt') || orderTypeName.includes('wolt')) platform = 'wolt'
-          else if (rawSource.includes('bolt') || orderTypeName.includes('bolt')) platform = 'bolt'
-          else if (isKiosk) platform = 'kiosk'
-          else if (orderTypeName.includes('livrare') || orderTypeName.includes('delivery')) platform = 'ecosystem'
-
-          const ds = ord.whenCreated || ord.whenClosed
-          const placedAt = ds ? new Date(ds.replace(' ', 'T') + 'Z').toISOString() : new Date().toISOString()
-
-          const rawCustName = [ord.customer?.name, ord.customer?.surname].filter(Boolean).join(' ').trim() || null
-          const custComment = ord.customer?.comment || ''
-          const phoneFromComment = custComment.match(/Phone:\s*([^;]+)/i)?.[1]?.trim() || null
-          const pickUpCode = custComment.match(/Pick Up Code:\s*([^;]+)/i)?.[1]?.trim() || null
-          const extOrderId = custComment.match(/OrderId:\s*([^;]+)/i)?.[1]?.trim() || ord.externalNumber || null
-          const courierPhoneFromComment = custComment.match(/Courier Phone:\s*([^;]+)/i)?.[1]?.trim() || null
-          const rawCourierFromComment = custComment.match(/Courier:\s*([^;]+)/i)?.[1]?.trim() || null
-          const cleanCourierFromComment = (rawCourierFromComment && !rawCourierFromComment.includes('IikoMiddleware')) ? rawCourierFromComment : null
-
-          const custPhone = ord.phone || ord.customer?.phone || phoneFromComment || null
-          const custAddress = ord.deliveryPoint?.comment || ord.deliveryPoint?.address?.line1 || ord.deliveryPoint?.address?.street?.name || null
-          const rawCourierObj = ord.courierInfo?.courier || null
-          const hasRealSyrveCourierPhone = Boolean(rawCourierObj?.phone || courierPhoneFromComment)
-          const courierName = (hasRealSyrveCourierPhone && rawCourierObj?.name) || cleanCourierFromComment || null
-          const courierPhone = rawCourierObj?.phone || courierPhoneFromComment || null
-
-          const extractedCourier = courierName ? {
-            name: courierName,
-            phone: courierPhone || '',
-            company: platform === 'glovo' ? 'Glovo' : platform === 'wolt' ? 'Wolt' : platform === 'bolt' ? 'Bolt Food' : 'Partener Livrare',
-            isManual: Boolean(ord.courierInfo?.isCourierSelectedManually)
-          } : null
-
-          const custLat = Number(ord.deliveryPoint?.coordinates?.latitude || 0) || null
-          const custLng = Number(ord.deliveryPoint?.coordinates?.longitude || 0) || null
-          const extractedCustomer = (rawCustName || custPhone || custAddress || (custLat && custLng)) ? {
-            name: rawCustName || 'Client',
-            phone: custPhone,
-            address: custAddress,
-            lat: custLat && custLat > 40 ? custLat : null,
-            lng: custLng && custLng > 20 ? custLng : null,
-            pickUpCode,
-            externalOrderId: extOrderId
-          } : null
-
-          const extractedTimings = {
-            whenCreated: ord.whenCreated || null,
-            whenConfirmed: ord.whenConfirmed || null,
-            whenPrinted: ord.whenPrinted || null,
-            whenCookingCompleted: ord.whenCookingCompleted || null,
-            whenSended: ord.whenSended || null,
-            whenDelivered: ord.whenDelivered || null,
-            whenClosed: ord.whenClosed || null,
-            completeBefore: ord.completeBefore || null
+        try {
+          let tokenObj = globalThis.__SYRVE_TOKEN_CACHE.get(apiKey)
+          if (!tokenObj || Date.now() - tokenObj.ts > 900000) {
+            const authRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/access_token', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ apiLogin: apiKey })
+            }), 3000)
+            if (authRes.status === 401 || authRes.status === 403) {
+              globalThis.__SYRVE_DEAD_KEY_CACHE.set(apiKey, Date.now())
+              console.warn(`[SyrveDirect] apiLogin ${apiKey.slice(0, 8)}... unauthorized (HTTP ${authRes.status}) — cached skip 15m`)
+              return []
+            }
+            if (!authRes.ok) return []
+            const authJson = await authRes.json()
+            if (!authJson.token) return []
+            tokenObj = { token: authJson.token, ts: Date.now() }
+            globalThis.__SYRVE_TOKEN_CACHE.set(apiKey, tokenObj)
           }
 
-          const items = []
-          let orderSum = 0
-          let orderGrossSum = 0
-          for (const it of (ord.items || [])) {
-            if (it.product) {
-              const qty = Number(it.amount) || 1
-              const unitPrice = Number(it.price) || 0
-              const itemSum = Number(it.resultSum ?? (unitPrice * qty)) || 0
-              orderSum += itemSum
-              orderGrossSum += unitPrice * qty
-              items.push({
-                product_name: it.product.name,
-                price: unitPrice,
-                amount: qty,
-                quantity: qty,
-                sum: itemSum,
-                _order_meta: items.length === 0 ? {
-                  orderNumber: ord.number ? String(ord.number) : (ord.externalNumber || null),
-                  city: orgName,
-                  conception: ord.conception?.name || orgName,
-                  customer: extractedCustomer,
-                  customerName: rawCustName,
-                  customerPhone: custPhone,
-                  customerAddress: custAddress,
-                  courier: extractedCourier,
-                  courierName,
-                  courierPhone,
-                  pickUpCode,
-                  externalOrderId: extOrderId,
-                  orderType: ord.orderType?.name || (isKiosk ? 'Smart Kiosk' : (platform === 'casierie' ? 'Casierie (POS)' : 'Livrare')),
-                  status: ord.status || 'Closed',
-                  stage: ord.status || 'Closed',
-                  timings: extractedTimings
-                } : undefined
+          let orgs = globalThis.__SYRVE_ORGS_CACHE.get(apiKey)
+          if (!orgs) {
+            const orgRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/organizations', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenObj.token}` },
+              body: JSON.stringify({})
+            }), 3000)
+            if (!orgRes.ok) return []
+            const orgJson = await orgRes.json()
+            orgs = orgJson.organizations || []
+            globalThis.__SYRVE_ORGS_CACHE.set(apiKey, orgs)
+          }
+          const freshOrgs = orgs.filter(o => o?.id && !seenOrgIds.has(o.id))
+          freshOrgs.forEach(o => seenOrgIds.add(o.id))
+          if (!freshOrgs.length) return []
+
+          const orgNameById = {}
+          freshOrgs.forEach(o => { orgNameById[o.id] = o.name || '' })
+
+          const delivRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/deliveries/by_delivery_date_and_status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenObj.token}` },
+            body: JSON.stringify({
+              organizationIds: freshOrgs.map(o => o.id),
+              deliveryDateFrom: `${dayStr} 00:00:00.000`,
+              deliveryDateTo: `${dayStr} 23:59:59.999`
+            })
+          }), 4500)
+          if (!delivRes.ok) return []
+          const delivData = await delivRes.json()
+          const keyRows = []
+
+          for (const grp of (delivData.ordersByOrganizations || [])) {
+            const orgId = grp.organizationId
+            const matchedRest = restByOrgId[orgId] || null
+            const orgName = orgNameById[orgId] || matchedRest?.city || matchedRest?.name || ''
+            const cityCanon = getCanonicalCity(orgName || matchedRest?.city || matchedRest?.name || '')
+            for (const item of (grp.orders || [])) {
+              const ord = item.order
+              if (!ord) continue
+              const stLow = String(ord.status || '').toLowerCase()
+              if (stLow.includes('cancel') || stLow.includes('delet')) continue
+
+              const baseId = item.id || ord.id || `ord_${ord.number}`
+              const rawSource = (ord.sourceKey || '').toLowerCase()
+              const orderTypeName = (ord.orderType?.name || '').toLowerCase()
+              const operatorName = (ord.operator?.name || '').toLowerCase()
+              const conceptionName = (ord.conception?.name || '').toLowerCase()
+              const customerNameLower = (ord.customer?.name || '').toLowerCase()
+              const extNumLower = String(ord.externalNumber || '').toLowerCase()
+              const isKiosk = rawSource.includes('kiosk') || orderTypeName.includes('kiosk') || operatorName.includes('kiosk') || conceptionName.includes('kiosk') || customerNameLower.includes('kiosk') || extNumLower.startsWith('kiosk')
+
+              let platform = 'casierie'
+              if (rawSource.includes('glovo') || orderTypeName.includes('glovo')) platform = 'glovo'
+              else if (rawSource.includes('wolt') || orderTypeName.includes('wolt')) platform = 'wolt'
+              else if (rawSource.includes('bolt') || orderTypeName.includes('bolt')) platform = 'bolt'
+              else if (isKiosk) platform = 'kiosk'
+              else if (orderTypeName.includes('livrare') || orderTypeName.includes('delivery')) platform = 'ecosystem'
+
+              const ds = ord.whenCreated || ord.whenClosed
+              const placedAt = ds ? new Date(ds.replace(' ', 'T') + 'Z').toISOString() : new Date().toISOString()
+
+              const rawCustName = [ord.customer?.name, ord.customer?.surname].filter(Boolean).join(' ').trim() || null
+              const custComment = ord.customer?.comment || ''
+              const phoneFromComment = custComment.match(/Phone:\s*([^;]+)/i)?.[1]?.trim() || null
+              const pickUpCode = custComment.match(/Pick Up Code:\s*([^;]+)/i)?.[1]?.trim() || null
+              const extOrderId = custComment.match(/OrderId:\s*([^;]+)/i)?.[1]?.trim() || ord.externalNumber || null
+              const courierPhoneFromComment = custComment.match(/Courier Phone:\s*([^;]+)/i)?.[1]?.trim() || null
+              const rawCourierFromComment = custComment.match(/Courier:\s*([^;]+)/i)?.[1]?.trim() || null
+              const cleanCourierFromComment = (rawCourierFromComment && !rawCourierFromComment.includes('IikoMiddleware')) ? rawCourierFromComment : null
+
+              const custPhone = ord.phone || ord.customer?.phone || phoneFromComment || null
+              const custAddress = ord.deliveryPoint?.comment || ord.deliveryPoint?.address?.line1 || ord.deliveryPoint?.address?.street?.name || null
+              const rawCourierObj = ord.courierInfo?.courier || null
+              const hasRealSyrveCourierPhone = Boolean(rawCourierObj?.phone || courierPhoneFromComment)
+              const courierName = (hasRealSyrveCourierPhone && rawCourierObj?.name) || cleanCourierFromComment || null
+              const courierPhone = rawCourierObj?.phone || courierPhoneFromComment || null
+
+              const extractedCourier = courierName ? {
+                name: courierName,
+                phone: courierPhone || '',
+                company: platform === 'glovo' ? 'Glovo' : platform === 'wolt' ? 'Wolt' : platform === 'bolt' ? 'Bolt Food' : 'Partener Livrare',
+                isManual: Boolean(ord.courierInfo?.isCourierSelectedManually)
+              } : null
+
+              const custLat = Number(ord.deliveryPoint?.coordinates?.latitude || 0) || null
+              const custLng = Number(ord.deliveryPoint?.coordinates?.longitude || 0) || null
+              const extractedCustomer = (rawCustName || custPhone || custAddress || (custLat && custLng)) ? {
+                name: rawCustName || 'Client',
+                phone: custPhone,
+                address: custAddress,
+                lat: custLat && custLat > 40 ? custLat : null,
+                lng: custLng && custLng > 20 ? custLng : null,
+                pickUpCode,
+                externalOrderId: extOrderId
+              } : null
+
+              const extractedTimings = {
+                whenCreated: ord.whenCreated || null,
+                whenConfirmed: ord.whenConfirmed || null,
+                whenPrinted: ord.whenPrinted || null,
+                whenCookingCompleted: ord.whenCookingCompleted || null,
+                whenSended: ord.whenSended || null,
+                whenDelivered: ord.whenDelivered || null,
+                whenClosed: ord.whenClosed || null,
+                completeBefore: ord.completeBefore || null
+              }
+
+              const ordCommentStr = String(ord.comment || '').trim()
+              const ordCommentUpper = ordCommentStr.toUpperCase()
+              const kioskTicketMatch = ordCommentStr.match(/Comanda\s+#([A-Za-z0-9\-_]+)/i)
+              const kioskOrderNum = kioskTicketMatch ? kioskTicketMatch[1] : null
+              const kioskIdDetected = isKiosk ? (
+                customerNameLower.includes('cj-1') || ordCommentUpper.includes('CJ-1') || ordCommentUpper.includes('CJ1A') ? 'Kiosk Cluj 1'
+                  : customerNameLower.includes('cj-2') || ordCommentUpper.includes('CJ-2') || ordCommentUpper.includes('CJ2A') ? 'Kiosk Cluj 2'
+                    : customerNameLower.includes('bv') || ordCommentUpper.includes('BV-1') ? 'Kiosk Brașov'
+                      : customerNameLower.includes('ct') || ordCommentUpper.includes('SMARTKIOSK CT') ? 'Kiosk Constanța'
+                        : (rawCustName || 'Smart Kiosk')
+              ) : null
+              const diningOptionDetected = isKiosk
+                ? (ordCommentUpper.includes('LA MASĂ') || ordCommentUpper.includes('LA MASA') ? 'La Masă' : ordCommentUpper.includes('LA PACHET') ? 'La Pachet' : null)
+                : null
+              const hasCashPay = (ord.payments || []).some(p => /cash|numerar/i.test(`${p.paymentType?.kind || ''} ${p.paymentType?.name || ''}`))
+              const hasCardPay = (ord.payments || []).some(p => /card/i.test(`${p.paymentType?.kind || ''} ${p.paymentType?.name || ''}`))
+              const paymentMethodDetected = isKiosk
+                ? ((ordCommentUpper.includes('NEPLĂTIT (CASH)') || ordCommentUpper.includes('NEPLATIT (CASH)') || hasCashPay) ? 'Cash'
+                  : (ordCommentUpper.includes('PLĂTIT') || ordCommentUpper.includes('PLATIT') || hasCardPay) ? 'Card' : 'Card')
+                : null
+
+              const items = []
+              let orderSum = 0
+              let orderGrossSum = 0
+              for (const it of (ord.items || [])) {
+                if (it.product) {
+                  const qty = Number(it.amount) || 1
+                  const unitPrice = Number(it.price) || 0
+                  const itemSum = Number(it.resultSum ?? (unitPrice * qty)) || 0
+                  orderSum += itemSum
+                  orderGrossSum += unitPrice * qty
+                  items.push({
+                    product_name: it.product.name,
+                    price: unitPrice,
+                    amount: qty,
+                    quantity: qty,
+                    sum: itemSum,
+                    _order_meta: items.length === 0 ? {
+                      orderNumber: kioskOrderNum || (ord.number ? String(ord.number) : (ord.externalNumber || null)),
+                      city: orgName,
+                      conception: ord.conception?.name || orgName,
+                      customer: extractedCustomer,
+                      customerName: rawCustName,
+                      customerPhone: custPhone,
+                      customerAddress: custAddress,
+                      courier: extractedCourier,
+                      courierName,
+                      courierPhone,
+                      pickUpCode,
+                      externalOrderId: extOrderId,
+                      kioskId: kioskIdDetected,
+                      diningOption: diningOptionDetected,
+                      paymentMethod: paymentMethodDetected,
+                      isCash: paymentMethodDetected === 'Cash',
+                      isCard: paymentMethodDetected === 'Card',
+                      orderType: diningOptionDetected || ord.orderType?.name || (isKiosk ? 'Smart Kiosk' : (platform === 'casierie' ? 'Casierie (POS)' : 'Livrare')),
+                      status: ord.status || 'Closed',
+                      stage: ord.status || 'Closed',
+                      comment: ordCommentStr || null,
+                      timings: extractedTimings
+                    } : undefined
+                  })
+                }
+              }
+              if (items.length === 0) continue
+
+              const netAmount = Number(ord.sum) || Math.round(orderSum * 100) / 100
+              const grossAmount = orderGrossSum > 0 ? Math.round(orderGrossSum * 100) / 100 : netAmount
+              if (items[0]?._order_meta) {
+                items[0]._order_meta.grossSum = grossAmount
+                items[0]._order_meta.discountSum = Math.max(0, Math.round((grossAmount - netAmount) * 100) / 100)
+              }
+
+              // Smash Me Cluj Kiosk hardware (CJ-1 / CJ-2) belongs 100% to Smash Me (never split Kiosk tickets into Crunch)
+              const detectedBrand = (isKiosk && orgId === '9c63cff6-1d66-442d-a98d-2302656e3943')
+                ? 'Smash Me'
+                : detectBrandFromItems(items, matchedRest)
+              const resolvedRest = resolveMatchingRestaurant(allRests, matchedRest, detectedBrand, cityCanon, items[0]?._order_meta) || matchedRest
+
+              keyRows.push({
+                id: baseId,
+                order_id: resolvedRest ? `${baseId}_${resolvedRest.id}` : baseId,
+                restaurant_id: resolvedRest?.id || null,
+                restaurant_city: cityCanon,
+                brand_name: detectedBrand,
+                platform,
+                total_amount: netAmount,
+                gross_amount: grossAmount,
+                placed_at: placedAt,
+                created_at: placedAt,
+                items
               })
             }
           }
-          if (items.length === 0) continue
-
-          const netAmount = Number(ord.sum) || Math.round(orderSum * 100) / 100
-          const grossAmount = orderGrossSum > 0 ? Math.round(orderGrossSum * 100) / 100 : netAmount
-          if (items[0]?._order_meta) {
-            items[0]._order_meta.grossSum = grossAmount
-            items[0]._order_meta.discountSum = Math.max(0, Math.round((grossAmount - netAmount) * 100) / 100)
-          }
-
-          const detectedBrand = detectBrandFromItems(items, matchedRest)
-          const resolvedRest = resolveMatchingRestaurant(allRests, matchedRest, detectedBrand, cityCanon, items[0]?._order_meta) || matchedRest
-
-          rows.push({
-            id: baseId,
-            order_id: resolvedRest ? `${baseId}_${resolvedRest.id}` : baseId,
-            restaurant_id: resolvedRest?.id || null,
-            restaurant_city: cityCanon,
-            brand_name: detectedBrand,
-            platform,
-            total_amount: netAmount,
-            gross_amount: grossAmount,
-            placed_at: placedAt,
-            created_at: placedAt,
-            items
-          })
+          return keyRows
+        } catch (sErr) {
+          console.warn(`[SyrveDirect] Key ${apiKey.slice(0, 8)} fetch warning:`, sErr.message)
+          return []
         }
       }
-    } catch (sErr) {
-      console.warn('[SyrveDirect] Key fetch warning:', sErr.message)
-    }
-    return rows
-  }
 
-  const fetchWebhookIndexed = async () => {
-    const prefix = `wh_${dayStr}_`
-    try {
-      const { data, error } = await withTimeout(
-        supabase
-          .from('platform_sales')
-          .select('id, restaurant_id, order_id, platform, total_amount, placed_at, created_at, items')
-          .gte('order_id', prefix)
-          .lte('order_id', `${prefix}zzzzzzzz`)
-          .limit(3000),
-        2500
-      )
-      if (!error && Array.isArray(data)) return data
-    } catch (_) { }
-    return []
-  }
+      const perKeyResults = await Promise.all([...keySet].map(k => fetchForKey(k)))
+      for (const chunk of perKeyResults) {
+        if (Array.isArray(chunk) && chunk.length > 0) rows.push(...chunk)
+      }
+      return rows
+    }
+
+    const fetchWebhookIndexed = async () => {
+      const prefix = `wh_${dayStr}_`
+      const allWh = []
+      try {
+        // Paginate in 1,000-row chunks to bypass Supabase PostgREST's silent max-rows=1000 cap
+        const pageSize = 1000
+        for (let page = 0; page < 5; page++) {
+          const fromIdx = page * pageSize
+          const toIdx = fromIdx + pageSize - 1
+          const { data, error } = await withTimeout(
+            supabase
+              .from('platform_sales')
+              .select('id, restaurant_id, order_id, platform, total_amount, placed_at, created_at, items')
+              .gte('order_id', prefix)
+              .lte('order_id', `${prefix}zzzzzzzz`)
+              .range(fromIdx, toIdx),
+            2500
+          )
+          if (error || !Array.isArray(data) || data.length === 0) break
+          allWh.push(...data)
+          if (data.length < pageSize) break
+        }
+      } catch (_) { }
+      return allWh
+    }
 
     const [syrveRows, whRows] = await Promise.all([fetchSyrve(), fetchWebhookIndexed()])
     const combined = [...(syrveRows || []), ...(whRows || [])]
@@ -722,7 +805,7 @@ export default async (req, context) => {
     // 1. Reports / Verifications (FAST indexed scan — excludes technical scraper errors/timeouts & supports city scope)
     if (path === '/reports/verifications') {
       const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'))
-      const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get('limit') || '50')))
+      const limit = Math.min(1000, Math.max(1, parseInt(url.searchParams.get('limit') || '50')))
       const citiesParam = (url.searchParams.get('cities') || '').trim()
       const allowedCitiesSet = citiesParam
         ? new Set(citiesParam.split(',').map(c => getCanonicalCity(c.trim())).filter(Boolean))
@@ -839,13 +922,13 @@ export default async (req, context) => {
           2500
         )
         if (!stopEvent) {
-          return new Response(JSON.stringify({ success: true, message: 'Incident marcat ca rezolvat.' }), { status: 200, headers: CORS_HEADERS })
+          return new Response(JSON.stringify({ success: false, error: 'Incidentul nu a fost găsit.' }), { status: 404, headers: CORS_HEADERS })
         }
         const stoppedTime = new Date(stopEvent.stopped_at).getTime()
         const durationMinutes = Math.max(1, Math.round((Date.now() - stoppedTime) / 60000))
         const rate = Number(stopEvent.restaurants?.revenue_per_hour) || 100
         const loss = parseFloat(((durationMinutes / 60) * rate).toFixed(2))
-        const { data: updated } = await fastWithTimeout(
+        const { data: updated, error: updateErr } = await fastWithTimeout(
           supabase
             .from('stop_events')
             .update({
@@ -859,6 +942,7 @@ export default async (req, context) => {
             .single(),
           2500
         )
+        if (updateErr) throw updateErr
         return new Response(JSON.stringify({
           success: true,
           event: updated || { ...stopEvent, resumed_at: nowIso },
@@ -1103,6 +1187,36 @@ export default async (req, context) => {
         }
       }
 
+      const roWallStr = now.toLocaleString('sv-SE', { timeZone: 'Europe/Bucharest' })
+      const [roH, roM] = roWallStr.slice(11, 16).split(':').map(Number)
+      const roNowMinutes = (roH || 0) * 60 + (roM || 0)
+      const roTimeStr = roWallStr.slice(11, 16)
+      const roDayKey = now.toLocaleDateString('en-US', { timeZone: 'Europe/Bucharest', weekday: 'long' }).toLowerCase()
+      const RECENT_ORDER_LIVE_MS = 35 * 60 * 1000
+
+      const getScheduleStatus = (restObj) => {
+        const wh = restObj?.working_hours || {}
+        let startStr = wh.start || wh.open || null
+        let endStr = wh.end || wh.close || null
+        if (!startStr && !endStr && wh[roDayKey] && typeof wh[roDayKey] === 'object') {
+          if (wh[roDayKey].closed === true) {
+            return { isOpen: false, label: 'Închis azi', start: '10:00', end: '22:00' }
+          }
+          startStr = wh[roDayKey].open || wh[roDayKey].start || null
+          endStr = wh[roDayKey].close || wh[roDayKey].end || null
+        }
+        const effStart = startStr || '10:00'
+        const effEnd = endStr || '22:00'
+        const [sH, sM] = String(effStart).split(':').map(Number)
+        const [eH, eM] = String(effEnd).split(':').map(Number)
+        const startMin = (sH || 10) * 60 + (sM || 0)
+        const endMin = (eH || 22) * 60 + (eM || 0)
+        const isOpen = startMin <= endMin
+          ? (roNowMinutes >= startMin && roNowMinutes < endMin)
+          : (roNowMinutes >= startMin || roNowMinutes < endMin)
+        return { isOpen, label: `${effStart}–${effEnd}`, start: effStart, end: effEnd }
+      }
+
       const mergedChecks = []
       for (const k of allKeys) {
         const idx = k.lastIndexOf('_')
@@ -1125,16 +1239,17 @@ export default async (req, context) => {
         const check = base ? { ...base } : {
           restaurant_id: restaurantId,
           platform,
-          checked_at: now.toISOString(),
-          ui_is_open: true,
-          ui_can_order: true,
+          checked_at: null,
+          ui_is_open: false,
+          ui_can_order: false,
           ui_is_greyed: false,
           ui_error_message: null,
-          final_status: 'available'
+          final_status: 'unchecked'
         }
 
         const checkMs = check.checked_at ? new Date(check.checked_at).getTime() : 0
         const scraperErr = isScraperTechnicalError(check)
+        const sched = getScheduleStatus(rest)
 
         const exactAct = restPlatActivity.get(k) || null
         const kitchenAct = (platform !== 'iiko' && rest?.iiko_restaurant_id)
@@ -1144,9 +1259,24 @@ export default async (req, context) => {
           ? (orgAnyActivity.get(rest.iiko_restaurant_id) || null)
           : null
 
-        if (platform === 'iiko' && iikoAct) {
-          check.live_orders_today = iikoAct.count
-          check.last_order_at = iikoAct.lastIso
+        const activeOrderInfo = platform === 'iiko' ? iikoAct : (exactAct || kitchenAct)
+        if (activeOrderInfo) {
+          check.live_orders_today = activeOrderInfo.count
+          check.last_order_at = activeOrderInfo.lastIso
+        }
+        const hasRecentLiveOrder = Boolean(activeOrderInfo && (now.getTime() - activeOrderInfo.lastMs) <= RECENT_ORDER_LIVE_MS)
+
+        if (!sched.isOpen && !hasRecentLiveOrder) {
+          // Honest schedule awareness: outside working hours with no live order in last 35 min => Closed by schedule
+          check.final_status = 'closed'
+          check.ui_is_open = false
+          check.ui_can_order = false
+          check.ui_is_greyed = true
+          check.outside_working_hours = true
+          check.working_hours_label = sched.label
+          check.verified_via = 'schedule_closed'
+          check.ui_error_message = `În afara programului (${sched.label})`
+        } else if (platform === 'iiko' && iikoAct) {
           if (scraperErr || iikoAct.lastMs > checkMs || check.final_status !== 'available') {
             check.final_status = 'available'
             check.ui_is_open = true
@@ -1159,9 +1289,7 @@ export default async (req, context) => {
             check.checked_at = iikoAct.lastIso
           }
         } else if (exactAct) {
-          check.live_orders_today = exactAct.count
-          check.last_order_at = exactAct.lastIso
-          if (scraperErr || exactAct.lastMs > checkMs) {
+          if (scraperErr || exactAct.lastMs > checkMs || check.final_status === 'unchecked') {
             check.final_status = 'available'
             check.ui_is_open = true
             check.ui_can_order = true
@@ -1172,7 +1300,7 @@ export default async (req, context) => {
           } else if (check.final_status === 'available' && exactAct.lastMs > checkMs) {
             check.checked_at = exactAct.lastIso
           }
-        } else if (kitchenAct && (scraperErr || (check.final_status === 'available' && kitchenAct.lastMs > checkMs))) {
+        } else if (kitchenAct && (scraperErr || check.final_status === 'unchecked' || (check.final_status === 'available' && kitchenAct.lastMs > checkMs))) {
           // Scraper timed out / stale check, while this physical kitchen IS receiving live orders on this platform today
           check.final_status = 'available'
           check.ui_is_open = true
@@ -1180,17 +1308,15 @@ export default async (req, context) => {
           check.ui_is_greyed = false
           check.ui_error_message = null
           check.verified_via = 'kitchen_live_order'
-          check.live_orders_today = kitchenAct.count
-          check.last_order_at = kitchenAct.lastIso
           if (kitchenAct.lastMs > checkMs) check.checked_at = kitchenAct.lastIso
         } else if (scraperErr) {
-          // Pure Puppeteer/WAF/timeout failure without any real store-closed UI message — never display fake "Oprit"
-          check.final_status = 'available'
-          check.ui_is_open = true
-          check.ui_can_order = true
+          // During working hours, scraper timeout without live order proof: report honestly as unchecked (never fabricate "available")
+          check.final_status = 'unchecked'
+          check.ui_is_open = false
+          check.ui_can_order = false
           check.ui_is_greyed = false
           check.ui_error_message = null
-          check.verified_via = 'scraper_fallback'
+          check.verified_via = 'scraper_timeout'
         }
 
         // If a manual live refresh was triggered recently, stamp checked_at so "Ultima Verif." immediately updates (while preserving exact last_order_at!)
@@ -1227,6 +1353,9 @@ export default async (req, context) => {
         meta: {
           supabase_rows: sbChecks.length,
           live_orders_today: liveOrders.length,
+          ro_time: roTimeStr,
+          is_night_blackout: roH >= 22 || roH < 10,
+          default_hours: '10:00–22:00',
           generated_at: now.toISOString(),
           verified_at: globalThis.__LAST_LIVE_CHECK_AT || now.toISOString()
         }
@@ -1264,8 +1393,9 @@ export default async (req, context) => {
             : Boolean(r[`${p}_url`] && !String(r[`${p}_url`]).includes('/search'))
           if (!hasPlat) continue
           totalChecks++
-          const st = String(checkMap.get(`${r.id}_${p}`)?.final_status || 'available').toLowerCase()
-          if (!['available', 'open', 'online'].includes(st)) offline++
+          const chkObj = checkMap.get(`${r.id}_${p}`)
+          const st = String(chkObj?.final_status || 'unchecked').toLowerCase()
+          if (!chkObj?.outside_working_hours && !['available', 'open', 'online', 'unchecked', 'closed'].includes(st)) offline++
         }
       }
       globalThis.__NETLIFY_CHECK_STATUS = {
@@ -1293,52 +1423,78 @@ export default async (req, context) => {
       return new Response(JSON.stringify({ success: true, message: 'Check stopped' }), { status: 200, headers: CORS_HEADERS })
     }
 
-    // 6. Settings - Restaurants
+    // 6. Settings - Restaurants (live Supabase first with fast fallback to static cache)
     if (path === '/settings/restaurants' && req.method === 'GET') {
       const staticRests = Array.isArray(restaurantsCacheStatic)
         ? restaurantsCacheStatic
         : (Array.isArray(restaurantsCacheStatic?.restaurants) ? restaurantsCacheStatic.restaurants : [])
-      if (staticRests.length > 0) {
-        return new Response(JSON.stringify({
-          success: true,
-          restaurants: staticRests
-        }), { status: 200, headers: CORS_HEADERS })
+      if (globalThis.__CACHED_SETTINGS_RESTS && (Date.now() - (globalThis.__CACHED_SETTINGS_RESTS_TS || 0) < 60000)) {
+        return new Response(JSON.stringify({ success: true, restaurants: globalThis.__CACHED_SETTINGS_RESTS }), { status: 200, headers: CORS_HEADERS })
       }
-      const { data } = await fastWithTimeout(
+      const { data, error } = await fastWithTimeout(
         supabase.from('restaurants').select('*, brands(*)').order('name'),
-        1400
-      ).catch(() => ({ data: [] }))
+        1800
+      ).catch(() => ({ data: null, error: true }))
+      if (!error && Array.isArray(data) && data.length > 0) {
+        globalThis.__CACHED_SETTINGS_RESTS = data
+        globalThis.__CACHED_SETTINGS_RESTS_TS = Date.now()
+        globalThis.__CACHED_ALL_RESTS = data
+        globalThis.__CACHED_ALL_RESTS_TS = Date.now()
+        return new Response(JSON.stringify({ success: true, restaurants: data }), { status: 200, headers: CORS_HEADERS })
+      }
       return new Response(JSON.stringify({
         success: true,
-        restaurants: data || []
+        restaurants: staticRests
       }), { status: 200, headers: CORS_HEADERS })
     }
 
-    // 7. Settings - Update Restaurant
+    // 7. Settings - Update Restaurant (strict field allowlist + cache invalidation)
     if (path.startsWith('/settings/restaurants/') && req.method === 'PUT') {
-      const restId = path.replace('/settings/restaurants/', '')
+      const restId = path.replace('/settings/restaurants/', '').trim()
       const body = await req.json()
+      const allowedFields = [
+        'name', 'city', 'address', 'glovo_url', 'wolt_url', 'bolt_url',
+        'iiko_restaurant_id', 'is_active', 'working_hours', 'revenue_per_hour',
+        'telegram_group_id', 'brand_id'
+      ]
+      const safeUpdate = {}
+      for (const k of allowedFields) {
+        if (body[k] !== undefined) safeUpdate[k] = body[k]
+      }
+      if (Object.keys(safeUpdate).length === 0) {
+        return new Response(JSON.stringify({ success: false, error: 'No valid fields to update' }), { status: 400, headers: CORS_HEADERS })
+      }
 
       const { data, error } = await supabase
         .from('restaurants')
-        .update(body)
+        .update(safeUpdate)
         .eq('id', restId)
         .select()
         .single()
 
       if (error) throw error
+      globalThis.__CACHED_SETTINGS_RESTS = null
+      globalThis.__CACHED_SETTINGS_RESTS_TS = 0
+      globalThis.__CACHED_ALL_RESTS = null
+      globalThis.__CACHED_ALL_RESTS_TS = 0
       return new Response(JSON.stringify({
         success: true,
         restaurant: data
       }), { status: 200, headers: CORS_HEADERS })
     }
 
-    // 8. Settings - Status
-    if (path === '/settings/status') {
-      const { count: checksCount } = await supabase.from('monitoring_checks').select('*', { count: 'exact', head: true })
-      const { count: restsCount } = await supabase.from('restaurants').select('*', { count: 'exact', head: true })
-      const { count: activeCount } = await supabase.from('restaurants').select('*', { count: 'exact', head: true }).eq('is_active', true)
-      const { count: stopsCount } = await supabase.from('stop_events').select('*', { count: 'exact', head: true })
+    // 8. Settings - Status (parallelized estimated counts with timeout)
+    if (path === '/settings/status' && req.method === 'GET') {
+      const [checksRes, restsRes, activeRes, stopsRes] = await Promise.allSettled([
+        fastWithTimeout(supabase.from('monitoring_checks').select('*', { count: 'estimated', head: true }), 1500),
+        fastWithTimeout(supabase.from('restaurants').select('*', { count: 'exact', head: true }), 1500),
+        fastWithTimeout(supabase.from('restaurants').select('*', { count: 'exact', head: true }).eq('is_active', true), 1500),
+        fastWithTimeout(supabase.from('stop_events').select('*', { count: 'estimated', head: true }), 1500)
+      ])
+      const checksCount = checksRes.status === 'fulfilled' ? (checksRes.value?.count || 0) : 0
+      const restsCount = restsRes.status === 'fulfilled' ? (restsRes.value?.count || 0) : 0
+      const activeCount = activeRes.status === 'fulfilled' ? (activeRes.value?.count || 0) : 0
+      const stopsCount = stopsRes.status === 'fulfilled' ? (stopsRes.value?.count || 0) : 0
 
       return new Response(JSON.stringify({
         success: true,
@@ -1540,18 +1696,10 @@ export default async (req, context) => {
       const restaurantFilter = url.searchParams.get('restaurant_id')
       const channelFilter = url.searchParams.get('channel')
       const periodFilter = url.searchParams.get('period') || 'today'
+      const fromParam = (url.searchParams.get('from') || '').trim()
+      const toParam = (url.searchParams.get('to') || '').trim()
       const searchFilter = String(url.searchParams.get('search') || '').replace(/^#+/, '').trim().toLowerCase()
       const limit = parseInt(url.searchParams.get('limit') || '3000')
-
-      // Verificare cache în memorie pentru răspuns instantaneu (<1ms) și protecție anti-congestie Supabase
-      const cacheKey = `${cityFilter || 'all'}_${brandFilter || 'all'}_${restaurantFilter || 'all'}_${channelFilter || 'all'}_${periodFilter || 'today'}_${searchFilter || ''}`
-      const cached = liveDispatchCache.get(cacheKey)
-      if (cached && (Date.now() - cached.timestamp < LIVE_CACHE_TTL_MS)) {
-        return new Response(JSON.stringify(cached.data), {
-          status: 200,
-          headers: CORS_HEADERS
-        })
-      }
 
       const now = new Date()
       const roDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
@@ -1561,19 +1709,126 @@ export default async (req, context) => {
       const d = parseInt(dStr, 10)
       const yDateObj = new Date(y, m, d - 1)
       const pad2 = (n) => String(n).padStart(2, '0')
-      const yDateStr = `${yDateObj.getFullYear()}-${pad2(yDateObj.getMonth() + 1)}-${pad2(yDateObj.getDate())}`
+      const toYmdLocal = (dateObj) => `${dateObj.getFullYear()}-${pad2(dateObj.getMonth() + 1)}-${pad2(dateObj.getDate())}`
+      const yDateStr = toYmdLocal(yDateObj)
+      const monthNamesRo = ['Ianuarie', 'Februarie', 'Martie', 'Aprilie', 'Mai', 'Iunie', 'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie']
+      const monthName = monthNamesRo[m]
+      const isValidYmd = (s) => {
+        if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false
+        const [Y, M, D] = s.split('-').map(Number)
+        const dt = new Date(Date.UTC(Y, M - 1, D))
+        return dt.getUTCFullYear() === Y && dt.getUTCMonth() === M - 1 && dt.getUTCDate() === D
+      }
 
+      let effectivePeriodKey = periodFilter
       let startDate = null
       let endDate = null
+      let fromYmd = null
+      let toYmd = null
+      let periodLabel = ''
+      let periodDateRange = ''
       let targetSyrveDay = null
-      if (periodFilter === 'today') {
-        startDate = `${roDateStr}T00:00:00.000Z`
-        endDate = `${roDateStr}T23:59:59.999Z`
-        targetSyrveDay = roDateStr
+
+      if (periodFilter === 'custom' && isValidYmd(fromParam)) {
+        let f = fromParam
+        let t = isValidYmd(toParam) ? toParam : f
+        if (f > t) [f, t] = [t, f]
+        const [fy, fm, fd] = f.split('-').map(Number)
+        const [ty, tm, td] = t.split('-').map(Number)
+        fromYmd = f
+        toYmd = t
+        startDate = `${f}T00:00:00.000Z`
+        endDate = `${t}T23:59:59.999Z`
+        if (f === t) {
+          periodDateRange = `${fd} ${monthNamesRo[fm - 1] || ''} ${fy}`
+          periodLabel = periodDateRange
+          targetSyrveDay = f
+        } else if (fy === ty && fm === tm) {
+          periodDateRange = `${fd} - ${td} ${monthNamesRo[fm - 1] || ''} ${fy}`
+          periodLabel = 'Interval'
+        } else if (fy === ty) {
+          periodDateRange = `${fd} ${monthNamesRo[fm - 1] || ''} - ${td} ${monthNamesRo[tm - 1] || ''} ${fy}`
+          periodLabel = 'Interval'
+        } else {
+          periodDateRange = `${fd} ${monthNamesRo[fm - 1] || ''} ${fy} - ${td} ${monthNamesRo[tm - 1] || ''} ${ty}`
+          periodLabel = 'Interval'
+        }
       } else if (periodFilter === 'yesterday') {
+        fromYmd = yDateStr
+        toYmd = yDateStr
         startDate = `${yDateStr}T00:00:00.000Z`
         endDate = `${yDateStr}T23:59:59.999Z`
         targetSyrveDay = yDateStr
+        periodLabel = 'Ieri'
+        periodDateRange = `${yDateObj.getDate()} ${monthNamesRo[yDateObj.getMonth()]} ${yDateObj.getFullYear()}`
+      } else if (periodFilter === 'this_week') {
+        const dayOfWeek = (new Date(Date.UTC(y, m, d)).getUTCDay() + 6) % 7
+        const monday = new Date(y, m, d - dayOfWeek)
+        fromYmd = toYmdLocal(monday)
+        toYmd = roDateStr
+        startDate = `${fromYmd}T00:00:00.000Z`
+        endDate = `${toYmd}T23:59:59.999Z`
+        periodLabel = 'Săpt. Curentă'
+        periodDateRange = monday.getMonth() === m
+          ? `${monday.getDate()} - ${d} ${monthName} ${y}`
+          : `${monday.getDate()} ${monthNamesRo[monday.getMonth()]} - ${d} ${monthName} ${y}`
+      } else if (periodFilter === 'this_month') {
+        fromYmd = toYmdLocal(new Date(y, m, 1))
+        toYmd = roDateStr
+        startDate = `${fromYmd}T00:00:00.000Z`
+        endDate = `${toYmd}T23:59:59.999Z`
+        periodLabel = 'Luna Curentă'
+        periodDateRange = `1 - ${d} ${monthName} ${y}`
+      } else if (periodFilter === 'last_month') {
+        const firstDayPrev = new Date(y, m - 1, 1)
+        const lastDayPrev = new Date(y, m, 0)
+        fromYmd = toYmdLocal(firstDayPrev)
+        toYmd = toYmdLocal(lastDayPrev)
+        startDate = `${fromYmd}T00:00:00.000Z`
+        endDate = `${toYmd}T23:59:59.999Z`
+        periodLabel = 'Luna Trecută'
+        periodDateRange = `1 - ${lastDayPrev.getDate()} ${monthNamesRo[firstDayPrev.getMonth()]} ${firstDayPrev.getFullYear()}`
+      } else if (periodFilter === 'this_year') {
+        fromYmd = `${y}-01-01`
+        toYmd = roDateStr
+        startDate = `${fromYmd}T00:00:00.000Z`
+        endDate = `${toYmd}T23:59:59.999Z`
+        periodLabel = 'Anul Curent'
+        periodDateRange = `Anul ${y}`
+      } else if (periodFilter === 'all') {
+        periodLabel = 'Toate Perioadele'
+        periodDateRange = 'Total Istoric'
+      } else {
+        effectivePeriodKey = 'today'
+        fromYmd = roDateStr
+        toYmd = roDateStr
+        startDate = `${roDateStr}T00:00:00.000Z`
+        endDate = `${roDateStr}T23:59:59.999Z`
+        targetSyrveDay = roDateStr
+        periodLabel = 'Azi'
+        periodDateRange = `${d} ${monthName} ${y}`
+      }
+
+      const periodInfo = {
+        key: effectivePeriodKey,
+        label: periodLabel,
+        dateRange: periodDateRange,
+        startDate,
+        endDate,
+        fromYmd,
+        toYmd
+      }
+
+      // Verificare cache în memorie pentru răspuns instantaneu (<1ms) și protecție anti-congestie Supabase
+      const cacheKey = `${cityFilter || 'all'}_${brandFilter || 'all'}_${restaurantFilter || 'all'}_${channelFilter || 'all'}_${effectivePeriodKey}_${fromYmd || ''}_${toYmd || ''}_${searchFilter || ''}`
+      const isPureHistoricalCustom = effectivePeriodKey === 'custom' && toYmd && toYmd < roDateStr
+      const dispatchCacheTtl = isPureHistoricalCustom ? 300000 : LIVE_CACHE_TTL_MS
+      const cached = liveDispatchCache.get(cacheKey)
+      if (cached && (Date.now() - cached.timestamp < dispatchCacheTtl)) {
+        return new Response(JSON.stringify(cached.data), {
+          status: 200,
+          headers: CORS_HEADERS
+        })
       }
 
       const withTimeout = (promise, ms) => Promise.race([
@@ -1617,10 +1872,12 @@ export default async (req, context) => {
         })
 
       let rawOrders = []
-      const basePeriodCacheKey = searchFilter ? `raw_search_multi` : `raw_period_${periodFilter}`
+      const basePeriodCacheKey = searchFilter
+        ? `raw_search_multi`
+        : `raw_period_${effectivePeriodKey}_${fromYmd || ''}_${toYmd || ''}`
       const cachedRawPeriod = liveDispatchCache.get(basePeriodCacheKey)
 
-      if (cachedRawPeriod && (Date.now() - cachedRawPeriod.timestamp < 15000)) {
+      if (cachedRawPeriod && (Date.now() - cachedRawPeriod.timestamp < dispatchCacheTtl)) {
         rawOrders = cachedRawPeriod.data
       } else if (searchFilter) {
         const [tOrders, yOrders] = await Promise.all([
@@ -1635,19 +1892,94 @@ export default async (req, context) => {
           })
         }
       } else if (targetSyrveDay) {
-        rawOrders = await fetchLiveAndWebhookOrdersForDay(targetSyrveDay, allRests)
+        if (targetSyrveDay <= roDateStr) {
+          rawOrders = await fetchLiveAndWebhookOrdersForDay(targetSyrveDay, allRests)
+        }
+        if (rawOrders.length === 0 && effectivePeriodKey === 'custom' && startDate && endDate) {
+          try {
+            const { data: dbSingleRows, error: oErr } = await withTimeout(
+              supabase
+                .from('platform_sales')
+                .select('id, platform, restaurant_id, order_id, total_amount, placed_at, created_at, items')
+                .gte('placed_at', startDate)
+                .lte('placed_at', endDate)
+                .limit(1500),
+              2500
+            )
+            if (!oErr && Array.isArray(dbSingleRows) && dbSingleRows.length > 0) {
+              rawOrders = dbSingleRows
+            }
+          } catch (_) { }
+        }
         if (rawOrders.length > 0) {
           liveDispatchCache.set(basePeriodCacheKey, {
             timestamp: Date.now(),
             data: rawOrders
           })
-        } else if (cachedRawPeriod && Array.isArray(cachedRawPeriod.data)) {
+        } else if (cachedRawPeriod && Array.isArray(cachedRawPeriod.data) && effectivePeriodKey === 'today') {
           rawOrders = cachedRawPeriod.data
         }
+      } else if (effectivePeriodKey === 'custom' && fromYmd && toYmd) {
+        const liveEnd = toYmd < roDateStr ? toYmd : roDateStr
+        const customDays = []
+        if (fromYmd <= liveEnd) {
+          const [fy, fm, fd] = fromYmd.split('-').map(Number)
+          const [ty, tm, td] = liveEnd.split('-').map(Number)
+          const cur = new Date(fy, fm - 1, fd)
+          const endD = new Date(ty, tm - 1, td)
+          let guard = 0
+          while (cur <= endD && guard++ < 35) {
+            customDays.push(toYmdLocal(cur))
+            cur.setDate(cur.getDate() + 1)
+          }
+        }
+        const syrveDaysToFetch = customDays.slice(-7)
+        const syrveBatches = []
+        for (let i = 0; i < syrveDaysToFetch.length; i += 4) {
+          const chunk = syrveDaysToFetch.slice(i, i + 4)
+          const resList = await Promise.all(chunk.map(day => fetchLiveAndWebhookOrdersForDay(day, allRests).catch(() => [])))
+          for (const r of resList) {
+            if (Array.isArray(r) && r.length > 0) syrveBatches.push(...r)
+          }
+        }
+        let dbRangeOrders = []
+        if (customDays.length > 7 || syrveBatches.length === 0) {
+          try {
+            const { data: dbRows, error: oErr } = await withTimeout(
+              supabase
+                .from('platform_sales')
+                .select('id, platform, restaurant_id, order_id, total_amount, placed_at, created_at, items')
+                .gte('placed_at', startDate)
+                .lte('placed_at', endDate)
+                .limit(1500),
+              2500
+            )
+            if (!oErr && Array.isArray(dbRows) && dbRows.length > 0) {
+              dbRangeOrders = dbRows
+            }
+          } catch (_) { }
+        }
+        const startMs = new Date(startDate).getTime()
+        const endMs = new Date(endDate).getTime()
+        rawOrders = [...syrveBatches, ...dbRangeOrders].filter(o => {
+          const ts = o.placed_at || o.created_at
+          if (!ts) return true
+          const tMs = new Date(ts).getTime()
+          return !isNaN(tMs) ? (tMs >= startMs && tMs <= endMs) : true
+        })
+        rawOrders.sort((a, b) => new Date(b.placed_at || b.created_at || 0) - new Date(a.placed_at || a.created_at || 0))
+        if (rawOrders.length > 0) {
+          liveDispatchCache.set(basePeriodCacheKey, {
+            timestamp: Date.now(),
+            data: rawOrders
+          })
+        }
       } else {
+        const includeToday = Boolean(!toYmd || roDateStr <= toYmd) && Boolean(!fromYmd || roDateStr >= fromYmd)
+        const includeYesterday = Boolean(!toYmd || yDateStr <= toYmd) && Boolean(!fromYmd || yDateStr >= fromYmd)
         const [tOrders, yOrders] = await Promise.all([
-          fetchLiveAndWebhookOrdersForDay(roDateStr, allRests),
-          fetchLiveAndWebhookOrdersForDay(yDateStr, allRests)
+          includeToday ? fetchLiveAndWebhookOrdersForDay(roDateStr, allRests) : Promise.resolve([]),
+          includeYesterday ? fetchLiveAndWebhookOrdersForDay(yDateStr, allRests) : Promise.resolve([])
         ])
         const candidateLimits = [500, 200]
         for (const tryLim of candidateLimits) {
@@ -1655,10 +1987,11 @@ export default async (req, context) => {
             let salesQuery = supabase
               .from('platform_sales')
               .select('id, platform, restaurant_id, order_id, total_amount, placed_at, created_at, items')
+              .order('placed_at', { ascending: false })
               .limit(tryLim)
 
             if (startDate) salesQuery = salesQuery.gte('placed_at', startDate)
-            if (endDate && periodFilter !== 'today') salesQuery = salesQuery.lte('placed_at', endDate)
+            if (endDate && effectivePeriodKey !== 'today') salesQuery = salesQuery.lte('placed_at', endDate)
 
             const { data, error: oErr } = await withTimeout(salesQuery, 2500)
             if (!oErr && Array.isArray(data) && data.length > 0) {
@@ -1667,7 +2000,15 @@ export default async (req, context) => {
             }
           } catch (_) { }
         }
-        rawOrders = [...(tOrders || []), ...(yOrders || []), ...(rawOrders || [])]
+        const rangeStartMs = startDate ? new Date(startDate).getTime() : 0
+        const rangeEndMs = endDate ? new Date(endDate).getTime() : Infinity
+        rawOrders = [...(tOrders || []), ...(yOrders || []), ...(rawOrders || [])].filter(o => {
+          if (!startDate && !endDate) return true
+          const ts = o.placed_at || o.created_at
+          if (!ts) return true
+          const tMs = new Date(ts).getTime()
+          return !isNaN(tMs) ? (tMs >= rangeStartMs && tMs <= rangeEndMs) : true
+        })
 
         if (rawOrders.length > 0) {
           rawOrders.sort((a, b) => new Date(b.placed_at || b.created_at || 0) - new Date(a.placed_at || a.created_at || 0))
@@ -2180,21 +2521,12 @@ export default async (req, context) => {
         let channelBadgeColor = 'slate'
 
         if (isKioskPlat) {
-          // Kiosk hardware exists EXCLUSIVELY for Smash Me & Crunch (e.g. Cluj Vivo, Constanța)
-          // Poki Woki, Roll Master, and Love Sushi NEVER have kiosks — they are in-store Casierie (POS)
-          if (bName === 'Smash Me' || bName === 'Crunch') {
-            normalizedPlatform = 'kiosk'
-            channelType = 'kiosk'
-            channelLabel = 'Smart Kiosk'
-            channelBadgeColor = 'purple'
-            kioskCount++
-          } else {
-            normalizedPlatform = 'casierie'
-            channelType = 'casierie'
-            channelLabel = 'Casierie (POS)'
-            channelBadgeColor = 'blue'
-            casierieCount++
-          }
+          // Respect real Smart Kiosk orders across ALL brands (e.g. SmartKiosk BV-1, SmartKiosk CT, Smash Me, Crunch, Roll Master, Poki Woki)
+          normalizedPlatform = 'kiosk'
+          channelType = 'kiosk'
+          channelLabel = 'Smart Kiosk'
+          channelBadgeColor = 'purple'
+          kioskCount++
         } else if (isCasieriePlat) {
           normalizedPlatform = 'casierie'
           channelType = 'casierie'
@@ -2219,10 +2551,10 @@ export default async (req, context) => {
           channelLabel = 'Bolt Food'
           channelBadgeColor = 'emerald'
           aggregatorsCount++
-        } else if (rawPlat === 'ecosystem' || rawPlat === 'app' || rawPlat.includes('web') || rawPlat === 'delivery') {
-          normalizedPlatform = 'ecosystem'
+        } else if (['ecosystem', 'own_delivery', 'direct', 'app', 'web', 'delivery'].some(s => rawPlat.includes(s))) {
+          normalizedPlatform = 'own_delivery'
           channelType = 'own_delivery'
-          channelLabel = 'Comandă Proprie'
+          channelLabel = 'Site / App Propriu'
           channelBadgeColor = 'indigo'
           ownDeliveryCount++
         } else {
@@ -2499,6 +2831,9 @@ export default async (req, context) => {
 
       const responsePayload = {
         success: true,
+        period: periodInfo.key,
+        period_label: periodInfo.label,
+        period_date_range: periodInfo.dateRange,
         kpis: {
           today_sales: parseFloat(totalSalesToday.toFixed(2)),
           today_gross_sales: parseFloat(totalGrossSalesToday.toFixed(2)),
@@ -2537,14 +2872,15 @@ export default async (req, context) => {
         })
       }
 
-      const dispatchHeaders = url.searchParams.get('refresh') === '1'
-        ? CORS_HEADERS
-        : { ...CORS_HEADERS, 'Netlify-CDN-Cache-Control': periodFilter === 'yesterday' ? 'public, s-maxage=300, stale-while-revalidate=600' : 'public, s-maxage=20, stale-while-revalidate=40' }
+      // Never cache customer PII on public CDN nodes
+      const dispatchHeaders = { ...CORS_HEADERS, 'Cache-Control': 'private, no-store' }
       return new Response(JSON.stringify(responsePayload), { status: 200, headers: dispatchHeaders })
     }
 
     if (path === '/sales/executive-summary') {
       const reqPeriod = url.searchParams.get('period') || 'this_month'
+      const reqFrom = (url.searchParams.get('from') || '').trim()
+      const reqTo = (url.searchParams.get('to') || '').trim()
       const limit = parseInt(url.searchParams.get('limit') || (reqPeriod === 'this_year' ? '10000' : '5000'))
       const qCitiesRaw = (url.searchParams.get('cities') || url.searchParams.get('city') || '').trim()
       const qLocationRaw = (url.searchParams.get('location') || '').trim()
@@ -2561,24 +2897,6 @@ export default async (req, context) => {
       const filterChannel = qChannelRaw && qChannelRaw !== 'all' ? qChannelRaw : ''
       const hasAnyFilter = Boolean((allowedCitiesSet && allowedCitiesSet.size > 0) || filterLocation || filterRestId || filterBrand || filterChannel)
 
-      const periodTtlMs = (reqPeriod === 'yesterday' || reqPeriod === 'last_month')
-        ? 1800000
-        : (reqPeriod === 'today' ? 120000 : 300000)
-      const cdnHeader = (reqPeriod === 'yesterday' || reqPeriod === 'last_month')
-        ? 'public, s-maxage=900, stale-while-revalidate=1800'
-        : (reqPeriod === 'today' ? 'public, s-maxage=60, stale-while-revalidate=120' : 'public, s-maxage=180, stale-while-revalidate=300')
-      const summaryHeaders = { ...CORS_HEADERS, 'Netlify-CDN-Cache-Control': cdnHeader }
-
-      // In-memory cache check: răspuns instant în 0.2ms și protecție anti-timeout
-      const cacheKey = `${reqPeriod}|${qCitiesRaw}|${filterLocation}|${filterRestId}|${filterBrand}|${filterChannel}`
-      const cached = executiveSummaryCache.get(cacheKey)
-      if (cached && (Date.now() - cached.timestamp < periodTtlMs)) {
-        return new Response(JSON.stringify(cached.data), {
-          status: 200,
-          headers: summaryHeaders
-        })
-      }
-
       const pad = (n) => String(n).padStart(2, '0')
       const now = new Date()
       const roDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
@@ -2590,13 +2908,47 @@ export default async (req, context) => {
       const monthNamesRo = ['Ianuarie', 'Februarie', 'Martie', 'Aprilie', 'Mai', 'Iunie', 'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie']
       const monthName = monthNamesRo[m]
       const toDateStr = (dateObj) => `${dateObj.getFullYear()}-${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())}`
+      const isValidYmd = (s) => {
+        if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false
+        const [Y, M, D] = s.split('-').map(Number)
+        const dt = new Date(Date.UTC(Y, M - 1, D))
+        return dt.getUTCFullYear() === Y && dt.getUTCMonth() === M - 1 && dt.getUTCDate() === D
+      }
 
+      let effectivePeriod = reqPeriod
       let start = null
       let end = null
+      let fromYmd = null
+      let toYmd = null
       let label = ''
       let dateRange = ''
 
-      if (reqPeriod === 'today') {
+      if (reqPeriod === 'custom' && isValidYmd(reqFrom)) {
+        let f = reqFrom
+        let t = isValidYmd(reqTo) ? reqTo : f
+        if (f > t) [f, t] = [t, f]
+        const [fy, fm, fd] = f.split('-').map(Number)
+        const [ty, tm, td] = t.split('-').map(Number)
+        fromYmd = f
+        toYmd = t
+        start = `${f}T00:00:00.000Z`
+        end = `${t}T23:59:59.999Z`
+        if (f === t) {
+          dateRange = `${fd} ${monthNamesRo[fm - 1] || ''} ${fy}`
+          label = dateRange
+        } else if (fy === ty && fm === tm) {
+          dateRange = `${fd} - ${td} ${monthNamesRo[fm - 1] || ''} ${fy}`
+          label = 'Interval'
+        } else if (fy === ty) {
+          dateRange = `${fd} ${monthNamesRo[fm - 1] || ''} - ${td} ${monthNamesRo[tm - 1] || ''} ${fy}`
+          label = 'Interval'
+        } else {
+          dateRange = `${fd} ${monthNamesRo[fm - 1] || ''} ${fy} - ${td} ${monthNamesRo[tm - 1] || ''} ${ty}`
+          label = 'Interval'
+        }
+      } else if (reqPeriod === 'today') {
+        fromYmd = roDateStr
+        toYmd = roDateStr
         start = `${roDateStr}T00:00:00.000Z`
         end = `${roDateStr}T23:59:59.999Z`
         label = 'Azi'
@@ -2604,28 +2956,38 @@ export default async (req, context) => {
       } else if (reqPeriod === 'yesterday') {
         const yDate = new Date(y, m, d - 1)
         const yDayStr = toDateStr(yDate)
+        fromYmd = yDayStr
+        toYmd = yDayStr
         start = `${yDayStr}T00:00:00.000Z`
         end = `${yDayStr}T23:59:59.999Z`
         label = 'Ieri'
         dateRange = `${yDate.getDate()} ${monthNamesRo[yDate.getMonth()]} ${yDate.getFullYear()}`
       } else if (reqPeriod === 'this_week') {
-        const dayOfWeek = (now.getDay() + 6) % 7
+        const dayOfWeek = (new Date(Date.UTC(y, m, d)).getUTCDay() + 6) % 7
         const monday = new Date(y, m, d - dayOfWeek)
         const mondayStr = toDateStr(monday)
+        fromYmd = mondayStr
+        toYmd = roDateStr
         start = `${mondayStr}T00:00:00.000Z`
         end = `${roDateStr}T23:59:59.999Z`
         label = 'Săpt. Curentă'
-        dateRange = `${monday.getDate()} - ${d} ${monthName} ${y}`
+        dateRange = monday.getMonth() === m
+          ? `${monday.getDate()} - ${d} ${monthName} ${y}`
+          : `${monday.getDate()} ${monthNamesRo[monday.getMonth()]} - ${d} ${monthName} ${y}`
       } else if (reqPeriod === 'last_month') {
         const firstDayPrev = new Date(y, m - 1, 1)
         const lastDayPrev = new Date(y, m, 0)
-        start = `${toDateStr(firstDayPrev)}T00:00:00.000Z`
-        end = `${toDateStr(lastDayPrev)}T23:59:59.999Z`
+        fromYmd = toDateStr(firstDayPrev)
+        toYmd = toDateStr(lastDayPrev)
+        start = `${fromYmd}T00:00:00.000Z`
+        end = `${toYmd}T23:59:59.999Z`
         label = 'Luna Trecută'
         dateRange = `1 - ${lastDayPrev.getDate()} ${monthNamesRo[firstDayPrev.getMonth()]} ${firstDayPrev.getFullYear()}`
       } else if (reqPeriod === 'this_year') {
-        start = `${y}-01-01T00:00:00.000Z`
-        end = `${roDateStr}T23:59:59.999Z`
+        fromYmd = `${y}-01-01`
+        toYmd = roDateStr
+        start = `${fromYmd}T00:00:00.000Z`
+        end = `${toYmd}T23:59:59.999Z`
         label = 'Anul Curent'
         dateRange = `Anul ${y}`
       } else if (reqPeriod === 'all') {
@@ -2634,19 +2996,43 @@ export default async (req, context) => {
         label = 'Toate Perioadele'
         dateRange = 'Total Istoric'
       } else {
+        effectivePeriod = 'this_month'
         const firstDayMonth = new Date(y, m, 1)
-        start = `${toDateStr(firstDayMonth)}T00:00:00.000Z`
-        end = `${roDateStr}T23:59:59.999Z`
+        fromYmd = toDateStr(firstDayMonth)
+        toYmd = roDateStr
+        start = `${fromYmd}T00:00:00.000Z`
+        end = `${toYmd}T23:59:59.999Z`
         label = 'Luna Curentă'
         dateRange = `1 - ${d} ${monthName} ${y}`
       }
 
       const periodInfo = {
-        key: reqPeriod,
+        key: effectivePeriod,
         label,
         dateRange,
         startDate: start,
-        endDate: end
+        endDate: end,
+        fromYmd,
+        toYmd
+      }
+
+      const isPureHistoricalCustom = effectivePeriod === 'custom' && toYmd && toYmd < roDateStr
+      const periodTtlMs = (effectivePeriod === 'yesterday' || effectivePeriod === 'last_month' || isPureHistoricalCustom)
+        ? 1800000
+        : (effectivePeriod === 'today' || effectivePeriod === 'custom' ? 120000 : 300000)
+      const cdnHeader = (effectivePeriod === 'yesterday' || effectivePeriod === 'last_month' || isPureHistoricalCustom)
+        ? 'public, s-maxage=900, stale-while-revalidate=1800'
+        : (effectivePeriod === 'today' || effectivePeriod === 'custom' ? 'public, s-maxage=60, stale-while-revalidate=120' : 'public, s-maxage=180, stale-while-revalidate=300')
+      const summaryHeaders = { ...CORS_HEADERS, 'Netlify-CDN-Cache-Control': cdnHeader }
+
+      // In-memory cache check: răspuns instant în 0.2ms și protecție anti-timeout
+      const cacheKey = `${effectivePeriod}|${fromYmd || ''}|${toYmd || ''}|${qCitiesRaw}|${filterLocation}|${filterRestId}|${filterBrand}|${filterChannel}`
+      const cached = executiveSummaryCache.get(cacheKey)
+      if (cached && (Date.now() - cached.timestamp < periodTtlMs)) {
+        return new Response(JSON.stringify(cached.data), {
+          status: 200,
+          headers: summaryHeaders
+        })
       }
 
       const rests = Array.isArray(restaurantsCacheStatic) && restaurantsCacheStatic.length > 0
@@ -2667,42 +3053,63 @@ export default async (req, context) => {
       const rm = parseInt(rmStr, 10) - 1
       const rd = parseInt(rdStr, 10)
       const pad2 = (n) => String(n).padStart(2, '0')
-      const toYmd = (dateObj) => `${dateObj.getFullYear()}-${pad2(dateObj.getMonth() + 1)}-${pad2(dateObj.getDate())}`
+      const toYmdFn = (dateObj) => `${dateObj.getFullYear()}-${pad2(dateObj.getMonth() + 1)}-${pad2(dateObj.getDate())}`
       const yDateObj = new Date(ry, rm, rd - 1)
-      const roYesterdayStr = toYmd(yDateObj)
+      const roYesterdayStr = toYmdFn(yDateObj)
+
+      // Check if custom range matches an exact precomputed historical bucket
+      const prevMonthStart = toYmdFn(new Date(ry, rm - 1, 1))
+      const prevMonthEnd = toYmdFn(new Date(ry, rm, 0))
+      const curMonthStart = toYmdFn(new Date(ry, rm, 1))
+      const curYearStart = `${ry}-01-01`
+      const matchedBucketPeriod = effectivePeriod === 'custom'
+        ? (fromYmd === prevMonthStart && toYmd === prevMonthEnd ? 'last_month'
+          : fromYmd === curMonthStart && toYmd === roNowStr ? 'this_month'
+            : fromYmd === curYearStart && toYmd === roNowStr ? 'this_year'
+              : 'custom')
+        : effectivePeriod
 
       // Guard against month-rollover leak: only use this_month_hist if cutoff is in the SAME YYYY-MM!
       const isSameMonthAsCutoff = histCutoffDay.slice(0, 7) === roNowStr.slice(0, 7)
       const isSameYearAsCutoff = histCutoffDay.slice(0, 4) === roNowStr.slice(0, 4)
-      const histBucket = (reqPeriod === 'last_month' && isSameMonthAsCutoff)
+      const histBucket = (matchedBucketPeriod === 'last_month' && isSameMonthAsCutoff)
         ? salesHistoryCache?.buckets?.last_month
-        : (reqPeriod === 'this_month' && isSameMonthAsCutoff)
+        : (matchedBucketPeriod === 'this_month' && isSameMonthAsCutoff)
           ? salesHistoryCache?.buckets?.this_month_hist
-          : (reqPeriod === 'this_year' && isSameYearAsCutoff)
+          : (matchedBucketPeriod === 'this_year' && isSameYearAsCutoff)
             ? salesHistoryCache?.buckets?.this_year_hist
-            : reqPeriod === 'all'
+            : matchedBucketPeriod === 'all'
               ? salesHistoryCache?.buckets?.all_hist
               : null
 
       let sales = []
       const seenOrderIds = new Set()
 
-      const targetSyrveDay = reqPeriod === 'today' ? roNowStr : reqPeriod === 'yesterday' ? roYesterdayStr : null
+      const isSingleDayCustom = matchedBucketPeriod === 'custom' && fromYmd && fromYmd === toYmd
+      const targetSyrveDay = matchedBucketPeriod === 'today'
+        ? roNowStr
+        : matchedBucketPeriod === 'yesterday'
+          ? roYesterdayStr
+          : isSingleDayCustom
+            ? fromYmd
+            : null
 
       const listDaysInclusive = (fromStr, toStr, maxDays = 10) => {
         if (!fromStr || !toStr || fromStr > toStr) return []
-        const out = []
         const [fy, fm, fd] = fromStr.split('-').map(Number)
         const [ty, tm, td] = toStr.split('-').map(Number)
         if (!fy || !fm || !fd || !ty || !tm || !td) return []
-        const cur = new Date(fy, fm - 1, fd)
+        const startD = new Date(fy, fm - 1, fd)
         const endD = new Date(ty, tm - 1, td)
+        const clampStart = new Date(endD.getFullYear(), endD.getMonth(), endD.getDate() - Math.max(1, maxDays) + 1)
+        const cur = startD > clampStart ? startD : clampStart
+        const out = []
         let guard = 0
-        while (cur <= endD && guard++ < 45) {
-          out.push(toYmd(cur))
+        while (cur <= endD && guard++ < Math.max(1, maxDays) + 1) {
+          out.push(toYmdFn(cur))
           cur.setDate(cur.getDate() + 1)
         }
-        return out.slice(-maxDays)
+        return out
       }
 
       const fetchDaysInBatches = async (dayList) => {
@@ -2744,24 +3151,38 @@ export default async (req, context) => {
       }
 
       if (targetSyrveDay) {
-        const liveDayOrders = await fetchLiveAndWebhookOrdersForDay(targetSyrveDay, rests)
-        for (const { o: lo, bk: baseKey } of filterValidLiveOrders(liveDayOrders)) {
-          if (seenOrderIds.has(baseKey)) continue
-          seenOrderIds.add(baseKey)
-          sales.push(lo)
+        if (targetSyrveDay <= roNowStr) {
+          const liveDayOrders = await fetchLiveAndWebhookOrdersForDay(targetSyrveDay, rests)
+          for (const { o: lo, bk: baseKey } of filterValidLiveOrders(liveDayOrders)) {
+            if (seenOrderIds.has(baseKey)) continue
+            seenOrderIds.add(baseKey)
+            sales.push(lo)
+          }
         }
-      } else if (reqPeriod !== 'last_month') {
+      } else if (matchedBucketPeriod !== 'last_month') {
         try {
           // Dynamically fetch EVERY SINGLE missing live day from Syrve + indexed webhooks (zero stale gaps!)
           let daysToFetch = []
-          if (reqPeriod === 'this_week') {
+          let needsSupabaseRange = false
+          if (matchedBucketPeriod === 'custom' && fromYmd && toYmd) {
+            const liveEndStr = toYmd < roNowStr ? toYmd : roNowStr
+            if (fromYmd <= liveEndStr) {
+              const fullSpanDays = listDaysInclusive(fromYmd, liveEndStr, 60)
+              if (fullSpanDays.length <= 14) {
+                daysToFetch = fullSpanDays
+              } else {
+                daysToFetch = fullSpanDays.slice(-10)
+                needsSupabaseRange = true
+              }
+            }
+          } else if (matchedBucketPeriod === 'this_week') {
             const weekStartStr = periodInfo.startDate ? periodInfo.startDate.slice(0, 10) : roYesterdayStr
             daysToFetch = listDaysInclusive(weekStartStr, roNowStr, 7)
-          } else if (reqPeriod === 'this_month' || reqPeriod === 'this_year' || reqPeriod === 'all') {
+          } else if (matchedBucketPeriod === 'this_month' || matchedBucketPeriod === 'this_year' || matchedBucketPeriod === 'all') {
             let fromGapStr = roYesterdayStr
             if (histBucket && histCutoffDay) {
               const [cy, cm, cd] = histCutoffDay.split('-').map(Number)
-              fromGapStr = toYmd(new Date(cy, cm - 1, cd + 1))
+              fromGapStr = toYmdFn(new Date(cy, cm - 1, cd + 1))
             } else if (periodInfo.startDate) {
               fromGapStr = periodInfo.startDate.slice(0, 10)
             }
@@ -2769,10 +3190,11 @@ export default async (req, context) => {
           }
 
           const fetchedDaySet = new Set(daysToFetch)
+          const startMs = periodInfo.startDate ? new Date(periodInfo.startDate).getTime() : 0
+          const endMs = periodInfo.endDate ? new Date(periodInfo.endDate).getTime() : Infinity
+
           if (daysToFetch.length > 0) {
             const liveTailOrders = await fetchDaysInBatches(daysToFetch)
-            const startMs = periodInfo.startDate ? new Date(periodInfo.startDate).getTime() : 0
-            const endMs = periodInfo.endDate ? new Date(periodInfo.endDate).getTime() : Infinity
             for (const { o: lo, bk: baseKey } of filterValidLiveOrders(liveTailOrders)) {
               const dayStr = String(lo.placed_at || '').slice(0, 10)
               if (histBucket && dayStr && dayStr <= histCutoffDay) continue
@@ -2784,10 +3206,31 @@ export default async (req, context) => {
             }
           }
 
+          if (matchedBucketPeriod === 'custom' && needsSupabaseRange && periodInfo.startDate && periodInfo.endDate) {
+            try {
+              const { data: dbRangeRows, error: dbErr } = await fastWithTimeout(
+                supabase
+                  .from('platform_sales')
+                  .select('id, platform, order_id, total_amount, placed_at, restaurant_id, items')
+                  .gte('placed_at', periodInfo.startDate)
+                  .lte('placed_at', periodInfo.endDate)
+                  .limit(5000),
+                3000
+              )
+              if (!dbErr && Array.isArray(dbRangeRows)) {
+                for (const { o: lo, bk: baseKey } of filterValidLiveOrders(dbRangeRows)) {
+                  const pTime = lo.placed_at ? new Date(lo.placed_at).getTime() : 0
+                  if (pTime && (pTime < startMs || pTime > endMs)) continue
+                  if (seenOrderIds.has(baseKey)) continue
+                  seenOrderIds.add(baseKey)
+                  sales.push(lo)
+                }
+              }
+            } catch (_) { }
+          }
+
           // Only supplement from customersService for days NOT already fetched live from Syrve
           const allCusts = Array.from(customersService?.customersByKey?.values?.() || [])
-          const startMs = periodInfo.startDate ? new Date(periodInfo.startDate).getTime() : 0
-          const endMs = periodInfo.endDate ? new Date(periodInfo.endDate).getTime() : Infinity
 
           for (const c of allCusts) {
             for (const ro of (c.recent_orders || [])) {
@@ -2824,13 +3267,17 @@ export default async (req, context) => {
         try {
           let baseQuery = supabase
             .from('platform_sales')
-            .select('id, platform, total_amount, placed_at, restaurant_id, items')
-            .limit(1000)
+            .select('id, platform, order_id, total_amount, placed_at, restaurant_id, items')
+            .limit(3500)
           if (periodInfo.startDate) baseQuery = baseQuery.gte('placed_at', periodInfo.startDate)
           if (periodInfo.endDate) baseQuery = baseQuery.lte('placed_at', periodInfo.endDate)
-          const { data, error } = await fastWithTimeout(baseQuery, 1500)
+          const { data, error } = await fastWithTimeout(baseQuery, 2500)
           if (!error && Array.isArray(data) && data.length > 0) {
-            sales = data
+            for (const { o: lo, bk: baseKey } of filterValidLiveOrders(data)) {
+              if (seenOrderIds.has(baseKey)) continue
+              seenOrderIds.add(baseKey)
+              sales.push(lo)
+            }
           }
         } catch (_) { }
       }
@@ -3315,7 +3762,7 @@ export default async (req, context) => {
 
       for (const o of enriched) {
         const rawId = o.order_id || o.id || ''
-        const baseId = rawId.includes('_') && rawId.length > 30 ? rawId.split('_')[0] : rawId
+        const baseId = extractBaseOrderUuid(rawId) || rawId
 
         const itemsText = (o.items || []).map(it => it.product_name || it.name || '').join(' ').toLowerCase()
         const bLower = (o.brand_name || '').toLowerCase()
@@ -3391,16 +3838,21 @@ export default async (req, context) => {
 
       let processedCount = 0
       let processError = null
+      let timedOut = false
 
-      // Automatically ingest iiko orders (both delivery updates and restaurant batch orders) with strict 2.5s timeout to prevent Netlify 504
-      if (platform === 'iiko' || platform.startsWith('iiko/') || platform === 'courier-status' || platform === 'glovo' || platform === 'wolt' || platform === 'bolt') {
+      // Automatically ingest iiko, kiosk, valentin, courier, and delivery orders with 2.5s timeout
+      if (
+        platform === 'iiko' || platform.startsWith('iiko/') ||
+        ['courier-status', 'kiosk', 'kitchen', 'valentin', 'courier', 'support', 'glovo', 'wolt', 'bolt'].includes(platform)
+      ) {
         try {
-          const res = await withTimeout(processIikoOrders(payload), 2500)
+          const res = await withTimeout(processIikoOrders(payload, platform), 2500)
           processedCount = res?.count || 0
           processError = res?.error || null
         } catch (e) {
           console.warn('[NETLIFY WEBHOOK] Fast-return after timeout/warning:', e.message)
-          processedCount = 1
+          timedOut = true
+          processError = e.message
         }
       }
 
@@ -3650,13 +4102,15 @@ export default async (req, context) => {
             resolve(val)
           }
           const timer = setTimeout(() => finish([]), 6500)
-          const sock = tls.connect(993, 'imap.gmail.com', { servername: 'imap.gmail.com', rejectUnauthorized: false })
+          const sock = tls.connect(993, 'imap.gmail.com', { servername: 'imap.gmail.com', rejectUnauthorized: true })
           sock.on('error', () => finish([]))
           sock.on('data', (chunk) => {
             buf += chunk.toString('utf8')
             if (step === 'GREETING' && buf.includes('OK')) {
               buf = ''; step = 'LOGIN'
-              sock.write(`A1 LOGIN "${emailUser}" "${appPass}"\r\n`)
+              const safeUser = String(emailUser || '').replace(/[\r\n"\\]/g, '').trim()
+              const safePass = String(appPass || '').replace(/[\s\r\n"\\]/g, '')
+              sock.write(`A1 LOGIN "${safeUser}" "${safePass}"\r\n`)
             } else if (step === 'LOGIN' && (buf.includes('A1 OK') || buf.includes('A1 NO') || buf.includes('A1 BAD'))) {
               if (!buf.includes('A1 OK')) return finish([])
               buf = ''; step = 'SELECT'
@@ -3690,7 +4144,8 @@ export default async (req, context) => {
           const msgId = (msgIdMatch ? msgIdMatch[1].trim() : `${subject}_${dateMatch ? dateMatch[1].trim() : ''}`)
           if (knownMsgBases.has(msgId)) continue
 
-          const emailDateIso = dateMatch ? new Date(dateMatch[1].trim()).toISOString() : new Date().toISOString()
+          const parsedDate = dateMatch ? new Date(dateMatch[1].trim()) : null
+          const emailDateIso = (parsedDate && !Number.isNaN(parsedDate.getTime())) ? parsedDate.toISOString() : new Date().toISOString()
           const b1Section = blk.split(/BODY\[1\](?:<\d+>)?\s+\{\d+\}\r\n/i)[1] || ''
           const b1Raw = b1Section.split(/BODY\[2\]/i)[0]?.replace(/\)\s*(?:A4 OK[\s\S]*)?$/, '') || ''
           const b2Raw = blk.split(/BODY\[2\](?:<\d+>)?\s+\{\d+\}\r\n/i)[1]?.replace(/\)\s*(?:A4 OK[\s\S]*)?$/, '') || ''
@@ -4071,7 +4526,9 @@ export default async (req, context) => {
     if (path === '/auth/forgot-password' && req.method === 'POST') {
       const body = await req.json().catch(() => ({}))
       try {
+        await usersService.syncFromSupabase(true).catch(() => { })
         const result = await usersService.requestPasswordReset(body.email)
+        await usersService._saveToSupabase().catch(() => { })
         return new Response(JSON.stringify({ success: true, ...result }), { status: 200, headers: CORS_HEADERS })
       } catch (err) {
         return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
@@ -4081,7 +4538,9 @@ export default async (req, context) => {
     if (path === '/auth/reset-password' && req.method === 'POST') {
       const body = await req.json().catch(() => ({}))
       try {
+        await usersService.syncFromSupabase(true).catch(() => { })
         const user = usersService.confirmPasswordReset(body)
+        await usersService._saveToSupabase().catch(() => { })
         return new Response(JSON.stringify({ success: true, user }), { status: 200, headers: CORS_HEADERS })
       } catch (err) {
         return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
@@ -4091,8 +4550,10 @@ export default async (req, context) => {
     if (path === '/auth/profile' && req.method === 'PUT') {
       const body = await req.json().catch(() => ({}))
       try {
+        await usersService.syncFromSupabase(true).catch(() => { })
         const { userId, ...rest } = body
         const user = usersService.updateOwnProfile(userId, rest)
+        await usersService._saveToSupabase().catch(() => { })
         return new Response(JSON.stringify({ success: true, user }), { status: 200, headers: CORS_HEADERS })
       } catch (err) {
         return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
@@ -4100,6 +4561,7 @@ export default async (req, context) => {
     }
 
     if (path === '/users' && req.method === 'GET') {
+      await usersService.syncFromSupabase().catch(() => { })
       const data = await usersService.getUsersListWithTracking()
       return new Response(JSON.stringify({ success: true, ...data }), { status: 200, headers: CORS_HEADERS })
     }
@@ -4107,9 +4569,9 @@ export default async (req, context) => {
     if (path === '/users/invite' && req.method === 'POST') {
       const body = await req.json().catch(() => ({}))
       try {
-        await usersService.syncFromSupabase().catch(() => { })
+        await usersService.syncFromSupabase(true).catch(() => { })
         const result = await usersService.inviteUser(body)
-        await usersService._saveToSupabase(usersService.state).catch(() => { })
+        await usersService._saveToSupabase().catch(() => { })
         return new Response(JSON.stringify({ success: true, ...result }), { status: 200, headers: CORS_HEADERS })
       } catch (err) {
         return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
@@ -4119,7 +4581,9 @@ export default async (req, context) => {
     if (path === '/users/brevo-config' && req.method === 'PUT') {
       const body = await req.json().catch(() => ({}))
       try {
+        await usersService.syncFromSupabase(true).catch(() => { })
         const brevo = usersService.updateBrevoConfig(body)
+        await usersService._saveToSupabase().catch(() => { })
         return new Response(JSON.stringify({ success: true, brevo }), { status: 200, headers: CORS_HEADERS })
       } catch (err) {
         return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
@@ -4130,7 +4594,9 @@ export default async (req, context) => {
       const userId = decodeURIComponent(path.replace('/users/', '').replace('/resend-invite', '').trim())
       const body = await req.json().catch(() => ({}))
       try {
+        await usersService.syncFromSupabase(true).catch(() => { })
         const result = await usersService.resendInvite(userId, body.app_url)
+        await usersService._saveToSupabase().catch(() => { })
         return new Response(JSON.stringify({ success: true, ...result }), { status: 200, headers: CORS_HEADERS })
       } catch (err) {
         return new Response(JSON.stringify({ success: false, error: err.message }), { status: 400, headers: CORS_HEADERS })
@@ -4199,7 +4665,7 @@ async function getRestaurantsMap() {
   return cachedRestaurants || []
 }
 
-async function processIikoOrders(payload) {
+async function processIikoOrders(payload, sourcePlatform = 'iiko') {
   let rawList = []
   const NON_ORDER_EVENTS = new Set(['PersonalShift', 'StopListUpdate', 'TerminalGroupStopListUpdate'])
 
@@ -4305,10 +4771,11 @@ async function processIikoOrders(payload) {
 
       // 2. Best-effort DB persistence with short timeout (1.5s) + indexed wh_YYYY-MM-DD_partner_ carrier row
       try {
-        const todayDayPrefix = new Date().toISOString().slice(0, 10)
-        const whRefPrefix = refId ? `wh_${todayDayPrefix}_${refId}` : null
+        const todayDayPrefix = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
+        const isSafeRefId = /^[a-z0-9_-]{8,64}$/i.test(refId) && !refId.startsWith('sys_')
+        const whRefPrefix = isSafeRefId ? `wh_${todayDayPrefix}_${refId}` : null
         let matchingRows = []
-        if (refId && refId.length >= 8) {
+        if (isSafeRefId) {
           const { data: directRows } = await withTimeout(
             supabase
               .from('platform_sales')
@@ -4317,7 +4784,7 @@ async function processIikoOrders(payload) {
             1200
           )
           if (Array.isArray(directRows) && directRows.length > 0) {
-            matchingRows = directRows
+            matchingRows = directRows.filter(r => !String(r.order_id || '').startsWith('sys_'))
           }
         }
 
@@ -4411,7 +4878,8 @@ async function processIikoOrders(payload) {
         const carrierKey = refId || refNum || refAwb
         if (carrierKey) {
           const partnerOrderId = `wh_${todayDayPrefix}_${carrierKey}`
-          const matchedRestId = matchingRows[0]?.restaurant_id || restaurants?.[0]?.id || null
+          const fallbackRestList = matchingRows.length > 0 ? [] : (await getRestaurantsMap().catch(() => []))
+          const matchedRestId = matchingRows[0]?.restaurant_id || fallbackRestList?.[0]?.id || null
           const prevPartnerTimings = matchingRows.reduce((acc, r) => {
             const rt = r?.items?.[0]?._order_meta?.timings || {}
             if (rt.whenSended && (String(rt.whenSended).endsWith('Z') || r?.items?.[0]?._order_meta?.isPartnerMetaOnly)) acc.whenSended = acc.whenSended || rt.whenSended
@@ -4476,8 +4944,8 @@ async function processIikoOrders(payload) {
   for (const o of rawList) {
     // Skip non-order webhook events that have neither items nor sum/number
     const rawItemsCheck = Array.isArray(o.items) ? o.items : []
-    const rawSumCheck = parseFloat(o.sum || o.total || o.total_amount || o.resultSum || 0)
-    if (rawItemsCheck.length === 0 && rawSumCheck === 0 && !o.number && !o.externalNumber) {
+    const rawSumCheck = parseFloat(o.sum || o.total || o.totalAmount || o.total_amount || o.resultSum || 0)
+    if (rawItemsCheck.length === 0 && rawSumCheck === 0 && !o.number && !o.orderNumber && !o.ticketNumber && !o.externalNumber) {
       continue
     }
     const orgId = o.organizationId || o.organization_id || o.orgId || o.org_id
@@ -4531,6 +4999,34 @@ async function processIikoOrders(payload) {
       const lower = o.restaurant_name.toLowerCase()
       matchedRest = restaurants.find(r => r.name.toLowerCase().includes(lower))
     }
+    // Smart Kiosk payload matching by brand + locationName / locationId / kioskId (e.g. SmashMe + Cluj 1 / Cluj 2, Roll Master + Brașov, Poki-Woki + Constanța)
+    if (!matchedRest && (o.brand || o.locationName || o.locationId || o.kioskId || sourcePlatform === 'kiosk')) {
+      const rawBrand = String(o.brand || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+      const locMerged = `${o.locationName || ''} ${o.locationId || ''} ${o.kioskId || ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      const cityKey = locMerged.includes('cluj') || locMerged.includes('cj') ? 'cluj'
+        : locMerged.includes('constanta') || locMerged.includes('ct') ? 'constanta'
+          : locMerged.includes('brasov') || locMerged.includes('bv') ? 'brasov'
+            : locMerged.includes('iasi') ? 'iasi'
+              : locMerged.includes('timisoara') ? 'timisoara'
+                : locMerged.includes('bucuresti') || locMerged.includes('bucharest') ? 'buc'
+                  : ''
+      const matchesKioskBrand = (r) => {
+        const rName = (r.name || '').toLowerCase()
+        if (!rawBrand) return true
+        if (rawBrand.includes('smash')) return rName.includes('smash') && !rName.includes('crunch')
+        if (rawBrand.includes('crunch')) return rName.includes('crunch')
+        if (rawBrand.includes('poki') || rawBrand.includes('woki')) return rName.includes('poki') || rName.includes('woki')
+        if (rawBrand.includes('roll')) return rName.includes('roll')
+        if (rawBrand.includes('love')) return rName.includes('love')
+        return rName.includes(rawBrand)
+      }
+      if (cityKey) {
+        matchedRest = restaurants.find(r => r.is_active !== false && matchesKioskBrand(r) && (`${r.city || ''} ${r.name || ''}`.toLowerCase().includes(cityKey)))
+      }
+      if (!matchedRest && rawBrand) {
+        matchedRest = restaurants.find(r => r.is_active !== false && matchesKioskBrand(r))
+      }
+    }
 
     if (!matchedRest) continue
 
@@ -4540,17 +5036,20 @@ async function processIikoOrders(payload) {
       continue
     }
 
-    const baseId = o.id || o.orderId || o.order_id || o.number || o.externalNumber || `order_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
+    const iikoOrderUid = String(o.iikoOrderId || o.iiko_order_id || '').trim()
+    const rawBaseId = iikoOrderUid || o.id || o.orderId || o.order_id || o.orderNumber || o.ticketNumber || o.number || o.externalNumber || `order_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
+    const baseId = (sourcePlatform === 'kiosk' && !iikoOrderUid && !String(rawBaseId).startsWith('kiosk_')) ? `kiosk_${rawBaseId}` : String(rawBaseId)
 
     // Determine platform & channel
     const rawSource = (o.sourceKey || o.source || o.platform || o.eventType || '').toLowerCase()
-    const orderTypeName = (o.orderType?.name || '').toLowerCase()
+    const orderTypeName = (o.orderType?.name || (typeof o.orderType === 'string' ? o.orderType : '') || '').toLowerCase()
     const operatorName = (o.operator?.name || '').toLowerCase()
     const conceptionName = (o.conception?.name || '').toLowerCase()
-    const terminalName = (o.terminalGroupName || o.posId || '').toLowerCase()
+    const terminalName = (o.terminalGroupName || o.posId || o.kioskId || '').toLowerCase()
 
     // Check if order originates from Kiosk (Smart Kiosk terminal)
-    const isKiosk = rawSource.includes('kiosk') ||
+    const isKiosk = sourcePlatform === 'kiosk' ||
+      rawSource.includes('kiosk') ||
       orderTypeName.includes('kiosk') ||
       operatorName.includes('kiosk') ||
       conceptionName.includes('kiosk') ||
@@ -4558,7 +5057,8 @@ async function processIikoOrders(payload) {
       (o.externalNumber && String(o.externalNumber).toLowerCase().startsWith('kiosk'))
 
     let platform = 'casierie'
-    if (rawSource.includes('glovo')) platform = 'glovo'
+    if (sourcePlatform === 'kiosk') platform = 'kiosk'
+    else if (rawSource.includes('glovo')) platform = 'glovo'
     else if (rawSource.includes('wolt')) platform = 'wolt'
     else if (rawSource.includes('bolt')) platform = 'bolt'
     else if (rawSource.includes('web') || rawSource === 'app' || rawSource.includes('delivery') || orderTypeName.includes('livrare')) platform = 'delivery'
@@ -4589,9 +5089,9 @@ async function processIikoOrders(payload) {
       }
     }
 
-    const total_amount = parseFloat(o.sum || o.total || o.total_amount || o.resultSum || 0)
+    const total_amount = parseFloat(o.sum || o.total || o.totalAmount || o.total_amount || o.resultSum || 0)
 
-    let placed_at = o.whenCreated || o.whenClosed || o.created_at || o.placed_at || o.eventTime
+    let placed_at = o.whenCreated || o.whenClosed || o.createdAt || o.created_at || o.placed_at || o.eventTime
     if (placed_at && typeof placed_at === 'string' && placed_at.includes(' ') && !placed_at.includes('T')) {
       placed_at = placed_at.replace(' ', 'T') + 'Z'
     }
@@ -4600,7 +5100,9 @@ async function processIikoOrders(payload) {
     } catch (_) {
       placed_at = new Date().toISOString()
     }
-    const dayPrefix = String(placed_at).slice(0, 10)
+    const dayPrefix = sourcePlatform === 'kiosk'
+      ? new Date(placed_at).toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
+      : String(placed_at).slice(0, 10)
     const uniqueOrderId = `wh_${dayPrefix}_${baseId}_${matchedRest.id}`
 
     // Extract Customer & Courier info from Syrve/iiko order payload
@@ -4652,23 +5154,27 @@ async function processIikoOrders(payload) {
     }
 
     // Format items
-    const rawItems = Array.isArray(o.items) ? o.items : []
+    const rawItems = Array.isArray(o.items) && o.items.length > 0
+      ? o.items
+      : (total_amount > 0 ? [{ name: 'Comandă Smart Kiosk', price: total_amount, quantity: 1 }] : [])
     let grossSumCalc = 0
     const items = rawItems.map((it, idx) => {
       const pName = it.product?.name || it.product_name || it.name || 'Articol'
-      const price = parseFloat(it.price || it.resultSum || 0)
+      const price = parseFloat(it.unitPrice || it.price || it.resultSum || 0)
       const qty = parseFloat(it.amount || it.quantity || 1)
       grossSumCalc += price * qty
       return {
         product_name: pName,
         price,
         amount: qty,
-        sum: parseFloat(it.resultSum || (price * qty)),
+        sum: parseFloat(it.totalPrice || it.resultSum || (price * qty)),
         quantity: qty,
         _order_meta: idx === 0 ? {
-          orderNumber: cleanKioskOrderNumber(o.number || o.externalNumber, baseId, platform),
+          orderNumber: cleanKioskOrderNumber(o.orderNumber || o.ticketNumber || o.number || o.externalNumber, baseId, platform),
           channel: platform,
-          orderType: o.orderType?.name || (platform === 'kiosk' ? 'Smart Kiosk' : platform === 'casierie' ? 'Casierie (POS)' : 'Delivery'),
+          kioskId: o.kioskId || o.locationName || null,
+          paymentMethod: o.paymentMethod || null,
+          orderType: o.orderType?.name || (typeof o.orderType === 'string' ? o.orderType : null) || (platform === 'kiosk' ? 'Smart Kiosk' : platform === 'casierie' ? 'Casierie (POS)' : 'Delivery'),
           operator: o.operator?.name || null,
           posId: o.posId || null,
           terminalGroupId: o.terminalGroupId || null,
@@ -4731,7 +5237,7 @@ async function processIikoOrders(payload) {
         if (!Array.isArray(r.items) || r.items.length === 0) continue
         const meta = r.items[0]._order_meta || {}
         const prevMeta = existingMetaMap.get(r.order_id) || {}
-        const baseId = String(r.order_id || '').split('_')[0].toLowerCase()
+        const baseId = extractBaseOrderUuid(r.order_id || '').toLowerCase()
         const numKey = String(meta.orderNumber || '').replace(/^#+/, '').trim().toLowerCase()
         const cached = globalThis.__VALENTIN_COURIER_CACHE?.get(baseId) || globalThis.__VALENTIN_COURIER_CACHE?.get(numKey) || null
 

@@ -25,6 +25,9 @@ import {
   Globe,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  Image as ImageIcon,
   ArrowUpDown
 } from 'lucide-react'
 import { useTheme } from '../lib/ThemeContext'
@@ -297,7 +300,7 @@ const UI_TEXT = {
 export default function Reputation() {
   const { isDark } = useTheme()
   const { t, language } = useLanguage()
-  const { canAccessCity, canAccessBrand, hasScopeRestrictions } = useAuth()
+  const { user, canAccessCity, canAccessBrand, canAccessRestaurant, hasScopeRestrictions } = useAuth()
   const { restaurants } = useLiveChecks()
   const [searchParams] = useSearchParams()
 
@@ -324,7 +327,12 @@ export default function Reputation() {
   // Auto-translate review comments into the language selected in the top-right selector (RU / EN / RO)
   const [translateComments, setTranslateComments] = useState(true)
   const [showOriginalMap, setShowOriginalMap] = useState({})
+  const [expandedReviews, setExpandedReviews] = useState({})
   const [dynamicTranslations, setDynamicTranslations] = useState({})
+
+  const toggleReviewExpand = (id) => {
+    setExpandedReviews(prev => ({ ...prev, [id]: !prev[id] }))
+  }
 
   const [reviewsData, setReviewsData] = useState({ reviews: [], kpis: null, ratings_by_restaurant: {} })
   const [reviewsLoading, setReviewsLoading] = useState(false)
@@ -390,17 +398,32 @@ export default function Reputation() {
   }, [language, showToast])
 
   useEffect(() => {
+    if (!selectedPhotoModal && !showEmailModal && !showScraperInfoModal) return
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        if (selectedPhotoModal) setSelectedPhotoModal(null)
+        else if (showEmailModal) setShowEmailModal(false)
+        else if (showScraperInfoModal) setShowScraperInfoModal(false)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selectedPhotoModal, showEmailModal, showScraperInfoModal])
+
+  useEffect(() => {
     fetchReviews()
-    fetch(getApiUrl('/api/reviews/email-config'))
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (d?.success && d.config) {
-          setImapConfigInfo(d.config)
-          if (d.config.email) setImapEmail(d.config.email)
-        }
-      })
-      .catch(() => {})
-  }, [fetchReviews])
+    if (user?.role === 'admin') {
+      fetch(getApiUrl('/api/reviews/email-config'))
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (d?.success && d.config) {
+            setImapConfigInfo(d.config)
+            if (d.config.email) setImapEmail(d.config.email)
+          }
+        })
+        .catch(() => {})
+    }
+  }, [fetchReviews, user?.role])
 
   const handleSyncImap = async (e) => {
     if (e) e.preventDefault()
@@ -534,7 +557,7 @@ export default function Reputation() {
         let numRating = parseFloat(String(rawRating).replace(',', '.'))
         if (isNaN(numRating)) {
           const strVal = String(rawRating).toLowerCase()
-          numRating = (strVal.includes('neg') || strVal.includes('down') || strVal.includes('')) ? 2 : 5
+          numRating = (strVal.includes('neg') || strVal.includes('down') || strVal.includes('👎')) ? 2 : 5
         }
         const maxScale = numRating > 5 ? 10 : 5
         const comment = String(findKey(row, ['comment', 'review', 'comentariu', 'feedback', 'text', 'mesaj', 'reason', 'motiv']) || '').trim()
@@ -646,6 +669,7 @@ export default function Reputation() {
         const rvBrand = rv.brand_name || rv.brand || deduceBrandName({ name: rv.restaurant_name }) || ''
         if (!canAccessCity(rvCity)) return false
         if (!canAccessBrand(rvBrand || rv.restaurant_name)) return false
+        if (rv.restaurant_id && !canAccessRestaurant(rv.restaurant_id)) return false
         return true
       })
     }
@@ -776,187 +800,172 @@ export default function Reputation() {
         </div>
       )}
 
-      {/* HEADER OPERAȚIONAL (O SINGURĂ LINIE CURATĂ, BUTOANE ICONIȚE) */}
+      {/* HEADER OPERAȚIONAL — macOS Tahoe Calm Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 shrink-0">
-          <Star size={20} className="text-amber-500 fill-amber-400 shrink-0" />
+        <h2 className="text-[20px] font-semibold tracking-[-0.02em] text-[#1D1D1F] dark:text-[#F5F5F7] flex items-center gap-2 shrink-0">
+          <span className="w-7 h-7 rounded-[9px] bg-amber-500/15 text-amber-600 dark:text-amber-400 inline-flex items-center justify-center shrink-0">
+            <Star size={15} className="fill-current" />
+          </span>
           <span>{L.title}</span>
         </h2>
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-          {/* Căutare */}
-          <div className="relative flex-1 sm:w-80 sm:flex-none">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          {/* macOS Search Field */}
+          <div className="relative flex-1 sm:w-72 sm:flex-none">
+            <Search className="w-3.5 h-3.5 text-[#636366] dark:text-[#8E8E93] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               placeholder={L.searchPlaceholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className={`w-full pl-10 pr-4 h-10 text-sm rounded-full border outline-none transition-all shadow-xs ${
+              className={`w-full pl-8 pr-4 h-8 text-xs font-medium rounded-full border outline-none transition-all ${
                 isDark
-                  ? 'bg-slate-900 border-slate-700 text-white placeholder-slate-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20'
-                  : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20'
+                  ? 'bg-[#1C1C1E] border-white/[0.12] text-white placeholder-[#8E8E93] focus:border-[#10B981]'
+                  : 'bg-white border-black/[0.10] text-[#1D1D1F] placeholder-[#636366] focus:border-[#047857] shadow-2xs'
               }`}
             />
           </div>
 
-          {/* Butoane Iconițe Aliniate Curat pe un Singur Rând */}
+          {/* Unified macOS Secondary Toolbar Icon Actions (no rainbow circles) */}
           <div className="flex items-center gap-1.5 shrink-0">
-            {/* 1. Email Recenzii (jeka7ro@gmail.com) */}
-            <button
-              type="button"
-              onClick={() => setShowEmailModal(true)}
-              title={L.btnEmail}
-              className={`relative w-10 h-10 rounded-full border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-                isDark
-                  ? 'border-blue-500/40 bg-blue-500/15 hover:bg-blue-500/25 text-blue-400'
-                  : 'border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-600'
-              }`}
-            >
-              <Mail size={16} />
-              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900"></span>
-            </button>
+            {user?.role === 'admin' && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowEmailModal(true)}
+                  title={L.btnEmail}
+                  aria-label={L.btnEmail}
+                  className="apple-btn-secondary !w-8 !h-8 !p-0 relative"
+                >
+                  <Mail size={14} className="text-[#047857] dark:text-[#34D399]" />
+                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                </button>
 
-            {/* 2. Importă Excel / CSV */}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              title={L.btnImportExcel}
-              className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-                isDark
-                  ? 'border-emerald-500/40 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400'
-                  : 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-600'
-              }`}
-            >
-              <Upload size={16} />
-            </button>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  title={L.btnImportExcel}
+                  aria-label={L.btnImportExcel}
+                  className="apple-btn-secondary !w-8 !h-8 !p-0"
+                >
+                  <Upload size={14} />
+                </button>
 
-            {/* 3. Scrapere Portal B2B (Glovo/Wolt) */}
-            <button
-              type="button"
-              onClick={() => setShowScraperInfoModal(true)}
-              title={L.btnPortal}
-              className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-                isDark
-                  ? 'border-amber-500/40 bg-amber-500/15 hover:bg-amber-500/25 text-amber-400'
-                  : 'border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-600'
-              }`}
-            >
-              <Bot size={16} className={isScrapingPortals ? 'animate-spin' : ''} />
-            </button>
+                <button
+                  type="button"
+                  onClick={() => setShowScraperInfoModal(true)}
+                  title={L.btnPortal}
+                  aria-label={L.btnPortal}
+                  className="apple-btn-secondary !w-8 !h-8 !p-0"
+                >
+                  <Bot size={14} className={isScrapingPortals ? 'animate-spin text-[#047857]' : ''} />
+                </button>
+              </>
+            )}
 
-            {/* 4. Refresh Recenzii (forțează sincronizare live Gmail IMAP) */}
             <button
               type="button"
               onClick={() => fetchReviews(true)}
               title={L.btnRefresh}
-              className={`w-10 h-10 rounded-full border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
-                isDark ? 'border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300' : 'border-slate-200 bg-white hover:bg-slate-100 text-slate-700'
-              }`}
+              aria-label={L.btnRefresh}
+              className="apple-btn-secondary !w-8 !h-8 !p-0"
             >
-              <RotateCw size={15} className={reviewsLoading ? 'animate-spin' : ''} />
+              <RotateCw size={14} className={reviewsLoading ? 'animate-spin text-[#047857]' : ''} />
             </button>
           </div>
         </div>
       </div>
 
-      {/* TABS BRANDURI */}
+      {/* BRAND SEGMENTED CONTROL — Apple Tahoe Pill Track */}
       <div className="flex flex-wrap items-center gap-2 w-full">
-        {allBrands.map(brand => {
-          const isActive = activeBrand === brand
-          const count = brand === 'all' ? restaurants.filter(r => r.is_active).length : groupedByBrand[brand]?.length || 0
-          return (
-            <button
-              key={brand}
-              onClick={() => setActiveBrand(brand)}
-              className={`px-4 h-9 rounded-full text-xs font-bold transition-all flex items-center gap-2 shadow-xs cursor-pointer ${
-                isActive
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : isDark
-                    ? 'bg-slate-900 border border-slate-700 text-slate-300 hover:bg-slate-800'
-                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              {brand !== 'all' ? (
-                <BrandAvatar brand={brand} size={18} className="rounded-full shrink-0" />
-              ) : (
-                <Store size={14} className={isActive ? 'text-white' : 'text-slate-400'} />
-              )}
-              <span>{brand === 'all' ? t('common.all_brands') : brand}</span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                isActive
-                  ? 'bg-white/20 text-white'
-                  : isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600'
-              }`}>
-                {count}
-              </span>
-            </button>
-          )
-        })}
+        <div role="group" className="apple-segmented max-w-full overflow-x-auto">
+          {allBrands.map(brand => {
+            const isActive = activeBrand === brand
+            const count = brand === 'all' ? restaurants.filter(r => r.is_active).length : groupedByBrand[brand]?.length || 0
+            return (
+              <button
+                key={brand}
+                type="button"
+                onClick={() => setActiveBrand(brand)}
+                className={`apple-segment ${isActive ? 'apple-segment-active' : ''}`}
+              >
+                {brand !== 'all' ? (
+                  <BrandAvatar brand={brand} size={16} className="rounded-full shrink-0" />
+                ) : (
+                  <Store size={13} className="text-[#047857] dark:text-[#34D399]" />
+                )}
+                <span>{brand === 'all' ? t('common.all_brands') : brand}</span>
+                <span className="text-[11px] tabular-nums text-[#636366] dark:text-[#8E8E93]">
+                  {count}
+                </span>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
-      {/* 4 CARDURI KPI COMPACTE (O SINGURĂ LINIE PER CARD — NU OCUPĂ ECRANUL) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5">
-        <div className={`px-3.5 py-2.5 rounded-xl border flex items-center justify-between gap-2 ${
-          isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900 shadow-2xs'
+      {/* 4 APPLE METRIC CARDS — Compact Laptop Rhythm */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5">
+        <div className={`px-3.5 py-2.5 rounded-2xl border flex flex-col justify-between gap-1.5 ${
+          isDark ? 'bg-slate-900 border-white/[0.09] text-white' : 'bg-white border-black/[0.06] text-[#1D1D1F]'
         }`}>
-          <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
+          <div className="text-[11.5px] font-medium text-[#48484A] dark:text-[#AEAEB2]">
             {L.kpiAvgTitle}
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs font-black text-amber-600 dark:text-amber-400">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/12 text-[11.5px] font-semibold text-amber-700 dark:text-amber-300 tabular-nums">
               <PlatformLogo platform="glovo" size={12} />
               {reviewsData.kpis?.avg_glovo_rating || reviewsData.kpis?.avg_glovo || 9.8}
             </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-500/10 border border-sky-500/20 text-xs font-black text-sky-600 dark:text-sky-400">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-500/12 text-[11.5px] font-semibold text-sky-700 dark:text-sky-300 tabular-nums">
               <PlatformLogo platform="wolt" size={12} />
               {reviewsData.kpis?.avg_wolt_rating || reviewsData.kpis?.avg_wolt || 9.7}
             </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-black text-emerald-600 dark:text-emerald-400">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/12 text-[11.5px] font-semibold text-emerald-700 dark:text-emerald-300 tabular-nums">
               <PlatformLogo platform="bolt" size={12} />
               {reviewsData.kpis?.avg_bolt_rating || reviewsData.kpis?.avg_bolt || 4.8}
             </span>
           </div>
         </div>
 
-        <div className={`px-3.5 py-2.5 rounded-xl border flex items-center justify-between gap-2 ${
-          isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900 shadow-2xs'
+        <div className={`px-3.5 py-2.5 rounded-2xl border flex flex-col justify-between gap-1 ${
+          isDark ? 'bg-slate-900 border-white/[0.09] text-white' : 'bg-white border-black/[0.06] text-[#1D1D1F]'
         }`}>
-          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
+          <span className="text-[11.5px] font-medium text-[#48484A] dark:text-[#AEAEB2]">
             {L.kpiTotalTitle}
           </span>
-          <div className="flex items-baseline gap-1.5 shrink-0">
-            <span className="text-lg font-black">{scopedKpis.total_reviews}</span>
-            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-              ({scopedKpis.with_order_count} iiko)
+          <div className="flex items-baseline gap-2">
+            <span className="text-[20px] font-semibold tracking-[-0.02em] tabular-nums leading-tight">{scopedKpis.total_reviews}</span>
+            <span className="text-[11.5px] font-medium text-[#047857] dark:text-[#34D399] tabular-nums">
+              {scopedKpis.with_order_count} iiko
             </span>
           </div>
         </div>
 
-        <div className={`px-3.5 py-2.5 rounded-xl border flex items-center justify-between gap-2 ${
-          isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900 shadow-2xs'
+        <div className={`px-3.5 py-2.5 rounded-2xl border flex flex-col justify-between gap-1 ${
+          isDark ? 'bg-slate-900 border-white/[0.09] text-white' : 'bg-white border-black/[0.06] text-[#1D1D1F]'
         }`}>
-          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
+          <span className="text-[11.5px] font-medium text-[#48484A] dark:text-[#AEAEB2]">
             {L.kpiPosTitle}
           </span>
-          <div className="flex items-baseline gap-1.5 shrink-0">
-            <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">
+          <div className="flex items-baseline gap-2">
+            <span className="text-[20px] font-semibold tracking-[-0.02em] text-emerald-700 dark:text-emerald-400 tabular-nums leading-tight">
               {scopedKpis.positive_rate}%
             </span>
-            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+            <span className="text-[11.5px] font-medium text-[#636366] dark:text-[#AEAEB2] tabular-nums">
               ({scopedKpis.positive_count})
             </span>
           </div>
         </div>
 
-        <div className={`px-3.5 py-2.5 rounded-xl border flex items-center justify-between gap-2 ${
-          isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900 shadow-2xs'
+        <div className={`px-3.5 py-2.5 rounded-2xl border flex flex-col justify-between gap-1 ${
+          isDark ? 'bg-slate-900 border-white/[0.09] text-white' : 'bg-white border-black/[0.06] text-[#1D1D1F]'
         }`}>
-          <span className="text-[10px] font-extrabold uppercase tracking-wider text-rose-500 truncate">
+          <span className="text-[11.5px] font-medium text-[#48484A] dark:text-[#AEAEB2]">
             {L.kpiNegTitle}
           </span>
-          <div className="flex items-baseline gap-1.5 shrink-0">
-            <span className="text-lg font-black text-rose-600 dark:text-rose-400">
+          <div className="flex items-baseline gap-2">
+            <span className="text-[20px] font-semibold tracking-[-0.02em] text-rose-600 dark:text-rose-400 tabular-nums leading-tight">
               {scopedKpis.negative_count}
             </span>
             <ThumbsDown size={13} className="text-rose-500" />
@@ -964,11 +973,11 @@ export default function Reputation() {
         </div>
       </div>
 
-      {/* BARA DE FILTRE PE O SINGURĂ LINIE COMPACTĂ */}
-      <div className={`px-3 py-2 rounded-xl border flex flex-wrap items-center justify-between gap-2 ${
-        isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-2xs'
+      {/* FILTER BAR — Apple Segmented Controls (zero stacked neon pills) */}
+      <div className={`px-3 py-2.5 rounded-2xl border flex flex-wrap items-center justify-between gap-2 ${
+        isDark ? 'bg-slate-900 border-white/[0.09]' : 'bg-white border-black/[0.06]'
       }`}>
-        <div className="flex flex-wrap items-center gap-1">
+        <div role="group" className="apple-segmented max-w-full overflow-x-auto">
           {[
             { id: 'all', label: L.filterAll },
             { id: 'negative', label: L.filterNegative },
@@ -981,12 +990,8 @@ export default function Reputation() {
               key={tab.id}
               type="button"
               onClick={() => setReviewFilter(tab.id)}
-              className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                reviewFilter === tab.id
-                  ? 'bg-emerald-600 text-white shadow-2xs'
-                  : isDark
-                    ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              className={`apple-segment !h-[26px] !px-2.5 !text-[11px] ${
+                reviewFilter === tab.id ? 'apple-segment-active' : ''
               }`}
             >
               {tab.label}
@@ -994,8 +999,7 @@ export default function Reputation() {
           ))}
         </div>
 
-        <div className="flex items-center gap-1.5">
-          {/* Selector Sortare Rapidă */}
+        <div className="flex items-center gap-2 flex-wrap">
           <select
             value={`${sortConfig.key}_${sortConfig.direction}`}
             onChange={(e) => {
@@ -1003,11 +1007,7 @@ export default function Reputation() {
               setSortConfig({ key, direction })
               setPage(1)
             }}
-            className={`h-8 px-2.5 rounded-full border text-xs font-bold outline-none cursor-pointer transition-colors ${
-              isDark
-                ? 'bg-slate-800 border-slate-700 text-white hover:border-slate-600'
-                : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300'
-            }`}
+            className="apple-btn-secondary !h-8 !px-3 outline-none"
           >
             <option value="date_desc">{L.sortDateDesc}</option>
             <option value="date_asc">{L.sortDateAsc}</option>
@@ -1016,41 +1016,33 @@ export default function Reputation() {
             <option value="order_desc">{L.sortOrderDesc}</option>
           </select>
 
-          {/* Buton Iconiță Auto-Traducere */}
           <button
             type="button"
             onClick={() => setTranslateComments(prev => !prev)}
             title={`${L.autoTranslateLabel}: ${translateComments ? 'ON' : 'OFF'}`}
-            className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer border shrink-0 ${
-              translateComments
-                ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
-                : isDark
-                  ? 'border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700'
-                  : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100'
+            aria-pressed={translateComments}
+            className={`apple-btn-secondary !w-8 !h-8 !p-0 relative ${
+              translateComments ? '!border-[#047857]/40 !text-[#047857] dark:!text-[#34D399]' : ''
             }`}
           >
             <Globe size={14} />
             {translateComments && (
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-white dark:ring-slate-900"></span>
+              <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#047857]"></span>
             )}
           </button>
 
-          <div className="flex items-center gap-1">
+          <div role="group" className="apple-segmented">
             {['all', 'glovo', 'wolt', 'bolt', 'google'].map(plat => (
               <button
                 key={plat}
                 type="button"
                 onClick={() => setReviewPlatformFilter(plat)}
                 title={plat === 'all' ? L.filterAllPlatforms : plat.toUpperCase()}
-                className={`h-8 ${plat === 'all' ? 'px-2.5' : 'w-8 justify-center'} rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border shrink-0 ${
-                  reviewPlatformFilter === plat
-                    ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900 dark:border-white ring-2 ring-emerald-500/30'
-                    : isDark
-                      ? 'border-slate-800 text-slate-400 hover:bg-slate-800'
-                      : 'border-slate-200 text-slate-600 hover:bg-slate-100'
+                className={`apple-segment !h-[26px] ${plat === 'all' ? '!px-2.5 !text-[11px]' : '!w-7 !px-0'} ${
+                  reviewPlatformFilter === plat ? 'apple-segment-active' : ''
                 }`}
               >
-                {plat !== 'all' ? <PlatformLogo platform={plat} size={16} /> : <span>{L.filterAllPlatforms}</span>}
+                {plat !== 'all' ? <PlatformLogo platform={plat} size={14} /> : <span>{L.filterAllPlatforms}</span>}
               </button>
             ))}
           </div>
@@ -1061,7 +1053,7 @@ export default function Reputation() {
       <div className={`rounded-2xl shadow-sm border overflow-hidden flex flex-col ${
         isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
       }`}>
-        <div className="w-full overflow-x-hidden">
+        <div className="w-full overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse table-auto">
             <thead className={`text-[11px] font-bold uppercase tracking-wider sticky top-0 z-10 select-none border-b ${
               isDark ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
@@ -1105,10 +1097,10 @@ export default function Reputation() {
                     )}
                   </div>
                 </th>
-                <th className="px-2.5 py-3">{L.thComment}</th>
+                <th className="px-2.5 py-3 min-w-[320px]">{L.thComment}</th>
                 <th
                   onClick={() => handleSort('order')}
-                  className="px-2.5 py-3 w-52 cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                  className="px-2.5 py-3 w-44 cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                 >
                   <div className="inline-flex items-center gap-1">
                     <span>{L.thOrder}</span>
@@ -1140,8 +1132,13 @@ export default function Reputation() {
                 const isPos = rv.sentiment === 'positive'
                 const ord = rv.matched_order
                 const displayedComment = getDisplayedComment(rv)
+                const collapsedPreview = String(displayedComment || '').replace(/\s*\n+\s*/g, ' ').trim()
                 const isTranslated = translateComments && language !== 'ro' && !showOriginalMap[rv.id] && displayedComment !== rv.comment
                 const bName = rv.brand_name || deduceBrandName({ name: rv.restaurant_name }) || 'Roll Master'
+                const isExpanded = Boolean(expandedReviews[rv.id])
+                const hasPhotos = Array.isArray(rv.review_photos) && rv.review_photos.length > 0
+                const isLongComment = Boolean(displayedComment && (displayedComment.length > 110 || displayedComment.includes('\n')))
+                const canExpand = isLongComment || hasPhotos || Boolean(rv.deleted_on_google)
 
                 const sourceLabel =
                   rv.source === 'email' ? L.sourceEmail :
@@ -1161,11 +1158,11 @@ export default function Reputation() {
                     }`}
                   >
                     {/* Nr. Crt. */}
-                    <td className="px-2 py-3 align-top text-center text-xs font-semibold text-slate-400 dark:text-slate-500">
+                    <td className="px-2 py-2.5 !align-top text-center text-xs font-semibold text-slate-400 dark:text-slate-500">
                       {startIndex + index + 1}
                     </td>
 
-                    <td className="px-2.5 py-3 align-top whitespace-nowrap">
+                    <td className="px-2.5 py-2.5 !align-top whitespace-nowrap">
                       <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
                         {new Date(rv.reviewed_at).toLocaleDateString(localeCode, { day: '2-digit', month: '2-digit', year: 'numeric' })}
                       </div>
@@ -1179,17 +1176,17 @@ export default function Reputation() {
                       </span>
                     </td>
 
-                    <td className="px-2.5 py-3 align-top">
+                    <td className="px-2.5 py-2.5 !align-top">
                       <div className="flex items-start gap-2">
                         <PlatformLogo platform={rv.platform || 'glovo'} size={18} className="shrink-0 mt-0.5" />
                         <div className="min-w-0">
-                          <div className="font-bold text-xs text-slate-900 dark:text-white truncate max-w-[150px]" title={cleanRestaurantName(rv.restaurant_name || 'Locație')}>
+                          <div className="font-bold text-xs text-slate-900 dark:text-white truncate max-w-[165px]" title={cleanRestaurantName(rv.restaurant_name || 'Locație')}>
                             {cleanRestaurantName(rv.restaurant_name || 'Locație')}
                           </div>
-                          <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate max-w-[150px]">
+                          <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate max-w-[165px]">
                             {rv.city || 'România'} • <span className="uppercase">{rv.platform}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate max-w-[155px]">
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate max-w-[165px]">
                             {rv.customer_avatar && (
                               <img
                                 src={rv.customer_avatar}
@@ -1203,7 +1200,7 @@ export default function Reputation() {
                               {rv.customer_name && rv.customer_name !== 'Client' ? (
                                 <Link
                                   to={`/customers?search=${encodeURIComponent(rv.customer_name)}&open=1`}
-                                  className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                                  className="font-bold text-[#047857] dark:text-[#34D399] hover:underline"
                                   title="Vezi Dosarul Complet al Clientului (Comenzi, Produse, Adresă și Recenzii)"
                                 >
                                   {rv.customer_name}
@@ -1217,39 +1214,58 @@ export default function Reputation() {
                       </div>
                     </td>
 
-                    <td className="px-2 py-3 align-top text-center">
+                    <td className="px-2 py-2.5 !align-top text-center">
                       <div className="inline-flex flex-col items-center gap-1">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black ${
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums ${
                           isNeg
-                            ? 'bg-rose-600 text-white'
+                            ? 'bg-rose-500/12 text-rose-700 dark:text-rose-300'
                             : isPos
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-amber-500 text-white'
+                              ? 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300'
+                              : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
                         }`}>
-                          <Star size={11} className="fill-white" />
+                          <Star size={11} className="fill-current" />
                           <span>{rv.rating}{(rv.max_rating || rv.max_scale) === 10 ? '/10' : '/5'}</span>
                         </span>
-                        <span className={`text-[9px] font-extrabold uppercase tracking-wider ${
-                          isNeg ? 'text-rose-600 dark:text-rose-400' : isPos ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
+                        <span className={`text-[10px] font-medium ${
+                          isNeg ? 'text-rose-600 dark:text-rose-400' : isPos ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'
                         }`}>
                           {isNeg ? L.sentimentNeg : isPos ? L.sentimentPos : L.sentimentNeu}
                         </span>
                       </div>
                     </td>
 
-                    {/* Comentariu Client (tradus automat în RU/EN după selectorul de limbă) */}
-                    <td className="px-2.5 py-3 align-top">
+                    {/* Comentariu Client — implicit restrâns (2 rânduri uniforme); click extinde tot mesajul + poze */}
+                    <td className="px-2.5 py-2.5 !align-top">
                       {rv.comment ? (
                         <div className="space-y-1">
-                          <div className={`px-2.5 py-2 rounded-xl border text-xs leading-snug font-medium ${
-                            isNeg
-                              ? 'bg-rose-50/70 border-rose-200 text-rose-900 dark:bg-rose-950/30 dark:border-rose-800/60 dark:text-rose-200'
-                              : isDark
-                                ? 'bg-slate-800/60 border-slate-700/80 text-slate-200'
-                                : 'bg-slate-50 border-slate-200/80 text-slate-700'
-                          }`}>
-                            <div className="whitespace-pre-line">„{displayedComment}”</div>
-                            {rv.deleted_on_google && (
+                          <div
+                            onClick={() => canExpand && toggleReviewExpand(rv.id)}
+                            role={canExpand ? 'button' : undefined}
+                            tabIndex={canExpand ? 0 : undefined}
+                            onKeyDown={(e) => {
+                              if (canExpand && (e.key === 'Enter' || e.key === ' ')) {
+                                e.preventDefault()
+                                toggleReviewExpand(rv.id)
+                              }
+                            }}
+                            aria-expanded={canExpand ? isExpanded : undefined}
+                            className={`px-3 py-2 rounded-xl border text-[12.5px] leading-snug font-normal transition-colors ${
+                              canExpand ? 'cursor-pointer' : ''
+                            } ${
+                              isNeg
+                                ? 'bg-rose-500/[0.045] border-rose-500/20 border-l-[3px] border-l-rose-500 text-[#1D1D1F] dark:text-[#F5F5F7] hover:bg-rose-500/[0.075]'
+                                : isDark
+                                  ? 'bg-white/[0.035] border-white/[0.08] text-[#E5E5EA] hover:bg-white/[0.055]'
+                                  : 'bg-[#F5F6F9] border-black/[0.05] text-[#1D1D1F] hover:bg-black/[0.04]'
+                            }`}
+                          >
+                            {isExpanded ? (
+                              <div className="whitespace-pre-line leading-relaxed">„{displayedComment}”</div>
+                            ) : (
+                              <div className="line-clamp-2 overflow-hidden">„{collapsedPreview}”</div>
+                            )}
+
+                            {isExpanded && rv.deleted_on_google && (
                               <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-[10px] font-bold">
                                 <span>
                                   {language === 'ru'
@@ -1260,8 +1276,12 @@ export default function Reputation() {
                                 </span>
                               </div>
                             )}
-                            {Array.isArray(rv.review_photos) && rv.review_photos.length > 0 && (
-                              <div className="flex flex-wrap items-center gap-2.5 mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+
+                            {isExpanded && hasPhotos && (
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex flex-wrap items-center gap-2 mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-700/60"
+                              >
                                 {rv.review_photos.map((photoUrl, pIdx) => (
                                   <button
                                     key={pIdx}
@@ -1296,19 +1316,64 @@ export default function Reputation() {
                             )}
                           </div>
 
-                          {language !== 'ro' && (
-                            <div className="flex items-center justify-between gap-2 px-1">
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
-                                <Globe size={10} />
-                                {isTranslated ? L.translatedBadge : 'RO (Original)'}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => setShowOriginalMap(prev => ({ ...prev, [rv.id]: !prev[rv.id] }))}
-                                className="text-[10px] font-bold underline text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
-                              >
-                                {showOriginalMap[rv.id] ? L.autoTranslateLabel : L.showOriginalLabel}
-                              </button>
+                          {/* Compact 1-line Disclosure + Photos + Translation Bar */}
+                          {(canExpand || language !== 'ro') && (
+                            <div className="flex items-center justify-between gap-2 px-1 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                {canExpand && (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleReviewExpand(rv.id)}
+                                    className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-[#047857] dark:text-[#34D399] hover:underline cursor-pointer"
+                                  >
+                                    {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                    <span>
+                                      {isExpanded
+                                        ? (language === 'ru' ? 'Свернуть' : language === 'en' ? 'Collapse' : 'Restrânge')
+                                        : (language === 'ru' ? 'Развернуть' : language === 'en' ? 'Read full review' : 'Extinde mesajul')}
+                                    </span>
+                                  </button>
+                                )}
+
+                                {!isExpanded && hasPhotos && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedPhotoModal({
+                                      photos: rv.review_photos,
+                                      index: 0,
+                                      customerName: rv.customer_name || 'Client Google',
+                                      customerAvatar: rv.customer_avatar,
+                                      restaurantName: cleanRestaurantName(rv.restaurant_name || 'Locație'),
+                                      city: rv.city,
+                                      date: rv.reviewed_at,
+                                      rating: rv.rating,
+                                      comment: displayedComment,
+                                      reviewUrl: rv.review_url
+                                    })}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#047857]/10 text-[#047857] dark:bg-[#10B981]/15 dark:text-[#34D399] hover:bg-[#047857]/20 transition-colors cursor-pointer"
+                                    title={L.viewPhotosBtn}
+                                  >
+                                    <ImageIcon size={10} />
+                                    <span>{rv.review_photos.length} {language === 'ru' ? 'фото' : language === 'en' ? 'photo' : 'foto'}</span>
+                                  </button>
+                                )}
+                              </div>
+
+                              {language !== 'ro' && (
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[#636366] dark:text-[#AEAEB2]">
+                                    <Globe size={10} className="text-[#047857] dark:text-[#34D399]" />
+                                    {isTranslated ? L.translatedBadge : 'RO (Original)'}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowOriginalMap(prev => ({ ...prev, [rv.id]: !prev[rv.id] }))}
+                                    className="text-[10px] font-semibold underline text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
+                                  >
+                                    {showOriginalMap[rv.id] ? L.autoTranslateLabel : L.showOriginalLabel}
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1318,7 +1383,7 @@ export default function Reputation() {
                     </td>
 
                     {/* Legătura cu Comanda din Dispecerat (iiko) sau Butonul Compact Google */}
-                    <td className="px-2.5 py-3 align-top">
+                    <td className="px-2.5 py-2.5 !align-top">
                       {ord ? (
                         <div className={`p-2 rounded-xl border space-y-1.5 ${
                           isDark ? 'bg-slate-800/50 border-slate-700/80' : 'bg-slate-50/90 border-slate-200/90'
@@ -1425,9 +1490,9 @@ export default function Reputation() {
                               ? (language === 'ru' ? 'Открыть точку на Google Maps (отзыв был удалён клиентом)' : language === 'en' ? 'Open location on Google Maps (review removed by customer)' : 'Deschide locația pe Google Maps (recenzia a fost ștearsă de client)')
                               : (language === 'ru' ? 'Открыть отзыв и ответить в Google' : language === 'en' ? 'Open review & reply on Google' : 'Deschide recenzia și răspunde pe Google')
                           }
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-2xs shrink-0"
+                          className="apple-btn-secondary !h-8 !px-3 !text-[#047857] dark:!text-[#34D399] shrink-0"
                         >
-                          <PlatformLogo platform="google" size={14} className="bg-white rounded-full p-0.5" />
+                          <PlatformLogo platform="google" size={14} />
                           <span>
                             {rv.deleted_on_google
                               ? 'Google Maps ↗'
@@ -1512,49 +1577,50 @@ export default function Reputation() {
         onClose={() => setSelectedOrderForModal(null)}
       />
 
-      {/* Modal Lightbox Fotografii Încărcate de Clienți (Google Maps) */}
+      {/* Lightbox Fotografii Clienți — macOS Tahoe Sheet */}
       {selectedPhotoModal && (
         <div
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 apple-sheet-backdrop z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
           onClick={() => setSelectedPhotoModal(null)}
         >
           <div
             onClick={e => e.stopPropagation()}
-            className={`rounded-2xl w-full max-w-3xl shadow-2xl border overflow-hidden flex flex-col max-h-[92vh] ${
-              isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-            }`}
+            className="apple-sheet w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]"
           >
-            <div className={`px-5 py-3.5 border-b flex items-center justify-between gap-3 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+            <div className="apple-sheet-header px-5 py-3 flex items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-2.5 min-w-0">
                 {selectedPhotoModal.customerAvatar ? (
                   <img
                     src={selectedPhotoModal.customerAvatar}
                     alt={selectedPhotoModal.customerName}
                     referrerPolicy="no-referrer"
-                    className="w-8 h-8 rounded-full object-cover border border-slate-300 dark:border-slate-700 shrink-0"
+                    className="w-8 h-8 rounded-full object-cover border border-black/10 dark:border-white/15 shrink-0"
                   />
                 ) : (
-                  <PlatformLogo platform="google" size={24} />
+                  <PlatformLogo platform="google" size={22} />
                 )}
                 <div className="min-w-0">
-                  <div className="text-sm font-black truncate">
-                    {selectedPhotoModal.customerName} • {selectedPhotoModal.restaurantName}
+                  <div className="text-[14px] font-semibold text-slate-900 dark:text-white truncate">
+                    {selectedPhotoModal.customerName} · {selectedPhotoModal.restaurantName}
                   </div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {selectedPhotoModal.city} • {selectedPhotoModal.date ? new Date(selectedPhotoModal.date).toLocaleString(localeCode) : ''} • {selectedPhotoModal.index + 1} / {selectedPhotoModal.photos.length}
+                  <div className="text-[11.5px] text-slate-500 dark:text-slate-400 tabular-nums">
+                    {selectedPhotoModal.city} · {selectedPhotoModal.date ? new Date(selectedPhotoModal.date).toLocaleString(localeCode) : ''} · {selectedPhotoModal.index + 1} / {selectedPhotoModal.photos.length}
                   </div>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedPhotoModal(null)}
-                className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer shrink-0"
+                aria-label="Close"
+                className="apple-sheet-close"
               >
-                <X size={18} />
+                <X size={15} />
               </button>
             </div>
 
-            <div className="relative bg-slate-950 flex items-center justify-center min-h-[340px] max-h-[65vh] overflow-hidden">
+            <div className="relative bg-[#0C0E13] flex items-center justify-center min-h-[340px] max-h-[65vh] overflow-hidden">
               <img
                 src={(selectedPhotoModal.photos[selectedPhotoModal.index] || '').replace(/=w\d+.*$/, '=w1200')}
                 alt={`Foto ${selectedPhotoModal.index + 1}`}
@@ -1565,30 +1631,32 @@ export default function Reputation() {
                 <>
                   <button
                     type="button"
+                    aria-label="Previous photo"
                     onClick={() => setSelectedPhotoModal(prev => ({
                       ...prev,
                       index: (prev.index - 1 + prev.photos.length) % prev.photos.length
                     }))}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center cursor-pointer transition-colors"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/65 hover:bg-black/80 text-white backdrop-blur-md border border-white/15 flex items-center justify-center cursor-pointer transition-colors"
                   >
-                    <ChevronLeft size={20} />
+                    <ChevronLeft size={18} />
                   </button>
                   <button
                     type="button"
+                    aria-label="Next photo"
                     onClick={() => setSelectedPhotoModal(prev => ({
                       ...prev,
                       index: (prev.index + 1) % prev.photos.length
                     }))}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center cursor-pointer transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/65 hover:bg-black/80 text-white backdrop-blur-md border border-white/15 flex items-center justify-center cursor-pointer transition-colors"
                   >
-                    <ChevronRight size={20} />
+                    <ChevronRight size={18} />
                   </button>
                 </>
               )}
             </div>
 
-            <div className={`px-5 py-3.5 border-t flex flex-wrap items-center justify-between gap-3 ${isDark ? 'border-slate-800 bg-slate-900' : 'border-slate-100 bg-slate-50'}`}>
-              <div className="text-xs font-medium text-slate-600 dark:text-slate-300 flex-1 min-w-[200px]">
+            <div className="px-5 py-3 border-t border-black/[0.06] dark:border-white/[0.08] flex flex-wrap items-center justify-between gap-3">
+              <div className="text-[12.5px] text-slate-600 dark:text-slate-300 flex-1 min-w-[200px]">
                 {selectedPhotoModal.comment}
               </div>
               {selectedPhotoModal.reviewUrl && (
@@ -1596,9 +1664,9 @@ export default function Reputation() {
                   href={selectedPhotoModal.reviewUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shrink-0"
+                  className="apple-btn-primary"
                 >
-                  <PlatformLogo platform="google" size={14} className="bg-white rounded-full p-0.5" />
+                  <PlatformLogo platform="google" size={13} className="bg-white rounded-full p-0.5" />
                   <span>Google Maps ↗</span>
                 </a>
               )}
@@ -1607,49 +1675,51 @@ export default function Reputation() {
         </div>
       )}
 
-      {/* MODAL MECANISMUL 2A: CONECTARE EMAIL (jeka7ro@gmail.com) */}
+      {/* SHEET CONECTARE EMAIL — macOS Tahoe 26 */}
       {showEmailModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className={`rounded-2xl w-full max-w-2xl shadow-2xl border overflow-hidden flex flex-col max-h-[92vh] ${
-            isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-          }`}>
-            <div className={`px-6 py-4 border-b flex items-center justify-between ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                  <Mail size={18} />
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setShowEmailModal(false)}
+          className="fixed inset-0 apple-sheet-backdrop z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            className="apple-sheet w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+          >
+            <div className="apple-sheet-header px-5 py-3.5 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-[#047857]/12 text-[#047857] dark:text-[#10B981] flex items-center justify-center shrink-0">
+                  <Mail size={17} />
                 </div>
-                <div>
-                  <h3 className="text-base font-bold">{L.emailModalTitle}</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{L.emailModalSub}</p>
+                <div className="min-w-0">
+                  <h3 className="text-[15px] font-semibold tracking-tight text-slate-900 dark:text-white truncate">{L.emailModalTitle}</h3>
+                  <p className="text-[12px] text-slate-500 dark:text-slate-400 truncate">{L.emailModalSub}</p>
                 </div>
               </div>
-              <button onClick={() => setShowEmailModal(false)} className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
-                <X size={16} />
+              <button type="button" onClick={() => setShowEmailModal(false)} aria-label="Close" className="apple-sheet-close">
+                <X size={15} />
               </button>
             </div>
 
-            {/* Tabs pentru cele 3 metode de conectare a mailului */}
-            <div className={`px-6 pt-3 pb-2 border-b flex flex-wrap gap-1.5 ${isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-100 bg-slate-50/70'}`}>
-              {[
-                { id: 'imap', label: '1. Conectare Directă Gmail (IMAP Auto-Sync)' },
-                { id: 'script', label: '2. Google Apps Script (Fără Parolă, 60s)' },
-                { id: 'paste', label: '3. Lipește Manual un Email' }
-              ].map(tItem => (
-                <button
-                  key={tItem.id}
-                  type="button"
-                  onClick={() => setEmailModalTab(tItem.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                    emailModalTab === tItem.id
-                      ? 'bg-blue-600 text-white shadow-2xs'
-                      : isDark
-                        ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  {tItem.label}
-                </button>
-              ))}
+            {/* Apple Segmented Tabs pentru cele 3 metode */}
+            <div className="px-5 py-2.5 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center shrink-0">
+              <div role="group" className="apple-segmented max-w-full overflow-x-auto">
+                {[
+                  { id: 'imap', label: '1. Gmail IMAP Auto-Sync' },
+                  { id: 'script', label: '2. Apps Script (60s)' },
+                  { id: 'paste', label: '3. Lipește Manual' }
+                ].map(tItem => (
+                  <button
+                    key={tItem.id}
+                    type="button"
+                    onClick={() => setEmailModalTab(tItem.id)}
+                    className={`apple-segment !h-[26px] ${emailModalTab === tItem.id ? 'apple-segment-active' : ''}`}
+                  >
+                    {tItem.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="p-6 overflow-y-auto space-y-4">
@@ -1864,7 +1934,7 @@ export default function Reputation() {
                     <button
                       type="submit"
                       disabled={emailParsing}
-                      className="px-5 h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      className="apple-btn-primary !h-9 !px-5 disabled:opacity-50"
                     >
                       {emailParsing ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
                       <span>{L.extractEmailBtn}</span>
@@ -1877,64 +1947,70 @@ export default function Reputation() {
         </div>
       )}
 
-      {/* MODAL MECANISMUL 2B: SCRAPERE PUPPETEER PORTALURI B2B */}
+      {/* SHEET SCRAPERE B2B — macOS Tahoe 26 */}
       {showScraperInfoModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className={`rounded-2xl w-full max-w-xl shadow-2xl border overflow-hidden flex flex-col max-h-[90vh] ${
-            isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-          }`}>
-            <div className={`px-6 py-4 border-b flex items-center justify-between ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                  <Bot size={18} />
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setShowScraperInfoModal(false)}
+          className="fixed inset-0 apple-sheet-backdrop z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            className="apple-sheet w-full max-w-xl overflow-hidden flex flex-col max-h-[88vh]"
+          >
+            <div className="apple-sheet-header px-5 py-3.5 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/12 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <Bot size={17} />
                 </div>
-                <div>
-                  <h3 className="text-base font-bold">{L.scraperModalTitle}</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{L.scraperModalSub}</p>
+                <div className="min-w-0">
+                  <h3 className="text-[15px] font-semibold tracking-tight text-slate-900 dark:text-white truncate">{L.scraperModalTitle}</h3>
+                  <p className="text-[12px] text-slate-500 dark:text-slate-400 truncate">{L.scraperModalSub}</p>
                 </div>
               </div>
-              <button onClick={() => setShowScraperInfoModal(false)} className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
-                <X size={16} />
+              <button type="button" onClick={() => setShowScraperInfoModal(false)} aria-label="Close" className="apple-sheet-close">
+                <X size={15} />
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto space-y-4 text-xs">
-              <div className={`p-4 rounded-xl border space-y-2 ${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                <div className="font-extrabold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+            <div className="p-5 overflow-y-auto space-y-3.5 text-xs custom-scrollbar">
+              <div className="apple-inset-card p-3.5 space-y-2">
+                <div className="font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
                   <PlatformLogo platform="glovo" size={15} />
                   <span>1. Glovo Partner (GlovoPartnerScraper)</span>
                 </div>
                 <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
                   {L.scraperGlovoDesc}
                 </p>
-                <div className="p-2 rounded-lg bg-slate-900 text-emerald-400 tabular-nums text-[11px]">
+                <div className="px-3 py-2 rounded-lg bg-[#16171B] text-emerald-400 tabular-nums text-[11px]">
                   node workers/src/scrapers/glv-init.js
                 </div>
               </div>
 
-              <div className={`p-4 rounded-xl border space-y-2 ${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                <div className="font-extrabold text-sky-600 dark:text-sky-400 flex items-center gap-1.5">
+              <div className="apple-inset-card p-3.5 space-y-2">
+                <div className="font-semibold text-[#047857] dark:text-[#34D399] flex items-center gap-1.5">
                   <PlatformLogo platform="wolt" size={15} />
                   <span>2. Wolt Merchant (WoltPartnerScraper)</span>
                 </div>
                 <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
                   {L.scraperWoltDesc}
                 </p>
-                <div className="p-2 rounded-lg bg-slate-900 text-emerald-400 tabular-nums text-[11px]">
+                <div className="px-3 py-2 rounded-lg bg-[#16171B] text-emerald-400 tabular-nums text-[11px]">
                   node workers/src/scrapers/run-reputation.js
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-3 pt-2">
+              <div className="flex items-center justify-between gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => {
                     setShowScraperInfoModal(false)
                     fileInputRef.current?.click()
                   }}
-                  className="px-4 h-10 rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1.5 cursor-pointer"
+                  className="apple-btn-secondary"
                 >
-                  <Upload size={14} />
+                  <Upload size={13} />
                   <span>{L.orImportExcelBtn}</span>
                 </button>
 
@@ -1945,9 +2021,9 @@ export default function Reputation() {
                     handleTriggerPortalScrapers()
                     setShowScraperInfoModal(false)
                   }}
-                  className="px-5 h-10 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="apple-btn-primary disabled:opacity-50"
                 >
-                  {isScrapingPortals ? <Loader2 size={14} className="animate-spin" /> : <Bot size={14} />}
+                  {isScrapingPortals ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />}
                   <span>{L.startScrapersBtn}</span>
                 </button>
               </div>

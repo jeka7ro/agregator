@@ -30,7 +30,7 @@ import BrandAvatar, { getBrandInfo, cleanRestaurantName } from '../components/Br
 import PlatformLogo from '../components/PlatformLogo'
 import OrderLiveRouteMap from '../components/OrderLiveRouteMap'
 import { getProductImage } from '../lib/productImages'
-import { getCanonicalCity, getCityDisplayName, formatDisplayOrderNumber, parseDeliveryAddress } from '../lib/orderUtils'
+import { getCanonicalCity, getCityDisplayName, formatDisplayOrderNumber, parseDeliveryAddress, escapeHtml, isSafeHttpUrl } from '../lib/orderUtils'
 
 const AUTHORITATIVE_BRANDS = ['Roll Master', 'Poki Woki', 'Love Sushi', 'Smash Me', 'Crunch']
 
@@ -777,6 +777,13 @@ export default function CouriersMap() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedOrderId, setSelectedOrderId] = useState(null)
   const [modalOrder, setModalOrder] = useState(null)
+
+  useEffect(() => {
+    if (!modalOrder) return
+    const onKey = (e) => { if (e.key === 'Escape') setModalOrder(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [modalOrder])
   const [isMapFullscreen, setIsMapFullscreen] = useState(false)
   const [activeAuditPopupId, setActiveAuditPopupId] = useState(null)
 
@@ -802,7 +809,7 @@ export default function CouriersMap() {
   } = useLiveDispatch({
     city: 'all',
     brand: 'all',
-    restaurant_id: 'all',
+    restaurantId: 'all',
     channel: 'all',
     period: selectedPeriod
   })
@@ -1151,6 +1158,10 @@ export default function CouriersMap() {
           }
         } catch (_) {
           // Fallback pe traseul stradal urban precalculat
+        } finally {
+          if (streetRoutesCacheRef.current.get(ord.id)?.pending) {
+            streetRoutesCacheRef.current.delete(ord.id)
+          }
         }
       }
     })()
@@ -1272,8 +1283,12 @@ export default function CouriersMap() {
 
     seenRests.forEach(rest => {
       const bInfo = getBrandInfo(rest.brand || rest.name || 'Roll Master')
+      const safeRestName = escapeHtml(rest.name || '')
+      const safeBrandName = escapeHtml(rest.brand || 'Roll Master')
+      const safePopupLocation = escapeHtml(ui.popupLocation)
+      const safePopupBrand = escapeHtml(ui.popupBrand)
       const brandLogoHtml = bInfo?.logo
-        ? `<img src="${bInfo.logo}" alt="${rest.brand || ''}" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover; display: block;" />`
+        ? `<img src="${escapeHtml(bInfo.logo)}" alt="${safeBrandName}" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover; display: block;" />`
         : `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#10b981" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></svg>`
 
       const restIcon = L.divIcon({
@@ -1285,7 +1300,7 @@ export default function CouriersMap() {
             background: #0f172a; border: 2.5px solid #10b981;
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 4px 12px rgba(0,0,0,0.45);
-          " title="${ui.popupLocation}: ${rest.name}">
+          " title="${safePopupLocation}: ${safeRestName}">
             ${brandLogoHtml}
             <span style="
               position: absolute; bottom: -3px; right: -3px;
@@ -1306,9 +1321,9 @@ export default function CouriersMap() {
       L.marker([rest.coords.lat, rest.coords.lng], { icon: restIcon })
         .bindPopup(`
           <div style="font-family: system-ui, sans-serif; min-width: 160px;">
-            <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #10b981;">${ui.popupLocation}</div>
-            <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-top: 2px;">${rest.name}</div>
-            <div style="font-size: 11px; color: #64748b;">${ui.popupBrand} <b>${rest.brand || 'Roll Master'}</b></div>
+            <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #10b981;">${safePopupLocation}</div>
+            <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-top: 2px;">${safeRestName}</div>
+            <div style="font-size: 11px; color: #64748b;">${safePopupBrand} <b>${safeBrandName}</b></div>
           </div>
         `)
         .addTo(layer)
@@ -1320,6 +1335,7 @@ export default function CouriersMap() {
       const routeInfo = computeOrderRouteAndTimeline(ord, streetRoutes[ord.id], language)
       const plat = String(ord.courier?.company || ord.platform || 'delivery').toLowerCase()
       const displayNum = getCleanOrderNumber(ord)
+      const safeDisplayNum = escapeHtml(displayNum)
 
       let statusColor = '#10b981' // on_way
       if (ord.courierPhase === 'at_customer') statusColor = '#0ea5e9'
@@ -1352,9 +1368,12 @@ export default function CouriersMap() {
         // Pin Destinație Client cu iconiță clară de Casă / Client (SVG)
         if (isSelected || ord.courierPhase === 'on_way' || ord.courierPhase === 'at_customer' || ord.courierPhase === 'at_restaurant') {
           const rawClientName = String(ord.customer?.name || '').trim()
-          const shortClientLabel = (isSelected && rawClientName && !rawClientName.toLowerCase().includes('client'))
-            ? rawClientName.split(/\s+/)[0].slice(0, 10)
-            : (language === 'ru' ? 'КЛИЕНТ' : 'CLIENT')
+          const safeClientName = escapeHtml(rawClientName)
+          const shortClientLabel = escapeHtml(
+            (isSelected && rawClientName && !rawClientName.toLowerCase().includes('client'))
+              ? rawClientName.split(/\s+/)[0].slice(0, 10)
+              : (language === 'ru' ? 'КЛИЕНТ' : 'CLIENT')
+          )
 
           const custIcon = L.divIcon({
             className: 'custom-cust-marker',
@@ -1369,7 +1388,7 @@ export default function CouriersMap() {
                 font-size: 9px; font-weight: 800; white-space: nowrap;
                 box-shadow: 0 4px 12px rgba(2,132,199,0.45);
                 transform: ${isSelected ? 'scale(1.12)' : 'scale(1)'};
-              " title="Client: ${rawClientName || displayNum}">
+              " title="Client: ${safeClientName || safeDisplayNum}">
                 <span style="
                   width: 17px; height: 17px; border-radius: 50%;
                   background: #0ea5e9; color: #ffffff;
@@ -1406,17 +1425,17 @@ export default function CouriersMap() {
             .bindPopup(`
               <div style="font-family: system-ui, sans-serif; min-width: 195px;">
                 <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #0284c7;">
-                  ${ui.popupCustomer} (${displayNum})
+                  ${escapeHtml(ui.popupCustomer)} (${safeDisplayNum})
                 </div>
                 <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-top: 2px;">
-                  ${rawClientName || 'Client'}
+                  ${safeClientName || 'Client'}
                 </div>
-                ${parsedCustAddr.streetAddress ? `<div style="font-size: 11px; color: #475569; margin-top: 2px;">${parsedCustAddr.streetAddress}</div>` : ''}
+                ${parsedCustAddr.streetAddress ? `<div style="font-size: 11px; color: #475569; margin-top: 2px;">${escapeHtml(parsedCustAddr.streetAddress)}</div>` : ''}
                 <a href="/customers?search=${encodeURIComponent(custSearchQuery)}&open=1" style="
                   display: inline-block; margin-top: 6px; padding: 4px 8px;
                   border-radius: 6px; background: #0284c7; color: #ffffff;
                   font-size: 10px; font-weight: 800; text-decoration: none;
-                ">${dossierBtnLabel}</a>
+                ">${escapeHtml(dossierBtnLabel)}</a>
               </div>
             `)
             .addTo(layer)
@@ -1443,7 +1462,7 @@ export default function CouriersMap() {
             <span style="
               display: inline-flex; align-items: center; justify-content: center;
               color: ${isSelected ? '#ffffff' : statusColor};
-            " title="${ui.courierWord}">
+            " title="${escapeHtml(ui.courierWord)}">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="18.5" cy="17.5" r="3.5"/>
                 <circle cx="5.5" cy="17.5" r="3.5"/>
@@ -1451,7 +1470,7 @@ export default function CouriersMap() {
                 <path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
               </svg>
             </span>
-            <span>${displayNum}</span>
+            <span>${safeDisplayNum}</span>
             ${ord.hasLiveTracking ? '<span style="width:6px;height:6px;border-radius:50%;background:#38bdf8;display:inline-block;"></span>' : ''}
             <span style="
               position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%);
@@ -1471,58 +1490,60 @@ export default function CouriersMap() {
         setSelectedOrderId(ord.id)
       })
 
-      const trackingBtnHtml = ord.courier?.trackingUrl
-        ? `<a href="${ord.courier.trackingUrl}" target="_blank" rel="noopener noreferrer" style="
+      const trackingBtnHtml = isSafeHttpUrl(ord.courier?.trackingUrl)
+        ? `<a href="${escapeHtml(ord.courier.trackingUrl)}" target="_blank" rel="noopener noreferrer" style="
             display: inline-block; margin-top: 6px; margin-right: 4px; padding: 4px 8px;
             border-radius: 6px; background: #0284c7; color: #fff;
             font-size: 10px; font-weight: 700; text-decoration: none;
-          ">${ui.popupTrackingBtn}</a>`
+          ">${escapeHtml(ui.popupTrackingBtn)}</a>`
         : ''
 
-      const gmapsBtnHtml = `<a href="${routeInfo.googleMapsUrl}" target="_blank" rel="noopener noreferrer" style="
+      const gmapsBtnHtml = isSafeHttpUrl(routeInfo.googleMapsUrl)
+        ? `<a href="${escapeHtml(routeInfo.googleMapsUrl)}" target="_blank" rel="noopener noreferrer" style="
         display: inline-block; margin-top: 6px; padding: 4px 8px;
         border-radius: 6px; background: #059669; color: #fff;
         font-size: 10px; font-weight: 700; text-decoration: none;
-      ">${ui.googleMapsRouteBtn}</a>`
+      ">${escapeHtml(ui.googleMapsRouteBtn)}</a>`
+        : ''
 
       const parsedPopupAddr = parseDeliveryAddress(ord.customer?.address, language)
       const buildingPopupHtml = parsedPopupAddr.buildingDetails.length > 0
-        ? `<div style="font-size: 10px; color: #334155; margin-top: 2px;">${parsedPopupAddr.buildingDetails.map(b => `${b.label}: <b>${b.value}</b>`).join(' · ')}</div>`
+        ? `<div style="font-size: 10px; color: #334155; margin-top: 2px;">${parsedPopupAddr.buildingDetails.map(b => `${escapeHtml(b.label)}: <b>${escapeHtml(b.value)}</b>`).join(' · ')}</div>`
         : ''
       const instrPopupHtml = parsedPopupAddr.instructions
-        ? `<div style="font-size: 10px; background: #fef3c7; color: #92400e; padding: 3px 6px; border-radius: 5px; margin-top: 3px; font-weight: 600;">${parsedPopupAddr.instructions}</div>`
+        ? `<div style="font-size: 10px; background: #fef3c7; color: #92400e; padding: 3px 6px; border-radius: 5px; margin-top: 3px; font-weight: 600;">${escapeHtml(parsedPopupAddr.instructions)}</div>`
         : ''
 
       marker.bindPopup(`
         <div style="font-family: system-ui, sans-serif; min-width: 245px; line-height: 1.4;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size: 13px; font-weight: 900; color: #0f172a;">${ui.popupCheck} ${displayNum}</span>
+            <span style="font-size: 13px; font-weight: 900; color: #0f172a;">${escapeHtml(ui.popupCheck)} ${safeDisplayNum}</span>
             <span style="font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 99px; background: #f1f5f9; color: #334155;">
-              ${(ord.courier?.company || ord.platform || '').toUpperCase()}
+              ${escapeHtml((ord.courier?.company || ord.platform || '').toUpperCase())}
             </span>
           </div>
           <div style="font-size: 11px; color: #475569; margin-top: 3px;">
-            <b>${ui.popupPoint}</b> ${cleanRestaurantName(ord.restaurant_name, ord.brand_name)}
+            <b>${escapeHtml(ui.popupPoint)}</b> ${escapeHtml(cleanRestaurantName(ord.restaurant_name, ord.brand_name))}
           </div>
           <div style="font-size: 11px; color: #475569;">
-            <b>${ui.popupCustomer}</b> ${ord.customer?.name || '—'}
+            <b>${escapeHtml(ui.popupCustomer)}</b> ${escapeHtml(ord.customer?.name || '—')}
           </div>
-          ${parsedPopupAddr.streetAddress ? `<div style="font-size: 11px; color: #64748b;">${parsedPopupAddr.streetAddress}</div>` : ''}
+          ${parsedPopupAddr.streetAddress ? `<div style="font-size: 11px; color: #64748b;">${escapeHtml(parsedPopupAddr.streetAddress)}</div>` : ''}
           ${buildingPopupHtml}
           ${instrPopupHtml}
           <div style="margin-top: 6px; padding: 5px 7px; border-radius: 7px; background: #f8fafc; border: 1px solid #e2e8f0;">
             <div style="display:flex; justify-content:space-between; font-size: 10px; font-weight: 800; color: #334155;">
-              <span>${ui.depTimeLabel}: <b>${routeInfo.isDepEstimated && routeInfo.depTime !== '—' ? '~' : ''}${routeInfo.depTime}</b></span>
-              <span style="color: #059669;">${routeInfo.distanceKm} ${ui.kmShort} · ~${routeInfo.driveMin} ${ui.minShort} (${routeInfo.progressPct}%)</span>
-              <span>${routeInfo.isDelivered ? ui.deliveredAtLabel : ui.estDeliveryLabel}: <b>${routeInfo.estArrTime}</b></span>
+              <span>${escapeHtml(ui.depTimeLabel)}: <b>${routeInfo.isDepEstimated && routeInfo.depTime !== '—' ? '~' : ''}${escapeHtml(routeInfo.depTime)}</b></span>
+              <span style="color: #059669;">${escapeHtml(routeInfo.distanceKm)} ${escapeHtml(ui.kmShort)} · ~${escapeHtml(routeInfo.driveMin)} ${escapeHtml(ui.minShort)} (${Number(routeInfo.progressPct) || 0}%)</span>
+              <span>${escapeHtml(routeInfo.isDelivered ? ui.deliveredAtLabel : ui.estDeliveryLabel)}: <b>${escapeHtml(routeInfo.estArrTime)}</b></span>
             </div>
             <div style="height: 6px; border-radius: 99px; background: #e2e8f0; margin-top: 4px; overflow: hidden;">
-              <div style="width: ${routeInfo.progressPct}%; height: 100%; background: #10b981; border-radius: 99px;"></div>
+              <div style="width: ${Number(routeInfo.progressPct) || 0}%; height: 100%; background: #10b981; border-radius: 99px;"></div>
             </div>
           </div>
-          ${ord.courier?.awb ? `<div style="font-size: 11px; color: #059669; font-weight: 700; margin-top: 3px;">AWB: ${ord.courier.awb}</div>` : ''}
-          <div style="font-size: 11px; color: #d97706; font-weight: 700;">${ui.popupStatus} ${formatCourierStatusBadge(ord, ui)}</div>
-          ${ord.courier?.deliveryFee ? `<div style="font-size: 11px; color: #475569;">${ui.popupFee} <b>${ord.courier.deliveryFee} RON</b></div>` : ''}
+          ${ord.courier?.awb ? `<div style="font-size: 11px; color: #059669; font-weight: 700; margin-top: 3px;">AWB: ${escapeHtml(ord.courier.awb)}</div>` : ''}
+          <div style="font-size: 11px; color: #d97706; font-weight: 700;">${escapeHtml(ui.popupStatus)} ${escapeHtml(formatCourierStatusBadge(ord, ui))}</div>
+          ${ord.courier?.deliveryFee ? `<div style="font-size: 11px; color: #475569;">${escapeHtml(ui.popupFee)} <b>${escapeHtml(ord.courier.deliveryFee)} RON</b></div>` : ''}
           <div>${trackingBtnHtml}${gmapsBtnHtml}</div>
         </div>
       `)
@@ -1558,34 +1579,29 @@ export default function CouriersMap() {
       {/* ─── 1. HEADER & LIVE SYNC BAR ─── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              <Navigation size={11} />
-              {ui.radarBadge}
-            </span>
-            <h1 className="text-lg md:text-xl font-black tracking-tight text-slate-900 dark:text-white">
-              {ui.title}
-            </h1>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <h1 className="text-[18px] font-semibold tracking-[-0.02em] text-[#1D1D1F] dark:text-[#F5F5F7]">
+            {ui.title}
+          </h1>
+          <p className="text-[12px] text-[#515154] dark:text-[#AEAEB2] mt-0.5">
             {ui.subtitle}
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[12px] text-[#6E6E73] dark:text-[#8E8E93] font-medium tabular-nums">
+            {ui.updated} {lastUpdated.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          </span>
+
           <button
+            type="button"
             onClick={() => setIsAutoRefreshEnabled(!isAutoRefreshEnabled)}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 cursor-pointer tabular-nums ${
-              isAutoRefreshEnabled
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-700'
-                : 'bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
-            }`}
+            className="apple-btn-secondary tabular-nums"
           >
-            <span className={`w-2 h-2 rounded-full ${isAutoRefreshEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
+            <span className={`w-1.5 h-1.5 rounded-full ${isAutoRefreshEnabled ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
             {isAutoRefreshEnabled ? (
               <>
-                <span>{language === 'ru' ? 'Авто-Обновление (5м)' : 'Auto-Refresh (5m)'}</span>
-                <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-200 tabular-nums font-extrabold text-[11px] min-w-[38px] text-center">
+                <span>{language === 'ru' ? 'Авто (5м)' : 'Auto (5m)'}</span>
+                <span className="text-[#6E6E73] dark:text-[#8E8E93] font-semibold text-[11px] tabular-nums">
                   {secondsUntilRefresh >= 60
                     ? `${Math.floor(secondsUntilRefresh / 60)}:${String(secondsUntilRefresh % 60).padStart(2, '0')}`
                     : `${secondsUntilRefresh}${language === 'ru' ? 'с' : 's'}`}
@@ -1597,29 +1613,22 @@ export default function CouriersMap() {
           </button>
 
           <button
+            type="button"
             onClick={() => fetchData(false, true)}
             disabled={loading}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
-              isDark
-                ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
-                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-xs'
-            }`}
+            className="apple-btn-secondary"
           >
-            <RotateCw size={12} className={loading ? 'animate-spin text-emerald-500' : ''} />
+            <RotateCw size={12} className={loading ? 'animate-spin text-[#0A7B5C]' : ''} />
             <span>{ui.refresh}</span>
           </button>
-
-          <span className="text-[10px] text-slate-400 font-medium ml-1">
-            {ui.updated} {lastUpdated.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-          </span>
         </div>
       </div>
 
-      {/* ─── 2. BARA DE FILTRE PE ORAȘ, BRAND, PUNCT DE LUCRU ȘI FLOTĂ (1 SINGUR RÂND LIVE) ─── */}
-      <div className={`px-3 py-2 rounded-xl border transition-colors relative z-20 ${
-        isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
+      {/* ─── 2. BARA DE FILTRE PE ORAȘ, BRAND, PUNCT DE LUCRU ȘI FLOTĂ (RESPONSIVE WRAP — ZERO OVERFLOW) ─── */}
+      <div className={`px-3 py-2.5 rounded-2xl border transition-colors relative z-20 ${
+        isDark ? 'bg-slate-900 border-white/[0.08]' : 'bg-white border-black/[0.06]'
       }`}>
-        <div className="flex items-center gap-2 flex-nowrap text-xs">
+        <div className="flex items-center gap-2 flex-wrap text-xs">
           {/* Selector Oraș */}
           <div className="flex items-center gap-1 shrink-0">
             <span className="text-slate-400 flex items-center shrink-0">
@@ -1754,8 +1763,8 @@ export default function CouriersMap() {
 
           <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 shrink-0 mx-0.5" />
 
-          {/* Filtru Flotă Curieri (Glovo / Wolt / Bolt) */}
-          <div className="flex items-center gap-1 shrink-0">
+          {/* Filtru Flotă Curieri — Apple Segmented Control (segmented-controls.md) */}
+          <div role="group" className="apple-segmented shrink-0">
             {[
               { id: 'all', label: ui.allCouriers, count: stats.total },
               { id: 'glovo', label: 'Glovo', count: stats.glovo, plat: 'glovo' },
@@ -1766,18 +1775,13 @@ export default function CouriersMap() {
               return (
                 <button
                   key={fl.id}
+                  type="button"
                   onClick={() => setSelectedFleet(active && fl.id !== 'all' ? 'all' : fl.id)}
-                  className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
-                    active
-                      ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
-                      : isDark
-                        ? 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
-                        : 'bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900'
-                  }`}
+                  className={`apple-segment !h-[26px] !px-2.5 !text-[11px] ${active ? 'apple-segment-active' : ''}`}
                 >
                   {fl.plat && <PlatformLogo platform={fl.plat} size={13} />}
                   <span>{fl.label}</span>
-                  <span className={`text-[10px] tabular-nums px-1.5 rounded-full ${active ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
+                  <span className="text-[10px] tabular-nums text-[#6E6E73] dark:text-[#8E8E93]">
                     {fl.count}
                   </span>
                 </button>
@@ -1787,6 +1791,7 @@ export default function CouriersMap() {
 
           {(selectedCity !== 'all' || selectedBrand !== 'all' || selectedRestaurantId !== 'all' || selectedFleet !== 'all' || selectedStatusTab !== 'all' || searchQuery) && (
             <button
+              type="button"
               onClick={() => {
                 setSelectedCity('all')
                 setSelectedBrand('all')
@@ -1795,7 +1800,7 @@ export default function CouriersMap() {
                 setSelectedStatusTab('all')
                 setSearchQuery('')
               }}
-              className="text-[11px] font-bold text-rose-500 hover:text-rose-600 px-2 py-0.5 rounded-lg border border-rose-200 dark:border-rose-900 bg-rose-50/80 dark:bg-rose-950/40 flex items-center gap-1 cursor-pointer"
+              className="apple-btn-secondary !h-[30px] !px-2.5 !text-[11px] !text-rose-600 dark:!text-rose-400"
             >
               <X size={11} /> {ui.reset}
             </button>
@@ -1803,9 +1808,9 @@ export default function CouriersMap() {
         </div>
       </div>
 
-      {/* ─── 3. FILTRE STATUS CURIER (TAB-URI OPERAȚIONALE) & CĂUTARE PE 1 SINGUR RÂND ─── */}
-      <div className="flex items-center justify-between gap-2 flex-nowrap overflow-x-auto pb-0.5">
-        <div className="flex items-center gap-1 flex-nowrap shrink-0">
+      {/* ─── 3. FILTRE STATUS CURIER — Apple Segmented Control & Căutare ─── */}
+      <div className="flex items-center justify-between gap-2 flex-wrap pb-0.5">
+        <div role="group" className="apple-segmented max-w-full overflow-x-auto">
           {[
             { id: 'all', label: ui.tabAll, count: stats.total },
             { id: 'tracking', label: ui.tabTracking, count: stats.tracking },
@@ -1819,25 +1824,18 @@ export default function CouriersMap() {
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setSelectedStatusTab(tab.id)}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0 ${
-                  active
-                    ? (tab.isAlert ? 'bg-rose-600 text-white shadow-xs' : 'bg-emerald-600 text-white shadow-xs')
-                    : tab.isAlert && tab.count > 0
-                      ? (isDark ? 'bg-rose-950/40 border border-rose-800/70 text-rose-300 hover:text-white' : 'bg-rose-50 border border-rose-200 text-rose-700 hover:text-rose-900')
-                      : isDark
-                        ? 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white'
-                        : 'bg-white border border-slate-200 text-slate-700 hover:text-slate-900 shadow-2xs'
-                }`}
+                className={`apple-segment !h-[26px] !px-2.5 !text-[11px] ${
+                  active ? 'apple-segment-active' : ''
+                } ${tab.isAlert && tab.count > 0 && !active ? '!text-rose-600 dark:!text-rose-400' : ''}`}
               >
-                {tab.isAlert && <ShieldAlert size={12} className={active ? 'text-white' : 'text-rose-500'} />}
+                {tab.isAlert && <ShieldAlert size={12} className="text-rose-600 dark:text-rose-400" />}
                 <span>{tab.label}</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] tabular-nums font-bold ${
-                  active
-                    ? 'bg-white/20 text-white'
-                    : tab.isAlert && tab.count > 0
-                      ? 'bg-rose-500/20 text-rose-600 dark:text-rose-300'
-                      : isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
+                <span className={`text-[10px] tabular-nums ${
+                  tab.isAlert && tab.count > 0
+                    ? 'text-rose-600 dark:text-rose-400 font-semibold'
+                    : 'text-[#6E6E73] dark:text-[#8E8E93]'
                 }`}>
                   {tab.count}
                 </span>
@@ -1846,7 +1844,7 @@ export default function CouriersMap() {
           })}
         </div>
 
-        {/* Căutare rapidă + Buton Fullscreen pe același rând */}
+        {/* Căutare rapidă pe același rând (fără buton Fullscreen duplicat — controlul unic stă în capsula Liquid Glass de pe hartă) */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="relative w-56 shrink-0">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
@@ -1855,10 +1853,10 @@ export default function CouriersMap() {
               placeholder={ui.searchPlaceholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full pl-8 pr-7 py-1 text-[11px] font-medium rounded-full border outline-none ${
+              className={`w-full pl-8 pr-7 h-8 text-[11.5px] font-medium rounded-full border outline-none ${
                 isDark
-                  ? 'bg-slate-900 border-slate-800 text-white placeholder-slate-500 focus:border-emerald-500'
-                  : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-emerald-500'
+                  ? 'bg-white/[0.06] border-white/12 text-white placeholder-slate-500 focus:border-[#10B981]'
+                  : 'bg-[#F5F6F9] border-black/[0.08] text-slate-900 placeholder-slate-400 focus:bg-white focus:border-[#047857]'
               }`}
             />
             {searchQuery && (
@@ -1870,28 +1868,13 @@ export default function CouriersMap() {
               </button>
             )}
           </div>
-
-          <button
-            type="button"
-            onClick={() => setIsMapFullscreen(prev => !prev)}
-            className={`px-3 py-1 rounded-full text-[11px] font-extrabold border inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shrink-0 ${
-              isMapFullscreen
-                ? 'bg-rose-600 hover:bg-rose-700 border-rose-500 text-white'
-                : isDark
-                  ? 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-emerald-400'
-                  : 'bg-white hover:bg-slate-50 border-slate-200 text-emerald-600 shadow-2xs'
-            }`}
-          >
-            {isMapFullscreen ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
-            <span>{isMapFullscreen ? (language === 'ru' ? 'Свернуть карту' : language === 'en' ? 'Exit Fullscreen' : 'Ieșire Fullscreen') : 'Fullscreen'}</span>
-          </button>
         </div>
       </div>
 
-      {/* ─── 4. SPLIT VIEW: HARTA INTERACTIVĂ (STÂNGA) + LISTA CURIERI LIVE (DREAPTA) ─── */}
+      {/* ─── 4. SPLIT VIEW ADAPTAT LAPTOP: HARTA INTERACTIVĂ + LISTA CURIERI LIVE ─── */}
       {isMapFullscreen && (
         <div
-          className="fixed inset-0 z-[9985] bg-slate-950/80 backdrop-blur-xs"
+          className="fixed inset-0 z-[9985] apple-sheet-backdrop"
           onClick={() => setIsMapFullscreen(false)}
         />
       )}
@@ -1915,32 +1898,30 @@ export default function CouriersMap() {
           className={`${
             isMapFullscreen
               ? 'fixed inset-3 z-[9995] shadow-2xl'
-              : 'relative lg:col-span-8 min-h-[540px]'
+              : 'relative lg:col-span-8 h-[calc(100vh-225px)] min-h-[430px] max-h-[680px]'
           } rounded-2xl border overflow-hidden flex flex-col ${
             isDark ? 'bg-slate-900 border-slate-800 couriers-map-dark' : 'bg-white border-slate-200 shadow-xs'
           }`}
         >
-          <div ref={mapContainerRef} className="w-full flex-1 min-h-[540px] z-10" />
+          <div ref={mapContainerRef} className="w-full flex-1 min-h-0 z-10" />
 
-          {/* Controale Flotante Dreapta-Sus pe Hartă: Izolare Comandă + Recentrare + Fullscreen */}
+          {/* Controale Flotante Liquid Glass Dreapta-Sus pe Hartă */}
           <div className="absolute top-3 right-3 z-20 flex items-center gap-2 flex-wrap justify-end">
             {selectedOrderId && (() => {
               const selOrd = filteredDeliveries.find(o => o.id === selectedOrderId) || deliveryOrders.find(o => o.id === selectedOrderId)
               if (!selOrd) return null
               const selRouteInfo = computeOrderRouteAndTimeline(selOrd, streetRoutes[selOrd.id], language)
               return (
-                <div className={`px-3 py-1.5 rounded-xl border backdrop-blur-md text-xs flex items-center gap-2.5 shadow-lg ${
-                  isDark ? 'bg-slate-900/95 border-emerald-500/50 text-white' : 'bg-white/95 border-emerald-500/50 text-slate-900'
-                }`}>
-                  <span className="font-bold text-slate-500 dark:text-slate-300">
+                <div className="px-3 py-1.5 rounded-full apple-glass-toolbar text-xs flex items-center gap-2">
+                  <span className="font-medium text-slate-500 dark:text-slate-300">
                     {ui.selectedOrderBadge}
                   </span>
-                  <span className="font-black text-emerald-500 tabular-nums">
+                  <span className="font-bold text-[#047857] dark:text-[#34D399] tabular-nums">
                     {getCleanOrderNumber(selOrd)}
                   </span>
-                  <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-300 border-l border-slate-300 dark:border-slate-700 pl-2">
+                  <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-300 border-l border-black/10 dark:border-white/15 pl-2">
                     <span>{cleanRestaurantName(selOrd.restaurant_name, selOrd.brand_name)}</span>
-                    <span className="text-emerald-500">· {selRouteInfo.distanceKm} {ui.kmShort} (~{selRouteInfo.driveMin} {ui.minShort})</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">· {selRouteInfo.distanceKm} {ui.kmShort} (~{selRouteInfo.driveMin} {ui.minShort})</span>
                   </span>
                   <button
                     onClick={() => {
@@ -1954,85 +1935,84 @@ export default function CouriersMap() {
                         }
                       }
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap shrink-0"
+                    className="apple-btn-primary !h-6 !px-2.5 !text-[11px]"
                   >
-                    <X size={12} />
+                    <X size={11} />
                     <span>{ui.showAllOrdersBtn} ({filteredDeliveries.length})</span>
                   </button>
                 </div>
               )
             })()}
 
-            <button
-              type="button"
-              onClick={recenterMainMap}
-              title={language === 'ru' ? 'Центрировать карту' : language === 'en' ? 'Recenter Map' : 'Recentrează Harta'}
-              className={`p-2 rounded-xl border backdrop-blur-md shadow-lg cursor-pointer transition-colors ${
-                isDark
-                  ? 'bg-slate-900/95 hover:bg-slate-800 border-slate-700 text-slate-200'
-                  : 'bg-white/95 hover:bg-slate-100 border-slate-200 text-slate-700'
-              }`}
-            >
-              <LocateFixed size={15} />
-            </button>
+            <div className="flex items-center gap-1 p-1 rounded-full apple-glass-toolbar">
+              <button
+                type="button"
+                onClick={recenterMainMap}
+                title={language === 'ru' ? 'Центрировать карту' : language === 'en' ? 'Recenter Map' : 'Recentrează Harta'}
+                aria-label="Recenter map"
+                className={`w-7 h-7 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
+                  isDark ? 'hover:bg-white/12 text-slate-100' : 'hover:bg-black/[0.06] text-slate-700'
+                }`}
+              >
+                <LocateFixed size={14} />
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setIsMapFullscreen(prev => !prev)}
-              title={isMapFullscreen ? (language === 'ru' ? 'Свернуть карту (ESC)' : language === 'en' ? 'Exit Fullscreen (ESC)' : 'Ieșire Fullscreen (ESC)') : 'Fullscreen'}
-              className={`px-3 py-1.5 rounded-xl border backdrop-blur-md shadow-lg text-xs font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
-                isMapFullscreen
-                  ? 'bg-rose-600 hover:bg-rose-700 border-rose-500 text-white'
-                  : isDark
-                    ? 'bg-slate-900/95 hover:bg-slate-800 border-slate-700 text-white'
-                    : 'bg-white/95 hover:bg-slate-100 border-slate-200 text-slate-800'
-              }`}
-            >
-              {isMapFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-              <span>{isMapFullscreen ? (language === 'ru' ? 'Закрыть (ESC)' : language === 'en' ? 'Close (ESC)' : 'Închide (ESC)') : 'Fullscreen'}</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setIsMapFullscreen(prev => !prev)}
+                title={isMapFullscreen ? (language === 'ru' ? 'Свернуть карту (ESC)' : language === 'en' ? 'Exit Fullscreen (ESC)' : 'Ieșire Fullscreen (ESC)') : 'Fullscreen'}
+                className={`h-7 px-2.5 rounded-full text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer transition-colors ${
+                  isMapFullscreen
+                    ? 'bg-rose-500 hover:bg-rose-600 text-white'
+                    : isDark
+                      ? 'hover:bg-white/12 text-slate-100'
+                      : 'hover:bg-black/[0.06] text-slate-800'
+                }`}
+              >
+                {isMapFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+                <span>{isMapFullscreen ? (language === 'ru' ? 'Закрыть' : language === 'en' ? 'Close' : 'Închide') : 'Fullscreen'}</span>
+              </button>
+            </div>
           </div>
 
-          {/* Legendă flotantă pe hartă (Pini + Traseu Verde Parcurs vs. Roșu Rămas) */}
-          <div className={`absolute bottom-3 left-3 z-20 px-3 py-2 rounded-xl border backdrop-blur-md text-[11px] flex flex-wrap items-center gap-3 ${
-            isDark ? 'bg-slate-900/90 border-slate-700 text-slate-200' : 'bg-white/95 border-slate-200 text-slate-700 shadow-md'
-          }`}>
-            <span className="flex items-center gap-1.5 font-bold">
-              <Store size={12} className="text-emerald-500" /> {ui.legendStore}
+          {/* Legendă Liquid Glass flotantă pe hartă */}
+          <div className="absolute bottom-2.5 left-2.5 right-2.5 sm:right-auto z-20 px-3 py-1.5 rounded-full apple-glass-toolbar text-[10.5px] flex flex-wrap items-center gap-2.5">
+            <span className="flex items-center gap-1 font-medium">
+              <Store size={11} className="text-emerald-500" /> {ui.legendStore}
             </span>
-            <span className="flex items-center gap-1.5 font-bold">
-              <Bike size={13} className="text-emerald-400" /> {ui.courierWord}
+            <span className="flex items-center gap-1 font-medium">
+              <Bike size={12} className="text-[#047857] dark:text-[#34D399]" /> {ui.courierWord}
             </span>
-            <span className="flex items-center gap-1.5 font-bold">
-              <MapPin size={12} className="text-sky-400" /> {language === 'ru' ? 'Клиент' : 'Client'}
+            <span className="flex items-center gap-1 font-medium">
+              <MapPin size={11} className="text-sky-500" /> {language === 'ru' ? 'Клиент' : 'Client'}
             </span>
-            <span className="h-3 w-px bg-slate-300 dark:bg-slate-700" />
-            <span className="flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400">
-              <span className="w-5 h-1 rounded-full bg-emerald-500 inline-block"></span>
+            <span className="h-3 w-px bg-black/15 dark:bg-white/15 hidden sm:inline-block" />
+            <span className="flex items-center gap-1 font-medium text-emerald-700 dark:text-emerald-400">
+              <span className="w-4 h-1 rounded-full bg-emerald-500 inline-block"></span>
               <span>{ui.legendDoneRoute}</span>
             </span>
-            <span className="flex items-center gap-1.5 font-bold text-rose-600 dark:text-rose-400">
+            <span className="flex items-center gap-1 font-medium text-rose-600 dark:text-rose-400">
               <span
-                className="w-5 h-0 inline-block"
-                style={{ borderTop: '3px dashed #ef4444' }}
+                className="w-4 h-0 inline-block"
+                style={{ borderTop: '2.5px dashed #ef4444' }}
               ></span>
               <span>{ui.legendRemRoute}</span>
             </span>
-            <span className="h-3 w-px bg-slate-300 dark:bg-slate-700" />
-            <span className="flex items-center gap-1.5 font-bold">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> {ui.legendAtRest}
+            <span className="h-3 w-px bg-black/15 dark:bg-white/15 hidden sm:inline-block" />
+            <span className="flex items-center gap-1 font-medium">
+              <span className="w-2 h-2 rounded-full bg-amber-500 inline-block"></span> {ui.legendAtRest}
             </span>
-            <span className="flex items-center gap-1.5 font-bold">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> {ui.legendOnWay}
+            <span className="flex items-center gap-1 font-medium">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> {ui.legendOnWay}
             </span>
-            <span className="flex items-center gap-1.5 font-bold">
-              <span className="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block"></span> {ui.legendAtCust}
+            <span className="flex items-center gap-1 font-medium">
+              <span className="w-2 h-2 rounded-full bg-sky-500 inline-block"></span> {ui.legendAtCust}
             </span>
           </div>
         </div>
 
-        {/* Panou lateral cu cardurile curierilor și comenzilor */}
-        <div className={`lg:col-span-4 rounded-2xl border flex flex-col max-h-[580px] overflow-hidden ${
+        {/* Panou lateral adaptat exact la înălțimea hărții pe laptop */}
+        <div className={`lg:col-span-4 rounded-2xl border flex flex-col h-[calc(100vh-225px)] min-h-[430px] max-h-[680px] overflow-hidden ${
           isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
         }`}>
           <div className={`px-3.5 py-2.5 border-b flex items-center justify-between ${
@@ -2091,12 +2071,12 @@ export default function CouriersMap() {
 
                       <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wide shrink-0 ${
                         ord.courierPhase === 'at_customer'
-                          ? 'bg-sky-500/15 text-sky-400 border border-sky-500/30'
+                          ? 'bg-sky-500/15 text-sky-700 dark:text-sky-400 border border-sky-500/30'
                           : ord.courierPhase === 'on_way'
-                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
                             : ord.courierPhase === 'at_restaurant'
-                              ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
-                              : 'bg-slate-500/15 text-slate-400 border border-slate-500/30'
+                              ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30'
+                              : 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border border-slate-500/30'
                       }`}>
                         {statusBadge}
                       </span>
@@ -2403,226 +2383,258 @@ export default function CouriersMap() {
         </div>
       </div>
 
-      {/* ─── 5. MODAL BON COMPLET + CRONOLOGIE TIMPI IIKO + TRACKING CURIER ─── */}
-      {modalOrder && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
-          onClick={() => setModalOrder(null)}
-        >
+      {/* ─── 5. MACOS TAHOE 26 ORDER INSPECTOR SHEET (2-COL WIDE, ZERO SPAȚIU PIERDUT) ─── */}
+      {modalOrder && (() => {
+        const t1 = modalOrder.timings?.created_time || parseExactTime(modalOrder.exact_timings?.created_at || modalOrder.placed_at)
+        const t2 = modalOrder.timings?.cooking_completed_time || parseExactTime(modalOrder.exact_timings?.cooking_completed_at)
+        const t3 = modalOrder.timings?.sended_time || parseExactTime(modalOrder.exact_timings?.sent_at)
+        const t4 = modalOrder.timings?.delivered_time || parseExactTime(modalOrder.exact_timings?.delivered_at || modalOrder.exact_timings?.closed_at)
+        const steps = [
+          { label: ui.step1, time: t1 && t1 !== '—' ? t1 : null, dot: 'bg-slate-700 dark:bg-slate-200', color: 'text-slate-900 dark:text-white' },
+          { label: ui.step2, time: t2 && t2 !== '—' ? t2 : null, dot: 'bg-[#047857] dark:bg-[#10B981]', color: 'text-[#047857] dark:text-[#10B981]' },
+          { label: ui.step3, time: t3 && t3 !== '—' ? t3 : null, dot: 'bg-amber-500', color: 'text-amber-600 dark:text-amber-400' },
+          { label: ui.step4, time: t4 && t4 !== '—' ? t4 : null, dot: 'bg-emerald-500', color: 'text-emerald-600 dark:text-emerald-400' }
+        ]
+        const slaStr = modalOrder.timings?.complete_before_time || parseExactTime(modalOrder.exact_timings?.complete_before)
+        return (
           <div
-            onClick={(e) => e.stopPropagation()}
-            className={`w-full max-w-2xl rounded-3xl border shadow-2xl overflow-hidden ${
-              isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-            }`}
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 apple-sheet-backdrop animate-in fade-in duration-150"
+            onClick={() => setModalOrder(null)}
+            onKeyDown={(e) => { if (e.key === 'Escape') setModalOrder(null) }}
+            tabIndex={-1}
           >
-            <div className={`px-6 py-4 border-b flex items-center justify-between ${
-              isDark ? 'border-slate-800 bg-slate-800/40' : 'border-slate-100 bg-slate-50'
-            }`}>
-              <div className="flex items-center gap-3">
-                <BrandAvatar brand={modalOrder.brand_name || modalOrder.restaurant_name} size={36} className="rounded-full" />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-base font-black">
-                      {ui.popupCheck} {getCleanOrderNumber(modalOrder)}
-                    </span>
-                    <PlatformLogo platform={modalOrder.courier?.company?.toLowerCase() || modalOrder.platform} size={18} />
-                  </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
-                    {cleanRestaurantName(modalOrder.restaurant_name, modalOrder.brand_name)} ({modalOrder.cityCanon})
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="apple-sheet w-full max-w-[1040px] max-h-[88vh] flex flex-col overflow-hidden"
+            >
+              {/* Liquid Glass Sticky Header */}
+              <div className="apple-sheet-header px-5 py-3.5 flex items-center justify-between gap-4 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <BrandAvatar brand={modalOrder.brand_name || modalOrder.restaurant_name} size={36} className="rounded-xl shrink-0" />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[16px] font-semibold tracking-tight text-slate-900 dark:text-white">
+                        {ui.popupCheck} {getCleanOrderNumber(modalOrder)}
+                      </span>
+                      <PlatformLogo platform={modalOrder.courier?.company?.toLowerCase() || modalOrder.platform} size={17} />
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#047857]/12 text-[#047857] dark:text-[#10B981]">
+                        {formatCourierStatusBadge(modalOrder, ui)}
+                      </span>
+                    </div>
+                    <div className="text-[12px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                      {cleanRestaurantName(modalOrder.restaurant_name, modalOrder.brand_name)} ({modalOrder.cityCanon})
+                      {slaStr && slaStr !== '—' ? ` · ${ui.modalSlaPromised} ${slaStr}` : ''}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <button
-                onClick={() => setModalOrder(null)}
-                className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 cursor-pointer"
-              >
-                <X size={18} />
-              </button>
-            </div>
 
-            <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
-              {/* Cronologie Timpi iiko + Valentin */}
-              <div className={`p-4 rounded-2xl border ${
-                isDark ? 'bg-emerald-950/20 border-emerald-900/50' : 'bg-emerald-50/60 border-emerald-200'
-              }`}>
-                <div className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-2.5 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5"><Clock size={12} /> {ui.modalTimingsTitle}</span>
-                  {(modalOrder.timings?.complete_before_time || modalOrder.exact_timings?.complete_before) && (
-                    <span className="text-slate-500">
-                      {ui.modalSlaPromised} {modalOrder.timings?.complete_before_time || parseExactTime(modalOrder.exact_timings?.complete_before)}
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                  <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-                    <div className="text-[10px] text-slate-400">{ui.step1}</div>
-                    <div className="tabular-nums font-black text-sm mt-0.5">
-                      {modalOrder.timings?.created_time || parseExactTime(modalOrder.exact_timings?.created_at || modalOrder.placed_at)}
+                <div className="flex items-center gap-3.5 shrink-0">
+                  <div className="text-right hidden sm:block">
+                    <div className="text-[10.5px] font-medium text-slate-500 dark:text-slate-400 leading-none">{ui.orderTotalLabel}</div>
+                    <div className="text-[18px] font-bold tracking-tight tabular-nums text-slate-900 dark:text-white mt-0.5">
+                      {Number(modalOrder.total_amount || 0).toFixed(2)} RON
                     </div>
-                  </div>
-                  <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-                    <div className="text-[10px] text-slate-400">{ui.step2}</div>
-                    <div className="tabular-nums font-black text-sm text-blue-500 mt-0.5">
-                      {modalOrder.timings?.cooking_completed_time || parseExactTime(modalOrder.exact_timings?.cooking_completed_at)}
-                    </div>
-                  </div>
-                  <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-                    <div className="text-[10px] text-slate-400">{ui.step3}</div>
-                    <div className="tabular-nums font-black text-sm text-amber-500 mt-0.5">
-                      {modalOrder.timings?.sended_time || parseExactTime(modalOrder.exact_timings?.sent_at)}
-                    </div>
-                  </div>
-                  <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-                    <div className="text-[10px] text-slate-400">{ui.step4}</div>
-                    <div className="tabular-nums font-black text-sm text-emerald-500 mt-0.5">
-                      {modalOrder.timings?.delivered_time || parseExactTime(modalOrder.exact_timings?.delivered_at || modalOrder.exact_timings?.closed_at)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Date Client & Date Livrare Curier */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-800/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{ui.modalCustomerSection}</span>
-                    <button
-                      type="button"
-                      onClick={(e) => openCustomerDossier(modalOrder, e)}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-600 dark:text-sky-400 border border-sky-500/30 text-[10px] font-extrabold cursor-pointer transition-colors"
-                    >
-                      <User size={10} />
-                      <span>{language === 'ru' ? 'Досье клиента 360°' : language === 'en' ? 'Customer 360° Dossier' : 'Dosar Client 360°'}</span>
-                    </button>
                   </div>
                   <button
                     type="button"
-                    onClick={(e) => openCustomerDossier(modalOrder, e)}
-                    className="font-bold text-sm hover:text-sky-500 hover:underline text-left cursor-pointer"
+                    onClick={() => setModalOrder(null)}
+                    aria-label="Close"
+                    className="apple-sheet-close"
                   >
-                    {modalOrder.customer?.name || '—'}
+                    <X size={15} />
                   </button>
-                  {modalOrder.customer?.phone && (
-                    <div className="tabular-nums text-slate-500 mt-1">{modalOrder.customer.phone}</div>
-                  )}
-                  {modalOrder.customer?.address && (() => {
-                    const parsedModalAddr = parseDeliveryAddress(modalOrder.customer.address, language)
-                    return (
-                      <div className="mt-1.5 space-y-2">
-                        <div className="text-slate-600 dark:text-slate-300 font-medium flex items-center gap-1">
-                          <MapPin size={12} className="text-slate-400 shrink-0" />
-                          <span>{parsedModalAddr.streetAddress}</span>
-                        </div>
-                        {parsedModalAddr.buildingDetails.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5">
-                            {parsedModalAddr.buildingDetails.map((b, bIdx) => (
-                              <span
-                                key={bIdx}
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold border ${
-                                  isDark ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-700'
-                                }`}
-                              >
-                                <span className="text-slate-400">{b.label}:</span>
-                                <b className="tabular-nums text-slate-900 dark:text-white">{b.value}</b>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        {parsedModalAddr.instructions && (
-                          <div className={`p-2.5 rounded-xl border text-[11px] leading-snug ${
-                            isDark ? 'bg-amber-950/30 border-amber-800/60 text-amber-200' : 'bg-amber-50/90 border-amber-200 text-amber-900'
-                          }`}>
-                            <div className="text-[9px] font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-0.5">
-                              {language === 'ru' ? 'Инструкции курьеру (Примечание):' : language === 'en' ? 'Delivery Instructions (Note):' : 'Instrucțiuni livrare (Notă client):'}
-                            </div>
-                            <div className="font-semibold">{parsedModalAddr.instructions}</div>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })()}
-                </div>
-
-                <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-800/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{ui.modalCourierSection}</div>
-                  <div className="font-bold text-sm flex items-center gap-1.5">
-                    <Bike size={15} className="text-emerald-500" />
-                    <span>{modalOrder.courier?.name || `${ui.courierWord} ${(modalOrder.platform || '').toUpperCase()}`}</span>
-                    <span className="text-[11px] font-normal text-slate-400">({modalOrder.courier?.company || modalOrder.platform})</span>
-                  </div>
-                  {modalOrder.courier?.awb && (
-                    <div className="tabular-nums text-emerald-500 font-bold mt-1">AWB: {modalOrder.courier.awb}</div>
-                  )}
-                  <div className="mt-1">{ui.liveStatusLabel} <b className="tabular-nums text-amber-500">{formatCourierStatusBadge(modalOrder, ui)}</b></div>
-                  {modalOrder.courier?.deliveryFee && (
-                    <div className="mt-0.5 text-slate-500">{ui.courierFeeLabel} <b>{modalOrder.courier.deliveryFee} RON</b></div>
-                  )}
-                  {modalOrder.courier?.trackingUrl && (
-                    <a
-                      href={modalOrder.courier.trackingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-500 border border-sky-500/30 font-bold text-xs"
-                    >
-                      <span>{ui.openLiveMapBtn}</span>
-                      <ExternalLink size={12} />
-                    </a>
-                  )}
                 </div>
               </div>
 
-              {/* Harta Live a Traseului Stradal direct în Detalii Comandă */}
-              <OrderLiveRouteMap
-                order={modalOrder}
-                isDark={isDark}
-                language={language}
-                onOpenCustomerDossier={openCustomerDossier}
-              />
-
-              {/* Produse din comandă */}
-              <div className="space-y-2">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  {ui.orderedItemsTitle} ({(modalOrder.items || []).length})
-                </div>
-                {(modalOrder.items || []).map((it, idx) => {
-                  const pName = it.product_name || it.name || '—'
-                  const qty = Number(it.quantity || it.amount || 1)
-                  const price = Number(it.price || 0)
-                  const img = getProductImage(pName, modalOrder.brand_name)
-                  return (
-                    <div
-                      key={idx}
-                      className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 ${
-                        isDark ? 'bg-slate-800/30 border-slate-800' : 'bg-slate-50 border-slate-200/70'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        {img && (
-                          <img src={img} alt={pName} className="w-10 h-10 rounded-lg object-cover shrink-0 bg-slate-800" />
-                        )}
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold truncate">{pName}</div>
-                          <div className="text-[11px] text-slate-400">{qty} x {price.toFixed(2)} RON</div>
-                        </div>
-                      </div>
-                      <div className="tabular-nums font-black text-xs shrink-0">
-                        {(qty * price).toFixed(2)} RON
-                      </div>
+              {/* 2-Column Split Body */}
+              <div className="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden grid grid-cols-1 lg:grid-cols-12">
+                <div className="lg:col-span-7 lg:overflow-y-auto p-4 sm:p-5 space-y-3.5 custom-scrollbar">
+                  {/* Unified 4-step iiko Timeline */}
+                  <div className="apple-inset-card p-3.5">
+                    <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-black/[0.06] dark:border-white/[0.07]">
+                      <span className="text-[12px] font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <Clock size={13} className="text-[#047857] dark:text-[#10B981]" />
+                        <span>{ui.modalTimingsTitle}</span>
+                      </span>
+                      {slaStr && slaStr !== '—' && (
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
+                          {ui.modalSlaPromised} <strong className="font-semibold text-slate-800 dark:text-slate-200">{slaStr}</strong>
+                        </span>
+                      )}
                     </div>
-                  )
-                })}
-              </div>
+                    <div className="grid grid-cols-4 gap-2 pt-3">
+                      {steps.map((s, idx) => (
+                        <div key={idx} className="min-w-0">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${s.time ? s.dot : 'bg-slate-300 dark:bg-slate-700'}`} />
+                            {idx < 3 && (
+                              <span className={`h-[1.5px] flex-1 rounded-full ${s.time && steps[idx + 1]?.time ? 'bg-slate-300 dark:bg-slate-600' : 'bg-black/[0.06] dark:bg-white/[0.07]'}`} />
+                            )}
+                          </div>
+                          <div className="text-[10.5px] text-slate-500 dark:text-slate-400 truncate">{s.label}</div>
+                          <div className={`text-[12.5px] font-semibold tabular-nums mt-0.5 ${s.time ? s.color : 'text-slate-400 dark:text-slate-600'}`}>
+                            {s.time || '—'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                <span className="font-bold text-sm">{ui.orderTotalLabel}</span>
-                <span className="text-xl font-black text-emerald-500 tabular-nums">
-                  {Number(modalOrder.total_amount || 0).toFixed(2)} RON
-                </span>
+                  {/* Produse din comandă — Grouped Inset List */}
+                  <div>
+                    <div className="flex items-center justify-between px-1 mb-1.5">
+                      <span className="text-[12px] font-semibold text-slate-700 dark:text-slate-200">
+                        {ui.orderedItemsTitle} ({(modalOrder.items || []).length})
+                      </span>
+                      <span className="text-[12px] font-semibold tabular-nums text-slate-900 dark:text-white sm:hidden">
+                        {Number(modalOrder.total_amount || 0).toFixed(2)} RON
+                      </span>
+                    </div>
+                    <div className="apple-inset-card divide-y divide-black/[0.06] dark:divide-white/[0.07] overflow-hidden">
+                      {(modalOrder.items || []).map((it, idx) => {
+                        const rawName = String(it.product_name || it.name || '—').trim()
+                        const match = rawName.match(/^([A-Z0-9]{1,3}_)\s*(.+)$/i)
+                        const prefix = match ? match[1].replace(/_$/, '') : null
+                        const pName = match ? match[2] : rawName
+                        const qty = Number(it.quantity || it.amount || 1)
+                        const price = Number(it.price || 0)
+                        const img = getProductImage(rawName, modalOrder.brand_name)
+                        return (
+                          <div key={idx} className="px-3 py-2 flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              {img && (
+                                <img src={img} alt={pName} className="w-9 h-9 rounded-lg object-cover shrink-0 border border-black/[0.07] dark:border-white/10" />
+                              )}
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="text-[12.5px] font-semibold truncate text-slate-900 dark:text-white">{pName}</span>
+                                  {prefix && (
+                                    <span className="px-1 rounded text-[9.5px] font-medium bg-black/[0.05] dark:bg-white/[0.08] text-slate-500 dark:text-slate-400 shrink-0">
+                                      {prefix}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">{qty} × {price.toFixed(2)} RON</div>
+                              </div>
+                            </div>
+                            <div className="tabular-nums font-semibold text-[12.5px] shrink-0 text-slate-900 dark:text-white">
+                              {(qty * price).toFixed(2)} RON
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Date Client & Date Livrare Curier */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[12px]">
+                    <div className="apple-inset-card p-3.5">
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="text-[11.5px] font-semibold text-slate-500 dark:text-slate-400">{ui.modalCustomerSection}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => openCustomerDossier(modalOrder, e)}
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#047857] dark:text-[#10B981] hover:underline cursor-pointer"
+                        >
+                          <User size={11} />
+                          <span>{language === 'ru' ? 'Досье 360°' : language === 'en' ? '360° Dossier' : 'Dosar 360°'}</span>
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => openCustomerDossier(modalOrder, e)}
+                        className="font-semibold text-[14px] text-slate-900 dark:text-white hover:text-[#047857] dark:hover:text-[#10B981] text-left cursor-pointer"
+                      >
+                        {modalOrder.customer?.name || '—'}
+                      </button>
+                      {modalOrder.customer?.phone && (
+                        <div className="tabular-nums text-[11.5px] text-slate-500 dark:text-slate-400 mt-1">{modalOrder.customer.phone}</div>
+                      )}
+                      {modalOrder.customer?.address && (() => {
+                        const parsedModalAddr = parseDeliveryAddress(modalOrder.customer.address, language)
+                        return (
+                          <div className="mt-1.5 space-y-1.5">
+                            <div className="text-[11.5px] text-slate-700 dark:text-slate-300 flex items-start gap-1.5">
+                              <MapPin size={12} className="text-[#047857] dark:text-[#10B981] shrink-0 mt-0.5" />
+                              <span>{parsedModalAddr.streetAddress}</span>
+                            </div>
+                            {parsedModalAddr.buildingDetails.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {parsedModalAddr.buildingDetails.map((b, bIdx) => (
+                                  <span
+                                    key={bIdx}
+                                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium border ${
+                                      isDark ? 'bg-[#1C1C1E] border-white/10 text-slate-300' : 'bg-white border-black/[0.08] text-slate-700'
+                                    }`}
+                                  >
+                                    <span className="text-slate-400">{b.label}:</span>
+                                    <strong className="tabular-nums text-slate-900 dark:text-white">{b.value}</strong>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {parsedModalAddr.instructions && (
+                              <div className={`px-2.5 py-1.5 rounded-lg border-l-[3px] border-amber-500 text-[11px] leading-snug ${
+                                isDark ? 'bg-amber-950/25 text-amber-200' : 'bg-amber-50/80 text-amber-900'
+                              }`}>
+                                <div className="font-medium">{parsedModalAddr.instructions}</div>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
+                    </div>
+
+                    <div className="apple-inset-card p-3.5">
+                      <div className="text-[11.5px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">{ui.modalCourierSection}</div>
+                      <div className="font-semibold text-[13.5px] text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <Bike size={14} className="text-emerald-500 shrink-0" />
+                        <span className="truncate">{modalOrder.courier?.name || `${ui.courierWord} ${(modalOrder.platform || '').toUpperCase()}`}</span>
+                        <span className="text-[11px] font-normal text-slate-400">({modalOrder.courier?.company || modalOrder.platform})</span>
+                      </div>
+                      {modalOrder.courier?.awb && (
+                        <div className="tabular-nums text-[11.5px] font-semibold text-slate-800 dark:text-slate-200 mt-1">AWB: {modalOrder.courier.awb}</div>
+                      )}
+                      <div className="mt-1 text-[11.5px] text-slate-500 dark:text-slate-400">
+                        {ui.liveStatusLabel} <strong className="font-semibold text-amber-600 dark:text-amber-400">{formatCourierStatusBadge(modalOrder, ui)}</strong>
+                      </div>
+                      {modalOrder.courier?.deliveryFee && (
+                        <div className="mt-0.5 text-[11.5px] text-slate-500 dark:text-slate-400 tabular-nums">
+                          {ui.courierFeeLabel} <strong className="text-slate-800 dark:text-slate-200">{modalOrder.courier.deliveryFee} RON</strong>
+                        </div>
+                      )}
+                      {modalOrder.courier?.trackingUrl && (
+                        <a
+                          href={modalOrder.courier.trackingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="apple-btn-sm mt-2 text-[#047857] dark:text-[#10B981]"
+                        >
+                          <span>{ui.openLiveMapBtn}</span>
+                          <ExternalLink size={10} />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Live Route Map Pane */}
+                <div className="lg:col-span-5 border-t lg:border-t-0 lg:border-l border-black/[0.07] dark:border-white/[0.08] flex flex-col min-h-[340px] lg:min-h-0">
+                  <OrderLiveRouteMap
+                    order={modalOrder}
+                    isDark={isDark}
+                    language={language}
+                    onOpenCustomerDossier={openCustomerDossier}
+                    fillHeight
+                  />
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }

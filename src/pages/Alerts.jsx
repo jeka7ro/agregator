@@ -8,7 +8,7 @@ import { AlertOctagon, TrendingDown, Clock, ExternalLink, Loader2, AlertCircle, 
 import BrandAvatar, { cleanRestaurantName, getBrandInfo } from '../components/BrandAvatar'
 import PlatformLogo from '../components/PlatformLogo'
 import { getApiUrl } from '../lib/api'
-import { getCanonicalCity } from '../lib/orderUtils'
+import { getCanonicalCity, getRestaurantWorkingHoursStatus } from '../lib/orderUtils'
 
 const HOURLY_LOSS_RATE = 50 // 50 RON per hour fallback if restaurant metadata is missing
 
@@ -108,6 +108,8 @@ export default function Alerts() {
       if (st === 'error' || st === 'closed' || st === 'unavailable') {
         const r = restaurants.find(res => res.id === c.restaurant_id)
         if (r && r.is_active) {
+          // Never count scheduled after-hours closing (22:00–10:00) as an active outage or financial loss!
+          if (c.outside_working_hours || !getRestaurantWorkingHoursStatus(r.working_hours).isOpen) return
           const p = String(c.platform || '').toLowerCase()
           const pUrl = p !== 'iiko' ? r[`${p}_url`] : r.iiko_restaurant_id
           if (!pUrl || (p !== 'iiko' && String(pUrl).includes('/search'))) return
@@ -218,18 +220,16 @@ export default function Alerts() {
   }
 
   return (
-    <div className="flex flex-col h-full w-full space-y-6">
+    <div className="flex flex-col h-full w-full space-y-3.5 pb-6">
       
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-            {t('alerts.title')}
-          </h2>
-        </div>
+      {/* Header Compact Laptop */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-[17px] font-semibold tracking-[-0.02em] text-[#1D1D1F] dark:text-[#F5F5F7]">
+          {t('alerts.title')}
+        </h2>
         {(filterBrand !== 'all' || filterCity !== 'all') && (
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-500">
+            <span className="text-xs font-medium text-slate-500">
               {filterBrand !== 'all' ? filterBrand : ''} {filterCity !== 'all' ? `(${filterCity})` : ''}
             </span>
             <button
@@ -243,7 +243,7 @@ export default function Alerts() {
                   setSearchParams(next, { replace: true })
                 } catch (_) {}
               }}
-              className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center gap-1 transition-all"
+              className="apple-btn-sm"
             >
               <X size={12} />
               <span>{t('common.all_brands', 'Toate')}</span>
@@ -252,328 +252,349 @@ export default function Alerts() {
         )}
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* KPI Cards — Compact Laptop Rhythm */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         
         {/* Total Loss */}
-        <div className={`rounded-2xl shadow-sm border p-6 flex flex-col justify-between transition-colors ${
+        <div className={`rounded-2xl shadow-sm border px-4 py-3 flex flex-col justify-between transition-colors ${
           isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
         }`}>
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 flex items-center justify-center">
-              <TrendingDown size={18} />
-            </div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-[12px] font-medium text-slate-500 dark:text-slate-400">
               {t('alerts.loss_card_title')}
             </h3>
+            <div className="w-7 h-7 rounded-lg bg-rose-500/12 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+              <TrendingDown size={14} />
+            </div>
           </div>
-          <div className="text-3xl font-bold text-rose-600 dark:text-rose-400">
+          <div className="text-[22px] font-bold tracking-tight tabular-nums leading-tight text-rose-600 dark:text-rose-400">
             {formatMoney(alertsData.totalEstimatedLoss)}
           </div>
-          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-2">
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
             {t('alerts.loss_card_desc')}
           </div>
         </div>
 
         {/* Active Incidents */}
-        <div className={`rounded-2xl shadow-sm border p-6 flex flex-col justify-between transition-colors ${
+        <div className={`rounded-2xl shadow-sm border px-4 py-3 flex flex-col justify-between transition-colors ${
           isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
         }`}>
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 flex items-center justify-center">
-              <AlertOctagon size={18} />
-            </div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-[12px] font-medium text-slate-500 dark:text-slate-400">
               {t('alerts.incidents_card_title')}
             </h3>
+            <div className="w-7 h-7 rounded-lg bg-amber-500/12 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <AlertOctagon size={14} />
+            </div>
           </div>
-          <div className="text-3xl font-bold text-slate-900 dark:text-white">
+          <div className="text-[22px] font-bold tracking-tight tabular-nums leading-tight text-slate-900 dark:text-white">
             {alertsData.activeAlerts.length}
           </div>
-          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-2">
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
             {t('alerts.incidents_card_desc')}
           </div>
         </div>
 
         {/* Total Downtime */}
-        <div className={`rounded-2xl shadow-sm border p-6 flex flex-col justify-between transition-colors ${
+        <div className={`rounded-2xl shadow-sm border px-4 py-3 flex flex-col justify-between transition-colors ${
           isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
         }`}>
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 flex items-center justify-center">
-              <Clock size={18} />
-            </div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-[12px] font-medium text-slate-500 dark:text-slate-400">
               {t('alerts.downtime_card_title')}
             </h3>
+            <div className="w-7 h-7 rounded-lg bg-[#047857]/12 text-[#047857] dark:text-[#10B981] flex items-center justify-center shrink-0">
+              <Clock size={14} />
+            </div>
           </div>
-          <div className="text-3xl font-bold text-slate-900 dark:text-white">
+          <div className="text-[22px] font-bold tracking-tight tabular-nums leading-tight text-slate-900 dark:text-white">
             {formatTime(alertsData.totalDowntimeMinutes)}
           </div>
-          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-2">
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
             {t('alerts.downtime_card_desc')}
           </div>
         </div>
 
       </div>
 
-      {/* TABS & TABLE */}
+      {/* TABS & TABLE — Apple macOS Tahoe Segmented Control + Luminous Empty State */}
       <div className={`rounded-2xl shadow-sm border overflow-hidden flex flex-col transition-colors ${
         isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
       }`}>
         
-        {/* TAB SWITCHER */}
-        <div className={`px-6 py-3 border-b flex items-center justify-between ${
-          isDark ? 'border-slate-800 bg-slate-900/50' : 'border-slate-100 bg-slate-50/50'
-        }`}>
-          <div className="flex items-center gap-2">
+        {/* APPLE SEGMENTED TAB SWITCHER */}
+        <div className="px-4 py-2.5 border-b border-black/[0.06] dark:border-white/[0.08] flex flex-wrap items-center justify-between gap-2">
+          <div role="group" className="apple-segmented">
             <button
+              type="button"
               onClick={() => setActiveTab('active')}
-              className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${
-                activeTab === 'active'
-                  ? 'bg-rose-600 text-white shadow-sm'
-                  : isDark
-                    ? 'text-slate-400 hover:text-white hover:bg-slate-800'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-              }`}
+              className={`apple-segment !h-[26px] ${activeTab === 'active' ? 'apple-segment-active' : ''}`}
             >
-              <AlertCircle size={14} />
+              <AlertCircle size={13} className={alertsData.activeAlerts.length > 0 ? 'text-rose-500' : 'text-[#047857] dark:text-[#10B981]'} />
               <span>{t('alerts.active_tab')}</span>
-              <span className={`px-2 py-0.2 rounded-full text-[10px] ${
-                activeTab === 'active' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+              <span className={`px-1.5 rounded-full text-[10.5px] font-semibold tabular-nums ${
+                alertsData.activeAlerts.length > 0
+                  ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                  : 'bg-black/[0.06] dark:bg-white/12 text-slate-600 dark:text-slate-300'
               }`}>
                 {alertsData.activeAlerts.length}
               </span>
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab('resolved')}
-              className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${
-                activeTab === 'resolved'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : isDark
-                    ? 'text-slate-400 hover:text-white hover:bg-slate-800'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-              }`}
+              className={`apple-segment !h-[26px] ${activeTab === 'resolved' ? 'apple-segment-active' : ''}`}
             >
-              <CheckCircle2 size={14} />
+              <CheckCircle2 size={13} className="text-emerald-600 dark:text-emerald-400" />
               <span>{t('alerts.resolved_tab')}</span>
-              <span className={`px-2 py-0.2 rounded-full text-[10px] ${
-                activeTab === 'resolved' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-              }`}>
+              <span className="px-1.5 rounded-full text-[10.5px] font-semibold tabular-nums bg-black/[0.06] dark:bg-white/12 text-slate-600 dark:text-slate-300">
                 {scopedResolvedHistory.length}
               </span>
             </button>
           </div>
 
-          <span className={`text-xs font-bold hidden sm:inline-block ${
-            isDark ? 'text-slate-400' : 'text-slate-500'
-          }`}>
+          <span className="text-[11.5px] font-medium text-[#636366] dark:text-[#AEAEB2] hidden sm:inline-block">
             {t('alerts.table_badge')}
           </span>
         </div>
         
-        {/* TABLE */}
+        {/* CONTENT AREA: Apple System Status Empty State when 0 rows, otherwise Finder Table */}
+        {activeTab === 'active' && alertsData.activeAlerts.length === 0 ? (
+          <div className="px-6 py-12 flex flex-col items-center justify-center text-center">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/12 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3 shadow-xs">
+              <CheckCircle2 size={24} />
+            </div>
+            <h3 className="text-[15px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">
+              {language === 'ru'
+                ? 'Все точки работают в штатном режиме'
+                : language === 'en'
+                  ? 'All locations are operating normally'
+                  : 'Toate locațiile funcționează în parametri normali'}
+            </h3>
+            <p className="text-[12.5px] text-[#636366] dark:text-[#AEAEB2] mt-1 max-w-md">
+              {t('alerts.no_issues')}
+            </p>
+            <div className="mt-4 flex items-center gap-2 flex-wrap justify-center">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11.5px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 tabular-nums">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span>
+                  {restaurants.filter(r => r.is_active !== false).length}{' '}
+                  {language === 'ru' ? 'активных точек · 100% онлайн' : language === 'en' ? 'active locations · 100% online' : 'locații active · 100% online'}
+                </span>
+              </span>
+              {scopedResolvedHistory.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('resolved')}
+                  className="apple-btn-secondary !h-7 !text-[11.5px]"
+                >
+                  <span>{t('alerts.resolved_tab')} ({scopedResolvedHistory.length})</span>
+                </button>
+              )}
+            </div>
+          </div>
+        ) : activeTab === 'resolved' && scopedResolvedHistory.length === 0 ? (
+          <div className="px-6 py-12 flex flex-col items-center justify-center text-center">
+            <div className="w-11 h-11 rounded-2xl bg-[#047857]/10 border border-[#047857]/20 text-[#047857] dark:text-[#10B981] flex items-center justify-center mb-3">
+              <Clock size={20} />
+            </div>
+            <h3 className="text-[14px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">
+              {language === 'ru'
+                ? 'История решенных инцидентов пуста'
+                : language === 'en'
+                  ? 'No resolved incidents recorded'
+                  : 'Nu există incidente rezolvate în istoric'}
+            </h3>
+            <p className="text-[12px] text-[#636366] dark:text-[#AEAEB2] mt-1">
+              {language === 'ru'
+                ? 'Все закрытые остановки и восстановленные каналы будут сохраняться здесь.'
+                : language === 'en'
+                  ? 'Resolved outages and restored platform channels will appear here.'
+                  : 'Toate opririle rezolvate și canalele restaurate vor apărea aici.'}
+            </p>
+          </div>
+        ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[850px]">
-            <thead className={`border-b text-[11px] font-bold uppercase tracking-wider ${
-              isDark ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'
-            }`}>
+          <table className="w-full text-left border-collapse min-w-[820px]">
+            <thead>
               <tr>
-                <th className="px-6 py-3.5">{t('alerts.th_restaurant')}</th>
-                <th className="px-6 py-3.5 w-36">{t('alerts.th_platform')}</th>
-                <th className="px-6 py-3.5">{t('alerts.th_issue')}</th>
-                <th className="px-6 py-3.5 text-right w-32">{t('alerts.th_downtime')}</th>
-                <th className="px-6 py-3.5 text-right w-36">{t('alerts.th_loss')}</th>
-                <th className="px-6 py-3.5 text-center w-28">{t('common.actions')}</th>
+                <th className="px-4 py-2.5">{t('alerts.th_restaurant')}</th>
+                <th className="px-4 py-2.5 w-36">{t('alerts.th_platform')}</th>
+                <th className="px-4 py-2.5">{t('alerts.th_issue')}</th>
+                <th className="px-4 py-2.5 text-right w-28">{t('alerts.th_downtime')}</th>
+                <th className="px-4 py-2.5 text-right w-32">{t('alerts.th_loss')}</th>
+                <th className="px-4 py-2.5 text-center w-32">{t('common.actions')}</th>
               </tr>
             </thead>
-            <tbody className={`divide-y text-sm ${isDark ? 'divide-slate-800' : 'divide-slate-100'}`}>
+            <tbody className="text-[13px]">
               
               {/* ACTIVE TAB ROWS */}
-              {activeTab === 'active' && (
-                alertsData.activeAlerts.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="px-6 py-20 text-center text-slate-500 dark:text-slate-400 font-medium">
-                      {t('alerts.no_issues')}
+              {activeTab === 'active' && alertsData.activeAlerts.map((alert) => {
+                const cleanedName = cleanRestaurantName(alert.restaurant.name)
+                return (
+                  <tr key={alert.key}>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <BrandAvatar brand={alert.restaurant} size={28} className="rounded-full shrink-0" />
+                        <div>
+                          <div className="font-semibold text-[13px] text-slate-900 dark:text-white leading-tight">
+                            {cleanedName}
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400">{alert.city}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <PlatformLogo platform={alert.platform} size={17} />
+                        <span className="text-[13px] font-semibold capitalize text-slate-800 dark:text-slate-200">{alert.platform}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <div className="text-[12.5px] font-medium text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                        <AlertCircle size={13} className="shrink-0" />
+                        <span>{alert.message}</span>
+                      </div>
+                      <div className="mt-1">
+                        <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-rose-500/12 text-rose-600 dark:text-rose-400">
+                          {alert.status}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-[13px] font-semibold tabular-nums text-slate-700 dark:text-slate-300">
+                      {formatTime(alert.downtime)}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">
+                      <div className="text-[13px] font-bold text-rose-600 dark:text-rose-400">
+                        {formatMoney(alert.estimatedLoss)}
+                      </div>
+                      <div className="text-[10.5px] text-slate-400">
+                        {alert.hourlyRate} RON/h
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setResolvingIncident(alert)
+                            setResolveReason('')
+                          }}
+                          className="apple-btn-primary !h-7 !px-2.5 !text-[11px]"
+                          title={t('alerts.resolve_btn')}
+                        >
+                          <Check size={12} />
+                          <span>{t('alerts.resolve_btn')}</span>
+                        </button>
+
+                        {alert.url && (
+                          <a
+                            href={alert.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="apple-btn-secondary !w-7 !h-7 !p-0"
+                            title={t('alerts.open_in_platform')}
+                          >
+                            <ExternalLink size={12} />
+                          </a>
+                        )}
+                      </div>
                     </td>
                   </tr>
-                ) : (
-                  alertsData.activeAlerts.map((alert) => {
-                    const cleanedName = cleanRestaurantName(alert.restaurant.name)
-                    return (
-                      <tr 
-                        key={alert.key} 
-                        className={`transition-colors ${isDark ? 'hover:bg-slate-800/60' : 'hover:bg-slate-50'}`}
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <BrandAvatar brand={alert.restaurant} size={32} className="rounded-full shrink-0 shadow-xs" />
-                            <div>
-                              <div className="font-bold text-sm text-slate-900 dark:text-white">
-                                {cleanedName}
-                              </div>
-                              <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{alert.city}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <PlatformLogo platform={alert.platform} size={18} />
-                            <span className="text-sm font-bold capitalize text-slate-800 dark:text-slate-200">{alert.platform}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm font-medium text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
-                            <AlertCircle size={14} className="shrink-0" />
-                            <span>{alert.message}</span>
-                          </div>
-                          <div className="mt-1">
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800 uppercase">
-                              {alert.status}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right text-sm font-semibold text-slate-700 dark:text-slate-300">
-                          {formatTime(alert.downtime)}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="text-sm font-bold text-rose-600 dark:text-rose-400">
-                            {formatMoney(alert.estimatedLoss)}
-                          </div>
-                          <div className="text-[10px] text-slate-400 mt-0.5">
-                            {alert.hourlyRate} RON/h
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              onClick={() => {
-                                setResolvingIncident(alert)
-                                setResolveReason('')
-                              }}
-                              className="px-3 h-7 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold inline-flex items-center gap-1 transition-colors shadow-xs"
-                              title={t('alerts.resolve_btn')}
-                            >
-                              <Check size={13} />
-                              <span>{t('alerts.resolve_btn')}</span>
-                            </button>
-
-                            {alert.url && (
-                              <a 
-                                href={alert.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={`w-7 h-7 rounded-full border inline-flex items-center justify-center transition-colors ${
-                                  isDark 
-                                    ? 'border-slate-700 hover:bg-slate-800 text-slate-400 hover:text-slate-200' 
-                                    : 'border-slate-200 hover:bg-emerald-50 text-slate-500 hover:text-emerald-600'
-                                }`}
-                                title={t('alerts.open_in_platform')}
-                              >
-                                <ExternalLink size={12} />
-                              </a>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })
                 )
-              )}
+              })}
 
               {/* RESOLVED TAB ROWS */}
-              {activeTab === 'resolved' && (
-                scopedResolvedHistory.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="px-6 py-20 text-center text-slate-500 dark:text-slate-400 font-medium">
-                      Nu există incidente rezolvate în istoric.
+              {activeTab === 'resolved' && scopedResolvedHistory.map((item, idx) => {
+                const cleanedName = cleanRestaurantName(item.restaurant?.name || '')
+                return (
+                  <tr key={`${item.key}-${idx}`}>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <BrandAvatar brand={item.restaurant} size={28} className="rounded-full shrink-0" />
+                        <div>
+                          <div className="font-semibold text-[13px] text-slate-900 dark:text-white leading-tight">
+                            {cleanedName}
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400">{item.city}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <PlatformLogo platform={item.platform} size={17} />
+                        <span className="text-[13px] font-semibold capitalize text-slate-800 dark:text-slate-200">{item.platform}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <div className="text-[12px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                        <CheckCircle2 size={13} />
+                        <span>{t('alerts.resolved_at')} {formatDateTime(item.resolvedAt)}</span>
+                      </div>
+                      {item.resolvedReason && (
+                        <div className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5 italic">
+                          „{item.resolvedReason}”
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-[13px] font-semibold tabular-nums text-slate-700 dark:text-slate-300">
+                      {formatTime(item.finalDuration || item.downtime)}
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-bold tabular-nums text-slate-900 dark:text-white">
+                      {formatMoney(item.finalLoss || item.estimatedLoss)}
+                    </td>
+                    <td className="px-4 py-2.5 text-center whitespace-nowrap">
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/12 text-emerald-700 dark:text-emerald-400">
+                        {t('alerts.resolved_badge', 'Rezolvat')}
+                      </span>
                     </td>
                   </tr>
-                ) : (
-                  scopedResolvedHistory.map((item, idx) => {
-                    const cleanedName = cleanRestaurantName(item.restaurant?.name || '')
-                    return (
-                      <tr 
-                        key={`${item.key}-${idx}`} 
-                        className={`transition-colors ${isDark ? 'hover:bg-slate-800/60' : 'hover:bg-slate-50'}`}
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <BrandAvatar brand={item.restaurant} size={32} className="rounded-full shrink-0 shadow-xs" />
-                            <div>
-                              <div className="font-bold text-sm text-slate-900 dark:text-white">
-                                {cleanedName}
-                              </div>
-                              <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{item.city}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <PlatformLogo platform={item.platform} size={18} />
-                            <span className="text-sm font-bold capitalize text-slate-800 dark:text-slate-200">{item.platform}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                            <CheckCircle2 size={14} />
-                            <span>{t('alerts.resolved_at')} {formatDateTime(item.resolvedAt)}</span>
-                          </div>
-                          {item.resolvedReason && (
-                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 italic">
-                              "{item.resolvedReason}"
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-right text-sm font-semibold text-slate-700 dark:text-slate-300">
-                          {formatTime(item.finalDuration || item.downtime)}
-                        </td>
-                        <td className="px-6 py-4 text-right font-bold text-slate-900 dark:text-white">
-                          {formatMoney(item.finalLoss || item.estimatedLoss)}
-                        </td>
-                        <td className="px-6 py-4 text-center whitespace-nowrap">
-                          <span className="px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
-                            {t('alerts.resolved_badge', 'Rezolvat')}
-                          </span>
-                        </td>
-                      </tr>
-                    )
-                  })
                 )
-              )}
+              })}
 
             </tbody>
           </table>
         </div>
+        )}
       </div>
 
-      {/* RESOLVE MODAL (NO BROWSER ALERT/CONFIRM) */}
+      {/* RESOLVE SHEET — macOS Tahoe 26 */}
       {resolvingIncident && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className={`w-full max-w-md rounded-3xl p-6 shadow-2xl border transition-colors ${
-            isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-          }`}>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
-                <CheckCircle2 size={20} />
-                <h3 className="text-base font-bold">{t('alerts.resolve_modal_title')}</h3>
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setResolvingIncident(null)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setResolvingIncident(null) }}
+          tabIndex={-1}
+          className="fixed inset-0 apple-sheet-backdrop z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="apple-sheet w-full max-w-md overflow-hidden"
+          >
+            <div className="apple-sheet-header px-5 py-3.5 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 size={18} />
+                <h3 className="text-[15px] font-semibold text-slate-900 dark:text-white">{t('alerts.resolve_modal_title')}</h3>
               </div>
-              <button 
+              <button
+                type="button"
                 onClick={() => setResolvingIncident(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                aria-label="Close"
+                className="apple-sheet-close"
               >
-                <X size={18} />
+                <X size={15} />
               </button>
             </div>
 
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">
-              {t('alerts.resolve_modal_desc')}
-            </p>
+            <form onSubmit={handleConfirmResolve} className="p-5 space-y-4">
+              <p className="text-[12.5px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                {t('alerts.resolve_modal_desc')}
+              </p>
 
-            <form onSubmit={handleConfirmResolve} className="mt-4 space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                <label className="block text-[11.5px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">
                   {t('alerts.resolve_reason_label')}
                 </label>
                 <input
@@ -581,21 +602,19 @@ export default function Alerts() {
                   placeholder={t('alerts.resolve_reason_placeholder')}
                   value={resolveReason}
                   onChange={e => setResolveReason(e.target.value)}
-                  className={`w-full px-4 h-10 text-xs rounded-full border outline-none transition-all shadow-xs ${
-                    isDark 
-                      ? 'bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500' 
-                      : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500'
+                  className={`w-full px-3.5 h-9 text-[13px] rounded-xl border outline-none transition-colors ${
+                    isDark
+                      ? 'bg-white/[0.06] border-white/12 text-white placeholder:text-slate-500 focus:border-[#10B981]'
+                      : 'bg-white border-black/12 text-slate-900 placeholder:text-slate-400 focus:border-[#047857]'
                   }`}
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-black/[0.06] dark:border-white/[0.08]">
                 <button
                   type="button"
                   onClick={() => setResolvingIncident(null)}
-                  className={`px-4 h-9 rounded-full text-xs font-bold border transition-colors ${
-                    isDark ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200' : 'border-slate-200 bg-white hover:bg-slate-100 text-slate-700'
-                  }`}
+                  className="apple-btn-secondary"
                 >
                   {t('common.cancel')}
                 </button>
@@ -603,7 +622,7 @@ export default function Alerts() {
                 <button
                   type="submit"
                   disabled={isSubmittingResolve}
-                  className="px-5 h-9 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
+                  className="apple-btn-primary disabled:opacity-50"
                 >
                   <Loader2 className={`w-3.5 h-3.5 ${isSubmittingResolve ? 'animate-spin' : 'hidden'}`} />
                   <span>{isSubmittingResolve ? t('alerts.resolving') : t('alerts.confirm_resolve')}</span>

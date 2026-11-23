@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { getApiUrl } from '../lib/api'
 import { useAuth } from '../lib/AuthContext'
 import { getCanonicalCity } from '../lib/orderUtils'
 import { getBrandInfo } from '../components/BrandAvatar'
 
-export function useExecutiveSales(period = 'this_month', limit = 2000) {
+export function useExecutiveSales(period = 'this_month', limit = 2000, customRange = null) {
   const { user, canAccessCity, canAccessBrand, canAccessRestaurant, hasScopeRestrictions } = useAuth()
   const allowedCitiesKey = useMemo(() => {
     if (!user || user.role === 'admin') return ''
@@ -12,7 +12,10 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
     return allowedC.join(',')
   }, [user?.role, user?.allowed_cities])
 
-  const cacheKey = `exec_sales_v5_${period}_${allowedCitiesKey || 'all'}`
+  const customFrom = period === 'custom' && customRange?.from ? String(customRange.from).trim() : ''
+  const customTo = period === 'custom' && customRange?.to ? String(customRange.to).trim() : customFrom
+
+  const cacheKey = `exec_sales_v5_${period}_${customFrom}_${customTo}_${allowedCitiesKey || 'all'}`
 
   const [salesData, setSalesData] = useState(() => {
     try {
@@ -28,15 +31,28 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
   })
   const [loading, setLoading] = useState(() => !salesData)
   const [error, setError] = useState(null)
+  const reqIdRef = useRef(0)
+  const isMountedRef = useRef(true)
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => { isMountedRef.current = false }
+  }, [])
 
   const fetchSales = useCallback(async () => {
+    const reqId = ++reqIdRef.current
     try {
-      if (!salesData) setLoading(true)
+      setLoading(true)
       const params = new URLSearchParams({ period, limit: String(limit) })
+      if (period === 'custom' && customFrom) {
+        params.set('from', customFrom)
+        if (customTo) params.set('to', customTo)
+      }
       if (allowedCitiesKey) params.set('cities', allowedCitiesKey)
       const res = await fetch(getApiUrl(`/api/sales/executive-summary?${params.toString()}`))
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
+      if (!isMountedRef.current || reqId !== reqIdRef.current) return
       if (data && data.success) {
         setSalesData(data)
         setError(null)
@@ -47,6 +63,7 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
         throw new Error(data?.error || 'Failed to fetch sales summary')
       }
     } catch (err) {
+      if (!isMountedRef.current || reqId !== reqIdRef.current) return
       console.warn('[useExecutiveSales] Fetch error:', err.message)
       setError(err.message)
       // Anti-Wipe: fallback la cache dacă serverul are un glitch temporar
@@ -60,9 +77,9 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
         }
       } catch (_) {}
     } finally {
-      setLoading(false)
+      if (isMountedRef.current && reqId === reqIdRef.current) setLoading(false)
     }
-  }, [period, limit, allowedCitiesKey, cacheKey])
+  }, [period, limit, customFrom, customTo, allowedCitiesKey, cacheKey])
 
   useEffect(() => {
     try {
@@ -77,8 +94,14 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
     fetchSales()
     // Immutable historical periods never need background polling (0 wasted function invocations)
     if (period === 'yesterday' || period === 'last_month') return
+    if (period === 'custom' && customTo) {
+      try {
+        const todayRo = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
+        if (customTo < todayRo) return
+      } catch (_) {}
+    }
 
-    const refreshMs = period === 'today' ? 120000 : 300000 // 2 min for today, 5 min for week/month/year
+    const refreshMs = (period === 'today' || period === 'custom') ? 120000 : 300000 // 2 min for today, 5 min for week/month/year
     const timer = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return
       try {
@@ -93,8 +116,11 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
       } catch (_) {}
       fetchSales()
     }, refreshMs)
-    return () => clearInterval(timer)
-  }, [period, limit, allowedCitiesKey, cacheKey, fetchSales])
+    return () => {
+      clearInterval(timer)
+      reqIdRef.current += 1
+    }
+  }, [period, limit, customFrom, customTo, allowedCitiesKey, cacheKey, fetchSales])
 
   const scopedSalesData = useMemo(() => {
     if (!salesData || !hasScopeRestrictions) return salesData
@@ -174,7 +200,7 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
           count: cnt,
           revenue: rev,
           grossRevenue: grossRev,
-          share: totalRevenue > 0 ? Math.round((rev / totalRevenue) * 100) : 100
+          share: totalRevenue > 0 ? Math.round((rev / totalRevenue) * 100) : 0
         }
       })
 
@@ -199,7 +225,7 @@ export function useExecutiveSales(period = 'this_month', limit = 2000) {
           grossRevenue: grossRev,
           channels: (hasByRest && cOverride?.channels) ? cOverride.channels : (c.channels || {}),
           locationsCount: cOverride ? cOverride.locationsCount : c.locationsCount,
-          share: totalRevenue > 0 ? Math.round((rev / totalRevenue) * 100) : 100
+          share: totalRevenue > 0 ? Math.round((rev / totalRevenue) * 100) : 0
         }
       })
 

@@ -10,8 +10,8 @@ let memoryCachedChecks = []
 
 try {
   if (typeof window !== 'undefined') {
-    const savedRests = sessionStorage.getItem('live_checks_restaurants')
-    const savedChecks = sessionStorage.getItem('live_checks_data')
+    const savedRests = sessionStorage.getItem('live_checks_restaurants_v2')
+    const savedChecks = sessionStorage.getItem('live_checks_data_v2')
     if (savedRests) memoryCachedRestaurants = JSON.parse(savedRests) || []
     if (savedChecks) memoryCachedChecks = JSON.parse(savedChecks) || []
   }
@@ -93,10 +93,10 @@ export function useLiveChecks({ rawUnfiltered = false } = {}) {
       const transformed = (rests || []).map(r => {
         return {
           ...r,
-          glovo_status: checksDict[r.id]?.glovo?.final_status || 'available',
-          wolt_status: checksDict[r.id]?.wolt?.final_status || 'available',
-          bolt_status: checksDict[r.id]?.bolt?.final_status || 'available',
-          iiko_status: checksDict[r.id]?.iiko?.final_status || 'available',
+          glovo_status: checksDict[r.id]?.glovo?.final_status || 'unchecked',
+          wolt_status: checksDict[r.id]?.wolt?.final_status || 'unchecked',
+          bolt_status: checksDict[r.id]?.bolt?.final_status || 'unchecked',
+          iiko_status: checksDict[r.id]?.iiko?.final_status || 'unchecked',
 
           glovo_rating: checksDict[r.id]?.glovo?.rating || '-',
           wolt_rating: checksDict[r.id]?.wolt?.rating || '-',
@@ -108,11 +108,11 @@ export function useLiveChecks({ rawUnfiltered = false } = {}) {
       const flatChecks = Object.values(checksDict).flatMap(obj => Object.values(obj))
       if (transformed.length > 0) {
         memoryCachedRestaurants = transformed
-        try { sessionStorage.setItem('live_checks_restaurants', JSON.stringify(transformed)) } catch (_) {}
+        try { sessionStorage.setItem('live_checks_restaurants_v2', JSON.stringify(transformed)) } catch (_) {}
       }
       if (flatChecks.length > 0) {
         memoryCachedChecks = flatChecks
-        try { sessionStorage.setItem('live_checks_data', JSON.stringify(flatChecks)) } catch (_) {}
+        try { sessionStorage.setItem('live_checks_data_v2', JSON.stringify(flatChecks)) } catch (_) {}
       }
 
       setRawRestaurants(transformed)

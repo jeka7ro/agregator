@@ -247,14 +247,18 @@ class UsersService {
     } catch (_) {}
   }
 
-  _save() {
-    const toWrite = {
+  _buildRedactedState() {
+    return {
       ...this.state,
       brevoConfig: {
         ...this.state.brevoConfig,
         apiKey: this.state.brevoConfig?.apiKey === DEFAULT_BREVO_API_KEY ? '' : (this.state.brevoConfig?.apiKey || '')
       }
     }
+  }
+
+  _save() {
+    const toWrite = this._buildRedactedState()
     const serialized = JSON.stringify(toWrite, null, 2)
     try {
       fs.mkdirSync(path.dirname(USERS_DATA_FILE), { recursive: true })
@@ -268,6 +272,13 @@ class UsersService {
 
   async _saveToSupabase(toWrite) {
     if (!supabase) return
+    const safeState = toWrite ? {
+      ...toWrite,
+      brevoConfig: {
+        ...(toWrite.brevoConfig || {}),
+        apiKey: toWrite.brevoConfig?.apiKey === DEFAULT_BREVO_API_KEY ? '' : (toWrite.brevoConfig?.apiKey || '')
+      }
+    } : this._buildRedactedState()
     try {
       let restId = this._cachedSysRestId
       if (!restId) {
@@ -284,7 +295,7 @@ class UsersService {
         placed_at: '2020-01-01T00:00:00.000Z',
         items: [{
           _order_meta: { isPartnerMetaOnly: true, status: 'Cancelled' },
-          _users_state: toWrite,
+          _users_state: safeState,
           updated_at: new Date().toISOString()
         }]
       }], { onConflict: 'order_id' })
@@ -294,10 +305,10 @@ class UsersService {
     }
   }
 
-  async syncFromSupabase() {
+  async syncFromSupabase(force = false) {
     if (!supabase) return
     const now = Date.now()
-    if (this._lastSupabaseSyncTs && (now - this._lastSupabaseSyncTs < 5000)) return
+    if (!force && this._lastSupabaseSyncTs && (now - this._lastSupabaseSyncTs < 5000)) return
     this._lastSupabaseSyncTs = now
     try {
       const { data } = await supabase
@@ -307,37 +318,41 @@ class UsersService {
         .limit(1)
       const remoteState = data?.[0]?.items?.[0]?._users_state
       if (remoteState && Array.isArray(remoteState.users) && remoteState.users.length > 0) {
-        const byEmail = new Map()
-        for (const u of (this.state?.users || [])) {
-          byEmail.set(String(u.email || '').trim().toLowerCase(), u)
-        }
+        const deletedIds = new Set([...(this.state.deletedIds || []), ...(remoteState.deletedIds || [])])
+        const remoteByEmail = new Map()
         for (const ru of remoteState.users) {
-          const em = String(ru.email || '').trim().toLowerCase()
-          const localU = byEmail.get(em)
-          if (!localU) {
-            byEmail.set(em, ru)
-          } else {
-            // Merge so active status, disabled must_change_password, and newest last_login_at always win
-            const remoteLogin = new Date(ru.last_login_at || 0).getTime()
-            const localLogin = new Date(localU.last_login_at || 0).getTime()
-            const latestLogin = remoteLogin >= localLogin
-              ? (ru.last_login_at || localU.last_login_at)
-              : localU.last_login_at
-            const isAct = ru.status === 'active' || localU.status === 'active'
-            const mustChg = isAct ? false : (ru.must_change_password && localU.must_change_password)
-            const base = remoteLogin > localLogin ? { ...localU, ...ru } : { ...ru, ...localU }
-            byEmail.set(em, {
-              ...base,
-              status: base.status === 'blocked' ? 'blocked' : (isAct ? 'active' : base.status),
-              must_change_password: mustChg,
-              last_login_at: latestLogin
-            })
-          }
+          if (deletedIds.has(ru.id)) continue
+          remoteByEmail.set(String(ru.email || '').trim().toLowerCase(), ru)
         }
-        this.state.users = Array.from(byEmail.values())
+        // Supabase is authoritative for admin edits, blocks, role/scope changes, and deletions
+        const mergedUsers = []
+        for (const [em, ru] of remoteByEmail.entries()) {
+          const localU = (this.state?.users || []).find(u => String(u.email || '').trim().toLowerCase() === em)
+          if (!localU) {
+            mergedUsers.push(ru)
+            continue
+          }
+          const remoteUpd = new Date(ru.updated_at || ru.last_login_at || 0).getTime()
+          const localUpd = new Date(localU.updated_at || localU.last_login_at || 0).getTime()
+          const base = remoteUpd >= localUpd ? { ...localU, ...ru } : { ...ru, ...localU }
+          const remoteLogin = new Date(ru.last_login_at || 0).getTime()
+          const localLogin = new Date(localU.last_login_at || 0).getTime()
+          mergedUsers.push({
+            ...base,
+            last_login_at: remoteLogin >= localLogin ? (ru.last_login_at || localU.last_login_at) : localU.last_login_at
+          })
+        }
+        this.state.users = mergedUsers
+        this.state.deletedIds = Array.from(deletedIds).slice(-200)
+        if (remoteState.resetCodes && typeof remoteState.resetCodes === 'object') {
+          this.state.resetCodes = { ...(this.state.resetCodes || {}), ...remoteState.resetCodes }
+        }
+        if (remoteState.brevoConfig && typeof remoteState.brevoConfig === 'object') {
+          this.state.brevoConfig = { ...(this.state.brevoConfig || {}), ...remoteState.brevoConfig }
+        }
       } else {
         // Seed initial state to Supabase so serverless containers share it
-        await this._saveToSupabase(this.state)
+        await this._saveToSupabase(this._buildRedactedState())
       }
     } catch (_) {}
   }
@@ -346,7 +361,8 @@ class UsersService {
     if (!u) return null
     const copy = { ...u }
     delete copy.password_hash
-    if (!includeHintForAdmin) {
+    // Only expose temporary password hint to admins for invited users who haven't set their personal password yet
+    if (!includeHintForAdmin || !copy.must_change_password || copy.status === 'active') {
       delete copy.temp_password_hint
     }
     const f = String(copy.first_name || '').trim()
@@ -512,6 +528,12 @@ class UsersService {
 
   async sendBrevoEmail({ toEmail, toName, subject, htmlContent }) {
     const cfg = this.state.brevoConfig || {}
+    if (cfg.enabled === false) {
+      return {
+        sent: false,
+        reason: 'Trimiterea automată de emailuri (Brevo) este dezactivată în setări.'
+      }
+    }
     const apiKey = cfg.apiKey || DEFAULT_BREVO_API_KEY
     if (!apiKey) {
       return {
@@ -572,16 +594,29 @@ class UsersService {
     `
   }
 
-  buildInviteEmailHtml({ user, tempPassword, appUrl }) {
+  _escHtml(str) {
+    return String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+  }
+
+  buildInviteEmailHtml({ user, tempPassword }) {
     const roleObj = ROLE_DEFINITIONS[user.role] || ROLE_DEFINITIONS.operational
     const isRu = String(user.email || '').toLowerCase().endsWith('.ru')
-    const citiesLabel = (user.allowed_cities || []).includes('all')
+    const citiesLabel = this._escHtml((user.allowed_cities || []).includes('all')
       ? (isRu ? 'Все города' : 'Toate orașele')
-      : (user.allowed_cities || []).join(', ')
-    const brandsLabel = (user.allowed_brands || []).includes('all')
+      : (user.allowed_cities || []).join(', '))
+    const brandsLabel = this._escHtml((user.allowed_brands || []).includes('all')
       ? (isRu ? 'Все бренды' : 'Toate brandurile')
-      : (user.allowed_brands || []).join(', ')
-    const loginUrl = appUrl || 'https://getapp.food/login'
+      : (user.allowed_brands || []).join(', '))
+    // Never trust client-supplied appUrl (prevents phishing link injection)
+    const loginUrl = process.env.APP_LOGIN_URL || 'https://getapp.food/login'
+    const safeFirst = this._escHtml(user.first_name)
+    const safeLast = this._escHtml(user.last_name)
+    const safeEmail = this._escHtml(user.email)
+    const safePass = this._escHtml(tempPassword)
     const logoHeader = this.buildEmailLogoHeaderHtml()
     const cleanFont = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
 
@@ -591,15 +626,15 @@ class UsersService {
           <div style="background: #ffffff; border-radius: 18px; border: 1px solid #e2e8f0; color: #0f172a; overflow: hidden;">
             ${logoHeader}
             <div style="padding: 28px;">
-              <p style="margin-top: 0; font-size: 15px; font-family: ${cleanFont};">Привет, <strong>${user.first_name} ${user.last_name}</strong>!</p>
+              <p style="margin-top: 0; font-size: 15px; font-family: ${cleanFont};">Привет, <strong>${safeFirst} ${safeLast}</strong>!</p>
               <p style="font-size: 14px; color: #475569; line-height: 1.5; font-family: ${cleanFont};">
                 Для тебя создан аккаунт в операционной платформе <strong>GetApp<span style="color:#047857;">.</span>F<span style="color:#047857;">oo</span>D</strong> с ролью <strong style="color: #047857;">${roleObj.labelRu}</strong>.
               </p>
               <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 18px 0; font-family: ${cleanFont};">
                 <div style="font-size: 11px; color: #64748b; margin-bottom: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">Данные для входа</div>
                 <div style="font-size: 14px; margin-bottom: 8px;"><strong>Сайт:</strong> <a href="${loginUrl}" style="color: #047857; font-weight: 700; text-decoration: none;">https://getapp.food</a></div>
-                <div style="font-size: 14px; margin-bottom: 8px;"><strong>Email:</strong> ${user.email}</div>
-                <div style="font-size: 14px; margin-bottom: 8px;"><strong>Временный пароль:</strong> <span style="font-family: ${cleanFont}; background: #ffffff; padding: 3px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 800; color: #0f172a; display: inline-block;">${tempPassword}</span></div>
+                <div style="font-size: 14px; margin-bottom: 8px;"><strong>Email:</strong> ${safeEmail}</div>
+                <div style="font-size: 14px; margin-bottom: 8px;"><strong>Временный пароль:</strong> <span style="font-family: ${cleanFont}; background: #ffffff; padding: 3px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 800; color: #0f172a; display: inline-block;">${safePass}</span></div>
                 <div style="font-size: 12px; color: #64748b; margin-top: 10px;">
                   <strong>Доступные города:</strong> ${citiesLabel}<br/>
                   <strong>Доступные бренды:</strong> ${brandsLabel}
@@ -624,15 +659,15 @@ class UsersService {
         <div style="background: #ffffff; border-radius: 18px; border: 1px solid #e2e8f0; color: #0f172a; overflow: hidden;">
           ${logoHeader}
           <div style="padding: 28px;">
-            <p style="margin-top: 0; font-size: 15px; font-family: ${cleanFont};">Salut <strong>${user.first_name} ${user.last_name}</strong>,</p>
+            <p style="margin-top: 0; font-size: 15px; font-family: ${cleanFont};">Salut <strong>${safeFirst} ${safeLast}</strong>,</p>
             <p style="font-size: 14px; color: #475569; line-height: 1.5; font-family: ${cleanFont};">
               Contul tău în platforma <strong>GetApp<span style="color:#047857;">.</span>F<span style="color:#047857;">oo</span>D</strong> a fost activat cu rolul de <strong style="color: #047857;">${roleObj.labelRo}</strong>.
             </p>
             <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 18px 0; font-family: ${cleanFont};">
               <div style="font-size: 11px; color: #64748b; margin-bottom: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">Datele tale de autentificare</div>
               <div style="font-size: 14px; margin-bottom: 8px;"><strong>Platformă:</strong> <a href="${loginUrl}" style="color: #047857; font-weight: 700; text-decoration: none;">https://getapp.food</a></div>
-              <div style="font-size: 14px; margin-bottom: 8px;"><strong>Email:</strong> ${user.email}</div>
-              <div style="font-size: 14px; margin-bottom: 8px;"><strong>Parolă temporară:</strong> <span style="font-family: ${cleanFont}; background: #ffffff; padding: 3px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 800; color: #0f172a; display: inline-block;">${tempPassword}</span></div>
+              <div style="font-size: 14px; margin-bottom: 8px;"><strong>Email:</strong> ${safeEmail}</div>
+              <div style="font-size: 14px; margin-bottom: 8px;"><strong>Parolă temporară:</strong> <span style="font-family: ${cleanFont}; background: #ffffff; padding: 3px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 800; color: #0f172a; display: inline-block;">${safePass}</span></div>
               <div style="font-size: 12px; color: #64748b; margin-top: 10px;">
                 <strong>Orașe alocate:</strong> ${citiesLabel}<br/>
                 <strong>Branduri alocate:</strong> ${brandsLabel}
@@ -656,7 +691,7 @@ class UsersService {
     const cleanEmail = String(email || '').trim().toLowerCase()
     const user = (this.state.users || []).find(u => String(u.email || '').trim().toLowerCase() === cleanEmail)
     if (!user) {
-      throw new Error('Nu există niciun cont asociat cu această adresă de email.')
+      throw new Error('Email sau parolă incorectă.')
     }
     if (user.status === 'blocked') {
       throw new Error('Acest cont a fost dezactivat de Administrator.')
@@ -664,10 +699,10 @@ class UsersService {
 
     const inputHash = hashPassword(password)
     const matchesHash = user.password_hash === inputHash
-    const matchesTempPlain = user.temp_password_hint && String(password || '').trim() === String(user.temp_password_hint).trim()
+    const matchesTempPlain = Boolean(user.must_change_password && user.temp_password_hint && String(password || '').trim() === String(user.temp_password_hint).trim())
 
     if (!matchesHash && !matchesTempPlain) {
-      throw new Error('Parola introdusă este incorectă.')
+      throw new Error('Email sau parolă incorectă.')
     }
 
     const nowIso = new Date().toISOString()
@@ -693,6 +728,12 @@ class UsersService {
     if (!user) {
       throw new Error('Utilizatorul nu a fost găsit.')
     }
+    if (!user.must_change_password) {
+      throw new Error('Această acțiune este permisă doar la prima autentificare.')
+    }
+    if (user.status === 'blocked') {
+      throw new Error('Acest cont a fost dezactivat de Administrator.')
+    }
     if (!newPassword || String(newPassword).trim().length < 6) {
       throw new Error('Noua parolă trebuie să conțină cel puțin 6 caractere.')
     }
@@ -705,6 +746,7 @@ class UsersService {
     if (!user.first_login_at) user.first_login_at = nowIso
     user.activated_at = nowIso
     user.last_login_at = nowIso
+    user.updated_at = nowIso
 
     if (typeof firstName === 'string' && firstName.trim()) user.first_name = firstName.trim()
     if (typeof lastName === 'string' && lastName.trim()) user.last_name = lastName.trim()
@@ -724,9 +766,8 @@ class UsersService {
     const nowIso = new Date().toISOString()
     if (!user.first_login_at) user.first_login_at = nowIso
     user.last_login_at = nowIso
-    if (user.status !== 'blocked') {
+    if (user.status === 'invited' && !user.must_change_password) {
       user.status = 'active'
-      user.must_change_password = false
       if (!user.activated_at) user.activated_at = nowIso
     }
     this._save()
@@ -737,13 +778,14 @@ class UsersService {
     const cleanEmail = String(email || '').trim().toLowerCase()
     const user = (this.state.users || []).find(u => String(u.email || '').trim().toLowerCase() === cleanEmail)
     if (!user) {
-      throw new Error('Nu am găsit niciun utilizator înregistrat cu acest email.')
+      return { emailSent: true, reason: null }
     }
 
-    const code = String(Math.floor(100000 + Math.random() * 900000))
+    const code = String(crypto.randomInt(100000, 1000000))
     if (!this.state.resetCodes) this.state.resetCodes = {}
     this.state.resetCodes[cleanEmail] = {
       code,
+      attempts: 0,
       expiresAt: Date.now() + 15 * 60 * 1000
     }
     this._save()
@@ -755,7 +797,7 @@ class UsersService {
         ${logoHeader}
         <div style="padding: 24px;">
           <h3 style="margin-top: 0; color: #0f172a; font-family: ${cleanFont};">Resetare Parolă</h3>
-          <p style="font-size: 14px; color: #475569; font-family: ${cleanFont};">Salut <strong>${user.first_name}</strong>, folosește codul de mai jos în pagina de autentificare pentru a-ți seta o parolă nouă:</p>
+          <p style="font-size: 14px; color: #475569; font-family: ${cleanFont};">Salut <strong>${this._escHtml(user.first_name)}</strong>, folosește codul de mai jos în pagina de autentificare pentru a-ți seta o parolă nouă:</p>
           <div style="font-family: ${cleanFont}; background: #f1f5f9; padding: 16px; border-radius: 12px; text-align: center; font-size: 24px; font-weight: 800; letter-spacing: 6px; color: #047857; margin: 16px 0;">
             ${code}
           </div>
@@ -773,9 +815,7 @@ class UsersService {
 
     return {
       emailSent: emailResult.sent,
-      reason: emailResult.reason || null,
-      // When Brevo API key is not configured yet, return demoCode so user can still test password reset locally
-      demoCode: emailResult.sent ? undefined : code
+      reason: emailResult.reason || null
     }
   }
 
@@ -783,25 +823,39 @@ class UsersService {
     const cleanEmail = String(email || '').trim().toLowerCase()
     const user = (this.state.users || []).find(u => String(u.email || '').trim().toLowerCase() === cleanEmail)
     if (!user) {
-      throw new Error('Utilizatorul nu a fost găsit.')
+      throw new Error('Codul de verificare este invalid.')
     }
 
     const entry = this.state.resetCodes?.[cleanEmail]
-    if (!entry || entry.code !== String(code || '').trim()) {
+    if (!entry) {
       throw new Error('Codul de verificare este invalid.')
     }
     if (Date.now() > entry.expiresAt) {
+      delete this.state.resetCodes[cleanEmail]
+      this._save()
       throw new Error('Codul de verificare a expirat. Solicită unul nou.')
+    }
+    if ((entry.attempts || 0) >= 5) {
+      delete this.state.resetCodes[cleanEmail]
+      this._save()
+      throw new Error('Prea multe încercări eșuate. Solicită un cod nou.')
+    }
+    if (entry.code !== String(code || '').trim()) {
+      entry.attempts = (entry.attempts || 0) + 1
+      this._save()
+      throw new Error('Codul de verificare este invalid.')
     }
     if (!newPassword || String(newPassword).trim().length < 6) {
       throw new Error('Noua parolă trebuie să aibă minim 6 caractere.')
     }
 
+    const nowIso = new Date().toISOString()
     user.password_hash = hashPassword(String(newPassword).trim())
     user.temp_password_hint = null
     user.must_change_password = false
     user.status = 'active'
-    user.last_login_at = new Date().toISOString()
+    user.last_login_at = nowIso
+    user.updated_at = nowIso
     delete this.state.resetCodes[cleanEmail]
     this._save()
 
@@ -937,6 +991,7 @@ class UsersService {
       }
     }
 
+    user.updated_at = new Date().toISOString()
     this._save()
     return this.sanitizeUser(user, true)
   }
@@ -987,6 +1042,8 @@ class UsersService {
       }
     }
 
+    if (!Array.isArray(this.state.deletedIds)) this.state.deletedIds = []
+    if (!this.state.deletedIds.includes(target.id)) this.state.deletedIds.push(target.id)
     this.state.users.splice(idx, 1)
     this._save()
     return true

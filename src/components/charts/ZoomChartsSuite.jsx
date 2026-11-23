@@ -11,92 +11,79 @@ export default function ZoomChartsSuite({ restaurants = [], checks = [], salesDa
   const [isExpanded, setIsExpanded] = useState(false)
 
   return (
-    <div className="w-full space-y-4">
-      {/* Clean Executive Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <LayoutGrid size={16} className="text-emerald-500" />
-            <span>{tr('charts.suite_title', 'Analiză Operațională & Vizuală')}</span>
-          </h3>
-        </div>
+    <div className="w-full space-y-2.5">
+      {/* Clean Executive Header — Compact Laptop Rhythm */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-[13px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] flex items-center gap-2">
+          <LayoutGrid size={15} className="text-[#047857] dark:text-[#10B981]" />
+          <span>{tr('charts.suite_title', 'Analiză Operațională & Vizuală')}</span>
+        </h3>
 
-        {/* View Switchers */}
+        {/* Apple Segmented Control View Switchers */}
         <div className="flex items-center gap-2 shrink-0">
-          <div className={`p-1 rounded-xl border flex items-center gap-1 ${
-            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
-          }`}>
+          <div role="group" className="apple-segmented">
             <button
+              type="button"
               onClick={() => setActiveView('both')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeView === 'both'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+              className={`apple-segment !h-[24px] !px-2.5 !text-[11px] ${activeView === 'both' ? 'apple-segment-active' : ''}`}
             >
-              <LayoutGrid size={13} />
+              <LayoutGrid size={12} />
               <span>{tr('charts.view_both', 'Complet')}</span>
             </button>
             <button
+              type="button"
               onClick={() => setActiveView('pie')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeView === 'pie'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+              className={`apple-segment !h-[24px] !px-2.5 !text-[11px] ${activeView === 'pie' ? 'apple-segment-active' : ''}`}
             >
-              <PieChart size={13} />
+              <PieChart size={12} />
               <span>{tr('charts.view_pie', 'Distribuție')}</span>
             </button>
             <button
+              type="button"
               onClick={() => setActiveView('timeline')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeView === 'timeline'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+              className={`apple-segment !h-[24px] !px-2.5 !text-[11px] ${activeView === 'timeline' ? 'apple-segment-active' : ''}`}
             >
-              <Activity size={13} />
+              <Activity size={12} />
               <span>{tr('charts.view_timeline', 'Evoluție')}</span>
             </button>
           </div>
 
           <button
+            type="button"
             onClick={() => setIsExpanded(!isExpanded)}
+            aria-label={isExpanded ? tr('charts.minimize', 'Micșorează') : tr('charts.expand', 'Extinde')}
             title={isExpanded ? tr('charts.minimize', 'Micșorează') : tr('charts.expand', 'Extinde')}
-            className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
-              isDark 
-                ? 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800' 
-                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100 shadow-xs'
-            }`}
+            className="apple-btn-secondary !w-[30px] !h-[30px] !px-0"
           >
-            {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+            {isExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
           </button>
         </div>
       </div>
 
       {/* Grid of Charts */}
-      <div className={`grid gap-6 transition-all duration-300 ${
+      <div className={`grid gap-3.5 transition-all duration-300 ${
         activeView === 'both' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'
       }`}>
         {(activeView === 'both' || activeView === 'pie') && (
-          <div className="w-full">
+          <div className="w-full min-w-0">
             <ZoomDrilldownPie 
               restaurants={restaurants} 
               checks={checks} 
               salesData={salesData}
               isDark={isDark} 
+              isExpanded={isExpanded}
               t={t} 
             />
           </div>
         )}
 
         {(activeView === 'both' || activeView === 'timeline') && (
-          <div className="w-full">
+          <div className="w-full min-w-0">
             <ZoomTimeChart 
               restaurants={restaurants}
               checks={checks} 
               isDark={isDark} 
+              isExpanded={isExpanded}
               t={t} 
             />
           </div>

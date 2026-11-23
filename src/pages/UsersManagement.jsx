@@ -344,6 +344,11 @@ export default function UsersManagement() {
   }
 
   const toggleModulePage = (pageKey) => {
+    if (formPages.includes('all')) {
+      const expanded = ALL_MODULES.map(m => m.key).filter(k => k !== pageKey)
+      setFormPages(expanded.length > 0 ? expanded : [pageKey])
+      return
+    }
     if (formPages.includes(pageKey)) {
       if (formPages.length <= 1) return
       setFormPages(formPages.filter(p => p !== pageKey))
@@ -579,7 +584,7 @@ export default function UsersManagement() {
           <button
             type="button"
             onClick={openInviteModal}
-            className="h-9 px-4 rounded-full text-xs font-extrabold bg-emerald-600 hover:bg-emerald-500 text-white inline-flex items-center justify-center gap-1.5 shadow-sm cursor-pointer transition-all"
+            className="apple-btn-primary !h-9 !px-4"
           >
             <UserPlus size={14} />
             <span>{tr('Invită Utilizator Nou', 'Invite New User', 'Пригласить пользователя')}</span>
@@ -665,38 +670,32 @@ export default function UsersManagement() {
 
           <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 shrink-0" />
 
-          {/* Filtre Status cu înălțime identică h-8 */}
-          {[
-            { key: 'all', label: tr('Toți', 'All', 'Все статусы'), count: users.length },
-            { key: 'active', label: tr('Activi', 'Active', 'Активные'), count: kpis.active },
-            { key: 'invited', label: tr('Invitați', 'Invited', 'Приглашенные'), count: kpis.invited }
-          ].map(tab => {
-            const active = statusFilter === tab.key
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => {
-                  setStatusFilter(tab.key)
-                  setCurrentPage(1)
-                }}
-                className={`h-8 px-3 rounded-full text-xs font-bold transition-all inline-flex items-center justify-center gap-1.5 border whitespace-nowrap cursor-pointer ${
-                  active
-                    ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
-                    : isDark
-                      ? 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
-                      : 'bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900'
-                }`}
-              >
-                <span>{tab.label}</span>
-                <span className={`text-[10px] tabular-nums px-1.5 rounded-full ${
-                  active ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                }`}>
-                  {tab.count}
-                </span>
-              </button>
-            )
-          })}
+          {/* Filtre Status — Apple Segmented Control */}
+          <div className="apple-segmented">
+            {[
+              { key: 'all', label: tr('Toți', 'All', 'Все статусы'), count: users.length },
+              { key: 'active', label: tr('Activi', 'Active', 'Активные'), count: kpis.active },
+              { key: 'invited', label: tr('Invitați', 'Invited', 'Приглашенные'), count: kpis.invited }
+            ].map(tab => {
+              const active = statusFilter === tab.key
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter(tab.key)
+                    setCurrentPage(1)
+                  }}
+                  className={`apple-segment !h-[26px] ${active ? 'apple-segment-active' : ''}`}
+                >
+                  <span>{tab.label}</span>
+                  <span className="text-[10.5px] tabular-nums opacity-70">
+                    {tab.count}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         {/* Search input with counter {filtered} / {total} and X button (h-8) */}
@@ -1194,19 +1193,17 @@ export default function UsersManagement() {
       {/* ─── MODAL 1: INVITĂ / EDITEAZĂ UTILIZATOR & LIMITE DE ACCES ─── */}
       {isUserModalOpen && (
         <div
-          className="fixed inset-0 z-[9990] bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[9990] apple-sheet-backdrop flex items-center justify-center p-4 animate-in fade-in duration-150"
           onClick={() => setIsUserModalOpen(false)}
         >
           <div
-            className={`w-full max-w-2xl rounded-3xl border shadow-2xl overflow-hidden transition-colors ${
-              isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-            }`}
+            className="apple-sheet w-full max-w-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header cu Avatar & Încărcare Poză integrată */}
-            <div className={`px-6 py-4 border-b flex items-center justify-between gap-3 ${
-              isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-100 bg-slate-50/70'
-            }`}>
+            {/* Liquid Glass Header */}
+            <div className="apple-sheet-header px-5 py-3.5 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <UserAvatar
                   user={{
@@ -1216,15 +1213,15 @@ export default function UsersManagement() {
                     role: formRole,
                     avatar_url: formAvatarUrl
                   }}
-                  size={42}
+                  size={38}
                 />
                 <div className="min-w-0">
-                  <h3 className="text-base font-extrabold leading-tight truncate">
+                  <h3 className="text-[15px] font-semibold tracking-tight leading-tight text-slate-900 dark:text-white truncate">
                     {editingUser
                       ? tr(`Editare Rol & Acces: ${editingUser.full_name}`, `Edit Role & Access: ${editingUser.full_name}`, `Редактировать доступ: ${editingUser.full_name}`)
                       : tr('Invită Utilizator Nou', 'Invite New User', 'Пригласить нового пользователя')}
                   </h3>
-                  <p className="text-xs text-slate-400 truncate">
+                  <p className="text-[12px] text-slate-500 dark:text-slate-400 truncate">
                     {tr(
                       'Setează rolul, orașele permise, brandurile, locațiile și parola de acces',
                       'Configure role, allowed cities, brands, modules and access password',
@@ -1245,7 +1242,7 @@ export default function UsersManagement() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="h-8 px-3 rounded-full text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white inline-flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="apple-btn-secondary !h-8 !px-3"
                 >
                   <Upload size={12} />
                   <span>{tr('Poză', 'Photo', 'Фото')}</span>
@@ -1254,7 +1251,7 @@ export default function UsersManagement() {
                   <button
                     type="button"
                     onClick={() => setFormAvatarUrl('')}
-                    className="h-8 px-3 rounded-full text-xs font-bold text-rose-500 border border-rose-200 dark:border-rose-900 inline-flex items-center justify-center cursor-pointer"
+                    className="apple-btn-secondary !h-8 !px-2.5 !text-rose-600 dark:!text-rose-400"
                   >
                     {tr('Șterge', 'Remove', 'Удалить')}
                   </button>
@@ -1262,9 +1259,8 @@ export default function UsersManagement() {
                 <button
                   type="button"
                   onClick={() => setIsUserModalOpen(false)}
-                  className={`w-8 h-8 rounded-full border inline-flex items-center justify-center cursor-pointer ${
-                    isDark ? 'border-slate-700 hover:bg-slate-800 text-slate-400' : 'border-slate-200 hover:bg-slate-100 text-slate-500'
-                  }`}
+                  aria-label="Close"
+                  className="apple-sheet-close"
                 >
                   <X size={15} />
                 </button>
@@ -1700,20 +1696,20 @@ export default function UsersManagement() {
       {/* ─── MODAL 3: CONFIRMARE ȘTERGERE UTILIZATOR (FĂRĂ NATIVE CONFIRM) ─── */}
       {deleteTargetUser && (
         <div
-          className="fixed inset-0 z-[9995] bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[9995] apple-sheet-backdrop flex items-center justify-center p-4 animate-in fade-in duration-150"
           onClick={() => setDeleteTargetUser(null)}
         >
           <div
-            className={`w-full max-w-sm rounded-3xl border shadow-2xl p-6 text-center ${
-              isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-            }`}
+            className="apple-sheet w-full max-w-sm p-6 text-center"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto mb-3">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/12 text-rose-500 flex items-center justify-center mx-auto mb-3">
               <Trash2 size={22} />
             </div>
-            <h3 className="text-base font-extrabold">{tr('Ștergi acest utilizator?', 'Delete this user?', 'Удалить пользователя?')}</h3>
-            <p className="text-xs text-slate-400 mt-1">
+            <h3 className="text-[15px] font-semibold tracking-tight text-slate-900 dark:text-white">{tr('Ștergi acest utilizator?', 'Delete this user?', 'Удалить пользователя?')}</h3>
+            <p className="text-[12.5px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
               {tr(
                 `Contul ${deleteTargetUser.full_name} (${deleteTargetUser.email}) nu se va mai putea autentifica în platformă.`,
                 `Account ${deleteTargetUser.full_name} (${deleteTargetUser.email}) will no longer be able to sign in.`,
@@ -1724,14 +1720,14 @@ export default function UsersManagement() {
               <button
                 type="button"
                 onClick={() => setDeleteTargetUser(null)}
-                className="px-4 py-2 rounded-full text-xs font-bold border border-slate-200 dark:border-slate-700 cursor-pointer"
+                className="apple-btn-secondary !h-9 !px-4"
               >
                 {tr('Anulează', 'Cancel', 'Отмена')}
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDelete}
-                className="px-5 py-2 rounded-full text-xs font-extrabold bg-rose-600 hover:bg-rose-500 text-white cursor-pointer"
+                className="h-9 px-5 rounded-full text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white shadow-xs cursor-pointer transition-colors"
               >
                 {tr('Șterge Contul', 'Delete Account', 'Удалить аккаунт')}
               </button>

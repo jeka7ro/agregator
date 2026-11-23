@@ -80,7 +80,7 @@ export function normalizeCanonicalCity(rawCity = '', rawRestaurantName = '') {
   if (combined.includes('george enescu') || combined.includes('suceava')) return 'SUCEAVA'
   if (combined.includes('targu mures') || combined.includes('tirgu mures') || combined.includes('tg mures')) return 'TARGU MURES'
   if (combined.includes('bucuresti') || combined.includes('iuliu maniu') || combined.includes('halelor') || combined.includes('ceaikovski') || combined.includes('baneasa') || combined.includes('pipera')) return 'BUCURESTI'
-  if (combined.includes('cluj') || combined.includes('emil isac') || combined.includes('avram iancu') || combined.includes('floresti')) return 'CLUJ'
+  if (combined.includes('cluj') || combined.includes('emil isac') || combined.includes('avram iancu') || combined.includes('floresti')) return 'CLUJ-NAPOCA'
   if (combined.includes('iasi') || combined.includes('voievozilor')) return 'IASI'
   if (combined.includes('timisoara')) return 'TIMISOARA'
   if (combined.includes('constanta')) return 'CONSTANTA'
@@ -97,8 +97,10 @@ export function normalizeCanonicalCity(rawCity = '', rawRestaurantName = '') {
   if (combined.includes('ploiesti')) return 'PLOIESTI'
   if (combined.includes('tulcea')) return 'TULCEA'
   if (combined.includes('baia mare')) return 'BAIA MARE'
+  if (combined.includes('arad')) return 'ARAD'
+  if (combined.includes('balotesti')) return 'BALOTESTI'
   const fallback = String(rawCity || 'BUCURESTI').toUpperCase().trim()
-  if (fallback.startsWith('CHIJ') || fallback.length > 22) return 'SUCEAVA'
+  if (fallback.startsWith('CHIJ') || fallback.length > 28) return 'ALTE ORASE'
   return fallback
 }
 
@@ -540,9 +542,12 @@ class CustomersService {
     for (const o of orders) {
       if (!o) continue
       const plat = String(o.platform || o.channel || '').toLowerCase().trim()
-      if (plat === 'kiosk' || plat === 'casierie' || plat === 'in-store') continue
+      if (['kiosk', 'casierie', 'in-store', 'pos', 'restaurant', 'dine_in', 'kitchen'].includes(plat)) continue
 
       const meta = (o.items || [])[0]?._order_meta || {}
+      if (meta.isPartnerMetaOnly) continue
+      const stLow = String(meta.status || meta.stage || o.status || '').toLowerCase()
+      if (stLow.includes('cancel') || stLow.includes('delet')) continue
       const custObj = o.customer || meta.customer || {}
       const rawName = normalizeName(custObj.name || meta.customerName || '')
       const rawPhone = normalizePhone(custObj.phone || meta.customerPhone || '')
@@ -568,7 +573,10 @@ class CustomersService {
       const restName = o.restaurant_name || city
       const orderNum = String(o.order_number || meta.orderNumber || '').replace(/^#+/, '').trim()
       const orderId = String(o.order_id || o.id || `${orderNum}_${placedAt.slice(0, 10)}`)
-      const baseOrderUuid = orderId.includes('_') && orderId.length > 30 ? orderId.split('_')[0] : orderId
+      const oidParts = orderId.split('_')
+      const baseOrderUuid = ((oidParts[0] === 'wh' || oidParts[0] === 'pos') && /^\d{4}-\d{2}-\d{2}$/.test(oidParts[1] || '') && oidParts[2])
+        ? oidParts[2]
+        : (orderId.includes('_') && orderId.length > 30 ? oidParts[0] : orderId)
 
       const structuredItems = (o.items || [])
         .map(it => {

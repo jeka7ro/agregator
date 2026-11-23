@@ -124,7 +124,7 @@ class WebhookService {
     /**
      * Resolves a restaurant from DB or local cache matching a given Wolt or Bolt identifier
      */
-    async resolveRestaurant({ woltVenueId, boltProviderId, externalVenueId, restaurantId }) {
+    async resolveRestaurant({ woltVenueId, boltProviderId, glovoStoreId, externalVenueId, restaurantId }) {
         try {
             // 1. Direct restaurantId match
             if (restaurantId) {
@@ -135,6 +135,19 @@ class WebhookService {
             // 2. Fetch all active restaurants from Supabase
             const { data: dbRests, error } = await supabase.from('restaurants').select('*').eq('is_active', true)
             const restaurants = (!error && dbRests) ? dbRests : []
+
+            // Match by Glovo Store ID
+            if (glovoStoreId) {
+                const cleanGlovoId = String(glovoStoreId).toLowerCase().trim()
+                const matchInUrl = restaurants.find(r => r.glovo_url && r.glovo_url.toLowerCase().includes(cleanGlovoId))
+                if (matchInUrl) return matchInUrl
+
+                const tsvRecord = this.glovoIdMap?.get(cleanGlovoId)
+                if (tsvRecord) {
+                    const matchedByTsv = this._matchRestaurantWithTsvRecord(restaurants, tsvRecord)
+                    if (matchedByTsv) return matchedByTsv
+                }
+            }
 
             // Match by Wolt Venue ID
             if (woltVenueId) {
@@ -407,21 +420,29 @@ class WebhookService {
     async handleBoltWebhook(payload, headers = {}) {
         this.stats.bolt.total++
 
-        // Optional HMAC signature check if BOLT_WEBHOOK_SECRET is set
+        // Enforce HMAC signature check when BOLT_WEBHOOK_SECRET is configured
         const secretKey = process.env.BOLT_WEBHOOK_SECRET
-        const providedSignature = headers['x-server-authorization-hmac-sha256']
+        const providedSignature = String(headers['x-server-authorization-hmac-sha256'] || '').trim()
         let signatureValid = true
 
-        if (secretKey && providedSignature) {
-            try {
-                const rawBody = typeof payload === 'string' ? payload : JSON.stringify(payload)
-                const computed = crypto.createHmac('sha256', secretKey).update(rawBody).digest('hex')
-                signatureValid = (computed === providedSignature)
-                if (!signatureValid) {
-                    console.warn('[BOLT WEBHOOK] Invalid HMAC signature received!')
+        if (secretKey) {
+            if (!providedSignature) {
+                signatureValid = false
+            } else {
+                try {
+                    const rawBody = typeof payload === 'string' ? payload : JSON.stringify(payload)
+                    const computed = crypto.createHmac('sha256', secretKey).update(rawBody).digest('hex')
+                    const a = Buffer.from(computed, 'utf8')
+                    const b = Buffer.from(providedSignature, 'utf8')
+                    signatureValid = a.length === b.length && crypto.timingSafeEqual(a, b)
+                } catch (err) {
+                    console.error('[BOLT WEBHOOK] Signature validation error:', err)
+                    signatureValid = false
                 }
-            } catch (err) {
-                console.error('[BOLT WEBHOOK] Signature validation error:', err)
+            }
+            if (!signatureValid) {
+                console.warn('[BOLT WEBHOOK] Rejected request due to invalid or missing HMAC signature!')
+                return { success: false, status: 401, error: 'Invalid webhook signature', signatureValid: false }
             }
         }
 

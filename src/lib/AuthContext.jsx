@@ -174,10 +174,14 @@ export function AuthProvider({ children }) {
         if (cancelled || !data?.success || !Array.isArray(data.users)) return
         const fresh = data.users.find(u => u.id === activeUserId || u.email === activeUserEmail)
         if (fresh) {
+          if (fresh.status === 'blocked') {
+            saveSessionUser(null)
+            return
+          }
           saveSessionUser({
             ...fresh,
-            status: fresh.status === 'blocked' ? 'blocked' : 'active',
-            must_change_password: false,
+            status: 'active',
+            must_change_password: Boolean(fresh.must_change_password),
             is_impersonated: activeIsImpersonated,
             // Preserve local avatar if user just updated it
             avatar_url: fresh.avatar_url || user?.avatar_url || ''
@@ -296,7 +300,8 @@ export function AuthProvider({ children }) {
   }, [user])
 
   const canAccessCity = useCallback((cityOrRestName) => {
-    if (!user || user.role === 'admin') return true
+    if (!user) return false
+    if (user.role === 'admin') return true
     const cities = user.allowed_cities || ['all']
     if (cities.includes('all')) return true
     const raw = String(cityOrRestName || '').trim()
@@ -309,7 +314,8 @@ export function AuthProvider({ children }) {
   }, [user])
 
   const canAccessBrand = useCallback((brandOrRestObj) => {
-    if (!user || user.role === 'admin') return true
+    if (!user) return false
+    if (user.role === 'admin') return true
     const brands = user.allowed_brands || ['all']
     if (brands.includes('all')) return true
     let brandStr = ''
@@ -329,7 +335,8 @@ export function AuthProvider({ children }) {
   }, [user])
 
   const canAccessRestaurant = useCallback((restId) => {
-    if (!user || user.role === 'admin') return true
+    if (!user) return false
+    if (user.role === 'admin') return true
     const rests = user.allowed_restaurants || ['all']
     if (rests.includes('all')) return true
     return rests.includes(String(restId))

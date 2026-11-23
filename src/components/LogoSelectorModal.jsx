@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { X, Check, Sparkles } from 'lucide-react'
 import { LOGO_OPTIONS, LogoIcon } from './AppLogo'
 
@@ -9,39 +9,48 @@ export default function LogoSelectorModal({
   onSelectLogo,
   isDark = false
 }) {
+  useEffect(() => {
+    if (!isOpen) return
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isOpen, onClose])
+
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div 
-        className={`w-full max-w-4xl max-h-[90vh] rounded-3xl border shadow-2xl overflow-hidden flex flex-col ${
-          isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
-        }`}
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 apple-sheet-backdrop animate-in fade-in duration-150"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="apple-sheet w-full max-w-4xl max-h-[88vh] overflow-hidden flex flex-col"
       >
         {/* Header */}
-        <div className={`p-6 border-b flex items-center justify-between ${
-          isDark ? 'border-slate-800 bg-slate-850' : 'border-slate-100 bg-slate-50/50'
-        }`}>
+        <div className="apple-sheet-header px-5 py-3.5 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-              <Sparkles size={20} />
+            <div className="w-9 h-9 rounded-xl bg-[#047857]/12 text-[#047857] dark:text-[#10B981] flex items-center justify-center">
+              <Sparkles size={18} />
             </div>
             <div>
-              <h2 className="text-lg font-black tracking-tight">
-                Alege Logo-ul Reprezentativ pentru MONITORING 2.0
+              <h2 className="text-[15px] font-semibold tracking-tight text-slate-900 dark:text-white">
+                Alege Logo-ul Reprezentativ pentru GetApp.FooD
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-[12px] text-slate-500 dark:text-slate-400">
                 6 concepte vectoriale distincte create special pentru agregare restaurante & live dispatch.
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className={`p-2 rounded-xl transition-colors ${
-              isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-800'
-            }`}
+            aria-label="Close"
+            className="apple-sheet-close"
           >
-            <X size={18} />
+            <X size={15} />
           </button>
         </div>
 
@@ -63,7 +72,7 @@ export default function LogoSelectorModal({
               >
                 {/* Top Badge & Number */}
                 <div className="flex items-center justify-between gap-2 mb-3">
-                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-200/60 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                  <span className="text-[10px] tabular-nums font-bold px-2 py-0.5 rounded-md bg-slate-200/60 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
                     Opțiunea #{index + 1}
                   </span>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
@@ -111,7 +120,7 @@ export default function LogoSelectorModal({
 
         {/* Footer */}
         <div className={`p-4 border-t flex items-center justify-between ${
-          isDark ? 'border-slate-800 bg-slate-850' : 'border-slate-100 bg-slate-50'
+          isDark ? 'border-slate-800 bg-white/[0.04]' : 'border-slate-100 bg-slate-50'
         }`}>
           <div className="text-xs text-slate-400">
             Logo-ul selectat se aplică automat în sidebar și pe toate paginile suitei.

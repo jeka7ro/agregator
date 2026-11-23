@@ -27,7 +27,7 @@ function getCurvedPath(points) {
   return d
 }
 
-export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = false, t }) {
+export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = false, isExpanded = false, t }) {
   const { t: contextT, language } = useLanguage()
   const navigate = useNavigate()
   const tr = t || contextT
@@ -142,7 +142,7 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
       const lossAmount = stoppedItems.reduce((sum, s) => sum + s.loss, 0)
       const onlineLocations = Math.max(0, totalActiveLocations - incidentCount)
       const uptime = totalActiveLocations > 0
-        ? +(Math.max(80, Math.min(100, (onlineLocations / totalActiveLocations) * 100))).toFixed(1)
+        ? +(Math.max(0, Math.min(100, (onlineLocations / totalActiveLocations) * 100))).toFixed(1)
         : 100
 
       points.push({
@@ -170,14 +170,14 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
     return rawTimelineData.slice(Math.max(0, startIdx), Math.min(total, endIdx))
   }, [rawTimelineData, scrubberWindow])
 
-  // SVG coordinate calculations for main chart
+  // SVG coordinate calculations for main chart — Compact laptop height
   const width = 580
-  const height = 240
-  const padding = { top: 25, right: 25, bottom: 35, left: 45 }
+  const height = isExpanded ? 240 : 196
+  const padding = { top: 16, right: 20, bottom: 26, left: 42 }
   const chartW = width - padding.left - padding.right
   const chartH = height - padding.top - padding.bottom
 
-  // Map points to SVG coordinates
+  // Map points to SVG coordinates (clamped cleanly to chart vertical domain)
   const svgPoints = useMemo(() => {
     if (visibleTimeline.length === 0) return []
     const minVal = 80 // Scale from 80% to 100% for high dynamic visual resolution
@@ -185,7 +185,7 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
 
     return visibleTimeline.map((pt, idx) => {
       const x = padding.left + (idx / (visibleTimeline.length - 1 || 1)) * chartW
-      const normY = (pt.uptime - minVal) / (maxVal - minVal)
+      const normY = Math.max(0, Math.min(1, (pt.uptime - minVal) / (maxVal - minVal)))
       const y = padding.top + (1 - normY) * chartH
       return { ...pt, x, y }
     })
@@ -198,7 +198,7 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
     const maxVal = 100
     return rawTimelineData.map((pt, idx) => {
       const x = (idx / (rawTimelineData.length - 1 || 1)) * width
-      const normY = (pt.uptime - minVal) / (maxVal - minVal)
+      const normY = Math.max(0, Math.min(1, (pt.uptime - minVal) / (maxVal - minVal)))
       const y = (1 - normY) * miniH
       return { x, y }
     })
@@ -231,20 +231,22 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
     }
   }, [visibleTimeline])
 
-  // Mouse hover tracking
+  // Mouse hover tracking (properly scales CSS pixel coordinates to SVG viewBox units)
   const handleMouseMove = (e) => {
     if (!svgRef.current) return
     const rect = svgRef.current.getBoundingClientRect()
-    const mouseX = e.clientX - rect.left
-    const mouseY = e.clientY - rect.top
-    setMousePos({ x: mouseX, y: mouseY })
+    if (!rect.width || !rect.height) return
+    const cssX = e.clientX - rect.left
+    const cssY = e.clientY - rect.top
+    const svgX = (cssX / rect.width) * width
+    setMousePos({ x: cssX, y: cssY, containerW: rect.width })
 
-    // Find closest point by X coordinate
+    // Find closest point by scaled SVG X coordinate
     if (svgPoints.length > 0) {
       let closest = svgPoints[0]
-      let minDiff = Math.abs(svgPoints[0].x - mouseX)
+      let minDiff = Math.abs(svgPoints[0].x - svgX)
       for (const p of svgPoints) {
-        const diff = Math.abs(p.x - mouseX)
+        const diff = Math.abs(p.x - svgX)
         if (diff < minDiff) {
           minDiff = diff
           closest = p
@@ -395,73 +397,87 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
     setIsDragging(true)
   }
 
-  // Wheel zoom
-  const handleWheelZoom = (e, containerRef) => {
-    if (!containerRef?.current) return
-    e.preventDefault()
-    const rect = containerRef.current.getBoundingClientRect()
-    const mousePct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))
+  // Non-passive wheel zoom attached directly to chart wrapper to avoid browser passive listener warnings
+  const chartContainerRef = useRef(null)
+  const scrubberWindowRef = useRef(scrubberWindow)
+  scrubberWindowRef.current = scrubberWindow
 
-    const zoomIn = e.deltaY < 0
-    const factor = zoomIn ? 0.8 : 1.25
-    const currentSpan = scrubberWindow[1] - scrubberWindow[0]
-    let newSpan = Math.max(6, Math.min(100, currentSpan * factor))
+  useEffect(() => {
+    const chartEl = chartContainerRef.current
+    const trackEl = trackRef.current
+    const makeWheelHandler = (measureRef) => (e) => {
+      const target = measureRef?.current
+      if (!target) return
+      e.preventDefault()
+      const rect = target.getBoundingClientRect()
+      if (!rect.width) return
+      const mousePct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))
 
-    const ratio = (mousePct - scrubberWindow[0]) / (currentSpan || 1)
-    let newStart = mousePct - ratio * newSpan
-    let newEnd = newStart + newSpan
+      const zoomIn = e.deltaY < 0
+      const factor = zoomIn ? 0.8 : 1.25
+      const win = scrubberWindowRef.current
+      const currentSpan = win[1] - win[0]
+      const newSpan = Math.max(6, Math.min(100, currentSpan * factor))
 
-    if (newStart < 0) {
-      newStart = 0
-      newEnd = Math.min(100, newSpan)
+      const ratio = (mousePct - win[0]) / (currentSpan || 1)
+      let newStart = mousePct - ratio * newSpan
+      let newEnd = newStart + newSpan
+
+      if (newStart < 0) {
+        newStart = 0
+        newEnd = Math.min(100, newSpan)
+      }
+      if (newEnd > 100) {
+        newEnd = 100
+        newStart = Math.max(0, 100 - newSpan)
+      }
+
+      setScrubberWindow([+newStart.toFixed(1), +newEnd.toFixed(1)])
     }
-    if (newEnd > 100) {
-      newEnd = 100
-      newStart = Math.max(0, 100 - newSpan)
+    const onChartWheel = makeWheelHandler(svgRef)
+    const onTrackWheel = makeWheelHandler(trackRef)
+    if (chartEl) chartEl.addEventListener('wheel', onChartWheel, { passive: false })
+    if (trackEl) trackEl.addEventListener('wheel', onTrackWheel, { passive: false })
+    return () => {
+      if (chartEl) chartEl.removeEventListener('wheel', onChartWheel)
+      if (trackEl) trackEl.removeEventListener('wheel', onTrackWheel)
     }
-
-    setScrubberWindow([+newStart.toFixed(1), +newEnd.toFixed(1)])
-  }
+  }, [])
 
   return (
     <div 
-      className={`relative p-5 rounded-3xl border shadow-sm flex flex-col justify-between transition-all select-none overflow-hidden h-[540px] ${
+      className={`relative p-3.5 rounded-2xl border shadow-sm flex flex-col justify-between transition-all select-none overflow-hidden ${isExpanded ? 'h-[540px]' : 'h-[430px]'} ${
         isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
       }`}
     >
-      {/* SECTION 1: Top Header (Streamlined & aligned) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800/80 min-h-[46px] shrink-0">
-        <div>
-          <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Activity size={16} className="text-cyan-500" />
-            <span>{tr('charts.timeline_title', 'Evoluție Uptime & Disponibilitate')}</span>
+      {/* SECTION 1: Top Header — Compact Single Row on Laptop */}
+      <div className="flex flex-wrap items-center justify-between gap-1.5 pb-2 border-b border-black/[0.06] dark:border-white/[0.08] shrink-0">
+        <div className="min-w-0">
+          <h3 className="text-[12.5px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] flex items-center gap-1.5 truncate">
+            <Activity size={14} className="text-[#047857] dark:text-[#10B981] shrink-0" />
+            <span className="truncate">{tr('charts.timeline_title', 'Evoluție Uptime & Disponibilitate')}</span>
           </h3>
         </div>
 
-        {/* Range Buttons & Drilldown to Alerts */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Range Segmented Control & Secondary Drilldown to Alerts */}
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
             onClick={() => navigate('/alerts')}
-            className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer ${
-              isDark ? 'bg-slate-800/80 border-slate-700 text-rose-400 hover:bg-slate-800' : 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'
-            }`}
+            className="apple-btn-secondary !h-[26px] !px-2 !text-[10.5px]"
             title={language === 'ru' ? 'Открыть журнал остановок и инцидентов' : language === 'en' ? 'Open stops & incidents log' : 'Deschide jurnalul de opriri și alerte'}
           >
             <span>{language === 'ru' ? 'Журнал остановок' : language === 'en' ? 'Outage Log' : 'Jurnal Opriri'}</span>
-            <ExternalLink size={12} />
+            <ExternalLink size={10} className="text-[#6E6E73] dark:text-[#8E8E93]" />
           </button>
-          <div className={`p-1 rounded-xl border flex items-center gap-1 shrink-0 ${
-            isDark ? 'bg-slate-800/80 border-slate-700/60' : 'bg-slate-100 border-slate-200'
-          }`}>
+          <div role="group" className="apple-segmented shrink-0">
             {['6h', '12h', '24h', '7d', '30d'].map(preset => (
               <button
                 key={preset}
+                type="button"
                 onClick={() => { setRangePreset(preset); setScrubberWindow([0, 100]); }}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  rangePreset === preset 
-                    ? 'bg-cyan-600 text-white shadow-xs' 
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                className={`apple-segment !h-[23px] !px-2 !text-[10.5px] ${
+                  rangePreset === preset ? 'apple-segment-active' : ''
                 }`}
               >
                 {preset}
@@ -471,46 +487,48 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
         </div>
       </div>
 
-      {/* SECTION 2: 4-Metric Ribbon (Exact height and layout matching left card) */}
-      <div className="grid grid-cols-4 gap-2 my-3 shrink-0">
-        <div className={`p-2 rounded-2xl border text-center ${
-          isDark ? 'bg-slate-800/30 border-slate-800' : 'bg-slate-50 border-slate-100'
+      {/* SECTION 2: 4-Metric Ribbon — Compact Twin of Left Card */}
+      <div className="grid grid-cols-4 gap-1.5 my-2 shrink-0">
+        <div className={`px-2 py-1.5 rounded-xl border text-center ${
+          isDark ? 'bg-white/[0.03] border-white/[0.08]' : 'bg-[#F5F5F7]/80 border-black/[0.05]'
         }`}>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <div className="text-[10px] font-medium text-[#515154] dark:text-[#AEAEB2] truncate">
             {tr('charts.ribbon_avg_uptime', 'Medie Uptime')}
           </div>
-          <div className="text-base font-extrabold text-emerald-500 mt-0.5">{stats.avg}%</div>
+          <div className="text-[14px] font-semibold text-[#0A7B5C] dark:text-emerald-400 leading-tight mt-0.5 tabular-nums">{stats.avg}%</div>
         </div>
-        <div className={`p-2 rounded-2xl border text-center ${
-          isDark ? 'bg-slate-800/30 border-slate-800' : 'bg-slate-50 border-slate-100'
+        <div className={`px-2 py-1.5 rounded-xl border text-center ${
+          isDark ? 'bg-white/[0.03] border-white/[0.08]' : 'bg-[#F5F5F7]/80 border-black/[0.05]'
         }`}>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <div className="text-[10px] font-medium text-[#515154] dark:text-[#AEAEB2] truncate">
             {tr('charts.ribbon_min_uptime', 'Minim Atins')}
           </div>
-          <div className="text-base font-extrabold text-amber-500 mt-0.5">{stats.min}%</div>
+          <div className="text-[14px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] leading-tight mt-0.5 tabular-nums">{stats.min}%</div>
         </div>
-        <div className={`p-2 rounded-2xl border text-center ${
-          isDark ? 'bg-slate-800/30 border-slate-800' : 'bg-slate-50 border-slate-100'
+        <div className={`px-2 py-1.5 rounded-xl border text-center ${
+          isDark ? 'bg-white/[0.03] border-white/[0.08]' : 'bg-[#F5F5F7]/80 border-black/[0.05]'
         }`}>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <div className="text-[10px] font-medium text-[#515154] dark:text-[#AEAEB2] truncate">
             {tr('charts.ribbon_peak_uptime', 'Vârf Activ')}
           </div>
-          <div className="text-base font-extrabold text-cyan-500 mt-0.5">{stats.max}%</div>
+          <div className="text-[14px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] leading-tight mt-0.5 tabular-nums">{stats.max}%</div>
         </div>
-        <div className={`p-2 rounded-2xl border text-center ${
-          isDark ? 'bg-slate-800/30 border-slate-800' : 'bg-slate-50 border-slate-100'
+        <div className={`px-2 py-1.5 rounded-xl border text-center ${
+          isDark ? 'bg-white/[0.03] border-white/[0.08]' : 'bg-[#F5F5F7]/80 border-black/[0.05]'
         }`}>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <div className="text-[10px] font-medium text-[#515154] dark:text-[#AEAEB2] truncate">
             {tr('charts.ribbon_loss_est', 'Pierdere Est.')}
           </div>
-          <div className="text-base font-extrabold text-rose-500 mt-0.5">{stats.totalLoss} RON</div>
+          <div className={`text-[14px] font-semibold leading-tight mt-0.5 tabular-nums ${stats.totalLoss > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-[#1D1D1F] dark:text-[#F5F5F7]'}`}>
+            {stats.totalLoss} RON
+          </div>
         </div>
       </div>
 
       {/* Main Interactive SVG Chart */}
       <div 
+        ref={chartContainerRef}
         className="relative w-full flex-1 my-auto overflow-hidden flex items-center justify-center"
-        onWheel={(e) => handleWheelZoom(e, svgRef)}
       >
         <svg
           ref={svgRef}
@@ -654,7 +672,7 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
               isDark ? 'bg-slate-900/90 border-slate-700 text-white' : 'bg-white/95 border-slate-200 text-slate-900'
             }`}
             style={{
-              left: `${Math.min(Math.max(mousePos.x - 70, 20), width - 170)}px`,
+              left: `${Math.min(Math.max(mousePos.x - 70, 12), Math.max(12, (mousePos.containerW || width) - 180))}px`,
               top: `${Math.max(hoveredPoint.y - 85, 10)}px`
             }}
           >
@@ -694,14 +712,14 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
         )}
       </div>
 
-      {/* ZoomCharts Signature: Interactive Bottom Mini-Map / Timeline Scrubber */}
-      <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
-        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 mb-1.5">
-          <span>{tr('charts.timeline_nav_title', 'TIMELINE NAVIGATOR (Zoom & Pan)')}</span>
-          <span>
+      {/* ZoomCharts Signature: Interactive Bottom Mini-Map / Timeline Scrubber — Compact Laptop Track (h-7) */}
+      <div className="mt-2 pt-2 border-t border-black/[0.06] dark:border-white/[0.08] shrink-0">
+        <div className="flex items-center justify-between text-[10px] font-medium text-[#636366] dark:text-[#8E8E93] mb-1">
+          <span>{tr('charts.timeline_nav_title', 'Navigator timp (Zoom & Pan)')}</span>
+          <span className="tabular-nums">
             {tr('charts.window_visible', 'Fereastră: {percent}%').replace('{percent}', Math.round(scrubberWindow[1] - scrubberWindow[0]))}
             {scrubberWindow[1] - scrubberWindow[0] < 99 && visibleTimeline.length > 0 && (
-              <span className="text-cyan-500 font-bold ml-1.5">
+              <span className="text-[#047857] dark:text-[#10B981] font-semibold ml-1.5">
                 ({visibleTimeline[0]?.formattedDate} → {visibleTimeline[visibleTimeline.length - 1]?.formattedDate})
               </span>
             )}
@@ -712,13 +730,12 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
           ref={trackRef}
           onMouseDown={handleTrackPointerDown}
           onTouchStart={handleTrackPointerDown}
-          onWheel={(e) => handleWheelZoom(e, trackRef)}
-          className="relative h-10 w-full rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 select-none cursor-pointer"
+          className="relative h-7 w-full rounded-lg overflow-hidden border border-black/[0.07] dark:border-white/10 bg-[#F5F6F9] dark:bg-white/[0.04] select-none cursor-pointer"
         >
           {/* Mini preview curve */}
           <svg viewBox={`0 0 ${width} 36`} className="w-full h-full opacity-60 pointer-events-none">
             {miniLinePath && (
-              <path d={miniLinePath} fill="none" stroke="#06b6d4" strokeWidth="1.5" />
+              <path d={miniLinePath} fill="none" stroke="#047857" strokeWidth="1.5" />
             )}
           </svg>
 
@@ -726,8 +743,8 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
           <div
             onMouseDown={(e) => handleStartDrag('move', e)}
             onTouchStart={(e) => handleStartDrag('move', e)}
-            className={`absolute top-0 bottom-0 bg-cyan-500/25 border-x-2 border-cyan-400 select-none transition-colors ${
-              isDragging ? 'cursor-grabbing bg-cyan-500/35' : 'cursor-grab hover:bg-cyan-500/30'
+            className={`absolute top-0 bottom-0 bg-[#047857]/18 border-x-2 border-[#047857] select-none transition-colors ${
+              isDragging ? 'cursor-grabbing bg-[#047857]/28' : 'cursor-grab hover:bg-[#047857]/24'
             }`}
             style={{
               left: `${scrubberWindow[0]}%`,
@@ -741,14 +758,14 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
               className="absolute left-0 top-0 bottom-0 w-4 flex items-center justify-center cursor-ew-resize z-20 group"
               title={tr('charts.handle_start_tip', 'Trage pentru a ajusta începutul intervalului')}
             >
-              <div className="w-1.5 h-6 rounded-full bg-cyan-400 group-hover:bg-cyan-300 shadow-sm group-hover:scale-125 transition-transform" />
+              <div className="w-1 h-4 rounded-full bg-[#047857] group-hover:scale-125 transition-transform" />
             </div>
 
             {/* Visual Center Grip */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-75">
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-45">
               <div className="flex gap-0.5">
-                <div className="w-0.5 h-3 bg-cyan-400 rounded-full" />
-                <div className="w-0.5 h-3 bg-cyan-400 rounded-full" />
+                <div className="w-0.5 h-2.5 bg-[#047857] rounded-full" />
+                <div className="w-0.5 h-2.5 bg-[#047857] rounded-full" />
               </div>
             </div>
 
@@ -759,20 +776,20 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
               className="absolute right-0 top-0 bottom-0 w-4 flex items-center justify-center cursor-ew-resize z-20 group"
               title={tr('charts.handle_end_tip', 'Trage pentru a ajusta sfârșitul intervalului')}
             >
-              <div className="w-1.5 h-6 rounded-full bg-cyan-400 group-hover:bg-cyan-300 shadow-sm group-hover:scale-125 transition-transform" />
+              <div className="w-1 h-4 rounded-full bg-[#047857] group-hover:scale-125 transition-transform" />
             </div>
           </div>
         </div>
 
         {/* Quick Range Slider Buttons */}
-        <div className="flex items-center justify-between mt-2 text-[10px] text-slate-400 gap-2 min-w-0">
-          <div className="flex items-center gap-1.5 min-w-0 truncate">
-            <Info size={12} className="text-slate-400 shrink-0" />
+        <div className="flex items-center justify-between mt-1.5 text-[10px] text-[#636366] dark:text-[#8E8E93] gap-2 min-w-0">
+          <div className="flex items-center gap-1 min-w-0 truncate">
+            <Info size={11} className="shrink-0 opacity-75" />
             <span className="truncate">{tr('charts.timeline_hint', 'Trage mânerele pentru derulare și zoom ore de vârf.')}</span>
           </div>
           <button
             onClick={() => setScrubberWindow([0, 100])}
-            className="text-cyan-500 font-bold hover:underline cursor-pointer shrink-0 whitespace-nowrap"
+            className="text-[#047857] dark:text-[#10B981] font-semibold hover:underline cursor-pointer shrink-0 whitespace-nowrap"
           >
             {tr('charts.reset_zoom', 'Reset Zoom (100%)')}
           </button>

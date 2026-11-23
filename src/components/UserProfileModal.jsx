@@ -133,28 +133,28 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
 
   return (
     <div
-      className="fixed inset-0 z-[9990] bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[9990] apple-sheet-backdrop flex items-center justify-center p-4 animate-in fade-in duration-150"
       onClick={onClose}
+      onKeyDown={(e) => { if (e.key === 'Escape') onClose?.() }}
+      tabIndex={-1}
     >
       <div
-        className={`w-full max-w-lg rounded-3xl border shadow-2xl overflow-hidden transition-colors ${
-          isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-        }`}
+        className="apple-sheet w-full max-w-lg overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className={`px-6 py-4 border-b flex items-center justify-between ${
-          isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-100 bg-slate-50/70'
-        }`}>
+        {/* Liquid Glass Header */}
+        <div className="apple-sheet-header px-5 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <UserAvatar user={previewUser} size={42} showOnlineDot />
+            <UserAvatar user={previewUser} size={40} showOnlineDot />
             <div>
-              <h3 className="text-base font-extrabold leading-tight">
-                {tr('Profilul Meu & Securitate', 'My Profile & Security', 'Мой профиль и безопасность')}
+              <h3 className="text-[15px] font-semibold tracking-tight leading-tight text-slate-900 dark:text-white">
+                {tr('Profilul Meu și Securitate', 'My Profile & Security', 'Мой профиль и безопасность')}
               </h3>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs text-slate-400 font-medium">{user.email}</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${roleMeta.badgeClass}`}>
+                <span className="text-[12px] text-slate-500 dark:text-slate-400">{user.email}</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${roleMeta.badgeClass}`}>
                   {roleLabel}
                 </span>
               </div>
@@ -163,30 +163,27 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
           <button
             type="button"
             onClick={onClose}
-            className={`w-8 h-8 rounded-full flex items-center justify-center border transition-colors cursor-pointer ${
-              isDark ? 'border-slate-700 hover:bg-slate-800 text-slate-400' : 'border-slate-200 hover:bg-slate-100 text-slate-500'
-            }`}
+            aria-label="Close"
+            className="apple-sheet-close"
           >
             <X size={15} />
           </button>
         </div>
 
-        <form onSubmit={handleSave} className="p-6 space-y-4 max-h-[82vh] overflow-y-auto custom-scrollbar">
+        <form onSubmit={handleSave} className="p-5 space-y-4 max-h-[82vh] overflow-y-auto custom-scrollbar">
           {/* Avatar Photo / Initials Section */}
-          <div className={`p-4 rounded-2xl border flex items-center justify-between gap-4 ${
-            isDark ? 'bg-slate-800/40 border-slate-800' : 'bg-slate-50 border-slate-200/80'
-          }`}>
-            <div className="flex items-center gap-3.5">
-              <UserAvatar user={previewUser} size={56} />
+          <div className="apple-inset-card p-3.5 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <UserAvatar user={previewUser} size={50} />
               <div>
-                <div className="text-xs font-extrabold">
-                  {tr('Poză de Profil (Avatar)', 'Profile Photo (Avatar)', 'Фото профиля (Аватар)')}
+                <div className="text-[12.5px] font-semibold text-slate-900 dark:text-white">
+                  {tr('Poză de profil', 'Profile photo', 'Фото профиля')}
                 </div>
-                <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
                   {tr(
-                    'Dacă nu setezi o poză, se afișează automat inițialele din Nume și Prenume.',
-                    'If no photo is set, initials from your first and last name are displayed automatically.',
-                    'Если фото не выбрано, автоматически отображаются инициалы имени и фамилии.'
+                    'Dacă nu setezi o poză, se afișează inițialele din nume.',
+                    'Initials are shown automatically if no photo is set.',
+                    'Без фото отображаются инициалы имени.'
                   )}
                 </p>
               </div>
@@ -202,7 +199,7 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 cursor-pointer shadow-xs"
+                className="apple-btn-secondary !h-8 !px-3"
               >
                 <Upload size={13} />
                 <span>{tr('Încarcă', 'Upload', 'Фото')}</span>
@@ -212,7 +209,7 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
                   type="button"
                   onClick={() => setAvatarUrl('')}
                   title={tr('Șterge poza (folosește inițialele)', 'Remove photo (use initials)', 'Удалить фото (оставить инициалы)')}
-                  className="p-1.5 rounded-full border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 cursor-pointer"
+                  className="p-1.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 cursor-pointer"
                 >
                   <Trash2 size={13} />
                 </button>
@@ -223,39 +220,39 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
           {/* Name & Phone */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                {tr('Prenume', 'First Name', 'Имя (Prenume)')}
+              <label className="block text-[11.5px] font-medium text-slate-500 dark:text-slate-400 mb-1">
+                {tr('Prenume', 'First Name', 'Имя')}
               </label>
               <input
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className={`w-full px-3.5 py-2 rounded-xl border text-xs font-semibold outline-none transition-colors ${
+                className={`w-full px-3.5 py-2 rounded-xl border text-[13px] font-medium outline-none transition-colors ${
                   isDark
-                    ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500'
-                    : 'bg-white border-slate-200 text-slate-900 focus:border-emerald-500'
+                    ? 'bg-white/[0.06] border-white/12 text-white focus:border-[#10B981]'
+                    : 'bg-white border-black/12 text-slate-900 focus:border-[#047857]'
                 }`}
               />
             </div>
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                {tr('Nume de familie', 'Last Name', 'Фамилия (Nume)')}
+              <label className="block text-[11.5px] font-medium text-slate-500 dark:text-slate-400 mb-1">
+                {tr('Nume de familie', 'Last Name', 'Фамилия')}
               </label>
               <input
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className={`w-full px-3.5 py-2 rounded-xl border text-xs font-semibold outline-none transition-colors ${
+                className={`w-full px-3.5 py-2 rounded-xl border text-[13px] font-medium outline-none transition-colors ${
                   isDark
-                    ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500'
-                    : 'bg-white border-slate-200 text-slate-900 focus:border-emerald-500'
+                    ? 'bg-white/[0.06] border-white/12 text-white focus:border-[#10B981]'
+                    : 'bg-white border-black/12 text-slate-900 focus:border-[#047857]'
                 }`}
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+            <label className="block text-[11.5px] font-medium text-slate-500 dark:text-slate-400 mb-1">
               {tr('Telefon de contact', 'Contact Phone', 'Телефон')}
             </label>
             <input
@@ -263,62 +260,58 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="+407..."
-              className={`w-full px-3.5 py-2 rounded-xl border text-xs font-semibold outline-none transition-colors ${
+              className={`w-full px-3.5 py-2 rounded-xl border text-[13px] font-medium tabular-nums outline-none transition-colors ${
                 isDark
-                  ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500'
-                  : 'bg-white border-slate-200 text-slate-900 focus:border-emerald-500'
+                  ? 'bg-white/[0.06] border-white/12 text-white focus:border-[#10B981]'
+                  : 'bg-white border-black/12 text-slate-900 focus:border-[#047857]'
               }`}
             />
           </div>
 
           {/* Access Permissions Summary */}
-          <div className={`p-3.5 rounded-2xl border space-y-2 text-xs ${
-            isDark ? 'bg-slate-800/30 border-slate-800' : 'bg-slate-50/80 border-slate-200/70'
-          }`}>
-            <div className="flex items-center gap-1.5 font-extrabold text-emerald-600 dark:text-emerald-400">
+          <div className="apple-inset-card p-3.5 space-y-2 text-[12px]">
+            <div className="flex items-center gap-1.5 font-semibold text-[#047857] dark:text-[#10B981]">
               <ShieldCheck size={14} />
-              <span>{tr('Permisiuni & Perimetru de Acces', 'Access Permissions & Scope', 'Права доступа аккаунта')}</span>
+              <span>{tr('Permisiuni și perimetru de acces', 'Access permissions & scope', 'Права доступа аккаунта')}</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11.5px]">
               <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 truncate">
                 <MapPin size={12} className="text-slate-400 shrink-0" />
-                <span className="font-semibold text-slate-700 dark:text-slate-200 truncate">{citiesText}</span>
+                <span className="font-medium text-slate-800 dark:text-slate-200 truncate">{citiesText}</span>
               </div>
               <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 truncate">
                 <Store size={12} className="text-slate-400 shrink-0" />
-                <span className="font-semibold text-slate-700 dark:text-slate-200 truncate">{brandsText}</span>
+                <span className="font-medium text-slate-800 dark:text-slate-200 truncate">{brandsText}</span>
               </div>
             </div>
           </div>
 
           {/* Password Change */}
-          <div className={`p-4 rounded-2xl border space-y-3 ${
-            isDark ? 'bg-slate-800/40 border-slate-800' : 'bg-slate-50 border-slate-200/80'
-          }`}>
+          <div className="apple-inset-card p-3.5 space-y-2.5">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-extrabold">
-                <KeyRound size={14} className="text-emerald-500" />
-                <span>{tr('Schimbare Parolă (opțional)', 'Change Password (optional)', 'Изменить пароль (необязательно)')}</span>
+              <div className="flex items-center gap-1.5 text-[12px] font-semibold text-slate-900 dark:text-white">
+                <KeyRound size={13} className="text-[#047857] dark:text-[#10B981]" />
+                <span>{tr('Schimbare parolă (opțional)', 'Change password (optional)', 'Изменить пароль (необязательно)')}</span>
               </div>
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="text-[11px] font-bold text-slate-400 hover:text-slate-600 flex items-center gap-1 cursor-pointer"
+                className="text-[11px] font-medium text-[#047857] dark:text-[#10B981] flex items-center gap-1 cursor-pointer"
               >
                 {showPassword ? <EyeOff size={12} /> : <Eye size={12} />}
                 <span>{showPassword ? tr('Ascunde', 'Hide', 'Скрыть') : tr('Arată', 'Show', 'Показать')}</span>
               </button>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder={tr('Parolă nouă (min. 6 caract.)', 'New password (min. 6 chars)', 'Новый пароль (мин. 6 симв.)')}
-                className={`w-full px-3.5 py-2 rounded-xl border text-xs font-semibold outline-none transition-colors ${
+                className={`w-full px-3 py-2 rounded-xl border text-[12.5px] font-medium outline-none transition-colors ${
                   isDark
-                    ? 'bg-slate-900 border-slate-700 text-white focus:border-emerald-500'
-                    : 'bg-white border-slate-200 text-slate-900 focus:border-emerald-500'
+                    ? 'bg-[#1C1C1E] border-white/12 text-white focus:border-[#10B981]'
+                    : 'bg-white border-black/12 text-slate-900 focus:border-[#047857]'
                 }`}
               />
               <input
@@ -326,17 +319,17 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder={tr('Confirmă parola nouă', 'Confirm new password', 'Подтвердите новый пароль')}
-                className={`w-full px-3.5 py-2 rounded-xl border text-xs font-semibold outline-none transition-colors ${
+                className={`w-full px-3 py-2 rounded-xl border text-[12.5px] font-medium outline-none transition-colors ${
                   isDark
-                    ? 'bg-slate-900 border-slate-700 text-white focus:border-emerald-500'
-                    : 'bg-white border-slate-200 text-slate-900 focus:border-emerald-500'
+                    ? 'bg-[#1C1C1E] border-white/12 text-white focus:border-[#10B981]'
+                    : 'bg-white border-black/12 text-slate-900 focus:border-[#047857]'
                 }`}
               />
             </div>
           </div>
 
           {feedback && (
-            <div className={`px-3.5 py-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 ${
+            <div className={`px-3.5 py-2.5 rounded-xl border text-xs font-medium flex items-center gap-2 ${
               feedback.type === 'success'
                 ? 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/60 dark:border-emerald-800 dark:text-emerald-300'
                 : 'bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/60 dark:border-rose-800 dark:text-rose-300'
@@ -351,19 +344,17 @@ export default function UserProfileModal({ isOpen, onClose, isDark }) {
             <button
               type="button"
               onClick={onClose}
-              className={`px-4 py-2 rounded-full text-xs font-bold border cursor-pointer ${
-                isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
-              }`}
+              className="apple-btn-secondary !h-9 !px-4"
             >
               {tr('Anulează', 'Cancel', 'Отмена')}
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="px-5 py-2 rounded-full text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+              className="apple-btn-primary !h-9 !px-5 disabled:opacity-50"
             >
               <Save size={13} />
-              <span>{saving ? tr('Se salvează...', 'Saving...', 'Сохранение...') : tr('Salvează Profilul', 'Save Profile', 'Сохранить профиль')}</span>
+              <span>{saving ? tr('Se salvează...', 'Saving...', 'Сохранение...') : tr('Salvează profilul', 'Save profile', 'Сохранить профиль')}</span>
             </button>
           </div>
         </form>

@@ -5,9 +5,27 @@ import path from 'path';
 // Folosim .env.local unde probabil tii cheile.
 dotenv.config({ path: path.resolve(process.cwd(), "..", ".env.local") });
 
-// const supabase = createClient(...) is now imported
+function escapeTelegramHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+function isWithinBucharestActiveHours() {
+  try {
+    const h = Number(
+      new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Europe/Bucharest',
+        hour: '2-digit',
+        hour12: false
+      }).format(new Date())
+    );
+    return h >= 10 && h < 22;
+  } catch (_) {
+    return true;
+  }
+}
 
 const PLATFORM_LABEL = {
   glovo: 'Glovo',
@@ -175,7 +193,8 @@ async function logNotification(restaurantId, platform, incidentId, dedupeKey, pa
 }
 
 export async function sendTelegramMessage(chatId, text, threadId) {
-  if (!TELEGRAM_BOT_TOKEN) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) {
       console.warn('🔴 Nu ai setat TELEGRAM_BOT_TOKEN in ENV.');
       return false;
   }
@@ -190,14 +209,20 @@ export async function sendTelegramMessage(chatId, text, threadId) {
   }
   
   try {
-      const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
+          signal: AbortSignal.timeout(8000)
       });
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         console.error(`[Telegram] Eroare trimitere chat_id=${chatId}:`, err);
+        return false;
+      }
+      const data = await res.json().catch(() => ({ ok: true }));
+      if (data && data.ok === false) {
+        console.error(`[Telegram] API ok=false chat_id=${chatId}:`, data);
         return false;
       }
       return true;
@@ -208,7 +233,9 @@ export async function sendTelegramMessage(chatId, text, threadId) {
 }
 
 export async function processAndNotify() {
-  const since = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  if (!isWithinBucharestActiveHours()) return;
+  // Lookback >= 20 min to match */15 cron without dropping stops created 6-15 min earlier (deduped via wasRecentlySent)
+  const since = new Date(Date.now() - 20 * 60 * 1000).toISOString();
   // Folosim tabelul real 'stop_events' în loc de aggregator_incidents conceptual
   const { data: activeStops, error } = await supabase
     .from('stop_events')
@@ -223,7 +250,7 @@ export async function processAndNotify() {
   }
 
   const restaurantIds = [...new Set(activeStops.map((i) => i.restaurant_id))];
-  const { data: restaurants } = await supabase.from('restaurants').select('id, name, city, working_hours').in('id', restaurantIds);
+  const { data: restaurants } = await supabase.from('restaurants').select('id, name, city, working_hours, telegram_group_id').in('id', restaurantIds);
   const restaurantMap = new Map((restaurants || []).map((r) => [r.id, r]));
 
   for (const stopEvent of activeStops) {
@@ -264,24 +291,26 @@ export async function processAndNotify() {
 }
 
 export async function notifyStopResolved(restaurantId, platform, durationSec, lossAmount, currency = 'RON') {
+  if (!isWithinBucharestActiveHours()) return;
   const restaurant = await supabase
     .from('restaurants')
-    .select('name, city, working_hours')
+    .select('name, city, working_hours, telegram_group_id')
     .eq('id', restaurantId)
     .single();
 
   const targetChatId = restaurant.data?.working_hours?.telegram_group_id || restaurant.data?.telegram_group_id;
   if (!restaurant.data || !targetChatId) return;
+  if (restaurant.data.working_hours?.notification_enabled === false) return;
 
   const minutes = Math.floor(durationSec / 60);
   const loss = lossAmount ? `${Math.round(lossAmount).toLocaleString('ro-RO')} ${currency}` : '—';
   const platData = PLATFORM_LABEL[platform] || platform;
 
   const message = [
-    `✅ <b>STOP rezolvat — ${platData}</b>`,
-    `📍 ${restaurant.data.name} · ${restaurant.data.city}`,
+    `✅ <b>STOP rezolvat — ${escapeTelegramHtml(platData)}</b>`,
+    `📍 ${escapeTelegramHtml(restaurant.data.name)} · ${escapeTelegramHtml(restaurant.data.city)}`,
     `⏱ Durată totală: ${minutes} min`,
-    `💸 Pierdere totală: ${loss}`,
+    `💸 Pierdere totală: ${escapeTelegramHtml(loss)}`,
   ].join('\n');
 
   await sendTelegramMessage(targetChatId, message);

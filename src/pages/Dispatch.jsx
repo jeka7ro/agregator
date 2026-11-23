@@ -44,6 +44,7 @@ import { useLiveChecks } from '../hooks/useLiveChecks'
 import BrandAvatar, { getBrandInfo, cleanRestaurantName } from '../components/BrandAvatar'
 import PlatformLogo from '../components/PlatformLogo'
 import OrderLiveRouteMap from '../components/OrderLiveRouteMap'
+import AppleDateRangePicker, { formatYmdRangeDisplay } from '../components/AppleDateRangePicker'
 import { getProductImage } from '../lib/productImages'
 import { getCanonicalCity, getCityDisplayName, maskPhone, maskCustomerName, maskAddress, formatDisplayOrderNumber, parseDeliveryAddress } from '../lib/orderUtils'
 
@@ -148,6 +149,15 @@ function computeElapsedMinutes(placedAt, createdAt, fallbackMin = 0) {
   }
 }
 
+function cleanDishLabel(rawName = '') {
+  const str = String(rawName || '').trim()
+  const match = str.match(/^([A-Z0-9]{1,3}_)\s*(.+)$/i)
+  if (match) {
+    return { prefix: match[1].replace(/_$/, ''), cleanName: match[2] }
+  }
+  return { prefix: null, cleanName: str || 'Produs' }
+}
+
 export default function Dispatch() {
   const { isDark } = useTheme()
   const { t, language } = useLanguage()
@@ -194,10 +204,23 @@ export default function Dispatch() {
   })
   const [selectedPeriod, setSelectedPeriod] = useState(() => {
     try {
-      const p = new URLSearchParams(window.location.search).get('period')
+      const sp = new URLSearchParams(window.location.search)
+      const p = sp.get('period')
+      if (p === 'custom' && /^\d{4}-\d{2}-\d{2}$/.test(sp.get('from') || '')) return 'custom'
       if (p) return p
     } catch (_) {}
     return 'today'
+  })
+  const [customRange, setCustomRange] = useState(() => {
+    try {
+      const sp = new URLSearchParams(window.location.search)
+      const f = sp.get('from')
+      const tVal = sp.get('to') || f
+      if (f && /^\d{4}-\d{2}-\d{2}$/.test(f)) {
+        return { from: f, to: (tVal && /^\d{4}-\d{2}-\d{2}$/.test(tVal)) ? tVal : f }
+      }
+    } catch (_) {}
+    return null
   })
   const [activeTab, setActiveTab] = useState('all') // 'all', 'cooking', 'ready', 'on_way', 'delivered', 'problems'
   const [searchQuery, setSearchQuery] = useState('')
@@ -208,7 +231,9 @@ export default function Dispatch() {
 
   // Etichetă perioadă curentă
   const currentPeriodOpt = PERIOD_OPTIONS.find(p => p.key === selectedPeriod) || PERIOD_OPTIONS[0]
-  const currentPeriodLabel = t(currentPeriodOpt.labelKey, currentPeriodOpt.fallback)
+  const currentPeriodLabel = selectedPeriod === 'custom' && customRange?.from
+    ? formatYmdRangeDisplay(customRange.from, customRange.to || customRange.from, language)
+    : t(currentPeriodOpt.labelKey, currentPeriodOpt.fallback)
   const [searchParams, setSearchParams] = useSearchParams()
 
   // Sincronizare parametri URL la schimbarea filtrelor (notifică React Router & MainLayout)
@@ -247,8 +272,31 @@ export default function Dispatch() {
 
   const handlePeriodChange = (period) => {
     setSelectedPeriod(period)
+    setCustomRange(null)
     setPage(1)
-    updateUrlParam('period', period)
+    try {
+      const next = new URLSearchParams(searchParams)
+      if (period && period !== 'today') next.set('period', period)
+      else next.delete('period')
+      next.delete('from')
+      next.delete('to')
+      setSearchParams(next, { replace: true })
+    } catch (_) {}
+  }
+
+  const handleCustomRangeSelect = ({ from, to }) => {
+    if (!from) return
+    const endDay = to || from
+    setCustomRange({ from, to: endDay })
+    setSelectedPeriod('custom')
+    setPage(1)
+    try {
+      const next = new URLSearchParams(searchParams)
+      next.set('period', 'custom')
+      next.set('from', from)
+      next.set('to', endDay)
+      setSearchParams(next, { replace: true })
+    } catch (_) {}
   }
 
   const handleResetFilters = () => {
@@ -257,6 +305,7 @@ export default function Dispatch() {
     setSelectedRestaurantId('all')
     setSelectedChannel('all')
     setSelectedPeriod('today')
+    setCustomRange(null)
     setSearchQuery('')
     setPage(1)
     try {
@@ -265,6 +314,8 @@ export default function Dispatch() {
       next.delete('brand')
       next.delete('channel')
       next.delete('period')
+      next.delete('from')
+      next.delete('to')
       setSearchParams(next, { replace: true })
     } catch (_) {}
   }
@@ -283,7 +334,19 @@ export default function Dispatch() {
       if (pChannel !== selectedChannel) setSelectedChannel(pChannel)
 
       const pPeriod = searchParams.get('period') || 'today'
-      if (pPeriod !== selectedPeriod) setSelectedPeriod(pPeriod)
+      const pFrom = searchParams.get('from')
+      const pTo = searchParams.get('to') || pFrom
+      if (pPeriod === 'custom' && pFrom && /^\d{4}-\d{2}-\d{2}$/.test(pFrom)) {
+        const nextTo = (pTo && /^\d{4}-\d{2}-\d{2}$/.test(pTo)) ? pTo : pFrom
+        if (selectedPeriod !== 'custom') setSelectedPeriod('custom')
+        if (customRange?.from !== pFrom || customRange?.to !== nextTo) {
+          setCustomRange({ from: pFrom, to: nextTo })
+        }
+      } else {
+        const safePeriod = pPeriod === 'custom' ? 'today' : pPeriod
+        if (safePeriod !== selectedPeriod) setSelectedPeriod(safePeriod)
+        if (customRange) setCustomRange(null)
+      }
     } catch (_) {}
   }, [searchParams])
 
@@ -294,6 +357,7 @@ export default function Dispatch() {
       setSelectedRestaurantId('all')
       setSelectedChannel('all')
       setSelectedPeriod('today')
+      setCustomRange(null)
       setSearchQuery('')
       setActiveTab('all')
       setPage(1)
@@ -319,6 +383,13 @@ export default function Dispatch() {
   // Modal comanda selectata
   const [selectedOrder, setSelectedOrder] = useState(null)
 
+  useEffect(() => {
+    if (!selectedOrder) return
+    const onKey = (e) => { if (e.key === 'Escape') setSelectedOrder(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selectedOrder])
+
   // Hook date live (filtrarea după punct fizic se face pe client pentru a suporta locațiile multi-brand unificate)
   const { 
     kpis, 
@@ -337,6 +408,8 @@ export default function Dispatch() {
     brand: selectedBrand, 
     restaurantId: 'all',
     period: selectedPeriod,
+    customFrom: customRange?.from || '',
+    customTo: customRange?.to || '',
     autoRefreshSeconds: 300 
   })
 
@@ -960,39 +1033,35 @@ export default function Dispatch() {
   return (
     <div className="w-full space-y-3 pb-8 animate-in fade-in duration-300">
       
-      {/* ─── 1. TOP HEADER & OPERATIONAL CONTROLS ─── */}
+      {/* ─── 1. TOP HEADER & OPERATIONAL CONTROLS (Apple HIG Calm Header) ─── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
-              <Radio size={16} className="animate-pulse" />
-            </div>
-            <h1 className={`text-base sm:text-lg font-bold tracking-tight uppercase ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              {t('dispatch.title', 'Dispecerat Live · Dashboard Manager')}
-            </h1>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-              LIVE
-            </span>
-          </div>
+        <div className="flex items-center gap-2.5">
+          <h1 className="text-[18px] font-semibold tracking-[-0.02em] text-[#1D1D1F] dark:text-[#F5F5F7]">
+            {t('dispatch.title', 'Dispecerat Live')}
+          </h1>
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold text-[#0A7B5C] dark:text-emerald-400 bg-emerald-500/10">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            Live
+          </span>
         </div>
 
-        {/* Butoane acțiune live */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+        {/* Butoane acțiune — Apple Secondary Bezel Controls (buttons.md) */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[12px] text-[#6E6E73] dark:text-[#8E8E93] font-medium tabular-nums">
+            {t('dispatch.last_sync', 'Actualizat:')} {lastUpdated.toLocaleTimeString(language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-US' : 'ro-RO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          </span>
+
           <button
+            type="button"
             onClick={() => setIsAutoRefreshEnabled(!isAutoRefreshEnabled)}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 tabular-nums ${
-              isAutoRefreshEnabled
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-700'
-                : 'bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
-            }`}
+            className="apple-btn-secondary tabular-nums"
             title="Auto-refresh la 5 minute"
           >
-            <span className={`w-2 h-2 rounded-full ${isAutoRefreshEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
+            <span className={`w-1.5 h-1.5 rounded-full ${isAutoRefreshEnabled ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
             {isAutoRefreshEnabled ? (
               <>
-                <span>{language === 'ru' ? 'Авто-Обновление (5м)' : 'Auto-Refresh (5m)'}</span>
-                <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-200 tabular-nums font-extrabold text-[11px] min-w-[38px] text-center">
+                <span>{language === 'ru' ? 'Авто (5м)' : 'Auto (5m)'}</span>
+                <span className="text-[#6E6E73] dark:text-[#8E8E93] font-semibold text-[11px] tabular-nums">
                   {secondsUntilRefresh >= 60
                     ? `${Math.floor(secondsUntilRefresh / 60)}:${String(secondsUntilRefresh % 60).padStart(2, '0')}`
                     : `${secondsUntilRefresh}${language === 'ru' ? 'с' : 's'}`}
@@ -1004,21 +1073,14 @@ export default function Dispatch() {
           </button>
 
           <button
+            type="button"
             onClick={() => fetchData(false, true)}
             disabled={loading}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 ${
-              isDark 
-                ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700' 
-                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-xs'
-            }`}
+            className="apple-btn-secondary"
           >
-            <RotateCw size={12} className={loading ? 'animate-spin text-emerald-500' : ''} />
+            <RotateCw size={12} className={loading ? 'animate-spin text-[#0A7B5C]' : ''} />
             <span>{t('dispatch.refresh_now', 'Reîmprospătează')}</span>
           </button>
-
-          <span className="text-[10px] text-slate-400 font-medium ml-1">
-            {t('dispatch.last_sync', 'Actualizat:')} {lastUpdated.toLocaleTimeString(language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-US' : 'ro-RO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-          </span>
         </div>
       </div>
 
@@ -1340,14 +1402,12 @@ export default function Dispatch() {
           {/* Divider subtil */}
           <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 shrink-0 mx-0.5" />
 
-          {/* Filtru de Perioadă (Pills) */}
-          <div className="flex items-center gap-1 shrink-0">
-            <span className="text-slate-400 flex items-center shrink-0 mr-0.5" title={t('dispatch.period_filter_label', 'Perioadă:')}>
+          {/* Filtru de Perioadă — Apple Segmented Control */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-slate-400 flex items-center shrink-0" title={t('dispatch.period_filter_label', 'Perioadă:')}>
               <Calendar size={12} />
             </span>
-            <div className={`p-0.5 rounded-full border flex items-center gap-0.5 shrink-0 ${
-              isDark ? 'bg-slate-800/90 border-slate-700/80' : 'bg-slate-100/90 border-slate-200'
-            }`}>
+            <div role="group" className="apple-segmented">
               {PERIOD_OPTIONS.map(opt => {
                 const isSelected = selectedPeriod === opt.key
                 const fullLabel = t(opt.labelKey, opt.fallback)
@@ -1355,15 +1415,12 @@ export default function Dispatch() {
                 return (
                   <button
                     key={opt.key}
+                    type="button"
                     id={`dispatch-period-${opt.key}`}
                     onClick={() => handlePeriodChange(opt.key)}
                     title={fullLabel}
-                    className={`px-2 py-0.5 rounded-full text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap select-none ${
-                      isSelected
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : isDark
-                          ? 'text-slate-300 hover:text-white hover:bg-slate-700/60'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
+                    className={`apple-segment !h-[26px] !px-2.5 !text-[11px] select-none ${
+                      isSelected ? 'apple-segment-active' : ''
                     }`}
                   >
                     {shortLabel}
@@ -1383,40 +1440,50 @@ export default function Dispatch() {
             </button>
           )}
 
-          {/* Badge interval dată */}
-          {livePeriodDateRange && (
-            <div className="ml-auto text-[10px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/60 px-2.5 py-0.5 rounded-full border border-slate-200/60 dark:border-slate-700/60 shrink-0 whitespace-nowrap">
-              {formatPeriodDateRange(livePeriodDateRange, language)}
-            </div>
-          )}
+          {/* Clickable Apple Liquid Glass Calendar Picker */}
+          <div className="ml-auto shrink-0">
+            <AppleDateRangePicker
+              period={selectedPeriod}
+              customRange={customRange}
+              displayLabel={
+                selectedPeriod === 'custom' && customRange?.from
+                  ? formatYmdRangeDisplay(customRange.from, customRange.to || customRange.from, language)
+                  : (livePeriodDateRange ? formatPeriodDateRange(livePeriodDateRange, language) : '')
+              }
+              onSelectRange={handleCustomRangeSelect}
+              onSelectPreset={handlePeriodChange}
+              align="right"
+              variant="neutral"
+            />
+          </div>
         </div>
       </div>
 
-      {/* ─── 3. TOP LIVE KPIS CARDS (GOOGLE SHEET EXACT METRICS) ─── */}
+      {/* ─── 3. TOP LIVE KPIS CARDS (macOS Tahoe Metrics) ─── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
         
         {/* KPI 1: Vânzări */}
-        <div className={`p-3 rounded-xl border flex flex-col justify-between transition-colors ${
+        <div className={`p-3.5 rounded-2xl border flex flex-col justify-between transition-colors ${
           isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
         }`}>
-          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            <span>
+          <div className="flex items-center justify-between gap-1.5 text-[11.5px] font-medium text-slate-500 dark:text-slate-400">
+            <span className="truncate">
               {selectedPeriod === 'today' 
                 ? t('dispatch.kpi_today_sales', 'Vânzări Azi') 
                 : t('dispatch.kpi_sales_period', `Vânzări (${currentPeriodLabel})`, { period: currentPeriodLabel })}
             </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
           </div>
-          <div className="mt-1">
-            <div className={`text-lg font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <div className="mt-1.5">
+            <div className={`text-[18px] font-bold tracking-tight tabular-nums leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
               {formatMoney(calculatedTodaySales)}
             </div>
             {calculatedTodayGrossSales > calculatedTodaySales + 1 && (
-              <div className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5 whitespace-nowrap">
-                {formatMoney(calculatedTodayGrossSales, 0)} {language === 'ru' ? 'без учета скидки' : language === 'en' ? 'without discount' : 'fără reducere'}
+              <div className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 mt-0.5 truncate tabular-nums">
+                {formatMoney(calculatedTodayGrossSales, 0)} {language === 'ru' ? 'без скидки' : language === 'en' ? 'gross' : 'fără reducere'}
               </div>
             )}
-            <div className="text-[10px] font-bold text-slate-400 mt-0.5">
+            <div className="text-[11px] text-slate-400 mt-0.5 tabular-nums truncate">
               {selectedPeriod === 'today'
                 ? t('dispatch.orders_count_today', `${calculatedOrdersCount} bonuri`, { count: calculatedOrdersCount })
                 : t('dispatch.orders_count_period', `${calculatedOrdersCount} bonuri (${currentPeriodLabel})`, { count: calculatedOrdersCount, period: currentPeriodLabel })}
@@ -1425,38 +1492,38 @@ export default function Dispatch() {
         </div>
 
         {/* KPI 2: Bonuri în Lucru */}
-        <div className={`p-3 rounded-xl border flex flex-col justify-between transition-colors ${
+        <div className={`p-3.5 rounded-2xl border flex flex-col justify-between transition-colors ${
           isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
         }`}>
-          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            <span>{t('dispatch.kpi_active_receipts', 'Bonuri în Lucru')}</span>
-            <ChefHat size={14} className="text-blue-500 animate-pulse" />
+          <div className="flex items-center justify-between gap-1.5 text-[11.5px] font-medium text-slate-500 dark:text-slate-400">
+            <span className="truncate">{t('dispatch.kpi_active_receipts', 'Bonuri în Lucru')}</span>
+            <ChefHat size={14} className="text-[#047857] dark:text-[#10B981] shrink-0" />
           </div>
-          <div className="mt-1">
-            <div className="text-lg font-black tracking-tight text-blue-600 dark:text-blue-400">
+          <div className="mt-1.5">
+            <div className="text-[20px] font-bold tracking-tight tabular-nums text-[#047857] dark:text-[#10B981] leading-tight">
               {calculatedKpis.in_work_total}
             </div>
-            <div className="text-[10px] font-bold text-slate-400 mt-0.5">
+            <div className="text-[11px] text-slate-400 mt-1 tabular-nums truncate">
               {calculatedKpis.active_in_kitchen} {t('dispatch.tab_cooking', 'în bucătărie').toLowerCase()} · {calculatedKpis.waiting_courier} {t('dispatch.kpi_waiting_courier', 'așteaptă curier')}
             </div>
           </div>
         </div>
 
         {/* KPI 3: Timp Mediu Bucătărie (SLA <= 15 min) */}
-        <div className={`p-3 rounded-xl border flex flex-col justify-between transition-colors ${
+        <div className={`p-3.5 rounded-2xl border flex flex-col justify-between transition-colors ${
           isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
         }`}>
-          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            <span>{t('dispatch.kpi_kitchen_timing', 'Timp Bucătărie')}</span>
-            <span className="text-[9px] font-bold text-slate-400">SLA ≤15{language === 'ru' ? 'м' : 'm'}</span>
+          <div className="flex items-center justify-between gap-1 text-[11.5px] font-medium text-slate-500 dark:text-slate-400">
+            <span className="truncate">{t('dispatch.kpi_kitchen_timing', 'Timp Bucătărie')}</span>
+            <span className="text-[10px] font-medium text-slate-400 shrink-0 tabular-nums">≤15{language === 'ru' ? 'м' : 'm'}</span>
           </div>
-          <div className="mt-1">
+          <div className="mt-1.5">
             <div className="flex items-baseline gap-1">
-              <span className="text-lg font-black tracking-tight">{calculatedKpis.avg_kitchen_time}</span>
-              <span className="text-[10px] font-bold text-slate-400">{language === 'ru' ? 'мин' : 'min'}</span>
+              <span className="text-[20px] font-bold tracking-tight tabular-nums text-slate-900 dark:text-white leading-tight">{calculatedKpis.avg_kitchen_time}</span>
+              <span className="text-[11px] font-medium text-slate-400">{language === 'ru' ? 'мин' : 'min'}</span>
             </div>
-            <div className="mt-0.5">
-              <span className={`inline-block px-1.5 py-0.2 rounded-full text-[9px] font-extrabold border ${getTimingColor(calculatedKpis.avg_kitchen_time, 15)}`}>
+            <div className="mt-1">
+              <span className={`inline-block px-2 py-0.5 rounded-full text-[10.5px] font-semibold border ${getTimingColor(calculatedKpis.avg_kitchen_time, 15)}`}>
                 {calculatedKpis.avg_kitchen_time <= 15 ? t('dispatch.sla_ok_kitchen', 'În grafic SLA') : t('dispatch.sla_over_kitchen', 'Depășire SLA')}
               </span>
             </div>
@@ -1464,20 +1531,20 @@ export default function Dispatch() {
         </div>
 
         {/* KPI 4: Așteptare Curier (SLA <= 8 min) */}
-        <div className={`p-3 rounded-xl border flex flex-col justify-between transition-colors ${
+        <div className={`p-3.5 rounded-2xl border flex flex-col justify-between transition-colors ${
           isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
         }`}>
-          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            <span>{t('dispatch.kpi_courier_wait', 'Așteptare Curier')}</span>
-            <span className="text-[9px] font-bold text-slate-400">SLA ≤8{language === 'ru' ? 'м' : 'm'}</span>
+          <div className="flex items-center justify-between gap-1 text-[11.5px] font-medium text-slate-500 dark:text-slate-400">
+            <span className="truncate">{t('dispatch.kpi_courier_wait', 'Așteptare Curier')}</span>
+            <span className="text-[10px] font-medium text-slate-400 shrink-0 tabular-nums">≤8{language === 'ru' ? 'м' : 'm'}</span>
           </div>
-          <div className="mt-1">
+          <div className="mt-1.5">
             <div className="flex items-baseline gap-1">
-              <span className="text-lg font-black tracking-tight">{calculatedKpis.avg_courier_wait_time}</span>
-              <span className="text-[10px] font-bold text-slate-400">{language === 'ru' ? 'мин' : 'min'}</span>
+              <span className="text-[20px] font-bold tracking-tight tabular-nums text-slate-900 dark:text-white leading-tight">{calculatedKpis.avg_courier_wait_time}</span>
+              <span className="text-[11px] font-medium text-slate-400">{language === 'ru' ? 'мин' : 'min'}</span>
             </div>
-            <div className="mt-0.5">
-              <span className={`inline-block px-1.5 py-0.2 rounded-full text-[9px] font-extrabold border ${getTimingColor(calculatedKpis.avg_courier_wait_time, 8)}`}>
+            <div className="mt-1">
+              <span className={`inline-block px-2 py-0.5 rounded-full text-[10.5px] font-semibold border ${getTimingColor(calculatedKpis.avg_courier_wait_time, 8)}`}>
                 {calculatedKpis.avg_courier_wait_time <= 8 ? t('dispatch.sla_fast_courier', 'Ridicări Rapide') : t('dispatch.sla_high_wait_courier', 'Așteptare Mare')}
               </span>
             </div>
@@ -1485,20 +1552,20 @@ export default function Dispatch() {
         </div>
 
         {/* KPI 5: Timp Livrare (SLA <= 30 min) */}
-        <div className={`p-3 rounded-xl border flex flex-col justify-between transition-colors ${
+        <div className={`p-3.5 rounded-2xl border flex flex-col justify-between transition-colors ${
           isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
         }`}>
-          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            <span>{t('dispatch.kpi_delivery_time', 'Timp Livrare')}</span>
-            <span className="text-[9px] font-bold text-slate-400">SLA ≤30{language === 'ru' ? 'м' : 'm'}</span>
+          <div className="flex items-center justify-between gap-1 text-[11.5px] font-medium text-slate-500 dark:text-slate-400">
+            <span className="truncate">{t('dispatch.kpi_delivery_time', 'Timp Livrare')}</span>
+            <span className="text-[10px] font-medium text-slate-400 shrink-0 tabular-nums">≤30{language === 'ru' ? 'м' : 'm'}</span>
           </div>
-          <div className="mt-1">
+          <div className="mt-1.5">
             <div className="flex items-baseline gap-1">
-              <span className="text-lg font-black tracking-tight">{calculatedKpis.avg_delivery_time}</span>
-              <span className="text-[10px] font-bold text-slate-400">{language === 'ru' ? 'мин' : 'min'}</span>
+              <span className="text-[20px] font-bold tracking-tight tabular-nums text-slate-900 dark:text-white leading-tight">{calculatedKpis.avg_delivery_time}</span>
+              <span className="text-[11px] font-medium text-slate-400">{language === 'ru' ? 'мин' : 'min'}</span>
             </div>
-            <div className="mt-0.5">
-              <span className={`inline-block px-1.5 py-0.2 rounded-full text-[9px] font-extrabold border ${getTimingColor(calculatedKpis.avg_delivery_time, 30)}`}>
+            <div className="mt-1">
+              <span className={`inline-block px-2 py-0.5 rounded-full text-[10.5px] font-semibold border ${getTimingColor(calculatedKpis.avg_delivery_time, 30)}`}>
                 {calculatedKpis.on_way_count} {t('dispatch.tab_on_way', 'pe drum')}
               </span>
             </div>
@@ -1506,20 +1573,20 @@ export default function Dispatch() {
         </div>
 
         {/* KPI 6: Timp Total Ciclu (SLA <= 45 min) */}
-        <div className={`p-3 rounded-xl border flex flex-col justify-between transition-colors ${
+        <div className={`p-3.5 rounded-2xl border flex flex-col justify-between transition-colors ${
           isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
         }`}>
-          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            <span>{t('dispatch.kpi_total_time', 'Timp Total Ciclu')}</span>
-            <span className="text-[9px] font-bold text-slate-400">SLA ≤45{language === 'ru' ? 'м' : 'm'}</span>
+          <div className="flex items-center justify-between gap-1 text-[11.5px] font-medium text-slate-500 dark:text-slate-400">
+            <span className="truncate">{t('dispatch.kpi_total_time', 'Timp Total Ciclu')}</span>
+            <span className="text-[10px] font-medium text-slate-400 shrink-0 tabular-nums">≤45{language === 'ru' ? 'м' : 'm'}</span>
           </div>
-          <div className="mt-1">
+          <div className="mt-1.5">
             <div className="flex items-baseline gap-1">
-              <span className="text-lg font-black tracking-tight">{calculatedKpis.avg_total_time}</span>
-              <span className="text-[10px] font-bold text-slate-400">{language === 'ru' ? 'мин' : 'min'}</span>
+              <span className="text-[20px] font-bold tracking-tight tabular-nums text-slate-900 dark:text-white leading-tight">{calculatedKpis.avg_total_time}</span>
+              <span className="text-[11px] font-medium text-slate-400">{language === 'ru' ? 'мин' : 'min'}</span>
             </div>
-            <div className="mt-0.5">
-              <span className={`inline-block px-1.5 py-0.2 rounded-full text-[9px] font-extrabold border ${getTimingColor(calculatedKpis.avg_total_time, 45)}`}>
+            <div className="mt-1">
+              <span className={`inline-block px-2 py-0.5 rounded-full text-[10.5px] font-semibold border ${getTimingColor(calculatedKpis.avg_total_time, 45)}`}>
                 {calculatedKpis.avg_total_time <= 45 ? t('dispatch.sla_ok_total', 'Timp Optim') : t('dispatch.sla_attention_total', 'Atenție Timp')}
               </span>
             </div>
@@ -1589,119 +1656,83 @@ export default function Dispatch() {
           </div>
         </div>
 
-        {/* Toolbar Unificat: Etape Comenzi + Canale pe un singur rând flex-wrap */}
-        <div className="flex flex-wrap items-center gap-1.5 pb-2.5 mb-1">
-          {/* Tab-uri de filtrare status comenzi */}
-          {[
-            { id: 'all', label: t('dispatch.tab_all_orders', 'Toate Comenzile'), count: countsByStage.total, icon: null },
-            { id: 'cooking', label: t('dispatch.tab_cooking', 'În Bucătărie'), count: countsByStage.cooking, icon: ChefHat },
-            { id: 'ready', label: t('dispatch.tab_ready', 'Așteaptă Curier'), count: countsByStage.ready, icon: Clock },
-            { id: 'on_way', label: t('dispatch.tab_on_way', 'La Curier'), count: countsByStage.on_way, icon: Bike },
-            { id: 'delivered', label: selectedPeriod === 'today' ? t('dispatch.tab_delivered', 'Livrate Azi') : `${t('dispatch.tab_delivered_only', 'Livrate')} (${currentPeriodLabel})`, count: countsByStage.delivered, icon: CheckCircle2 },
-            { id: 'problems', label: t('dispatch.tab_problems', 'Sesizări / Probleme'), count: countsByStage.problems, alert: true, icon: AlertTriangle }
-          ].map(tab => {
-            const isTabActive = activeTab === tab.id
-            const TabIcon = tab.icon
-            return (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id)
-                  setPage(1)
-                }}
-                className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer select-none ${
-                  isTabActive
-                    ? tab.alert
-                      ? 'bg-rose-600 text-white shadow-xs'
-                      : 'bg-emerald-600 text-white shadow-xs'
-                    : isDark
-                      ? 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white'
-                      : 'bg-slate-100 hover:bg-slate-200/80 text-slate-700 hover:text-slate-900'
-                }`}
-              >
-                {TabIcon && (
-                  <TabIcon 
-                    size={12} 
-                    className={
-                      isTabActive 
-                        ? 'text-white' 
-                        : tab.alert && tab.count > 0 
-                          ? 'text-rose-500' 
-                          : 'text-slate-400'
-                    } 
-                  />
-                )}
-                <span>{tab.label}</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] tabular-nums font-bold ${
-                  isTabActive 
-                    ? 'bg-white/20 text-white' 
-                    : isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600'
-                }`}>
-                  {tab.count}
-                </span>
-              </button>
-            )
-          })}
-
-          {/* Separator vertical discret */}
-          <div className="hidden lg:block h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1.5 shrink-0" />
-
-          {/* Filtre Rapide Canal de Vânzare (Fără buton duplicat 'Toate') */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mr-0.5 shrink-0">
-              {t('dispatch.channel_filter_label', 'Canal:')}
-            </span>
-
+        {/* Toolbar Unificat (1 Singur Rând pe Laptop): Apple Segmented Control Etape + Canale */}
+        <div className="flex flex-wrap xl:flex-nowrap items-center justify-between gap-2 pb-3 mb-1">
+          {/* Tab-uri de filtrare status comenzi — Apple Segmented Control */}
+          <div role="group" aria-label={t('dispatch.stage_filter_label', 'Etapă comenzi')} className="apple-segmented max-w-full overflow-x-auto">
             {[
-              { id: 'kiosk', label: language === 'ru' ? 'Киоск' : language === 'en' ? 'Smart Kiosk' : 'Smart Kiosk', count: channelCounts.kiosk, icon: Monitor, iconColor: 'text-purple-500' },
-              { id: 'casierie', label: language === 'ru' ? 'Касса (POS)' : language === 'en' ? 'Cashier (POS)' : 'Casierie (POS)', count: channelCounts.casierie, icon: Receipt, iconColor: 'text-blue-500' },
-              { id: 'aggregators', label: language === 'ru' ? 'Агрегаторы' : language === 'en' ? 'Aggregators' : 'Agregatori', count: channelCounts.aggregators, icon: Bike, iconColor: 'text-amber-500' },
-              ...(channelCounts.own > 0 ? [{ id: 'own', label: language === 'ru' ? 'Сайт/Приложение' : language === 'en' ? 'Own App' : 'Propriu', count: channelCounts.own, icon: Globe, iconColor: 'text-indigo-500' }] : [])
+              { id: 'all', label: language === 'ru' ? 'Все' : language === 'en' ? 'All' : 'Toate', title: t('dispatch.tab_all_orders', 'Toate Comenzile'), count: countsByStage.total, icon: null },
+              { id: 'cooking', label: language === 'ru' ? 'Кухня' : language === 'en' ? 'Kitchen' : 'Bucătărie', title: t('dispatch.tab_cooking', 'În Bucătărie'), count: countsByStage.cooking, icon: ChefHat },
+              { id: 'ready', label: language === 'ru' ? 'Ожидают' : language === 'en' ? 'Ready' : 'Gata', title: t('dispatch.tab_ready', 'Așteaptă Curier'), count: countsByStage.ready, icon: Clock },
+              { id: 'on_way', label: language === 'ru' ? 'В пути' : language === 'en' ? 'On Way' : 'La Curier', title: t('dispatch.tab_on_way', 'La Curier'), count: countsByStage.on_way, icon: Bike },
+              { id: 'delivered', label: language === 'ru' ? 'Доставлены' : language === 'en' ? 'Delivered' : 'Livrate', title: selectedPeriod === 'today' ? t('dispatch.tab_delivered', 'Livrate Azi') : `${t('dispatch.tab_delivered_only', 'Livrate')} (${currentPeriodLabel})`, count: countsByStage.delivered, icon: CheckCircle2 },
+              { id: 'problems', label: language === 'ru' ? 'Жалобы' : language === 'en' ? 'Issues' : 'Sesizări', title: t('dispatch.tab_problems', 'Sesizări / Probleme'), count: countsByStage.problems, alert: true, icon: AlertTriangle }
+            ].map(tab => {
+              const isTabActive = activeTab === tab.id
+              const TabIcon = tab.icon
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  title={tab.title}
+                  onClick={() => {
+                    setActiveTab(tab.id)
+                    setPage(1)
+                  }}
+                  className={`apple-segment !h-[26px] !px-2 !gap-1 !text-[11px] whitespace-nowrap select-none ${
+                    isTabActive ? 'apple-segment-active' : ''
+                  } ${tab.alert && tab.count > 0 && !isTabActive ? '!text-rose-600 dark:!text-rose-400' : ''}`}
+                >
+                  {TabIcon && (
+                    <TabIcon
+                      size={11}
+                      className={
+                        isTabActive
+                          ? 'text-white'
+                          : tab.alert && tab.count > 0
+                            ? 'text-rose-600 dark:text-rose-400'
+                            : 'text-[#6E6E73] dark:text-[#8E8E93]'
+                      }
+                    />
+                  )}
+                  <span>{tab.label}</span>
+                  <span className={`text-[10px] tabular-nums ${isTabActive ? 'text-white/90 font-semibold' : 'text-[#6E6E73] dark:text-[#8E8E93]'}`}>
+                    {tab.count}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Filtre Rapide Canal — Apple Segmented Control aliniat pe același rând */}
+          <div role="group" aria-label={t('dispatch.channel_filter_label', 'Canal')} className="apple-segmented max-w-full overflow-x-auto shrink-0">
+            {[
+              { id: 'kiosk', label: language === 'ru' ? 'Киоск' : 'Kiosk', fullLabel: language === 'ru' ? 'Киоск' : 'Smart Kiosk', count: channelCounts.kiosk, icon: Monitor },
+              { id: 'casierie', label: language === 'ru' ? 'Касса' : 'POS', fullLabel: language === 'ru' ? 'Касса (POS)' : language === 'en' ? 'Cashier (POS)' : 'Casierie (POS)', count: channelCounts.casierie, icon: Receipt },
+              { id: 'aggregators', label: language === 'ru' ? 'Агрегаторы' : language === 'en' ? 'Apps' : 'Agregatori', fullLabel: language === 'ru' ? 'Агрегаторы' : language === 'en' ? 'Aggregators' : 'Agregatori', count: channelCounts.aggregators, icon: Bike },
+              ...(channelCounts.own > 0 ? [{ id: 'own', label: language === 'ru' ? 'Сайт' : language === 'en' ? 'Direct' : 'Propriu', fullLabel: language === 'ru' ? 'Сайт/Приложение' : language === 'en' ? 'Own App' : 'Livrare Proprie', count: channelCounts.own, icon: Globe }] : [])
             ].map(ch => {
               const isChActive = selectedChannel === ch.id
               const ChIcon = ch.icon
               return (
                 <button
                   key={ch.id}
+                  type="button"
                   onClick={() => handleChannelChange(isChActive ? 'all' : ch.id)}
-                  title={isChActive ? 'Click pentru a anula filtrul' : `Filtrează după ${ch.label}`}
-                  className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 border cursor-pointer select-none ${
-                    isChActive
-                      ? 'bg-slate-900 border-slate-900 text-white dark:bg-emerald-600 dark:border-emerald-600 shadow-xs'
-                      : isDark
-                        ? 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/60 text-slate-300 hover:text-white'
-                        : 'bg-slate-100/90 hover:bg-slate-200/80 border-slate-200/70 text-slate-700 hover:text-slate-900'
+                  title={isChActive ? (language === 'ru' ? 'Сбросить фильтр канала' : language === 'en' ? 'Clear channel filter' : 'Click pentru a anula filtrul') : ch.fullLabel}
+                  className={`apple-segment !h-[26px] !px-2 !gap-1 !text-[11px] whitespace-nowrap select-none ${
+                    isChActive ? 'apple-segment-active' : ''
                   }`}
                 >
-                  {ChIcon && (
-                    <ChIcon 
-                      size={11} 
-                      className={isChActive ? 'text-white' : ch.iconColor} 
-                    />
-                  )}
+                  {ChIcon && <ChIcon size={11} className={isChActive ? 'text-white' : 'text-[#6E6E73] dark:text-[#8E8E93]'} />}
                   <span>{ch.label}</span>
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] tabular-nums font-bold ${
-                    isChActive
-                      ? 'bg-white/20 text-white'
-                      : isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600'
-                  }`}>
+                  <span className={`text-[10px] tabular-nums ${isChActive ? 'text-white/90 font-semibold' : 'text-[#6E6E73] dark:text-[#8E8E93]'}`}>
                     {ch.count}
                   </span>
-                  {isChActive && <X size={10} className="text-white/80 hover:text-white ml-0.5" />}
+                  {isChActive && <X size={10} className="text-white/90 ml-0.5" />}
                 </button>
               )
             })}
-
-            {selectedChannel !== 'all' && (
-              <button
-                onClick={() => handleChannelChange('all')}
-                className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer flex items-center gap-0.5"
-                title={t('common.reset', 'Resetează canal')}
-              >
-                <span></span>
-                <span>{language === 'ru' ? 'Сброс' : language === 'en' ? 'Reset' : 'Reset'}</span>
-              </button>
-            )}
           </div>
         </div>
 
@@ -2119,7 +2150,7 @@ export default function Dispatch() {
         </div>
 
         {/* FOOTER PAGINARE (Standard SmartDevize Table & Pagination UI Rules) */}
-        <div className={`-mx-5 -mb-5 mt-3 px-5 py-3.5 border-t flex flex-wrap items-center justify-between gap-3 rounded-b-2xl ${
+        <div className={`-mx-3.5 -mb-3.5 mt-3 px-3.5 py-3 border-t flex flex-wrap items-center justify-between gap-3 rounded-b-2xl ${
           isDark ? 'border-slate-800 bg-slate-900/90' : 'border-slate-100 bg-slate-50/80'
         }`}>
           <div className="flex items-center gap-3 text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -2284,378 +2315,400 @@ export default function Dispatch() {
         </div>
       </div>
 
-      {/* ─── 6. MODAL DETALII BON COMANDĂ & NOMENCLATOR FOTO IIKO ─── */}
-      {selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className={`w-full max-w-2xl rounded-3xl border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-colors ${
-            isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-          }`}>
-            
-            {/* Header Modal */}
-            <div className={`px-6 py-4 border-b flex items-center justify-between ${
-              isDark ? 'border-slate-800 bg-slate-800/40' : 'border-slate-200 bg-slate-50'
-            }`}>
-              <div className="flex items-center gap-3">
-                <BrandAvatar brand={selectedOrder.brand_name} name={selectedOrder.restaurant_name} size={32} />
-                <div>
-                  <h3 className="font-extrabold text-base flex items-center gap-2">
-                    <span>{t('dispatch.th_order_num', 'Bon')} #{formatDisplayOrderNumber(selectedOrder.order_number, selectedOrder.order_id, selectedOrder.channel || selectedOrder.platform) || selectedOrder.order_number || selectedOrder.order_id?.slice(-4)}</span>
-                    <PlatformLogo platform={selectedOrder.platform} size={18} />
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    {cleanRestaurantName(selectedOrder.restaurant_name)} ({selectedOrder.restaurant_city}) · {t('dispatch.modal_placed_at', 'Plasat la')} {parseOrderDateTime(selectedOrder.placed_at || selectedOrder.created_at).time}
-                  </p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setSelectedOrder(null)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-white"
-              >
-                <X size={18} />
-              </button>
-            </div>
+      {/* ─── 6. MACOS TAHOE 26 ORDER INSPECTOR SHEET (2-COL WIDE PENTRU LIVRĂRI, ZERO SPAȚIU PIERDUT) ─── */}
+      {selectedOrder && (() => {
+        const hasDeliveryMap = selectedOrder.channel_type !== 'kiosk'
+          && selectedOrder.channel_type !== 'casierie'
+          && selectedOrder.platform !== 'kiosk'
+          && selectedOrder.platform !== 'casierie'
+          && selectedOrder.platform !== 'IN-STORE'
+        const displayNum = formatDisplayOrderNumber(selectedOrder.order_number, selectedOrder.order_id, selectedOrder.channel || selectedOrder.platform)
+          || selectedOrder.order_number
+          || selectedOrder.order_id?.slice(-4)
+        const orderTitlePrefix = language === 'ru' ? 'Чек' : language === 'en' ? 'Order' : 'Bon'
+        const shortMin = language === 'ru' ? 'м' : 'm'
+        const mBadge = getStageBadge(selectedOrder.stage, selectedOrder)
+        const mElapsed = (typeof selectedOrder.elapsed_minutes === 'number' && selectedOrder.elapsed_minutes >= 0)
+          ? selectedOrder.elapsed_minutes
+          : computeElapsedMinutes(selectedOrder.placed_at, selectedOrder.created_at, selectedOrder.elapsed_minutes || 0)
+        const mLead = selectedOrder.lead_time_minutes || selectedOrder.total_minutes || mElapsed
+        const parsedAddr = parseDeliveryAddress(selectedOrder.customer?.address, language)
+        const placedTimeStr = parseOrderDateTime(selectedOrder.placed_at || selectedOrder.created_at).time
+        const hasTimings = Boolean(selectedOrder.timings?.created_time || selectedOrder.timings?.cooking_completed_time || selectedOrder.timings?.sended_time || selectedOrder.timings?.delivered_time)
+        const timelineSteps = [
+          {
+            label: language === 'ru' ? 'Принят' : language === 'en' ? 'Received' : 'Intrată',
+            time: selectedOrder.timings?.created_time || placedTimeStr || null,
+            dotClass: 'bg-slate-700 dark:bg-slate-200',
+            textClass: 'text-slate-900 dark:text-white'
+          },
+          {
+            label: language === 'ru' ? 'Готов' : language === 'en' ? 'Kitchen' : 'Bucătărie',
+            time: selectedOrder.timings?.cooking_completed_time || null,
+            dotClass: 'bg-[#047857] dark:bg-[#10B981]',
+            textClass: 'text-[#047857] dark:text-[#10B981]'
+          },
+          {
+            label: language === 'ru' ? 'Курьеру' : language === 'en' ? 'Courier' : 'Curier',
+            time: selectedOrder.timings?.sended_time || null,
+            dotClass: 'bg-amber-500',
+            textClass: 'text-amber-600 dark:text-amber-400'
+          },
+          {
+            label: selectedOrder.timings?.closed_at_handoff
+              ? (language === 'ru' ? 'Выдан' : language === 'en' ? 'Handoff' : 'Predat')
+              : (language === 'ru' ? 'Доставлен' : language === 'en' ? 'Delivered' : 'Livrat'),
+            time: selectedOrder.timings?.delivered_time || null,
+            dotClass: 'bg-emerald-500',
+            textClass: 'text-emerald-600 dark:text-emerald-400'
+          }
+        ]
+        const channelMetaLabel = selectedOrder.channel_type === 'kiosk' || selectedOrder.platform === 'kiosk'
+          ? 'Smart Kiosk'
+          : selectedOrder.channel_type === 'casierie' || selectedOrder.platform === 'casierie' || selectedOrder.platform === 'IN-STORE'
+            ? (language === 'ru' ? 'Касса (POS)' : language === 'en' ? 'In-Store POS' : 'Casierie POS')
+            : (selectedOrder.channel_label || selectedOrder.platform?.toUpperCase() || 'Delivery')
 
-            {/* Corp Modal */}
-            <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
-              
-              {/* Canal & Proveniență Bon */}
-              <div className={`p-3.5 rounded-2xl border flex items-center justify-between text-xs ${
-                selectedOrder.channel_type === 'kiosk' || selectedOrder.platform === 'kiosk'
-                  ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-200'
-                  : selectedOrder.channel_type === 'casierie' || selectedOrder.platform === 'casierie' || selectedOrder.platform === 'IN-STORE'
-                    ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200'
-                    : isDark ? 'bg-slate-800/40 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
-              }`}>
-                <div className="flex items-center gap-2 font-bold">
-                  {selectedOrder.channel_type === 'kiosk' || selectedOrder.platform === 'kiosk' ? (
-                    <>
-                      <Monitor size={16} className="text-purple-600 dark:text-purple-400" />
-                      <span>{t('dispatch.modal_dine_in_kiosk', 'Comandă plasată la Smart Kiosk')}</span>
-                    </>
-                  ) : selectedOrder.channel_type === 'casierie' || selectedOrder.platform === 'casierie' || selectedOrder.platform === 'IN-STORE' ? (
-                    <>
-                      <Receipt size={16} className="text-blue-600 dark:text-blue-400" />
-                      <span>{t('dispatch.modal_dine_in_pos', 'Înregistrată la Casierie (POS) · În Magazin')}</span>
-                    </>
-                  ) : (
-                    <>
-                      <PlatformLogo platform={selectedOrder.platform} size={16} />
-                      <span>{t('dispatch.modal_aggregator_order', 'Comandă prin Agregator {platform}', { platform: selectedOrder.channel_label || selectedOrder.platform?.toUpperCase() })}</span>
-                    </>
-                  )}
-                </div>
-                <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1">
-                  {language === 'ru' ? 'Оплата:' : language === 'en' ? 'Payment:' : 'Plată:'} <span className="font-semibold text-slate-700 dark:text-slate-300">{formatPaymentMethod(selectedOrder.payment_method, selectedOrder.is_cash, selectedOrder.is_card, language)}</span> · {formatDiningOption(selectedOrder.dining_option || selectedOrder.order_type, language)}
-                </div>
-              </div>
-
-              {/* Etapă & Cronometru */}
-              <div className={`p-4 rounded-2xl border flex items-center justify-between ${
-                isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'
-              }`}>
-                <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">{t('dispatch.modal_stage_title', 'Stare Operațională')}</span>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="font-bold text-sm">{getStageBadge(selectedOrder.stage, selectedOrder).label}</span>
-                    <span className="text-xs text-slate-400 font-medium">
-                      {(() => {
-                        const mBadge = getStageBadge(selectedOrder.stage, selectedOrder)
-                        const mElapsed = (typeof selectedOrder.elapsed_minutes === 'number' && selectedOrder.elapsed_minutes >= 0) 
-                          ? selectedOrder.elapsed_minutes 
-                          : computeElapsedMinutes(selectedOrder.placed_at, selectedOrder.created_at, selectedOrder.elapsed_minutes || 0)
-                        const mLead = selectedOrder.lead_time_minutes || selectedOrder.total_minutes || mElapsed
-
-                        return mBadge.isFinalized
-                          ? `(${t('dispatch.modal_finalized_duration', 'Finalizat în {minutes} min (de la primire la predare)', { minutes: mLead })})`
-                          : `(${t('dispatch.modal_in_progress_duration', '{minutes} min în lucru de la plasare', { minutes: mElapsed })})`
-                      })()}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 text-xs font-semibold text-slate-500">
-                  <div className="text-center">
-                    <div className="text-[10px] uppercase text-slate-400">{t('dispatch.modal_kitchen', 'Bucătărie')}</div>
-                    <div className="font-bold text-slate-700 dark:text-slate-200 tabular-nums">{selectedOrder.kitchen_minutes}{language === 'ru' ? 'м' : 'm'}</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-[10px] uppercase text-slate-400">{t('dispatch.modal_wait', 'Așteptare')}</div>
-                    <div className="font-bold text-slate-700 dark:text-slate-200 tabular-nums">
-                      {(selectedOrder.timings?.created_time && !selectedOrder.timings?.sended_time && selectedOrder.stage === 'delivered')
-                        ? '—'
-                        : `${selectedOrder.courier_wait_minutes}${language === 'ru' ? 'м' : 'm'}`}
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-[10px] uppercase text-slate-400">{t('dispatch.modal_delivery', 'Livrare')}</div>
-                    <div className="font-bold text-slate-700 dark:text-slate-200 tabular-nums">
-                      {selectedOrder.timings?.closed_at_handoff
-                        ? (language === 'ru' ? 'По выдаче' : language === 'en' ? 'At handoff' : 'La predare')
-                        : (selectedOrder.timings?.created_time && !selectedOrder.timings?.sended_time)
-                          ? '—'
-                          : `${selectedOrder.delivery_minutes}${language === 'ru' ? 'м' : 'm'}`}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Cronologie Timpi iiko (Ore exacte din Syrve/iiko) */}
-              {(selectedOrder.timings?.created_time || selectedOrder.timings?.cooking_completed_time || selectedOrder.timings?.sended_time || selectedOrder.timings?.delivered_time) && (
-                <div className={`p-3.5 rounded-2xl border ${
-                  isDark ? 'bg-emerald-950/20 border-emerald-800/50' : 'bg-emerald-50/60 border-emerald-200/80'
-                }`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
-                      <Clock size={12} /> {language === 'ru' ? 'Хронология времени iiko (точное время)' : language === 'en' ? 'iiko Exact Timings Timeline' : 'Cronologie Timpi iiko (Ore Exacte)'}
-                    </span>
-                    {selectedOrder.timings?.complete_before_time && (
-                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                        {language === 'ru' ? 'Обещанный срок (SLA):' : language === 'en' ? 'Promised SLA:' : 'Termen promis (SLA):'} <b className="tabular-nums text-slate-800 dark:text-slate-200">{selectedOrder.timings.complete_before_time}</b>
+        return (
+          <div
+            role="dialog"
+            aria-modal="true"
+            onClick={() => setSelectedOrder(null)}
+            onKeyDown={(e) => { if (e.key === 'Escape') setSelectedOrder(null) }}
+            tabIndex={-1}
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 apple-sheet-backdrop animate-in fade-in duration-150"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className={`apple-sheet w-full ${hasDeliveryMap ? 'max-w-[1040px]' : 'max-w-2xl'} overflow-hidden flex flex-col max-h-[88vh]`}
+            >
+              {/* Liquid Glass Sticky Sheet Header — info esențial + TOTAL mereu vizibil fără scroll */}
+              <div className="apple-sheet-header px-5 py-3.5 flex items-center justify-between gap-4 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <BrandAvatar brand={selectedOrder.brand_name} name={selectedOrder.restaurant_name} size={36} className="rounded-xl shrink-0" />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-semibold text-[16px] tracking-tight text-slate-900 dark:text-white leading-tight">
+                        {orderTitlePrefix} #{displayNum}
+                      </h3>
+                      <PlatformLogo platform={selectedOrder.platform} size={17} />
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                        mBadge.isFinalized
+                          ? 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-400'
+                          : 'bg-[#047857]/12 text-[#047857] dark:text-[#10B981]'
+                      }`}>
+                        <span>{mBadge.label}</span>
+                        <span className="opacity-75 tabular-nums">· {mBadge.isFinalized ? mLead : mElapsed}{shortMin}</span>
                       </span>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                    <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-white border-emerald-100'}`}>
-                      <div className="text-[10px] text-slate-400 font-semibold">{language === 'ru' ? '1. Заказ принят' : language === 'en' ? '1. Order Received' : '1. Comandă Intrată'}</div>
-                      <div className="tabular-nums font-extrabold text-sm text-slate-900 dark:text-white mt-0.5">
-                        {selectedOrder.timings?.created_time || parseOrderDateTime(selectedOrder.placed_at).time || '—'}
-                      </div>
                     </div>
-                    <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-white border-emerald-100'}`}>
-                      <div className="text-[10px] text-slate-400 font-semibold">{language === 'ru' ? '2. Готов на кухне' : language === 'en' ? '2. Kitchen Ready' : '2. Gata Bucătărie'}</div>
-                      <div className="tabular-nums font-extrabold text-sm text-blue-600 dark:text-blue-400 mt-0.5">
-                        {selectedOrder.timings?.cooking_completed_time || '—'}
-                      </div>
-                    </div>
-                    <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-white border-emerald-100'}`}>
-                      <div className="text-[10px] text-slate-400 font-semibold">{language === 'ru' ? '3. Передан курьеру' : language === 'en' ? '3. Handed to Courier' : '3. Predată Curier'}</div>
-                      <div className="tabular-nums font-extrabold text-sm text-amber-600 dark:text-amber-400 mt-0.5">
-                        {selectedOrder.timings?.sended_time || '—'}
-                      </div>
-                    </div>
-                    <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-white border-emerald-100'}`}>
-                      <div className="text-[10px] text-slate-400 font-semibold">
-                        {selectedOrder.timings?.closed_at_handoff
-                          ? (language === 'ru' ? '4. Закрыт в кассе (при выдаче)' : language === 'en' ? '4. Closed at POS (handoff)' : '4. Închis în casă (la predare)')
-                          : (language === 'ru' ? '4. Доставлен / Закрыт' : language === 'en' ? '4. Delivered / Closed' : '4. Livrată / Închisă')}
-                      </div>
-                      <div className="tabular-nums font-extrabold text-sm text-emerald-600 dark:text-emerald-400 mt-0.5">
-                        {selectedOrder.timings?.delivered_time || '—'}
-                      </div>
-                    </div>
+                    <p className="text-[12px] text-slate-500 dark:text-slate-400 truncate mt-0.5 tabular-nums">
+                      {cleanRestaurantName(selectedOrder.restaurant_name)} ({selectedOrder.restaurant_city}) · {placedTimeStr} · {channelMetaLabel} · {formatPaymentMethod(selectedOrder.payment_method, selectedOrder.is_cash, selectedOrder.is_card, language)} · {formatDiningOption(selectedOrder.dining_option || selectedOrder.order_type, language)}
+                    </p>
                   </div>
                 </div>
-              )}
 
-              {/* Banner Problemă dacă există */}
-              {selectedOrder.problem && (
-                <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 flex items-start gap-3">
-                  <AlertTriangle className="text-rose-600 shrink-0 mt-0.5" size={16} />
-                  <div>
-                    <div className="text-xs font-bold text-rose-700 dark:text-rose-300">
-                      Sesizare Activă: {selectedOrder.problem.title}
+                <div className="flex items-center gap-3.5 shrink-0">
+                  <div className="text-right hidden sm:block">
+                    <div className="text-[10.5px] font-medium text-slate-500 dark:text-slate-400 leading-none">
+                      {t('dispatch.modal_total_order', 'Total')}
                     </div>
-                    <div className="text-xs text-rose-600 dark:text-rose-400 mt-0.5">
-                      {selectedOrder.problem.description}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Produse din Bon cu Poze Reale Syrve din iiko */}
-              <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
-                  <ShoppingBag size={14} /> {t('dispatch.modal_items_title', 'Produse pe Bon ({count})', { count: selectedOrder.items?.length || 0 })}
-                </h4>
-                <div className="space-y-2">
-                  {(selectedOrder.items || []).map((item, itIdx) => {
-                    const imgUrl = getProductImage(item.product_name, selectedOrder.brand_name, item.imageUrl || item.image)
-                    return (
-                      <div 
-                        key={itIdx}
-                        className={`p-3 rounded-2xl border flex items-center justify-between gap-3 ${
-                          isDark ? 'bg-slate-800/30 border-slate-800' : 'bg-white border-slate-200'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <img 
-                            src={imgUrl} 
-                            alt={item.product_name}
-                            referrerPolicy="no-referrer"
-                            className="w-12 h-12 rounded-xl object-cover shrink-0 border border-slate-200 dark:border-slate-700 shadow-xs"
-                          />
-                          <div className="min-w-0">
-                            <div className="font-bold text-xs truncate text-slate-900 dark:text-white">
-                              {item.product_name}
-                            </div>
-                            <div className="text-[11px] text-slate-400 mt-0.5">
-                              {item.quantity || item.amount || 1} x {item.price || item.sum} RON
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="text-right shrink-0 font-black text-xs">
-                          {formatMoney(item.sum || ((item.quantity || 1) * (item.price || 0)))}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Informații Client & Curier */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-800/30 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
-                    <span className="font-bold text-slate-500 uppercase text-[10px] tracking-wider">{t('dispatch.modal_customer_data', 'Date Client')}</span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={(e) => openCustomerDossier(selectedOrder, e)}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-500/15 hover:bg-sky-500/25 text-sky-600 dark:text-sky-400 border border-sky-500/30 text-[10px] font-extrabold cursor-pointer transition-colors"
-                      >
-                        <User size={10} />
-                        <span>{language === 'ru' ? 'Досье клиента 360°' : language === 'en' ? 'Customer 360° Dossier' : 'Dosar Client 360°'}</span>
-                      </button>
-                      <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-800 flex items-center gap-1">
-                        <ShieldCheck size={10} /> GDPR
-                      </span>
+                    <div className="text-[18px] font-bold tracking-tight tabular-nums text-slate-900 dark:text-white mt-0.5">
+                      {formatMoney(selectedOrder.total_amount)}
                     </div>
                   </div>
                   <button
                     type="button"
-                    onClick={(e) => openCustomerDossier(selectedOrder, e)}
-                    className="font-bold text-sm text-slate-900 dark:text-white hover:text-sky-500 dark:hover:text-sky-400 hover:underline text-left cursor-pointer"
+                    onClick={() => setSelectedOrder(null)}
+                    aria-label="Închide"
+                    className="apple-sheet-close"
                   >
-                    {selectedOrder.customer?.name || t('dispatch.modal_customer_data', 'Client Nespecificat')}
+                    <X size={15} />
                   </button>
-                  <div className="text-slate-500 dark:text-slate-400 mt-1 tabular-nums flex items-center gap-1.5">
-                    <Phone size={11} className="text-slate-400 shrink-0" />
-                    <span>{selectedOrder.customer?.phone || t('dispatch.modal_no_phone', 'Fără număr de telefon')}</span>
+                </div>
+              </div>
+
+              {/* Adaptive 2-Column Split Body (Desktop: 7/5 Inspector + Full-Height Map, zero wasted margins!) */}
+              <div className={`flex-1 min-h-0 overflow-y-auto lg:overflow-hidden grid grid-cols-1 ${hasDeliveryMap ? 'lg:grid-cols-12' : ''}`}>
+                
+                {/* LEFT INSPECTOR PANE */}
+                <div className={`${hasDeliveryMap ? 'lg:col-span-7 lg:overflow-y-auto' : 'overflow-y-auto'} p-4 sm:p-5 space-y-3.5 custom-scrollbar`}>
+
+                  {/* 1. Unified Operational Timing + 4-Step iiko Progress Card */}
+                  <div className="apple-inset-card p-3.5">
+                    <div className="flex items-center justify-between gap-2 flex-wrap pb-2.5 border-b border-black/[0.06] dark:border-white/[0.07]">
+                      <div className="flex items-center gap-2 text-[12px] font-semibold text-slate-900 dark:text-white">
+                        <Clock size={13} className="text-[#047857] dark:text-[#10B981] shrink-0" />
+                        <span>{t('dispatch.modal_stage_title', 'Stare & Timpi iiko')}</span>
+                        {selectedOrder.timings?.complete_before_time && (
+                          <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 tabular-nums">
+                            · SLA {selectedOrder.timings.complete_before_time}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-3 text-[11.5px] tabular-nums">
+                        <span className="text-slate-500 dark:text-slate-400">
+                          {t('dispatch.modal_kitchen', 'Bucătărie')}{' '}
+                          <strong className="font-semibold text-slate-900 dark:text-white">{selectedOrder.kitchen_minutes}{shortMin}</strong>
+                        </span>
+                        <span className="text-slate-500 dark:text-slate-400">
+                          {t('dispatch.modal_wait', 'Așteptare')}{' '}
+                          <strong className="font-semibold text-slate-900 dark:text-white">
+                            {(selectedOrder.timings?.created_time && !selectedOrder.timings?.sended_time && selectedOrder.stage === 'delivered')
+                              ? '—'
+                              : `${selectedOrder.courier_wait_minutes}${shortMin}`}
+                          </strong>
+                        </span>
+                        <span className="text-slate-500 dark:text-slate-400">
+                          {t('dispatch.modal_delivery', 'Livrare')}{' '}
+                          <strong className="font-semibold text-slate-900 dark:text-white">
+                            {selectedOrder.timings?.closed_at_handoff
+                              ? (language === 'ru' ? 'По выдаче' : language === 'en' ? 'Handoff' : 'Predare')
+                              : (selectedOrder.timings?.created_time && !selectedOrder.timings?.sended_time)
+                                ? '—'
+                                : `${selectedOrder.delivery_minutes}${shortMin}`}
+                          </strong>
+                        </span>
+                      </div>
+                    </div>
+
+                    {hasTimings && (
+                      <div className="grid grid-cols-4 gap-2 pt-3">
+                        {timelineSteps.map((step, sIdx) => (
+                          <div key={sIdx} className="min-w-0">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <span className={`w-2 h-2 rounded-full shrink-0 ${step.time ? step.dotClass : 'bg-slate-300 dark:bg-slate-700'}`} />
+                              {sIdx < 3 && (
+                                <span className={`h-[1.5px] flex-1 rounded-full ${step.time && timelineSteps[sIdx + 1]?.time ? 'bg-slate-300 dark:bg-slate-600' : 'bg-black/[0.06] dark:bg-white/[0.07]'}`} />
+                              )}
+                            </div>
+                            <div className="text-[10.5px] text-slate-500 dark:text-slate-400 truncate">{step.label}</div>
+                            <div className={`text-[12.5px] font-semibold tabular-nums mt-0.5 ${step.time ? step.textClass : 'text-slate-400 dark:text-slate-600'}`}>
+                              {step.time || '—'}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {(() => {
-                    const parsedAddr = parseDeliveryAddress(selectedOrder.customer?.address, language)
-                    return (
-                      <>
-                        <div className="text-slate-600 dark:text-slate-300 font-medium mt-1.5 flex items-start gap-1.5">
-                          <MapPin size={12} className="text-emerald-500 shrink-0 mt-0.5" />
+
+                  {/* Banner Problemă dacă există */}
+                  {selectedOrder.problem && (
+                    <div className="p-3 rounded-[14px] bg-rose-500/10 border border-rose-500/25 flex items-start gap-2.5">
+                      <AlertTriangle className="text-rose-500 shrink-0 mt-0.5" size={15} />
+                      <div className="min-w-0">
+                        <div className="text-[12px] font-semibold text-rose-700 dark:text-rose-300">
+                          {selectedOrder.problem.title}
+                        </div>
+                        <div className="text-[11.5px] text-rose-600 dark:text-rose-400 mt-0.5">
+                          {selectedOrder.problem.description}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 2. Produse pe Bon — macOS Inset Grouped List (curat, fără prefix brut P_) */}
+                  <div>
+                    <div className="flex items-center justify-between px-1 mb-1.5">
+                      <span className="text-[12px] font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                        <ShoppingBag size={13} className="text-slate-400" />
+                        <span>{t('dispatch.modal_items_title', 'Produse pe bon ({count})', { count: selectedOrder.items?.length || 0 })}</span>
+                      </span>
+                      <span className="text-[12px] font-semibold tabular-nums text-slate-900 dark:text-white sm:hidden">
+                        {formatMoney(selectedOrder.total_amount)}
+                      </span>
+                    </div>
+
+                    <div className="apple-inset-card divide-y divide-black/[0.06] dark:divide-white/[0.07] overflow-hidden">
+                      {(selectedOrder.items || []).map((item, itIdx) => {
+                        const imgUrl = getProductImage(item.product_name, selectedOrder.brand_name, item.imageUrl || item.image)
+                        const { prefix, cleanName } = cleanDishLabel(item.product_name)
+                        return (
+                          <div key={itIdx} className="px-3 py-2 flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <img
+                                src={imgUrl}
+                                alt={cleanName}
+                                referrerPolicy="no-referrer"
+                                className="w-9 h-9 rounded-lg object-cover shrink-0 border border-black/[0.07] dark:border-white/10"
+                              />
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="font-semibold text-[12.5px] truncate text-slate-900 dark:text-white">
+                                    {cleanName}
+                                  </span>
+                                  {prefix && (
+                                    <span className="px-1 py-0 rounded text-[9.5px] font-medium bg-black/[0.05] dark:bg-white/[0.08] text-slate-500 dark:text-slate-400 shrink-0">
+                                      {prefix}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
+                                  {item.quantity || item.amount || 1} × {item.price || item.sum} RON
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0 font-semibold text-[12.5px] tabular-nums text-slate-900 dark:text-white">
+                              {formatMoney(item.sum || ((item.quantity || 1) * (item.price || 0)))}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 3. Date Client & Livrare side-by-side — ierarhie clară fără pill soup */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[12px]">
+                    <div className="apple-inset-card p-3.5 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className="text-[11.5px] font-semibold text-slate-500 dark:text-slate-400">
+                            {t('dispatch.modal_customer_data', 'Client')}
+                          </span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={(e) => openCustomerDossier(selectedOrder, e)}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#047857] dark:text-[#10B981] hover:underline cursor-pointer"
+                            >
+                              <User size={11} />
+                              <span>{language === 'ru' ? 'Досье 360°' : language === 'en' ? '360° Dossier' : 'Dosar 360°'}</span>
+                            </button>
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9.5px] font-medium bg-black/[0.05] dark:bg-white/[0.08] text-slate-500 dark:text-slate-400" title="GDPR Protected">
+                              <ShieldCheck size={9.5} /> GDPR
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={(e) => openCustomerDossier(selectedOrder, e)}
+                          className="font-semibold text-[14px] text-slate-900 dark:text-white hover:text-[#047857] dark:hover:text-[#10B981] text-left cursor-pointer leading-snug"
+                        >
+                          {selectedOrder.customer?.name || t('dispatch.modal_customer_data', 'Client Nespecificat')}
+                        </button>
+
+                        <div className="text-slate-500 dark:text-slate-400 mt-1 tabular-nums flex items-center gap-1.5 text-[11.5px]">
+                          <Phone size={11} className="text-slate-400 shrink-0" />
+                          <span>{selectedOrder.customer?.phone || t('dispatch.modal_no_phone', 'Fără număr de telefon')}</span>
+                        </div>
+
+                        <div className="text-slate-700 dark:text-slate-300 mt-1 flex items-start gap-1.5 text-[11.5px] leading-snug">
+                          <MapPin size={12} className="text-[#047857] dark:text-[#10B981] shrink-0 mt-0.5" />
                           <span>{parsedAddr.streetAddress || t('dispatch.modal_dine_in_address', 'Servire în restaurant / Preluare')}</span>
                         </div>
+
                         {parsedAddr.buildingDetails.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 mt-2">
+                          <div className="flex flex-wrap gap-1 mt-2">
                             {parsedAddr.buildingDetails.map((b, bIdx) => (
                               <span
                                 key={bIdx}
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold border ${
-                                  isDark
-                                    ? 'bg-slate-900 border-slate-700 text-slate-300'
-                                    : 'bg-white border-slate-200 text-slate-700'
+                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium border ${
+                                  isDark ? 'bg-[#1C1C1E] border-white/10 text-slate-300' : 'bg-white border-black/[0.08] text-slate-700'
                                 }`}
                               >
                                 <span className="text-slate-400">{b.label}:</span>
-                                <b className="tabular-nums text-slate-900 dark:text-white">{b.value}</b>
+                                <strong className="tabular-nums text-slate-900 dark:text-white">{b.value}</strong>
                               </span>
                             ))}
                           </div>
                         )}
+
                         {parsedAddr.instructions && (
-                          <div className={`mt-2.5 p-2.5 rounded-xl border text-[11px] leading-snug ${
-                            isDark
-                              ? 'bg-amber-950/30 border-amber-800/60 text-amber-200'
-                              : 'bg-amber-50/90 border-amber-200 text-amber-900'
+                          <div className={`mt-2 px-2.5 py-1.5 rounded-lg border-l-[3px] border-amber-500 text-[11px] leading-snug ${
+                            isDark ? 'bg-amber-950/25 text-amber-200' : 'bg-amber-50/80 text-amber-900'
                           }`}>
-                            <div className="text-[9px] font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-0.5">
-                              {language === 'ru' ? 'Инструкции курьеру (Примечание):' : language === 'en' ? 'Delivery Instructions (Note):' : 'Instrucțiuni livrare (Notă client):'}
-                            </div>
-                            <div className="font-semibold">{parsedAddr.instructions}</div>
+                            <div className="font-medium">{parsedAddr.instructions}</div>
                           </div>
                         )}
-                      </>
-                    )
-                  })()}
-                </div>
-
-                <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-800/30 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className="font-bold text-slate-500 uppercase text-[10px] tracking-wider mb-1.5">{t('dispatch.modal_courier_data', 'Date Livrare & Curier')}</div>
-                  {selectedOrder.courier ? (
-                    <>
-                      <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
-                        <Bike size={14} className="text-emerald-500" />
-                        <span>{selectedOrder.courier.name}</span>
-                        <span className="text-[10px] font-normal text-slate-400">({selectedOrder.courier.company})</span>
                       </div>
-                      {selectedOrder.courier.phone && (
-                        <div className="text-slate-500 dark:text-slate-400 mt-1 tabular-nums">{selectedOrder.courier.phone}</div>
-                      )}
-                      {(selectedOrder.courier.awb || selectedOrder.courier.orderId) && (
-                        <div className="tabular-nums text-emerald-600 dark:text-emerald-400 font-bold mt-1 text-xs">
-                          AWB: {selectedOrder.courier.awb || selectedOrder.courier.orderId}
-                        </div>
-                      )}
-                      {selectedOrder.courier.status && (
-                        <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 mt-1">
-                          {language === 'ru' ? 'Статус курьера:' : language === 'en' ? 'Courier Status:' : 'Status Curier:'} <span className="tabular-nums font-bold text-amber-600 dark:text-amber-400">{selectedOrder.courier.status}</span>
-                        </div>
-                      )}
-                      {selectedOrder.courier.deliveryFee && (
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                          {language === 'ru' ? 'Тариф доставки курьера:' : language === 'en' ? 'Courier delivery fee:' : 'Taxă livrare curier:'} <span className="font-bold text-slate-700 dark:text-slate-200">{selectedOrder.courier.deliveryFee} RON</span>
-                        </div>
-                      )}
-                      {selectedOrder.courier.trackingUrl && (
-                        <a
-                          href={selectedOrder.courier.trackingUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/20 text-xs font-bold transition-colors"
-                        >
-                          <span>{language === 'ru' ? 'Live-трекинг курьера' : language === 'en' ? 'Live Courier Tracking' : 'Tracking Live Curier'}</span>
-                          <span>↗</span>
-                        </a>
-                      )}
-                    </>
-                  ) : selectedOrder.channel_type === 'kiosk' || selectedOrder.channel_type === 'casierie' ? (
-                    <div className="text-slate-400 italic">{t('dispatch.modal_courier_dine_in', 'Servire pe loc în restaurant (fără curier)')}</div>
-                  ) : selectedOrder.platform === 'bolt' ? (
-                    <div className="text-emerald-600 dark:text-emerald-400 font-medium">{t('dispatch.modal_bolt_assigning', 'Curier Bolt (În curs de asignare de către Bolt)')}</div>
-                  ) : selectedOrder.platform === 'glovo' ? (
-                    <div className="text-slate-400 italic">{t('dispatch.modal_glovo_no_contact', 'Asignat direct de Glovo (Platforma nu expune contactul curierului prin iiko)')}</div>
-                  ) : selectedOrder.platform === 'wolt' ? (
-                    <div className="text-slate-400 italic">{t('dispatch.modal_wolt_no_contact', 'Asignat direct de Wolt (Platforma nu expune contactul curierului prin iiko)')}</div>
-                  ) : selectedOrder.channel_type === 'own_delivery' ? (
-                    <div className="text-indigo-600 dark:text-indigo-400 font-semibold flex items-center gap-1.5">
-                      <Bike size={14} />
-                      <span>{language === 'ru' ? 'Доставка через партнёра (ожидание данных от партнёра)' : language === 'en' ? 'Partner Delivery (awaiting partner data)' : 'Livrare prin partener (în așteptarea datelor de la partener)'}</span>
                     </div>
-                  ) : (
-                    <div className="text-slate-400 italic">{t('dispatch.aggregator_courier', 'Curier Agregator')}</div>
-                  )}
+
+                    <div className="apple-inset-card p-3.5 flex flex-col justify-between">
+                      <div>
+                        <div className="text-[11.5px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                          {t('dispatch.modal_courier_data', 'Livrare și curier')}
+                        </div>
+                        {selectedOrder.courier ? (
+                          <div className="space-y-1">
+                            <div className="font-semibold text-[13.5px] text-slate-900 dark:text-white flex items-center gap-1.5">
+                              <Bike size={14} className="text-emerald-500 shrink-0" />
+                              <span className="truncate">{selectedOrder.courier.name}</span>
+                              {selectedOrder.courier.company && (
+                                <span className="text-[11px] font-normal text-slate-400">({selectedOrder.courier.company})</span>
+                              )}
+                            </div>
+                            {selectedOrder.courier.phone && (
+                              <div className="text-[11.5px] text-slate-500 dark:text-slate-400 tabular-nums">{selectedOrder.courier.phone}</div>
+                            )}
+                            {(selectedOrder.courier.awb || selectedOrder.courier.orderId) && (
+                              <div className="tabular-nums text-[11.5px] font-semibold text-slate-800 dark:text-slate-200">
+                                AWB: {selectedOrder.courier.awb || selectedOrder.courier.orderId}
+                              </div>
+                            )}
+                            {selectedOrder.courier.status && (
+                              <div className="text-[11.5px] text-slate-500 dark:text-slate-400">
+                                {language === 'ru' ? 'Статус:' : language === 'en' ? 'Status:' : 'Status:'}{' '}
+                                <strong className="font-semibold text-amber-600 dark:text-amber-400">{selectedOrder.courier.status}</strong>
+                              </div>
+                            )}
+                            {selectedOrder.courier.deliveryFee && (
+                              <div className="text-[11.5px] text-slate-500 dark:text-slate-400 tabular-nums">
+                                {language === 'ru' ? 'Тариф:' : language === 'en' ? 'Fee:' : 'Taxă:'}{' '}
+                                <strong className="font-semibold text-slate-800 dark:text-slate-200">{selectedOrder.courier.deliveryFee} RON</strong>
+                              </div>
+                            )}
+                            {selectedOrder.courier.trackingUrl && (
+                              <a
+                                href={selectedOrder.courier.trackingUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="apple-btn-sm mt-2 text-[#047857] dark:text-[#10B981]"
+                              >
+                                <span>{language === 'ru' ? 'Live-трекинг' : language === 'en' ? 'Live Tracking' : 'Tracking Live'}</span>
+                                <ExternalLink size={10} />
+                              </a>
+                            )}
+                          </div>
+                        ) : selectedOrder.channel_type === 'kiosk' || selectedOrder.channel_type === 'casierie' ? (
+                          <div className="text-[12px] text-slate-500 dark:text-slate-400">{t('dispatch.modal_courier_dine_in', 'Servire în restaurant (fără curier)')}</div>
+                        ) : selectedOrder.platform === 'bolt' ? (
+                          <div className="text-[12px] text-emerald-700 dark:text-emerald-400 font-medium">{t('dispatch.modal_bolt_assigning', 'Curier Bolt (asignat automat de platformă)')}</div>
+                        ) : selectedOrder.platform === 'glovo' ? (
+                          <div className="text-[12px] text-slate-500 dark:text-slate-400">{t('dispatch.modal_glovo_no_contact', 'Asignat direct de Glovo (contact neexpus prin iiko)')}</div>
+                        ) : selectedOrder.platform === 'wolt' ? (
+                          <div className="text-[12px] text-slate-500 dark:text-slate-400">{t('dispatch.modal_wolt_no_contact', 'Asignat direct de Wolt (contact neexpus prin iiko)')}</div>
+                        ) : selectedOrder.channel_type === 'own_delivery' ? (
+                          <div className="text-[12px] text-[#047857] dark:text-[#10B981] font-medium flex items-center gap-1.5">
+                            <Bike size={14} />
+                            <span>{language === 'ru' ? 'Доставка через партнёра (ожидание данных)' : language === 'en' ? 'Partner delivery (awaiting courier)' : 'Livrare partener (în așteptare date)'}</span>
+                          </div>
+                        ) : (
+                          <div className="text-[12px] text-slate-500 dark:text-slate-400">{t('dispatch.aggregator_courier', 'Curier Agregator')}</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
+                {/* RIGHT FULL-HEIGHT LIVE MAP PANE (Desktop side-by-side — zero scroll!) */}
+                {hasDeliveryMap && (
+                  <div className="lg:col-span-5 border-t lg:border-t-0 lg:border-l border-black/[0.07] dark:border-white/[0.08] flex flex-col min-h-[340px] lg:min-h-0">
+                    <OrderLiveRouteMap
+                      order={selectedOrder}
+                      isDark={isDark}
+                      language={language}
+                      onOpenCustomerDossier={openCustomerDossier}
+                      fillHeight
+                    />
+                  </div>
+                )}
+
               </div>
-
-              {/* Harta Live a Traseului Stradal pentru comenzile de livrare */}
-              {selectedOrder.channel_type !== 'kiosk' && selectedOrder.channel_type !== 'casierie' && selectedOrder.platform !== 'kiosk' && selectedOrder.platform !== 'casierie' && selectedOrder.platform !== 'IN-STORE' && (
-                <OrderLiveRouteMap
-                  order={selectedOrder}
-                  isDark={isDark}
-                  language={language}
-                  onOpenCustomerDossier={openCustomerDossier}
-                />
-              )}
-
-              {/* Total Bon */}
-              <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
-                <span className="font-bold text-sm">{t('dispatch.modal_total_order', 'Total Comandă:')}</span>
-                <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
-                  {formatMoney(selectedOrder.total_amount)}
-                </span>
-              </div>
-
             </div>
-
           </div>
-        </div>
-      )}
+        )
+      })()}
 
     </div>
   )

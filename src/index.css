@@ -2,17 +2,157 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ============================================================================
+   GetApp.FooD — Native macOS Tahoe (macOS 26) & Apple HIG Design System
+   Brand Accent: GetApp.FooD Deep Emerald Green (#047857 / #059669 Light, #10B981 Dark)
+   Grounded in: .agents/skills/apple-design/references/hig/
+   - designing-for-macos.md + liquid-glass.md (Floating Liquid Glass Sidebar & Toolbar)
+   - color.md + dark-mode.md (Brand Deep Emerald Accent + True Neutrals, WCAG AA/AAA)
+   - segmented-controls.md (Concentric pill segmented track + elevated brand emerald thumb)
+   - buttons.md (macOS Tahoe beveled push buttons & single prominent accent CTA)
+   - lists-and-tables.md (Finder/Numbers zebra rows, sticky headers, auto-height)
+   - accessibility.md + motion.md (Focus rings, reduced-motion/transparency, high-contrast)
+   ============================================================================ */
+
+:root {
+  color-scheme: light;
+  --font-system: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+
+  /* Apple macOS Tahoe Light Palette (GetApp.FooD Deep Emerald Tint) */
+  --apple-canvas: #EEF1F0;
+  --apple-canvas-mesh:
+    radial-gradient(ellipse 75% 55% at 12% 0%, rgba(5, 150, 105, 0.07), transparent 58%),
+    radial-gradient(ellipse 65% 50% at 88% 100%, rgba(4, 120, 87, 0.055), transparent 58%),
+    #EEF1F0;
+  --apple-surface: #FFFFFF;
+  --apple-surface-subtle: #F4F7F6;
+  --apple-label: #1D1D1F;
+  --apple-label-secondary: #48484A;
+  --apple-label-tertiary: #636366;
+  --apple-separator: rgba(0, 0, 0, 0.075);
+  --apple-separator-strong: rgba(0, 0, 0, 0.13);
+
+  /* Functional Layer — True macOS Tahoe Liquid Glass (Floating Sidebar / Toolbar / Popovers ONLY) */
+  --apple-glass-bar: rgba(255, 255, 255, 0.74);
+  --apple-glass-sidebar: rgba(255, 255, 255, 0.78);
+  --apple-glass-popover: rgba(255, 255, 255, 0.88);
+  --apple-sheet-header-bg: rgba(255, 255, 255, 0.84);
+  --apple-glass-specular: rgba(255, 255, 255, 0.92);
+  --apple-glass-border: rgba(0, 0, 0, 0.085);
+  --apple-card-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.075),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 8px 24px -14px rgba(15, 23, 42, 0.10);
+  --apple-sidebar-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.08),
+    0 10px 30px -12px rgba(15, 23, 42, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --apple-toolbar-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.075),
+    0 6px 20px -10px rgba(15, 23, 42, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --apple-glass-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.09),
+    0 16px 40px -12px rgba(15, 23, 42, 0.22);
+
+  /* Apple macOS Tahoe Segmented Control */
+  --apple-seg-track: rgba(118, 118, 128, 0.12);
+  --apple-seg-thumb: #FFFFFF;
+  --apple-seg-thumb-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.05);
+
+  /* Table surfaces */
+  --apple-thead-bg: rgba(246, 249, 248, 0.95);
+  --apple-row-alt: rgba(0, 0, 0, 0.018);
+  --apple-row-hover: rgba(4, 120, 87, 0.06);
+
+  /* GetApp.FooD Deep Emerald Brand Accent (matches logo) */
+  --apple-accent: #047857;
+  --apple-accent-hover: #065F46;
+  --apple-accent-gradient: linear-gradient(180deg, #059669 0%, #047857 100%);
+  --apple-focus-ring: #059669;
+}
+
+html.dark {
+  color-scheme: dark;
+
+  /* Apple macOS Tahoe Dark Palette (GetApp.FooD Deep Emerald Tint) */
+  --apple-canvas: #0B0F0E;
+  --apple-canvas-mesh:
+    radial-gradient(ellipse 70% 50% at 15% 0%, rgba(16, 185, 129, 0.095), transparent 55%),
+    radial-gradient(ellipse 60% 45% at 88% 100%, rgba(4, 120, 87, 0.075), transparent 55%),
+    #0B0F0E;
+  --apple-surface: #1C1C1E;
+  --apple-surface-subtle: #262629;
+  --apple-label: #F5F5F7;
+  --apple-label-secondary: #AEAEB2;
+  --apple-label-tertiary: #8E8E93;
+  --apple-separator: rgba(255, 255, 255, 0.085);
+  --apple-separator-strong: rgba(255, 255, 255, 0.16);
+
+  /* Functional Layer — True macOS Tahoe Liquid Glass Dark */
+  --apple-glass-bar: rgba(24, 28, 27, 0.76);
+  --apple-glass-sidebar: rgba(22, 26, 25, 0.80);
+  --apple-glass-popover: rgba(28, 32, 31, 0.90);
+  --apple-sheet-header-bg: rgba(28, 28, 30, 0.86);
+  --apple-glass-specular: rgba(255, 255, 255, 0.12);
+  --apple-glass-border: rgba(255, 255, 255, 0.11);
+  --apple-card-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.095),
+    0 2px 10px rgba(0, 0, 0, 0.34),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.06);
+  --apple-sidebar-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.11),
+    0 12px 36px -10px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  --apple-toolbar-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.11),
+    0 8px 24px -8px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  --apple-glass-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.14),
+    0 18px 46px -10px rgba(0, 0, 0, 0.75);
+
+  /* Apple Segmented Control Dark */
+  --apple-seg-track: rgba(118, 118, 128, 0.24);
+  --apple-seg-thumb: #3A3A3C;
+  --apple-seg-thumb-shadow: 0 1px 3px rgba(0, 0, 0, 0.40), inset 0 0.5px 0 rgba(255, 255, 255, 0.14);
+
+  /* Table surfaces */
+  --apple-thead-bg: rgba(28, 30, 29, 0.96);
+  --apple-row-alt: rgba(255, 255, 255, 0.022);
+  --apple-row-hover: rgba(16, 185, 129, 0.12);
+
+  /* GetApp.FooD Deep Emerald Dark Accent */
+  --apple-accent: #10B981;
+  --apple-accent-hover: #34D399;
+  --apple-accent-gradient: linear-gradient(180deg, #059669 0%, #047857 100%);
+  --apple-focus-ring: #10B981;
+}
+
 @layer base {
   *, *::before, *::after {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif !important;
+    font-family: var(--font-system);
   }
-  body {
+
+  html, body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif !important;
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    background: var(--apple-canvas);
+    color: var(--apple-label);
+    font-family: var(--font-system);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
-  code, pre, kbd, samp, input, textarea, button, p, span, div, a {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif !important;
+
+  /* macOS Keyboard Focus Indicator (accessibility.md › Speech + color.md) */
+  :where(button, a, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--apple-focus-ring);
+    outline-offset: 2px;
   }
+
   button:not(.flex-col):not(.whitespace-normal),
   a[class*="rounded-"]:not(.flex-col):not(.whitespace-normal),
   span.rounded-full:not(.flex-col):not(.whitespace-normal) {
@@ -21,11 +161,360 @@
   }
 }
 
-.font-mono, code, pre, kbd, samp {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif !important;
+/* ============================================================================
+   WCAG AA Global Contrast & macOS Elevation (accessibility.md + dark-mode.md)
+   ============================================================================ */
+html:not(.dark) .text-slate-400 {
+  color: #636366 !important;
+}
+html:not(.dark) .text-slate-500 {
+  color: #48484A !important;
+}
+html:not(.dark) .text-slate-900 {
+  color: #1D1D1F !important;
+}
+html:not(.dark) .bg-white.border.shadow-sm,
+html:not(.dark) .bg-white.border.shadow-xs,
+html:not(.dark) .bg-white.border.shadow-2xs,
+html:not(.dark) .bg-white.rounded-2xl.border,
+html:not(.dark) .bg-white.rounded-3xl.border,
+html:not(.dark) .bg-white.rounded-xl.border {
+  border-color: rgba(0, 0, 0, 0.06) !important;
+  box-shadow: var(--apple-card-shadow) !important;
 }
 
-/* Custom modern scrollbar */
+/* Dark Mode: elevate Tailwind bg-slate-900 cards cleanly above #0C0E13 canvas */
+html.dark .bg-slate-900 {
+  background-color: #1C1C1E !important;
+}
+html.dark .bg-slate-900.border,
+html.dark .bg-slate-900\/90.border {
+  border-color: rgba(255, 255, 255, 0.09) !important;
+  box-shadow: var(--apple-card-shadow);
+}
+html.dark .bg-slate-800\/40,
+html.dark .bg-slate-800\/30 {
+  background-color: rgba(255, 255, 255, 0.045) !important;
+}
+
+/* Tabular numbers for financial & operational precision (typography.md) */
+.font-mono,
+[class*="font-mono"],
+.tabular-nums,
+[class*="tabular-nums"],
+td, th {
+  font-family: var(--font-system) !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+[class*="tracking-widest"],
+[class*="tracking-wider"] {
+  letter-spacing: 0.01em !important;
+}
+
+/* ============================================================================
+   macOS Tahoe Concentric Pill Segmented Control (segmented-controls.md)
+   ============================================================================ */
+.apple-segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9999px;
+  background-color: var(--apple-seg-track);
+}
+
+.apple-segment {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--apple-label-secondary);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+
+.apple-segment:hover {
+  color: var(--apple-label);
+}
+
+.apple-segment-active {
+  background: var(--apple-accent-gradient);
+  color: #FFFFFF !important;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(4, 120, 87, 0.34), inset 0 0.5px 0 rgba(255, 255, 255, 0.28);
+}
+
+.apple-segment-active:hover {
+  color: #FFFFFF !important;
+}
+
+.apple-segment-active svg {
+  color: #FFFFFF !important;
+}
+
+.apple-segment-active span {
+  color: rgba(255, 255, 255, 0.94) !important;
+}
+
+.apple-segment-active [class*="bg-black/"],
+.apple-segment-active [class*="bg-slate-"],
+.apple-segment-active [class*="bg-white/"],
+.apple-segment-active [class*="bg-rose-"],
+.apple-segment-active [class*="bg-amber-"],
+.apple-segment-active [class*="bg-emerald-"] {
+  background-color: rgba(255, 255, 255, 0.22) !important;
+  color: #FFFFFF !important;
+}
+
+/* Native select option dropdown contrast in Dark Mode (macOS/Windows/Linux browsers) */
+html.dark option {
+  background-color: #1C1C1E;
+  color: #F5F5F7;
+}
+
+/* macOS Tahoe Secondary Capsule Button (buttons.md › Desktop macOS) */
+.apple-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--apple-label);
+  background-color: var(--apple-surface);
+  border: 0.5px solid var(--apple-separator-strong);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.045), inset 0 0.5px 0 var(--apple-glass-specular);
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 80ms ease;
+}
+.apple-btn-secondary:hover {
+  background-color: var(--apple-surface-subtle);
+}
+.apple-btn-secondary:active {
+  transform: scale(0.985);
+}
+
+/* macOS Tahoe Primary Prominent Push Button — max 1 per view (buttons.md › Style) */
+.apple-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #FFFFFF;
+  background: var(--apple-accent-gradient);
+  border: 0.5px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(4, 120, 87, 0.34), inset 0 0.5px 0 rgba(255, 255, 255, 0.28);
+  cursor: pointer;
+  transition: filter 120ms ease, transform 80ms ease;
+}
+.apple-btn-primary:hover {
+  filter: brightness(1.06);
+}
+.apple-btn-primary:active {
+  transform: scale(0.985);
+}
+
+/* ============================================================================
+   Liquid Glass — Functional Layer ONLY (liquid-glass.md › The two layers)
+   Floating Sidebar + Floating Toolbar + Popovers
+   ============================================================================ */
+.apple-glass-sidebar {
+  background-color: var(--apple-glass-sidebar);
+  backdrop-filter: blur(36px) saturate(195%);
+  -webkit-backdrop-filter: blur(36px) saturate(195%);
+  box-shadow: var(--apple-sidebar-shadow);
+}
+
+.apple-glass-toolbar {
+  background-color: var(--apple-glass-bar);
+  backdrop-filter: blur(28px) saturate(195%);
+  -webkit-backdrop-filter: blur(28px) saturate(195%);
+  box-shadow: var(--apple-toolbar-shadow);
+}
+
+.apple-glass-popover {
+  background-color: var(--apple-glass-popover);
+  backdrop-filter: blur(34px) saturate(200%);
+  -webkit-backdrop-filter: blur(34px) saturate(200%);
+  border: 0.5px solid var(--apple-glass-border);
+  box-shadow: var(--apple-glass-shadow), inset 0 1px 0 var(--apple-glass-specular);
+}
+
+.apple-app-canvas {
+  background: var(--apple-canvas-mesh);
+}
+
+/* ============================================================================
+   macOS Tahoe 26 Sheets & Inspector Groups (sheets.md + modality.md + layout.md)
+   ============================================================================ */
+.apple-sheet-backdrop {
+  background-color: rgba(12, 14, 20, 0.44);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+html.dark .apple-sheet-backdrop {
+  background-color: rgba(0, 0, 0, 0.62);
+}
+
+.apple-sheet {
+  background-color: var(--apple-surface);
+  color: var(--apple-label);
+  border-radius: 22px;
+  border: 0.5px solid var(--apple-separator-strong);
+  box-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.08),
+    0 28px 72px -18px rgba(15, 23, 42, 0.36),
+    inset 0 1px 0 var(--apple-glass-specular);
+}
+html.dark .apple-sheet {
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.12),
+    0 32px 84px -16px rgba(0, 0, 0, 0.78),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+
+.apple-sheet-header {
+  background-color: var(--apple-sheet-header-bg);
+  backdrop-filter: blur(24px) saturate(185%);
+  -webkit-backdrop-filter: blur(24px) saturate(185%);
+  border-bottom: 0.5px solid var(--apple-separator-strong);
+}
+
+.apple-sheet-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(118, 118, 128, 0.12);
+  color: var(--apple-label-secondary);
+  border: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 120ms ease, color 120ms ease, transform 80ms ease;
+}
+.apple-sheet-close:hover {
+  background-color: rgba(118, 118, 128, 0.22);
+  color: var(--apple-label);
+}
+.apple-sheet-close:active {
+  transform: scale(0.94);
+}
+html.dark .apple-sheet-close {
+  background-color: rgba(255, 255, 255, 0.10);
+}
+html.dark .apple-sheet-close:hover {
+  background-color: rgba(255, 255, 255, 0.18);
+}
+
+.apple-inset-card {
+  background-color: var(--apple-surface-subtle);
+  border: 0.5px solid var(--apple-separator);
+  border-radius: 14px;
+}
+html.dark .apple-inset-card {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.apple-btn-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--apple-label);
+  background-color: var(--apple-surface);
+  border: 0.5px solid var(--apple-separator-strong);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 120ms ease, transform 80ms ease;
+}
+.apple-btn-sm:hover {
+  background-color: var(--apple-surface-subtle);
+}
+.apple-btn-sm:active {
+  transform: scale(0.97);
+}
+
+/* Native macOS Tahoe Table Styling (lists-and-tables.md › Desktop macOS) */
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--apple-thead-bg);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  color: var(--apple-label-tertiary);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: -0.005em;
+  text-transform: none;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--apple-separator-strong);
+  white-space: nowrap;
+}
+
+tbody tr {
+  min-height: 42px;
+  transition: background-color 110ms ease;
+}
+
+tbody tr:nth-child(even) {
+  background-color: var(--apple-row-alt);
+}
+
+tbody tr:hover {
+  background-color: var(--apple-row-hover);
+}
+
+tbody td {
+  padding: 9px 12px;
+  border-bottom: 0.5px solid var(--apple-separator);
+  vertical-align: middle;
+}
+
+/* macOS Tahoe continuous card curvature */
+[class*="rounded-2xl"] {
+  border-radius: 16px;
+}
+[class*="rounded-3xl"] {
+  border-radius: 18px;
+}
+
+/* macOS subtle scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -34,9 +523,61 @@
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.25);
+  background: rgba(118, 118, 128, 0.28);
   border-radius: 9999px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.45);
+  background: rgba(118, 118, 128, 0.50);
+}
+
+/* ============================================================================
+   Apple Accessibility Media Queries (accessibility.md + liquid-glass.md #5)
+   ============================================================================ */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --apple-glass-bar: #FFFFFF;
+    --apple-glass-sidebar: #F5F6F9;
+    --apple-glass-popover: #FFFFFF;
+    --apple-sheet-header-bg: #FFFFFF;
+    --apple-thead-bg: #F8F9FC;
+  }
+  html.dark {
+    --apple-glass-bar: #1C1C1E;
+    --apple-glass-sidebar: #18181B;
+    --apple-glass-popover: #1C1C1E;
+    --apple-sheet-header-bg: #1C1C1E;
+    --apple-thead-bg: #1C1C1E;
+  }
+  .apple-glass-sidebar,
+  .apple-glass-toolbar,
+  .apple-glass-popover,
+  .apple-sheet-header,
+  .apple-sheet-backdrop,
+  [class*="backdrop-blur"],
+  thead th {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --apple-separator: rgba(0, 0, 0, 0.22);
+    --apple-separator-strong: rgba(0, 0, 0, 0.38);
+    --apple-glass-border: rgba(0, 0, 0, 0.28);
+  }
+  html.dark {
+    --apple-separator: rgba(255, 255, 255, 0.22);
+    --apple-separator-strong: rgba(255, 255, 255, 0.38);
+    --apple-glass-border: rgba(255, 255, 255, 0.28);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

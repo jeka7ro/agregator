@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { getUserInitials } from '../lib/AuthContext'
 
 const ROLE_AVATAR_STYLES = {
@@ -44,6 +44,9 @@ export default function UserAvatar({
   showOnlineDot = false
 }) {
   const [imgError, setImgError] = useState(false)
+  useEffect(() => {
+    setImgError(false)
+  }, [user?.avatar_url])
   const avatarUrl = user?.avatar_url && !imgError ? user.avatar_url : ''
   const initials = getUserInitials(user)
   const roleKey = user?.role || 'admin'

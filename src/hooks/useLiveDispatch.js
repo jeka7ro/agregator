@@ -54,7 +54,7 @@ function getInitialState(period, scopeKey = 'all') {
   }
 }
 
-export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'all', channel = 'all', period = 'today', autoRefreshSeconds = 300 } = {}) {
+export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'all', channel = 'all', period = 'today', customFrom = '', customTo = '', autoRefreshSeconds = 300 } = {}) {
   const { user, canAccessCity, canAccessBrand, canAccessRestaurant } = useAuth()
   const scopeKey = useMemo(() => {
     if (!user || user.role === 'admin') return 'admin'
@@ -72,13 +72,23 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
   const countdownRef = useRef(autoRefreshSeconds)
   const isFetchingRef = useRef(false)
   const fetchDataRef = useRef(null)
+  const isMountedRef = useRef(true)
+  const reqIdRef = useRef(0)
+  const lastFilterKeyRef = useRef('')
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => { isMountedRef.current = false }
+  }, [])
 
   const fetchData = useCallback(async (silent = false, forceRefresh = false) => {
     countdownRef.current = autoRefreshSeconds
     setSecondsUntilRefresh(autoRefreshSeconds)
 
     if (isFetchingRef.current && silent) return
+    const reqId = ++reqIdRef.current
     isFetchingRef.current = true
+    const currentFilterKey = `${city}|${brand}|${restaurantId}|${channel}|${period}|${customFrom}|${customTo}`
 
     try {
       if (!silent) setLoading(true)
@@ -89,7 +99,11 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
       if (restaurantId && restaurantId !== 'all') params.set('restaurant_id', restaurantId)
       if (channel && channel !== 'all') params.set('channel', channel)
       if (period && period !== 'all') params.set('period', period)
-      const fetchLimit = (period === 'today' || period === 'yesterday') ? '3500' : '2500'
+      if (period === 'custom' && customFrom) {
+        params.set('from', customFrom)
+        if (customTo) params.set('to', customTo)
+      }
+      const fetchLimit = (period === 'today' || period === 'yesterday' || period === 'custom') ? '3500' : '2500'
       params.set('limit', fetchLimit)
       if (forceRefresh) {
         params.set('refresh', '1')
@@ -100,11 +114,15 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
       const json = await res.json()
+      if (!isMountedRef.current || reqId !== reqIdRef.current) return
       if (json && json.success) {
         const incomingOrders = Array.isArray(json.orders) ? json.orders : []
+        const isSameFilter = lastFilterKeyRef.current === currentFilterKey
+        lastFilterKeyRef.current = currentFilterKey
 
         setData(prev => {
-          if (incomingOrders.length === 0 && prev.orders.length > 10 && (period === 'today')) {
+          // Only guard against transient empty polling glitches for the exact same filter selection
+          if (silent && isSameFilter && incomingOrders.length === 0 && prev.orders.length > 10 && period === 'today' && prev.period === 'today') {
             return prev
           }
 
@@ -112,13 +130,20 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
             period: json.period || period,
             period_label: json.period_label || '',
             period_date_range: json.period_date_range || '',
-            kpis: json.kpis || (incomingOrders.length === 0 ? prev.kpis : DEFAULT_KPIS),
-            orders: incomingOrders.length > 0 ? incomingOrders : prev.orders,
+            kpis: json.kpis || DEFAULT_KPIS,
+            orders: (silent && isSameFilter && incomingOrders.length === 0 && period === 'today' && prev.period === 'today') ? prev.orders : incomingOrders,
             stop_matrix: json.stop_matrix || prev.stop_matrix || [],
             stop_audit_log: json.stop_audit_log || prev.stop_audit_log || []
           }
 
-          if (period === 'today' && incomingOrders.length > 0 && (!city || city === 'all') && (!brand || brand === 'all')) {
+          if (
+            period === 'today' &&
+            incomingOrders.length > 0 &&
+            (!city || city === 'all') &&
+            (!brand || brand === 'all') &&
+            (!restaurantId || restaurantId === 'all') &&
+            (!channel || channel === 'all')
+          ) {
             try {
               sessionStorage.setItem(`dispatch_cache_today_v4_${scopeKey}`, JSON.stringify(nextData))
             } catch (_) {}
@@ -129,18 +154,24 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
         setLastUpdated(new Date())
       }
     } catch (err) {
+      if (!isMountedRef.current || reqId !== reqIdRef.current) return
       console.warn('[useLiveDispatch] Error fetching dispatch data:', err)
       setLastUpdated(new Date())
     } finally {
-      isFetchingRef.current = false
-      setLoading(false)
+      if (reqId === reqIdRef.current) {
+        isFetchingRef.current = false
+        if (isMountedRef.current) setLoading(false)
+      }
     }
-  }, [city, brand, restaurantId, channel, period, autoRefreshSeconds, scopeKey])
+  }, [city, brand, restaurantId, channel, period, customFrom, customTo, autoRefreshSeconds, scopeKey])
 
   fetchDataRef.current = fetchData
 
   useEffect(() => {
     fetchData(false)
+    return () => {
+      reqIdRef.current += 1
+    }
   }, [fetchData])
 
   useEffect(() => {

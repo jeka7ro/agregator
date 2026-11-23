@@ -1,10 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { X, Copy, Check, Utensils } from 'lucide-react'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
 import BrandAvatar, { cleanRestaurantName } from './BrandAvatar'
 import OrderLiveRouteMap from './OrderLiveRouteMap'
-import { formatDisplayOrderNumber, parseDeliveryAddress } from '../lib/orderUtils'
+import { formatDisplayOrderNumber, parseDeliveryAddress, isSafeHttpUrl } from '../lib/orderUtils'
 import { getProductImage } from '../lib/productImages'
 
 function formatCleanDishName(rawName = '') {
@@ -22,10 +22,22 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
   const [copied, setCopied] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState(null)
 
+  useEffect(() => {
+    if (!isOpen) return
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        if (selectedProduct) setSelectedProduct(null)
+        else onClose?.()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isOpen, selectedProduct, onClose])
+
   if (!isOpen || !order) return null
 
   const localeCode = language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-US' : 'ro-RO'
-  const currencyLabel = language === 'ru' ? 'лей' : language === 'en' ? 'RON' : 'lei'
+  const currencyLabel = 'RON'
 
   const orderNum = formatDisplayOrderNumber(order.order_number, order.order_id, order.channel || order.platform) || 'N/A'
   const brandName = order.brand_name || order.brand || order.restaurant_name || 'smashme'
@@ -38,7 +50,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
       : (language === 'ru' ? 'Доставка' : language === 'en' ? 'Delivery' : 'Livrare')
   const orderType = order.order_type || defaultOrderType
   const paymentMethod = (order.payment_method || (channel === 'kiosk' ? 'CASH' : channel === 'casierie' ? 'POS / CASH' : 'CARD')).toUpperCase()
-  const paymentSubtype = order.payment_subtype || (paymentMethod === 'CASH' ? (language === 'ru' ? 'На кассе' : language === 'en' ? 'At Counter' : 'La Casă') : channel === 'casierie' ? (language === 'en' ? 'Cashier' : 'Casier') : '')
+  const paymentSubtype = order.payment_subtype || (paymentMethod === 'CASH' ? (language === 'ru' ? 'На кассе' : language === 'en' ? 'At Counter' : 'La Casă') : channel === 'casierie' ? (language === 'ru' ? 'Кассир' : language === 'en' ? 'Cashier' : 'Casier') : '')
   const iikoId = order.iiko_order_id || order.order_id || '—'
 
   const placedDate = order.placed_at ? new Date(order.placed_at) : new Date()
@@ -48,7 +60,8 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit'
+    second: '2-digit',
+    timeZone: 'UTC'
   })
 
   const rawItems = Array.isArray(order.items) ? order.items : []
@@ -108,377 +121,372 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
     }
   }
 
+  const hasDeliveryMap = channel !== 'kiosk' && channel !== 'casierie' && channel !== 'IN-STORE'
+  const totalFormatted = `${parseFloat(order.total_amount || 0).toLocaleString(localeCode, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currencyLabel}`
+  const timelineSteps = [
+    { label: lbl.stepCreated, time: createdTime || null, dot: 'bg-slate-700 dark:bg-slate-200', color: 'text-slate-900 dark:text-white' },
+    { label: lbl.stepCooked, time: cookedTime || null, dot: 'bg-[#047857] dark:bg-[#10B981]', color: 'text-[#047857] dark:text-[#10B981]' },
+    { label: lbl.stepSent, time: sendedTime || null, dot: 'bg-amber-500', color: 'text-amber-600 dark:text-amber-400' },
+    { label: lbl.stepDelivered, time: deliveredTime || null, dot: 'bg-emerald-500', color: 'text-emerald-600 dark:text-emerald-400' }
+  ]
+
   return (
     <>
-      {/* 1. ORDER DETAILS MODAL */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-200">
-        <div 
-          className={`w-full max-w-lg rounded-3xl shadow-2xl border flex flex-col max-h-[92vh] overflow-hidden ${
-            isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'
-          }`}
+      {/* 1. MACOS TAHOE 26 ORDER INSPECTOR SHEET */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        onClick={onClose}
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 apple-sheet-backdrop animate-in fade-in duration-150"
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className={`apple-sheet w-full ${hasDeliveryMap ? 'max-w-[1040px]' : 'max-w-2xl'} flex flex-col max-h-[88vh] overflow-hidden`}
         >
-          {/* HEADER */}
-          <div className="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
-            <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
-              {t('webhooks.order_title', 'Comandă #')}{orderNum}
-            </h3>
-            <button
-              onClick={onClose}
-              className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
-            >
-              <X size={16} />
-            </button>
-          </div>
-
-          {/* SCROLLABLE BODY */}
-          <div className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1 custom-scrollbar text-xs sm:text-sm">
-            
-            {/* BRAND & IIKO BADGE */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <BrandAvatar brand={brandName} size={26} />
-                <span className="font-black text-base text-[#E30613] tracking-tight lowercase">
-                  {cleanBrand || 'smashme'}
-                </span>
-              </div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span>iiko</span>
-              </span>
-            </div>
-
-            {/* ORDER META INFO */}
-            <div className="grid grid-cols-2 gap-y-2 text-xs font-medium text-slate-600 dark:text-slate-300">
-              <div>
-                {t('webhooks.channel_lbl', 'Canal:')} <strong className="text-slate-900 dark:text-white font-extrabold">{channel}</strong>
-              </div>
-              <div>
-                {t('webhooks.order_type_lbl', 'Tip Comandă:')} <strong className="text-slate-900 dark:text-white font-extrabold">{orderType}</strong>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span>{t('webhooks.payment_lbl', 'Plată:')}</span>
-                <strong className="text-slate-900 dark:text-white font-extrabold">{paymentMethod}</strong>
-                {paymentSubtype && (
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
-                    {paymentSubtype}
+          {/* LIQUID GLASS STICKY HEADER */}
+          <div className="apple-sheet-header px-5 py-3.5 flex items-center justify-between gap-4 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <BrandAvatar brand={brandName} size={36} className="rounded-xl shrink-0" />
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white tracking-tight">
+                    {t('webhooks.order_title', 'Comandă #')}{orderNum}
+                  </h3>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-emerald-500/12 text-emerald-700 dark:text-emerald-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span>iiko</span>
                   </span>
-                )}
-              </div>
-              <div>
-                {t('webhooks.datetime_lbl', 'Data/Ora:')} <strong className="text-slate-900 dark:text-white font-extrabold">{formattedDate}</strong>
-              </div>
-            </div>
-
-            {/* CRONOLOGIE ORE IIKO (DACĂ EXISTĂ) */}
-            {(createdTime || cookedTime || sendedTime || deliveredTime) && (
-              <div className="p-3.5 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-800/60">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block mb-2">
-                  {lbl.timelineTitle}
-                </span>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                  <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-emerald-100 dark:border-slate-800">
-                    <span className="text-[10px] text-slate-400 block">{lbl.stepCreated}</span>
-                    <strong className="tabular-nums font-extrabold text-slate-900 dark:text-white">{createdTime || '—'}</strong>
-                  </div>
-                  <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-emerald-100 dark:border-slate-800">
-                    <span className="text-[10px] text-slate-400 block">{lbl.stepCooked}</span>
-                    <strong className="tabular-nums font-extrabold text-blue-600 dark:text-blue-400">{cookedTime || '—'}</strong>
-                  </div>
-                  <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-emerald-100 dark:border-slate-800">
-                    <span className="text-[10px] text-slate-400 block">{lbl.stepSent}</span>
-                    <strong className="tabular-nums font-extrabold text-amber-600 dark:text-amber-400">{sendedTime || '—'}</strong>
-                  </div>
-                  <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-emerald-100 dark:border-slate-800">
-                    <span className="text-[10px] text-slate-400 block">{lbl.stepDelivered}</span>
-                    <strong className="tabular-nums font-extrabold text-emerald-600 dark:text-emerald-400">{deliveredTime || '—'}</strong>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* CLIENT & CURIER (DACĂ EXISTĂ) */}
-            {(customerInfo?.name || courierInfo?.name) && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-                {customerInfo?.name && (
-                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">{lbl.client}</span>
-                    <div className="font-bold text-slate-900 dark:text-white">{customerInfo.name}</div>
-                    {customerInfo.phone && <div className="tabular-nums text-[11px] text-slate-500 mt-0.5">{customerInfo.phone}</div>}
-                    {customerInfo.address && (() => {
-                      const parsedModalAddr = parseDeliveryAddress(customerInfo.address, language)
-                      return (
-                        <div className="mt-1.5 space-y-1.5">
-                          <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">
-                            {parsedModalAddr.streetAddress || customerInfo.address}
-                          </div>
-                          {parsedModalAddr.buildingDetails.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {parsedModalAddr.buildingDetails.map((b, bIdx) => (
-                                <span
-                                  key={bIdx}
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
-                                >
-                                  <span className="text-slate-400">{b.label}:</span>
-                                  <b className="tabular-nums text-slate-900 dark:text-white">{b.value}</b>
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                          {parsedModalAddr.instructions && (
-                            <div className="p-2 rounded-xl bg-amber-50/90 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-[11px] leading-snug font-semibold">
-                              {parsedModalAddr.instructions}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })()}
-                  </div>
-                )}
-                {courierInfo?.name && (
-                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">{lbl.courier}</span>
-                    <div className="font-bold text-emerald-600 dark:text-emerald-400">
-                      {courierInfo.name} {courierInfo.company ? <span className="text-[10px] font-normal text-slate-400">({courierInfo.company})</span> : null}
-                    </div>
-                    {courierInfo.phone && <div className="tabular-nums text-[11px] text-slate-500 mt-0.5">{courierInfo.phone}</div>}
-                    {(courierInfo.awb || courierInfo.orderId) && (
-                      <div className="tabular-nums text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                        AWB: {courierInfo.awb || courierInfo.orderId}
-                      </div>
-                    )}
-                    {courierInfo.status && (
-                      <div className="text-[11px] text-slate-500 mt-0.5">
-                        Status: <strong className="tabular-nums text-amber-600 dark:text-amber-400">{courierInfo.status}</strong>
-                      </div>
-                    )}
-                    {arrivedTime && (
-                      <div className="text-[11px] text-slate-500 mt-0.5">
-                        {lbl.arrivedAtCustomer} <strong className="tabular-nums text-indigo-600 dark:text-indigo-400">{arrivedTime}</strong>
-                      </div>
-                    )}
-                    {courierInfo.deliveryFee && (
-                      <div className="text-[11px] text-slate-500 mt-0.5">
-                        {lbl.deliveryFeeLbl} <strong>{courierInfo.deliveryFee} RON</strong>
-                      </div>
-                    )}
-                    {courierInfo.trackingUrl && (
-                      <a
-                        href={courierInfo.trackingUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/20 text-[11px] font-bold transition-colors"
-                      >
-                        {lbl.liveTrackingBtn}
-                      </a>
-                    )}
-                    {(meta.pickUpCode || customerInfo?.pickUpCode) && (
-                      <div className="text-[11px] text-slate-500 mt-0.5">{lbl.pickupCode} <strong className="tabular-nums">{meta.pickUpCode || customerInfo?.pickUpCode}</strong></div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* HARTA LIVE TRASEU STRADAL CURIER & CLIENT */}
-            {channel !== 'kiosk' && channel !== 'casierie' && channel !== 'IN-STORE' && (
-              <OrderLiveRouteMap
-                order={{
-                  ...order,
-                  customer: customerInfo || order.customer,
-                  courier: courierInfo || order.courier
-                }}
-                isDark={isDark}
-                language={language}
-              />
-            )}
-
-            {/* RECENZIE CLIENT ATAȘATĂ (dacă există) */}
-            {(order.review || meta.review) && (() => {
-              const rev = order.review || meta.review
-              const isNeg = rev.sentiment === 'negative'
-              const isPos = rev.sentiment === 'positive'
-              return (
-                <div className={`p-3.5 rounded-2xl border ${
-                  isNeg
-                    ? 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/60'
-                    : isPos
-                      ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60'
-                      : 'bg-amber-50/70 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/60'
-                }`}>
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className={`text-[10px] font-extrabold uppercase tracking-wider ${
-                      isNeg ? 'text-rose-600 dark:text-rose-400' : isPos ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
-                    }`}>
-                      {lbl.reviewTitle} ({rev.source || 'Platform'})
+                  {paymentSubtype && (
+                    <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-amber-500/12 text-amber-700 dark:text-amber-400">
+                      {paymentSubtype}
                     </span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-black ${
-                      isNeg ? 'bg-rose-600 text-white' : isPos ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'
-                    }`}>
-                      {rev.rating}{rev.max_scale === 10 ? '/10' : '/5'}
-                    </span>
-                  </div>
-                  {rev.comment && (
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-100 italic">
-                      „{(language !== 'ro' && (rev.translations?.[language] || rev.comment_translations?.[language])) ? (rev.translations?.[language] || rev.comment_translations?.[language]) : rev.comment}”
-                    </p>
                   )}
                 </div>
-              )
-            })()}
-
-            {/* ID COMANDĂ IIKO BOX */}
-            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-0.5">
-                  {t('webhooks.iiko_order_id_lbl', 'ID COMANDĂ IIKO')}
-                </span>
-                <p className="text-xs sm:text-sm font-sans font-bold text-slate-900 dark:text-white truncate select-all">
-                  {iikoId}
+                <p className="text-[12px] text-slate-500 dark:text-slate-400 truncate mt-0.5 tabular-nums">
+                  {cleanBrand || 'brand'} · {channel} · {orderType} · {paymentMethod} · {formattedDate}
                 </p>
               </div>
+            </div>
+
+            <div className="flex items-center gap-3.5 shrink-0">
+              <div className="text-right hidden sm:block">
+                <div className="text-[10.5px] font-medium text-slate-500 dark:text-slate-400 leading-none">
+                  {t('webhooks.total_lbl', 'Total')}
+                </div>
+                <div className="text-[18px] font-bold tracking-tight tabular-nums text-slate-900 dark:text-white mt-0.5">
+                  {totalFormatted}
+                </div>
+              </div>
               <button
-                onClick={handleCopyIiko}
-                className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer shrink-0"
-                title={t('webhooks.copy_iiko_id', 'Copiază ID iiko')}
+                type="button"
+                onClick={onClose}
+                aria-label="Close"
+                className="apple-sheet-close"
               >
-                {copied ? <Check size={16} className="text-emerald-600" /> : <Copy size={16} />}
+                <X size={15} />
               </button>
             </div>
+          </div>
 
-            {/* SECȚIUNE PRODUSE CU POZE REALE DIN IIKO / SYRVE */}
-            <div>
-              <div className="flex items-center justify-between mb-2.5">
-                <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  {t('webhooks.products_lbl', 'PRODUSE')} ({items.length})
+          {/* 2-COLUMN ADAPTIVE SPLIT BODY */}
+          <div className={`flex-1 min-h-0 overflow-y-auto lg:overflow-hidden grid grid-cols-1 ${hasDeliveryMap ? 'lg:grid-cols-12' : ''}`}>
+            <div className={`${hasDeliveryMap ? 'lg:col-span-7 lg:overflow-y-auto' : 'overflow-y-auto'} p-4 sm:p-5 space-y-3.5 custom-scrollbar text-xs`}>
+
+              {/* CRONOLOGIE ORE IIKO (4-STEP STEPPER) */}
+              {(createdTime || cookedTime || sendedTime || deliveredTime) && (
+                <div className="apple-inset-card p-3.5">
+                  <div className="text-[12px] font-semibold text-slate-900 dark:text-white pb-2 border-b border-black/[0.06] dark:border-white/[0.07]">
+                    {lbl.timelineTitle}
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 pt-3">
+                    {timelineSteps.map((s, idx) => (
+                      <div key={idx} className="min-w-0">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${s.time ? s.dot : 'bg-slate-300 dark:bg-slate-700'}`} />
+                          {idx < 3 && (
+                            <span className={`h-[1.5px] flex-1 rounded-full ${s.time && timelineSteps[idx + 1]?.time ? 'bg-slate-300 dark:bg-slate-600' : 'bg-black/[0.06] dark:bg-white/[0.07]'}`} />
+                          )}
+                        </div>
+                        <span className="text-[10.5px] text-slate-500 dark:text-slate-400 block truncate">{s.label}</span>
+                        <strong className={`tabular-nums font-semibold text-[12.5px] ${s.time ? s.color : 'text-slate-400 dark:text-slate-600'}`}>
+                          {s.time || '—'}
+                        </strong>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                  {lbl.clickForDetails}
-                </span>
-              </div>
+              )}
 
-              <div className="space-y-2.5">
-                {items.map((it, idx) => {
-                  const qty = it.quantity || it.amount || 1
-                  const rawName = it.name || it.product_name || 'Articol'
-                  const { prefix, cleanName } = formatCleanDishName(rawName)
-                  const price = parseFloat(it.totalPrice || it.sum || it.price || 0).toFixed(2)
-                  const img = getProductImage(rawName, brandName, it.image || it.imageUrl || it.imageLinks?.[0] || null)
+              {/* SECȚIUNE PRODUSE — macOS Inset Grouped List */}
+              <div>
+                <div className="flex items-center justify-between px-1 mb-1.5">
+                  <div className="text-[12px] font-semibold text-slate-700 dark:text-slate-200">
+                    {t('webhooks.products_lbl', 'Produse')} ({items.length})
+                  </div>
+                  <span className="text-[11px] font-medium text-[#047857] dark:text-[#10B981]">
+                    {lbl.clickForDetails}
+                  </span>
+                </div>
 
-                  return (
-                    <div
-                      key={it.id || idx}
-                      onClick={() => setSelectedProduct({
-                        ...it,
-                        name: cleanName,
-                        rawName,
-                        image: img,
-                        imageUrl: img
-                      })}
-                      className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100/80 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 transition-all flex items-center justify-between gap-3 cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="text-xs font-extrabold text-slate-400 w-4 text-right shrink-0">
-                          {it.index || idx + 1}.
-                        </span>
+                <div className="apple-inset-card divide-y divide-black/[0.06] dark:divide-white/[0.07] overflow-hidden">
+                  {items.map((it, idx) => {
+                    const qty = it.quantity || it.amount || 1
+                    const rawName = it.name || it.product_name || 'Articol'
+                    const { prefix, cleanName } = formatCleanDishName(rawName)
+                    const price = parseFloat(it.totalPrice || it.sum || it.price || 0).toFixed(2)
+                    const img = getProductImage(rawName, brandName, it.image || it.imageUrl || it.imageLinks?.[0] || null)
 
-                        <img
-                          src={img}
-                          alt={cleanName}
-                          referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none'
-                            if (e.currentTarget.nextSibling) e.currentTarget.nextSibling.style.display = 'flex'
-                          }}
-                          className="w-14 h-14 rounded-xl object-cover shrink-0 shadow-xs border border-slate-200 dark:border-slate-700 group-hover:scale-105 transition-transform"
-                        />
-                        <div className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-800 items-center justify-center text-slate-400 shrink-0 border border-slate-200 dark:border-slate-700 hidden">
-                          <Utensils size={20} />
-                        </div>
-
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            {prefix && (
-                              <span className="px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-700 text-[9px] tabular-nums font-bold text-slate-600 dark:text-slate-300 shrink-0">
-                                {prefix}
-                              </span>
-                            )}
-                            <h4 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                              {cleanName}
-                            </h4>
+                    return (
+                      <div
+                        key={it.id || idx}
+                        onClick={() => setSelectedProduct({
+                          ...it,
+                          name: cleanName,
+                          rawName,
+                          image: img,
+                          imageUrl: img
+                        })}
+                        className="px-3 py-2 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors flex items-center justify-between gap-3 cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <img
+                            src={img}
+                            alt={cleanName}
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none'
+                              if (e.currentTarget.nextSibling) e.currentTarget.nextSibling.style.display = 'flex'
+                            }}
+                            className="w-10 h-10 rounded-lg object-cover shrink-0 border border-black/[0.07] dark:border-white/10"
+                          />
+                          <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 items-center justify-center text-slate-400 shrink-0 border border-black/[0.07] dark:border-white/10 hidden">
+                            <Utensils size={16} />
                           </div>
-                          {it.description && (
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[230px] mt-0.5">
-                              {it.description}
-                            </p>
-                          )}
-                          {it.modifiers && it.modifiers.length > 0 && (
-                            <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate">
-                              {it.modifiers.join(', ')}
-                            </p>
-                          )}
-                          {it.comment && (
-                            <p className="text-[11px] font-semibold italic text-amber-600 dark:text-amber-400 truncate">
-                              {it.comment}
-                            </p>
-                          )}
+
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <h4 className="font-semibold text-[12.5px] text-slate-900 dark:text-white truncate group-hover:text-[#047857] dark:group-hover:text-[#10B981] transition-colors">
+                                {cleanName}
+                              </h4>
+                              {prefix && (
+                                <span className="px-1 rounded text-[9.5px] font-medium bg-black/[0.05] dark:bg-white/[0.08] text-slate-500 dark:text-slate-400 shrink-0">
+                                  {prefix}
+                                </span>
+                              )}
+                            </div>
+                            {it.modifiers && it.modifiers.length > 0 && (
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                                {it.modifiers.join(', ')}
+                              </p>
+                            )}
+                            {it.comment && (
+                              <p className="text-[11px] italic text-amber-600 dark:text-amber-400 truncate">
+                                {it.comment}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2.5 shrink-0 text-right tabular-nums">
+                          <span className="text-[11.5px] font-semibold text-[#047857] dark:text-[#10B981]">
+                            {qty}×
+                          </span>
+                          <span className="text-[12.5px] font-semibold text-slate-900 dark:text-white">
+                            {price} {currencyLabel}
+                          </span>
                         </div>
                       </div>
+                    )
+                  })}
+                </div>
+              </div>
 
-                      <div className="flex items-center gap-3 shrink-0 text-right">
-                        <span className="text-xs font-black text-cyan-600 dark:text-cyan-400">
-                          {qty}x
-                        </span>
-                        <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">
-                          {price} {currencyLabel}
-                        </span>
-                      </div>
+              {/* CLIENT & CURIER (DACĂ EXISTĂ) */}
+              {(customerInfo?.name || courierInfo?.name) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[12px]">
+                  {customerInfo?.name && (
+                    <div className="apple-inset-card p-3.5">
+                      <span className="text-[11.5px] font-semibold text-slate-500 dark:text-slate-400 block mb-1">{lbl.client}</span>
+                      <div className="font-semibold text-[13.5px] text-slate-900 dark:text-white">{customerInfo.name}</div>
+                      {customerInfo.phone && <div className="tabular-nums text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5">{customerInfo.phone}</div>}
+                      {customerInfo.address && (() => {
+                        const parsedModalAddr = parseDeliveryAddress(customerInfo.address, language)
+                        return (
+                          <div className="mt-1.5 space-y-1.5">
+                            <div className="text-[11.5px] text-slate-700 dark:text-slate-200">
+                              {parsedModalAddr.streetAddress || customerInfo.address}
+                            </div>
+                            {parsedModalAddr.buildingDetails.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {parsedModalAddr.buildingDetails.map((b, bIdx) => (
+                                  <span
+                                    key={bIdx}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-white dark:bg-[#1C1C1E] border border-black/[0.08] dark:border-white/10 text-slate-700 dark:text-slate-300"
+                                  >
+                                    <span className="text-slate-400">{b.label}:</span>
+                                    <strong className="tabular-nums text-slate-900 dark:text-white">{b.value}</strong>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {parsedModalAddr.instructions && (
+                              <div className="px-2.5 py-1.5 rounded-lg border-l-[3px] border-amber-500 bg-amber-50/80 dark:bg-amber-950/25 text-amber-900 dark:text-amber-200 text-[11px] leading-snug">
+                                {parsedModalAddr.instructions}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
                     </div>
-                  )
-                })}
+                  )}
+                  {courierInfo?.name && (
+                    <div className="apple-inset-card p-3.5">
+                      <span className="text-[11.5px] font-semibold text-slate-500 dark:text-slate-400 block mb-1">{lbl.courier}</span>
+                      <div className="font-semibold text-[13.5px] text-slate-900 dark:text-white">
+                        {courierInfo.name} {courierInfo.company ? <span className="text-[11px] font-normal text-slate-400">({courierInfo.company})</span> : null}
+                      </div>
+                      {courierInfo.phone && <div className="tabular-nums text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5">{courierInfo.phone}</div>}
+                      {(courierInfo.awb || courierInfo.orderId) && (
+                        <div className="tabular-nums text-[11.5px] font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
+                          AWB: {courierInfo.awb || courierInfo.orderId}
+                        </div>
+                      )}
+                      {courierInfo.status && (
+                        <div className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          Status: <strong className="font-semibold text-amber-600 dark:text-amber-400">{courierInfo.status}</strong>
+                        </div>
+                      )}
+                      {arrivedTime && (
+                        <div className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          {lbl.arrivedAtCustomer} <strong className="tabular-nums text-[#047857] dark:text-[#10B981]">{arrivedTime}</strong>
+                        </div>
+                      )}
+                      {courierInfo.deliveryFee && (
+                        <div className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5 tabular-nums">
+                          {lbl.deliveryFeeLbl} <strong className="text-slate-800 dark:text-slate-200">{courierInfo.deliveryFee} RON</strong>
+                        </div>
+                      )}
+                      {isSafeHttpUrl(courierInfo.trackingUrl) && (
+                        <a
+                          href={courierInfo.trackingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="apple-btn-sm mt-2 text-[#047857] dark:text-[#10B981]"
+                        >
+                          {lbl.liveTrackingBtn}
+                        </a>
+                      )}
+                      {(meta.pickUpCode || customerInfo?.pickUpCode) && (
+                        <div className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5">{lbl.pickupCode} <strong className="tabular-nums text-slate-900 dark:text-white">{meta.pickUpCode || customerInfo?.pickUpCode}</strong></div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* RECENZIE CLIENT ATAȘATĂ */}
+              {(order.review || meta.review) && (() => {
+                const rev = order.review || meta.review
+                const isNeg = rev.sentiment === 'negative'
+                const isPos = rev.sentiment === 'positive'
+                return (
+                  <div className={`p-3 rounded-xl border-l-[3px] ${
+                    isNeg
+                      ? 'border-l-rose-500 bg-rose-50/60 dark:bg-rose-950/25'
+                      : isPos
+                        ? 'border-l-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/25'
+                        : 'border-l-amber-500 bg-amber-50/60 dark:bg-amber-950/25'
+                  }`}>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="text-[11.5px] font-semibold text-slate-700 dark:text-slate-200">
+                        {lbl.reviewTitle} · {rev.source || 'Platform'}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold tabular-nums ${
+                        isNeg ? 'bg-rose-500/15 text-rose-700 dark:text-rose-400' : isPos ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
+                      }`}>
+                        {rev.rating}{rev.max_scale === 10 ? '/10' : '/5'}
+                      </span>
+                    </div>
+                    {rev.comment && (
+                      <p className="text-[12px] text-slate-800 dark:text-slate-100 leading-relaxed">
+                        „{(language !== 'ro' && (rev.translations?.[language] || rev.comment_translations?.[language])) ? (rev.translations?.[language] || rev.comment_translations?.[language]) : rev.comment}”
+                      </p>
+                    )}
+                  </div>
+                )
+              })()}
+
+              {/* ID COMANDĂ IIKO — Compact 1-line strip */}
+              <div className="apple-inset-card px-3 py-2 flex items-center justify-between gap-2">
+                <div className="min-w-0 flex items-center gap-2 text-[11.5px]">
+                  <span className="font-medium text-slate-500 dark:text-slate-400 shrink-0">iiko ID</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-100 truncate select-all tabular-nums">{iikoId}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyIiko}
+                  className="apple-btn-sm !h-6 !px-2 text-slate-600 dark:text-slate-300"
+                  title={t('webhooks.copy_iiko_id', 'Copiază ID iiko')}
+                >
+                  {copied ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                </button>
               </div>
             </div>
 
-            {/* TOTAL FOOTER */}
-            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <span className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                {t('webhooks.total_lbl', 'TOTAL')}
-              </span>
-              <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                {parseFloat(order.total_amount || 0).toLocaleString(localeCode, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currencyLabel}
-              </span>
-            </div>
-
+            {/* RIGHT LIVE ROUTE MAP PANE */}
+            {hasDeliveryMap && (
+              <div className="lg:col-span-5 border-t lg:border-t-0 lg:border-l border-black/[0.07] dark:border-white/[0.08] flex flex-col min-h-[340px] lg:min-h-0">
+                <OrderLiveRouteMap
+                  order={{
+                    ...order,
+                    customer: customerInfo || order.customer,
+                    courier: courierInfo || order.courier
+                  }}
+                  isDark={isDark}
+                  language={language}
+                  fillHeight
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* 2. PRODUCT DETAILS & INGREDIENTS MODAL */}
+      {/* 2. PRODUCT DETAILS & INGREDIENTS SHEET */}
       {selectedProduct && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150">
-          <div 
-            className={`w-full max-w-2xl rounded-3xl shadow-2xl border flex flex-col max-h-[92vh] overflow-hidden ${
-              isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'
-            }`}
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setSelectedProduct(null)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setSelectedProduct(null) }}
+          tabIndex={-1}
+          className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-5 apple-sheet-backdrop animate-in fade-in duration-150"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="apple-sheet w-full max-w-2xl flex flex-col max-h-[88vh] overflow-hidden"
           >
             {/* PRODUCT HEADER */}
-            <div className="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+            <div className="apple-sheet-header px-5 py-3.5 flex items-center justify-between gap-3">
+              <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white tracking-tight truncate">
                 {selectedProduct.name || selectedProduct.product_name || t('webhooks.product_details', 'Detalii Produs')}
               </h3>
               <button
+                type="button"
                 onClick={() => setSelectedProduct(null)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+                aria-label="Close"
+                className="apple-sheet-close"
               >
-                <X size={16} />
+                <X size={15} />
               </button>
             </div>
 
             {/* PRODUCT BODY: IMAGE ON LEFT, DESCRIPTION & INGREDIENTS ON RIGHT */}
-            <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
-              <div className="flex flex-col md:flex-row gap-6">
+            <div className="p-5 overflow-y-auto flex-1 custom-scrollbar">
+              <div className="flex flex-col md:flex-row gap-5">
                 
                 {/* LEFT: PRODUCT IMAGE (DIRECT DIN IIKO / SYRVE) */}
-                <div className="md:w-1/2 shrink-0">
+                <div className="md:w-5/12 shrink-0">
                   {(() => {
                     const bigImg = getProductImage(
                       selectedProduct.rawName || selectedProduct.name || selectedProduct.product_name,
@@ -495,11 +503,11 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                             e.currentTarget.style.display = 'none'
                             if (e.currentTarget.nextSibling) e.currentTarget.nextSibling.style.display = 'flex'
                           }}
-                          className="w-full aspect-square object-cover rounded-2xl shadow-md border border-slate-200 dark:border-slate-700"
+                          className="w-full aspect-square object-cover rounded-[16px] border border-black/[0.08] dark:border-white/10"
                         />
-                        <div className="w-full aspect-square rounded-2xl bg-slate-100 dark:bg-slate-800 flex-col items-center justify-center text-slate-400 border border-slate-200 dark:border-slate-700 gap-2.5 hidden">
-                          <Utensils size={48} className="opacity-40" />
-                          <span className="text-xs font-semibold text-slate-400">{t('webhooks.no_image', 'Fără imagine în iiko')}</span>
+                        <div className="w-full aspect-square rounded-[16px] apple-inset-card flex-col items-center justify-center text-slate-400 gap-2.5 hidden">
+                          <Utensils size={42} className="opacity-40" />
+                          <span className="text-xs font-medium text-slate-400">{t('webhooks.no_image', 'Fără imagine în iiko')}</span>
                         </div>
                       </>
                     )
@@ -507,43 +515,45 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                 </div>
 
                 {/* RIGHT: DESCRIPTION & INGREDIENTS FROM IIKO */}
-                <div className="md:w-1/2 space-y-4 text-xs sm:text-sm">
-                  <p className="text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
-                    {selectedProduct.description || lbl.defaultDesc}
-                  </p>
+                <div className="md:w-7/12 flex flex-col justify-between gap-4 text-[13px]">
+                  <div className="space-y-3">
+                    <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                      {selectedProduct.description || lbl.defaultDesc}
+                    </p>
 
-                  {selectedProduct.ingredients && (
-                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80">
-                      <h5 className="font-extrabold text-slate-900 dark:text-white mb-1.5 uppercase text-[11px] tracking-wider">
-                        {t('webhooks.ingredients_allergens', 'Ingrediente & Alergeni:')}
-                      </h5>
-                      <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-xs">
-                        {selectedProduct.ingredients}
-                      </p>
-                    </div>
-                  )}
-
-                  {selectedProduct.modifiers && selectedProduct.modifiers.length > 0 && (
-                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80">
-                      <h5 className="font-extrabold text-slate-900 dark:text-white mb-1.5 uppercase text-[11px] tracking-wider">
-                        {t('webhooks.selected_modifiers', 'Modificatori selectați:')}
-                      </h5>
-                      <div className="flex flex-wrap gap-1.5">
-                        {selectedProduct.modifiers.map((m, i) => (
-                          <span key={i} className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
-                            {m}
-                          </span>
-                        ))}
+                    {selectedProduct.ingredients && (
+                      <div className="apple-inset-card p-3.5">
+                        <h5 className="font-semibold text-slate-900 dark:text-white mb-1 text-[12px]">
+                          {t('webhooks.ingredients_allergens', 'Ingrediente și alergeni')}
+                        </h5>
+                        <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-[12px]">
+                          {selectedProduct.ingredients}
+                        </p>
                       </div>
-                    </div>
-                  )}
+                    )}
+
+                    {selectedProduct.modifiers && selectedProduct.modifiers.length > 0 && (
+                      <div className="apple-inset-card p-3.5">
+                        <h5 className="font-semibold text-slate-900 dark:text-white mb-1.5 text-[12px]">
+                          {t('webhooks.selected_modifiers', 'Modificatori selectați')}
+                        </h5>
+                        <div className="flex flex-wrap gap-1.5">
+                          {selectedProduct.modifiers.map((m, i) => (
+                            <span key={i} className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#047857]/12 text-[#047857] dark:text-[#10B981]">
+                              {m}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   {/* PRICE & QUANTITY */}
-                  <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-500">
-                      {t('webhooks.qty_lbl', 'Cantitate:')} <strong className="text-slate-900 dark:text-white">{selectedProduct.quantity || selectedProduct.amount || 1}x</strong>
+                  <div className="pt-3 border-t border-black/[0.07] dark:border-white/[0.08] flex items-center justify-between">
+                    <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400">
+                      {t('webhooks.qty_lbl', 'Cantitate:')} <strong className="text-slate-900 dark:text-white tabular-nums">{selectedProduct.quantity || selectedProduct.amount || 1}×</strong>
                     </span>
-                    <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">
+                    <span className="text-[20px] font-bold tracking-tight tabular-nums text-slate-900 dark:text-white">
                       {parseFloat(selectedProduct.totalPrice || selectedProduct.sum || selectedProduct.price || 0).toFixed(2)} {currencyLabel}
                     </span>
                   </div>

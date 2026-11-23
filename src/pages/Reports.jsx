@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
 import { useAuth } from '../lib/AuthContext'
@@ -28,8 +28,9 @@ import {
 } from 'lucide-react'
 import BrandAvatar, { cleanRestaurantName } from '../components/BrandAvatar'
 import PlatformLogo from '../components/PlatformLogo'
+import AppleDateRangePicker, { formatYmdRangeDisplay, translateRoDateRange } from '../components/AppleDateRangePicker'
 import { getProductImage } from '../lib/productImages'
-import { getCanonicalCity } from '../lib/orderUtils'
+import { getCanonicalCity, escapeCsvCell } from '../lib/orderUtils'
 import { getApiUrl } from '../lib/api'
 import { supabase } from '../lib/supabaseClient'
 
@@ -201,10 +202,23 @@ export default function Reports() {
   // Period Selector for Analytics
   const [period, setPeriod] = useState(() => {
     try {
-      const p = new URLSearchParams(window.location.search).get('period')
+      const sp = new URLSearchParams(window.location.search)
+      const p = sp.get('period')
+      if (p === 'custom' && /^\d{4}-\d{2}-\d{2}$/.test(sp.get('from') || '')) return 'custom'
       if (p) return p
     } catch (_) { }
     return 'this_week'
+  })
+  const [customRange, setCustomRange] = useState(() => {
+    try {
+      const sp = new URLSearchParams(window.location.search)
+      const f = sp.get('from')
+      const tVal = sp.get('to') || f
+      if (f && /^\d{4}-\d{2}-\d{2}$/.test(f)) {
+        return { from: f, to: (tVal && /^\d{4}-\d{2}-\d{2}$/.test(tVal)) ? tVal : f }
+      }
+    } catch (_) { }
+    return null
   })
   const [analyticsData, setAnalyticsData] = useState(null)
   const [loadingAnalytics, setLoadingAnalytics] = useState(() => !analyticsData)
@@ -278,19 +292,50 @@ export default function Reports() {
 
   const handleSetPeriod = (p) => {
     setPeriod(p)
-    updateUrlFilter('period', p)
+    setCustomRange(null)
+    try {
+      const url = new URL(window.location.href)
+      if (p && p !== 'all') url.searchParams.set('period', p)
+      else url.searchParams.delete('period')
+      url.searchParams.delete('from')
+      url.searchParams.delete('to')
+      window.history.replaceState({}, '', url.toString())
+    } catch (_) { }
+  }
+
+  const handleSelectCustomRange = ({ from, to }) => {
+    if (!from) return
+    const endDay = to || from
+    setCustomRange({ from, to: endDay })
+    setPeriod('custom')
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.set('period', 'custom')
+      url.searchParams.set('from', from)
+      url.searchParams.set('to', endDay)
+      window.history.replaceState({}, '', url.toString())
+    } catch (_) { }
   }
 
   useEffect(() => {
     const onPopState = () => {
       try {
-        const pPeriod = new URLSearchParams(window.location.search).get('period')
-        if (pPeriod) setPeriod(pPeriod)
-        const pCity = new URLSearchParams(window.location.search).get('city')
+        const sp = new URLSearchParams(window.location.search)
+        const pPeriod = sp.get('period')
+        const pFrom = sp.get('from')
+        const pTo = sp.get('to') || pFrom
+        if (pPeriod === 'custom' && pFrom && /^\d{4}-\d{2}-\d{2}$/.test(pFrom)) {
+          setCustomRange({ from: pFrom, to: (pTo && /^\d{4}-\d{2}-\d{2}$/.test(pTo)) ? pTo : pFrom })
+          setPeriod('custom')
+        } else if (pPeriod) {
+          setCustomRange(null)
+          setPeriod(pPeriod)
+        }
+        const pCity = sp.get('city')
         setFilterCity(pCity && pCity !== 'all' ? pCity : null)
-        const pBrand = new URLSearchParams(window.location.search).get('brand')
+        const pBrand = sp.get('brand')
         setFilterBrand(pBrand && pBrand !== 'all' ? pBrand : null)
-        const pChannel = new URLSearchParams(window.location.search).get('channel')
+        const pChannel = sp.get('channel')
         setFilterChannel(pChannel && pChannel !== 'all' ? pChannel : null)
       } catch (_) { }
     }
@@ -301,6 +346,8 @@ export default function Reports() {
       setFilterChannel(null)
       setFilterWorkpoint(null)
       setFilterSlot(null)
+      setPeriod('this_week')
+      setCustomRange(null)
     }
     window.addEventListener('popstate', onPopState)
     window.addEventListener('global-reset-filters', onGlobalReset)
@@ -328,9 +375,30 @@ export default function Reports() {
     return allowedC.join(',')
   }, [user?.allowed_cities])
 
+  const analyticsReqIdRef = useRef(0)
+  const auditReqIdRef = useRef(0)
+  const isMountedRef = useRef(true)
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => { isMountedRef.current = false }
+  }, [])
+
+  // Clamp URL-initialized city/brand filters to user scope if restricted
+  useEffect(() => {
+    if (!hasScopeRestrictions) return
+    if (filterCity && !canAccessCity(filterCity)) setFilterCity(null)
+    if (filterBrand && !canAccessBrand(filterBrand)) setFilterBrand(null)
+  }, [hasScopeRestrictions, filterCity, filterBrand, canAccessCity, canAccessBrand])
+
   const fetchAnalytics = async () => {
-    if (!analyticsData) setLoadingAnalytics(true)
+    const reqId = ++analyticsReqIdRef.current
+    setLoadingAnalytics(true)
     const params = new URLSearchParams({ period, limit: '10000' })
+    if (period === 'custom' && customRange?.from) {
+      params.set('from', customRange.from)
+      if (customRange.to) params.set('to', customRange.to)
+    }
     const effectiveCities = filterCity ? filterCity : allowedCitiesKey
     if (effectiveCities) params.set('cities', effectiveCities)
     if (filterLocation) params.set('location', filterLocation)
@@ -341,6 +409,7 @@ export default function Reports() {
     try {
       const res = await fetch(getApiUrl(`/api/sales/executive-summary?${params.toString()}`))
       const json = await res.json()
+      if (!isMountedRef.current || reqId !== analyticsReqIdRef.current) return
       if (json.success) {
         setAnalyticsData(json)
         if (Array.isArray(json.availableLocations) && json.availableLocations.length > 0) {
@@ -353,6 +422,7 @@ export default function Reports() {
         throw new Error(json.error || 'Failed to fetch executive summary')
       }
     } catch (err) {
+      if (!isMountedRef.current || reqId !== analyticsReqIdRef.current) return
       console.error("Executive analytics fetch error:", err)
       try {
         const cached = sessionStorage.getItem(cacheStorageKey)
@@ -364,12 +434,16 @@ export default function Reports() {
         }
       } catch (_) { }
     } finally {
-      setLoadingAnalytics(false)
+      if (isMountedRef.current && reqId === analyticsReqIdRef.current) setLoadingAnalytics(false)
     }
   }
 
   useEffect(() => {
     const params = new URLSearchParams({ period, limit: '10000' })
+    if (period === 'custom' && customRange?.from) {
+      params.set('from', customRange.from)
+      if (customRange.to) params.set('to', customRange.to)
+    }
     const effectiveCities = filterCity ? filterCity : allowedCitiesKey
     if (effectiveCities) params.set('cities', effectiveCities)
     if (filterLocation) params.set('location', filterLocation)
@@ -387,10 +461,14 @@ export default function Reports() {
       }
     } catch (_) { }
     fetchAnalytics()
-  }, [period, allowedCitiesKey, filterCity, filterLocation, filterWorkpoint, filterBrand, filterChannel])
+    return () => {
+      analyticsReqIdRef.current += 1
+    }
+  }, [period, customRange?.from, customRange?.to, allowedCitiesKey, filterCity, filterLocation, filterWorkpoint, filterBrand, filterChannel])
 
   // Fetch Audit Scan Logs (Tab 2) — respects city/brand/restaurant scope
   const fetchAuditLogs = async (p) => {
+    const reqId = ++auditReqIdRef.current
     setLoadingAudit(true)
     const allowedC = (user?.allowed_cities || ['all']).filter(c => c !== 'all')
     const citiesQuery = allowedC.length > 0 ? `&cities=${encodeURIComponent(allowedC.join(','))}` : ''
@@ -399,6 +477,7 @@ export default function Reports() {
       return (rows || []).filter(row => {
         const c = row.restaurants?.city || row.restaurants?.name || ''
         if (c && !canAccessCity(c)) return false
+        if (row.restaurants?.name && !canAccessBrand(row.restaurants.name)) return false
         if (row.restaurant_id && !canAccessRestaurant(row.restaurant_id)) return false
         return true
       })
@@ -406,6 +485,7 @@ export default function Reports() {
     try {
       const res = await fetch(getApiUrl(`/api/reports/verifications?page=${p}&limit=${auditLimit}${citiesQuery}`))
       const json = await res.json()
+      if (!isMountedRef.current || reqId !== auditReqIdRef.current) return
       if (json.success) {
         const scoped = filterScopedRows(json.data)
         setAuditData(scoped)
@@ -414,6 +494,7 @@ export default function Reports() {
         setAuditPage(json.page || p)
       }
     } catch (err) {
+      if (!isMountedRef.current || reqId !== auditReqIdRef.current) return
       console.warn("API audit fetch failed, falling back to Supabase:", err)
       try {
         const offset = (p - 1) * auditLimit
@@ -424,6 +505,7 @@ export default function Reports() {
           .order('checked_at', { ascending: false })
           .range(offset, offset + auditLimit - 1)
 
+        if (!isMountedRef.current || reqId !== auditReqIdRef.current) return
         if (dbData) {
           const scoped = filterScopedRows(dbData)
           setAuditData(scoped)
@@ -435,7 +517,7 @@ export default function Reports() {
         console.error("Supabase fallback failed:", dbErr)
       }
     } finally {
-      setLoadingAudit(false)
+      if (isMountedRef.current && reqId === auditReqIdRef.current) setLoadingAudit(false)
     }
   }
 
@@ -468,7 +550,7 @@ export default function Reports() {
     }
     return `${sStr} - ${eStr}`
   }, [analyticsData, localeCode])
-  const filteredWorkpoints = useMemo(() => {
+  const scopedWorkpoints = useMemo(() => {
     if (!analyticsData?.workpoints) return []
     const targetCityCanon = filterCity ? getCanonicalCity(filterCity) : null
     return analyticsData.workpoints.filter(wp => {
@@ -485,13 +567,19 @@ export default function Reports() {
       if (filterBrand && !wpBrand.toLowerCase().includes(filterBrand.toLowerCase())) return false
       if (filterWorkpoint && wp.id !== filterWorkpoint) return false
       if (filterChannel && (!wp.channels || !wp.channels[filterChannel] || wp.channels[filterChannel] <= 0)) return false
-      if (searchWorkpoint.trim()) {
-        const q = searchWorkpoint.toLowerCase()
-        return wpName.toLowerCase().includes(q) || wpCity.toLowerCase().includes(q) || wpBrand.toLowerCase().includes(q)
-      }
       return true
     })
-  }, [analyticsData, hasScopeRestrictions, canAccessCity, canAccessBrand, canAccessRestaurant, filterCity, filterBrand, filterChannel, filterWorkpoint, searchWorkpoint])
+  }, [analyticsData, hasScopeRestrictions, canAccessCity, canAccessBrand, canAccessRestaurant, filterCity, filterBrand, filterChannel, filterWorkpoint])
+
+  const filteredWorkpoints = useMemo(() => {
+    if (!searchWorkpoint.trim()) return scopedWorkpoints
+    const q = searchWorkpoint.toLowerCase()
+    return scopedWorkpoints.filter(wp =>
+      (wp.name || '').toLowerCase().includes(q) ||
+      (wp.city || '').toLowerCase().includes(q) ||
+      (wp.brand || '').toLowerCase().includes(q)
+    )
+  }, [scopedWorkpoints, searchWorkpoint])
 
   const displaySummary = useMemo(() => {
     const hasStructFilter = Boolean(hasScopeRestrictions || filterCity || filterBrand || filterChannel || filterWorkpoint)
@@ -517,7 +605,7 @@ export default function Reports() {
     const chTotals = { kiosk: 0, casierie: 0, glovo: 0, wolt: 0, bolt: 0, direct: 0 }
     const bMap = {}
     const cMap = {}
-    for (const wp of filteredWorkpoints) {
+    for (const wp of scopedWorkpoints) {
       const wpCnt = filterChannel ? (wp.channels?.[filterChannel] || 0) : (wp.count || 0)
       const wpRatio = wp.count > 0 ? wpCnt / wp.count : 1
       const wpRev = Math.round((wp.revenue || 0) * wpRatio)
@@ -574,7 +662,7 @@ export default function Reports() {
       brands: filteredBrands,
       cities: filteredCities
     }
-  }, [analyticsData, filteredWorkpoints, hasScopeRestrictions, filterCity, filterBrand, filterChannel, filterWorkpoint])
+  }, [analyticsData, scopedWorkpoints, hasScopeRestrictions, filterCity, filterBrand, filterChannel, filterWorkpoint])
 
   // Cross-Filtered Top Products
   const filteredProducts = useMemo(() => {
@@ -642,7 +730,13 @@ export default function Reports() {
         const json = await res.json()
         if (json.success && json.data) {
           exportRows = hasScopeRestrictions
-            ? json.data.filter(row => canAccessCity(row.restaurants?.city || row.restaurants?.name || ''))
+            ? json.data.filter(row => {
+                const c = row.restaurants?.city || row.restaurants?.name || ''
+                if (c && !canAccessCity(c)) return false
+                if (row.restaurants?.name && !canAccessBrand(row.restaurants.name)) return false
+                if (row.restaurant_id && !canAccessRestaurant(row.restaurant_id)) return false
+                return true
+              })
             : json.data
         }
       } catch { }
@@ -657,10 +751,7 @@ export default function Reports() {
         t('reports.th_diagnostic', 'Diagnostic')
       ]
 
-      const escapeCSV = (str) => {
-        if (!str) return '""'
-        return `"${String(str).replace(/"/g, '""')}"`
-      }
+      const escapeCSV = escapeCsvCell
 
       const csvLines = [
         headers.map(escapeCSV).join(','),
@@ -709,38 +800,36 @@ export default function Reports() {
           </div>
         </div>
 
-        {/* Tab Switcher */}
+        {/* Tab Switcher — Apple Segmented Control */}
         <div className="flex items-center gap-2 self-start lg:self-center shrink-0 flex-nowrap">
-          <div className="inline-flex p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 shadow-inner flex-nowrap shrink-0">
+          <div role="group" className="apple-segmented shrink-0">
             <button
+              type="button"
               onClick={() => setActiveTab('analytics')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 select-none ${activeTab === 'analytics'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
+              className={`apple-segment !h-8 !px-3.5 ${activeTab === 'analytics' ? 'apple-segment-active' : ''}`}
             >
-              <Flame size={14} className="text-amber-500 shrink-0" />
-              <span className="whitespace-nowrap">{t('reports.tab_analytics', 'Vânzări & Heatmap')}</span>
+              <Flame size={13} className="text-amber-500 shrink-0" />
+              <span>{t('reports.tab_analytics', 'Vânzări & Heatmap')}</span>
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab('audit')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 select-none ${activeTab === 'audit'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
+              className={`apple-segment !h-8 !px-3.5 ${activeTab === 'audit' ? 'apple-segment-active' : ''}`}
             >
-              <Clock size={14} className="text-blue-500 shrink-0" />
-              <span className="whitespace-nowrap">{t('reports.tab_audit', 'Jurnal Scanări')}</span>
+              <Clock size={13} className="text-[#047857] dark:text-[#34D399] shrink-0" />
+              <span>{t('reports.tab_audit', 'Jurnal Scanări')}</span>
             </button>
           </div>
 
           <button
+            type="button"
             onClick={() => activeTab === 'analytics' ? fetchAnalytics() : fetchAuditLogs(auditPage)}
             disabled={loadingAnalytics || loadingAudit}
-            className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors shadow-2xs shrink-0 select-none"
+            className="apple-btn-secondary !w-8 !h-8 !p-0 shrink-0"
             title="Refresh"
+            aria-label="Refresh"
           >
-            <RefreshCw size={15} className={(loadingAnalytics || loadingAudit) ? 'animate-spin text-emerald-500' : ''} />
+            <RefreshCw size={14} className={(loadingAnalytics || loadingAudit) ? 'animate-spin text-[#047857] dark:text-[#34D399]' : ''} />
           </button>
         </div>
       </div>
@@ -751,39 +840,54 @@ export default function Reports() {
       {activeTab === 'analytics' && (
         <div className="space-y-6">
 
-          {/* Period Selector Pills & Filter Controls */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-2 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 custom-scrollbar">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-2 shrink-0 flex items-center gap-1 whitespace-nowrap">
-                <Calendar size={13} /> {t('reports.period_label', 'Perioadă')}:
-              </span>
-              {[
-                { key: 'today', label: t('reports.period_today', 'Azi') },
-                { key: 'yesterday', label: t('reports.period_yesterday', 'Ieri') },
-                { key: 'this_week', label: t('reports.period_this_week', 'Săpt. Curentă') },
-                { key: 'this_month', label: t('reports.period_this_month', 'Luna Curentă') },
-                { key: 'last_month', label: t('reports.period_last_month', 'Luna Trecută') },
-                { key: 'this_year', label: t('reports.period_this_year', 'Anul Curent') },
-                { key: 'all', label: t('reports.period_all', 'Total Istoric') }
-              ].map(p => (
-                <button
-                  key={p.key}
-                  onClick={() => handleSetPeriod(p.key)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${period === p.key
-                    ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/80 border border-slate-200/60 dark:border-slate-700/60'
+          {/* Period Segmented Control & Location/Brand Filters */}
+          <div className={`flex flex-col md:flex-row md:items-center justify-between gap-3 p-2.5 rounded-2xl border ${
+            isDark ? 'bg-slate-900 border-white/[0.09]' : 'bg-white border-black/[0.06]'
+          }`}>
+            <div className="flex flex-wrap items-center gap-2">
+              <AppleDateRangePicker
+                period={period}
+                customRange={customRange}
+                displayLabel={
+                  period === 'custom' && customRange?.from
+                    ? formatYmdRangeDisplay(customRange.from, customRange.to || customRange.from, language)
+                    : (analyticsData?.period?.dateRange ? translateRoDateRange(analyticsData.period.dateRange, language) : '')
+                }
+                onSelectRange={handleSelectCustomRange}
+                onSelectPreset={handleSetPeriod}
+                defaultPreset="this_week"
+                align="left"
+                variant="emerald"
+              />
+              <div role="group" className="apple-segmented">
+                {[
+                  { key: 'today', label: t('reports.period_today', 'Azi') },
+                  { key: 'yesterday', label: t('reports.period_yesterday', 'Ieri') },
+                  { key: 'this_week', label: t('reports.period_this_week', 'Săpt. Curentă') },
+                  { key: 'this_month', label: t('reports.period_this_month', 'Luna Curentă') },
+                  { key: 'last_month', label: t('reports.period_last_month', 'Luna Trecută') },
+                  { key: 'this_year', label: t('reports.period_this_year', 'Anul Curent') },
+                  { key: 'all', label: t('reports.period_all', 'Total Istoric') }
+                ].map(p => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    onClick={() => handleSetPeriod(p.key)}
+                    className={`apple-segment !h-[26px] !px-2.5 !text-[11px] ${
+                      period === p.key ? 'apple-segment-active' : ''
                     }`}
-                >
-                  {p.label}
-                </button>
-              ))}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Location & Brand Selectors (filters KPI cards + 24x7 Heatmap + Channels + Top Products) */}
             <div className="flex flex-wrap items-center gap-2 shrink-0">
               {knownLocations.length > 0 && (
                 <div className="relative flex items-center">
-                  <MapPin size={13} className="absolute left-2.5 text-emerald-500 pointer-events-none" />
+                  <MapPin size={13} className={`absolute left-2.5 pointer-events-none ${filterLocation ? 'text-white' : 'text-emerald-500'}`} />
                   <select
                     value={filterLocation || 'all'}
                     onChange={(e) => handleSetLocation(e.target.value)}
@@ -810,7 +914,7 @@ export default function Reports() {
               )}
 
               <div className="relative flex items-center">
-                <Store size={13} className="absolute left-2.5 text-amber-500 pointer-events-none" />
+                <Store size={13} className={`absolute left-2.5 pointer-events-none ${filterBrand ? 'text-white' : 'text-amber-500'}`} />
                 <select
                   value={filterBrand || 'all'}
                   onChange={(e) => handleSetBrand(e.target.value === 'all' ? null : e.target.value)}
@@ -836,7 +940,7 @@ export default function Reports() {
               {hasActiveFilters && (
                 <button
                   onClick={clearAllFilters}
-                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap"
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-950/70 transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap"
                 >
                   <X size={13} />
                   <span>{t('reports.clear_filters', 'Resetează Filtrele')}</span>
@@ -900,90 +1004,96 @@ export default function Reports() {
             </div>
           ) : (
             <>
-              {/* ROW 1: Executive KPI Metrics Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* ROW 1: Executive KPI Metrics Cards — Compact Laptop Rhythm */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {/* Total Revenue */}
-                <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group">
-                  <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-                    <span>{t('reports.total_revenue', 'Încasări Totale')}</span>
-                    <TrendingUp size={16} className="text-emerald-500" />
+                <div className="px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden">
+                  <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[12px] font-medium mb-1">
+                    <span className="truncate">{t('reports.total_revenue', 'Încasări Totale')}</span>
+                    <div className="w-6 h-6 rounded-lg bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                      <TrendingUp size={13} />
+                    </div>
                   </div>
-                  <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                  <div className="text-[20px] md:text-[22px] font-bold text-slate-900 dark:text-white tracking-tight tabular-nums leading-tight">
                     {Math.round(displaySummary.totalRevenue).toLocaleString(localeCode)}{' '}
-                    <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">RON</span>
+                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">RON</span>
                   </div>
-                  <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
+                  <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1 tabular-nums">
                     <span>{t('reports.avg_ticket_label', 'Bon mediu:')}</span>
-                    <span className="font-bold text-slate-700 dark:text-slate-300">{displaySummary.avgTicket} RON</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">{displaySummary.avgTicket} RON</span>
                   </div>
                 </div>
 
                 {/* Total Orders */}
-                <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group">
-                  <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-                    <span>{t('reports.total_orders', 'Volum Comenzi')}</span>
-                    <ShoppingBag size={16} className="text-blue-500" />
+                <div className="px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden">
+                  <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[12px] font-medium mb-1">
+                    <span className="truncate">{t('reports.total_orders', 'Volum Comenzi')}</span>
+                    <div className="w-6 h-6 rounded-lg bg-[#047857]/12 text-[#047857] dark:bg-[#10B981]/18 dark:text-[#34D399] flex items-center justify-center shrink-0">
+                      <ShoppingBag size={13} />
+                    </div>
                   </div>
-                  <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                  <div className="text-[20px] md:text-[22px] font-bold text-slate-900 dark:text-white tracking-tight tabular-nums leading-tight">
                     {displaySummary.totalOrders.toLocaleString(localeCode)}{' '}
-                    <span className="text-sm font-bold text-slate-400">{t('reports.orders_unit', 'comenzi')}</span>
+                    <span className="text-xs font-medium text-slate-400">{t('reports.orders_unit', 'comenzi')}</span>
                   </div>
-                  <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
+                  <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1 truncate tabular-nums">
                     <span>{t('reports.period_prefix', 'Perioada:')}</span>
-                    <span className="font-bold text-slate-700 dark:text-slate-300">{periodFormattedRange}</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300 truncate">{periodFormattedRange}</span>
                   </div>
                 </div>
 
                 {/* Local vs Delivery Ratio */}
-                <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group">
-                  <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-                    <span>{t('reports.channel_ratio_title', 'Canal: Local vs Delivery')}</span>
-                    <UtensilsCrossed size={16} className="text-amber-500" />
+                <div className="px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden">
+                  <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[12px] font-medium mb-1">
+                    <span className="truncate">{t('reports.channel_ratio_title', 'Canal: Local vs Delivery')}</span>
+                    <div className="w-6 h-6 rounded-lg bg-amber-500/12 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                      <UtensilsCrossed size={13} />
+                    </div>
                   </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-amber-500">
+                  <div className="flex items-baseline gap-1.5 tabular-nums leading-tight">
+                    <span className="text-[20px] font-bold text-amber-600 dark:text-amber-400">
                       {displaySummary.localShare}%
                     </span>
-                    <span className="text-xs text-slate-400">{t('reports.channel_local', 'local')}</span>
+                    <span className="text-[11px] text-slate-400">{t('reports.channel_local', 'local')}</span>
                     <span className="text-slate-300 dark:text-slate-700">/</span>
-                    <span className="text-2xl font-black text-emerald-500">
+                    <span className="text-[20px] font-bold text-emerald-600 dark:text-emerald-400">
                       {displaySummary.deliveryShare}%
                     </span>
-                    <span className="text-xs text-slate-400">{t('reports.channel_delivery', 'delivery')}</span>
+                    <span className="text-[11px] text-slate-400">{t('reports.channel_delivery', 'delivery')}</span>
                   </div>
-                  <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full mt-2.5 overflow-hidden flex">
+                  <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full mt-2 overflow-hidden flex">
                     <div style={{ width: `${displaySummary.localShare}%` }} className="bg-amber-500 h-full" />
                     <div style={{ width: `${displaySummary.deliveryShare}%` }} className="bg-emerald-500 h-full" />
                   </div>
                 </div>
 
                 {/* Top Brand / Workpoint */}
-                <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group">
-                  <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-                    <span>{t('reports.top_brand_title', 'Brand Lider')}</span>
-                    <Sparkles size={16} className="text-rose-500" />
+                <div className="px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden">
+                  <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[12px] font-medium mb-1">
+                    <span className="truncate">{t('reports.top_brand_title', 'Brand Lider')}</span>
+                    <div className="w-6 h-6 rounded-lg bg-violet-500/12 text-violet-600 dark:text-violet-400 flex items-center justify-center shrink-0">
+                      <Sparkles size={13} />
+                    </div>
                   </div>
-                  <div className="text-xl md:text-2xl font-black text-slate-900 dark:text-white truncate">
+                  <div className="text-[19px] md:text-[20px] font-bold text-slate-900 dark:text-white truncate leading-tight">
                     {displaySummary.topBrandName}
                   </div>
-                  <div className="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
-                    <span>{displaySummary.topBrandCount.toLocaleString(localeCode)} {t('reports.orders_unit', 'comenzi')}</span>
-                    <span className="font-bold text-emerald-500">
+                  <div className="text-[11px] text-slate-400 mt-1 flex items-center justify-between gap-2 tabular-nums">
+                    <span className="truncate">{displaySummary.topBrandCount.toLocaleString(localeCode)} {t('reports.orders_unit', 'comenzi')}</span>
+                    <span className="font-semibold text-[#047857] dark:text-[#34D399] shrink-0">
                       {Math.round(displaySummary.topBrandRev).toLocaleString(localeCode)} RON
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* ROW 2: 24h x 7 Days Hourly Demand Heatmap */}
-              <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                      <Flame size={18} className="text-amber-500" />
-                      {t('reports.heatmap_title', 'Heatmap Vânzări: Distribuție 24 Ore x 7 Zile')}
-                    </h3>
-                  </div>
+              {/* ROW 2: 24h x 7 Days Hourly Demand Heatmap — Laptop Compact */}
+              <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <h3 className="text-[14px] font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Flame size={16} className="text-amber-500" />
+                    {t('reports.heatmap_title', 'Heatmap Vânzări: Distribuție 24 Ore x 7 Zile')}
+                  </h3>
 
                   {/* Heat Legend */}
                   <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 shrink-0 whitespace-nowrap">
@@ -1053,7 +1163,7 @@ export default function Reports() {
                                 }}
                                 onMouseEnter={() => setHoveredHeatCell({ day: dayIdx, hour: hourIdx, cell })}
                                 onMouseLeave={() => setHoveredHeatCell(null)}
-                                className={`h-8 rounded-lg flex items-center justify-center text-[10px] transition-all transform duration-150 relative ${bgClass} ${isCellSelected ? 'ring-2 ring-indigo-500 ring-offset-2 scale-110 z-10' : 'hover:scale-105'
+                                className={`h-8 rounded-lg flex items-center justify-center text-[10px] transition-all transform duration-150 relative ${bgClass} ${isCellSelected ? 'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-[#1C1C1E] scale-110 z-10' : 'hover:scale-105'
                                   }`}
                                 title={`${dayNames[dayIdx]} ${hourIdx}:00 - ${count} ${t('reports.orders_unit', 'comenzi')} (${Math.round(cell.revenue).toLocaleString(localeCode)} RON)`}
                               >

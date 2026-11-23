@@ -63,6 +63,12 @@ function saveSyncReport(report) {
     fs.writeFileSync(SYNC_REPORTS_FILE, JSON.stringify(trimmed, null, 2))
 }
 
+app.disable('x-powered-by')
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.setHeader('X-Frame-Options', 'DENY')
+    next()
+})
 app.use(cors())
 app.use(express.json({ limit: '5mb' }))
 
@@ -456,8 +462,37 @@ app.get('/api/live-checks', async (req, res) => {
 
         const now = new Date()
         const roDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
-        const roWallAsUtc = new Date(now.toLocaleString('sv-SE', { timeZone: 'Europe/Bucharest' }).replace(' ', 'T') + 'Z')
+        const roWallStr = now.toLocaleString('sv-SE', { timeZone: 'Europe/Bucharest' }) // "YYYY-MM-DD HH:MM:SS"
+        const roWallAsUtc = new Date(roWallStr.replace(' ', 'T') + 'Z')
         const roOffsetMs = roWallAsUtc.getTime() - now.getTime()
+        const [roH, roM] = roWallStr.slice(11, 16).split(':').map(Number)
+        const roNowMinutes = (roH || 0) * 60 + (roM || 0)
+        const roTimeStr = roWallStr.slice(11, 16)
+        const roDayKey = now.toLocaleDateString('en-US', { timeZone: 'Europe/Bucharest', weekday: 'long' }).toLowerCase()
+        const RECENT_ORDER_LIVE_MS = 35 * 60 * 1000 // Real live order within 35 min overrides scheduled close
+
+        const getScheduleStatus = (restObj) => {
+            const wh = restObj?.working_hours || {}
+            let startStr = wh.start || wh.open || null
+            let endStr = wh.end || wh.close || null
+            if (!startStr && !endStr && wh[roDayKey] && typeof wh[roDayKey] === 'object') {
+                if (wh[roDayKey].closed === true) {
+                    return { isOpen: false, label: 'Închis azi', start: '10:00', end: '22:00' }
+                }
+                startStr = wh[roDayKey].open || wh[roDayKey].start || null
+                endStr = wh[roDayKey].close || wh[roDayKey].end || null
+            }
+            const effStart = startStr || '10:00'
+            const effEnd = endStr || '22:00'
+            const [sH, sM] = String(effStart).split(':').map(Number)
+            const [eH, eM] = String(effEnd).split(':').map(Number)
+            const startMin = (sH || 10) * 60 + (sM || 0)
+            const endMin = (eH || 22) * 60 + (eM || 0)
+            const isOpen = startMin <= endMin
+                ? (roNowMinutes >= startMin && roNowMinutes < endMin)
+                : (roNowMinutes >= startMin || roNowMinutes < endMin)
+            return { isOpen, label: `${effStart}–${effEnd}`, start: effStart, end: effEnd }
+        }
 
         const [ratingsRes, sbChecksRes, liveOrdersRes] = await Promise.allSettled([
             withTimeout(reviewsService.getLatestRatingsMap(), 1800),
@@ -578,16 +613,17 @@ app.get('/api/live-checks', async (req, res) => {
             const check = base ? { ...base } : {
                 restaurant_id: restaurantId,
                 platform,
-                checked_at: now.toISOString(),
-                ui_is_open: true,
-                ui_can_order: true,
+                checked_at: null,
+                ui_is_open: false,
+                ui_can_order: false,
                 ui_is_greyed: false,
                 ui_error_message: null,
-                final_status: 'available'
+                final_status: 'unchecked'
             }
 
             const checkMs = check.checked_at ? new Date(check.checked_at).getTime() : 0
             const scraperErr = isScraperTechnicalError(check)
+            const sched = getScheduleStatus(rest)
 
             const exactAct = restPlatActivity.get(k) || null
             const kitchenAct = (platform !== 'iiko' && rest?.iiko_restaurant_id)
@@ -597,9 +633,24 @@ app.get('/api/live-checks', async (req, res) => {
                 ? (orgAnyActivity.get(rest.iiko_restaurant_id) || null)
                 : null
 
-            if (platform === 'iiko' && iikoAct) {
-                check.live_orders_today = iikoAct.count
-                check.last_order_at = iikoAct.lastIso
+            const activeOrderInfo = platform === 'iiko' ? iikoAct : (exactAct || kitchenAct)
+            if (activeOrderInfo) {
+                check.live_orders_today = activeOrderInfo.count
+                check.last_order_at = activeOrderInfo.lastIso
+            }
+            const hasRecentLiveOrder = Boolean(activeOrderInfo && (now.getTime() - activeOrderInfo.lastMs) <= RECENT_ORDER_LIVE_MS)
+
+            if (!sched.isOpen && !hasRecentLiveOrder) {
+                // Honest schedule awareness: outside working hours with no live order in last 35 min => Closed by schedule (never fabricate "100% Online")
+                check.final_status = 'closed'
+                check.ui_is_open = false
+                check.ui_can_order = false
+                check.ui_is_greyed = true
+                check.outside_working_hours = true
+                check.working_hours_label = sched.label
+                check.verified_via = 'schedule_closed'
+                check.ui_error_message = `În afara programului (${sched.label})`
+            } else if (platform === 'iiko' && iikoAct) {
                 if (scraperErr || iikoAct.lastMs > checkMs || check.final_status !== 'available') {
                     check.final_status = 'available'
                     check.ui_is_open = true
@@ -612,9 +663,7 @@ app.get('/api/live-checks', async (req, res) => {
                     check.checked_at = iikoAct.lastIso
                 }
             } else if (exactAct) {
-                check.live_orders_today = exactAct.count
-                check.last_order_at = exactAct.lastIso
-                if (scraperErr || exactAct.lastMs > checkMs) {
+                if (scraperErr || exactAct.lastMs > checkMs || check.final_status === 'unchecked') {
                     check.final_status = 'available'
                     check.ui_is_open = true
                     check.ui_can_order = true
@@ -625,23 +674,22 @@ app.get('/api/live-checks', async (req, res) => {
                 } else if (check.final_status === 'available' && exactAct.lastMs > checkMs) {
                     check.checked_at = exactAct.lastIso
                 }
-            } else if (kitchenAct && (scraperErr || (check.final_status === 'available' && kitchenAct.lastMs > checkMs))) {
+            } else if (kitchenAct && (scraperErr || check.final_status === 'unchecked' || (check.final_status === 'available' && kitchenAct.lastMs > checkMs))) {
                 check.final_status = 'available'
                 check.ui_is_open = true
                 check.ui_can_order = true
                 check.ui_is_greyed = false
                 check.ui_error_message = null
                 check.verified_via = 'kitchen_live_order'
-                check.live_orders_today = kitchenAct.count
-                check.last_order_at = kitchenAct.lastIso
                 if (kitchenAct.lastMs > checkMs) check.checked_at = kitchenAct.lastIso
             } else if (scraperErr) {
-                check.final_status = 'available'
-                check.ui_is_open = true
-                check.ui_can_order = true
+                // During working hours, scraper timeout without live order proof: do NOT fabricate "available" — report honestly as unchecked
+                check.final_status = 'unchecked'
+                check.ui_is_open = false
+                check.ui_can_order = false
                 check.ui_is_greyed = false
                 check.ui_error_message = null
-                check.verified_via = 'scraper_fallback'
+                check.verified_via = 'scraper_timeout'
             }
 
             if (manualVerifiedMs > 0 && check.final_status === 'available') {
@@ -665,6 +713,9 @@ app.get('/api/live-checks', async (req, res) => {
             meta: {
                 supabase_rows: sbChecks.length,
                 live_orders_today: liveOrders.length,
+                ro_time: roTimeStr,
+                is_night_blackout: roH >= 22 || roH < 10,
+                default_hours: '10:00–22:00',
                 generated_at: now.toISOString()
             }
         }
@@ -931,16 +982,17 @@ app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
                     const isPickedUpEvent = Boolean(sendTs) || ['PICKED_UP', 'PICKED UP', 'IN_TRANSIT', 'IN TRANSIT', 'ON_WAY', 'ON WAY', 'OUT_FOR_DELIVERY'].includes(upperStatus)
                     const isAtCustomerEvent = upperStatus.includes('AT CUSTOMER') || upperStatus.includes('ARRIVED')
 
-                    const todayDayPrefix = new Date().toISOString().slice(0, 10)
-                    const whRefPrefix = refId ? `wh_${todayDayPrefix}_${refId}` : null
+                    const todayDayPrefix = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
+                    const isSafeRefId = /^[a-z0-9_-]{8,64}$/i.test(refId) && !refId.startsWith('sys_')
+                    const whRefPrefix = isSafeRefId ? `wh_${todayDayPrefix}_${refId}` : null
                     let matchingRows = []
-                    if (refId && refId.length >= 8) {
+                    if (isSafeRefId) {
                         const { data: directRows } = await supabase
                             .from('platform_sales')
                             .select('id, order_id, restaurant_id, platform, total_amount, placed_at, items')
                             .or(`and(order_id.gte.${refId},order_id.lt.${refId}~),and(order_id.gte.${whRefPrefix},order_id.lt.${whRefPrefix}~)`)
                         if (Array.isArray(directRows) && directRows.length > 0) {
-                            matchingRows = directRows
+                            matchingRows = directRows.filter(r => !String(r.order_id || '').startsWith('sys_'))
                         }
                     }
 
@@ -1172,23 +1224,22 @@ app.post(['/api/webhooks/iiko', '/api/webhooks/iiko/*'], async (req, res) => {
                 const conceptionName = (o.conception?.name || '').toLowerCase()
                 const terminalName = (o.terminalGroupName || o.posId || '').toLowerCase()
 
-                // Check if order originates from Kiosk (Smart Kiosk terminal)
+                const customerNameLower = (o.customer?.name || '').toLowerCase()
+                // Check if order originates from Kiosk (Smart Kiosk terminal — valid for ANY brand)
                 const isKiosk = rawSource.includes('kiosk') ||
                     orderTypeName.includes('kiosk') ||
                     operatorName.includes('kiosk') ||
                     conceptionName.includes('kiosk') ||
                     terminalName.includes('kiosk') ||
+                    customerNameLower.includes('kiosk') ||
                     (o.externalNumber && String(o.externalNumber).toLowerCase().startsWith('kiosk'))
-
-                const isSmashOrCrunch = (matchedRest?.brands?.name || matchedRest?.name || '').toLowerCase().includes('smash') ||
-                    (matchedRest?.brands?.name || matchedRest?.name || '').toLowerCase().includes('crunch')
 
                 let platform = 'casierie'
                 if (rawSource.includes('glovo') || orderTypeName.includes('glovo')) platform = 'glovo'
                 else if (rawSource.includes('wolt') || orderTypeName.includes('wolt')) platform = 'wolt'
                 else if (rawSource.includes('bolt') || orderTypeName.includes('bolt')) platform = 'bolt'
                 else if (rawSource.includes('web') || rawSource === 'app' || rawSource.includes('delivery') || orderTypeName.includes('livrare')) platform = 'delivery'
-                else if (isKiosk && isSmashOrCrunch) platform = 'kiosk'
+                else if (isKiosk) platform = 'kiosk'
                 else platform = 'casierie'
 
                 // --- DEDUPLICATION: Nu dublăm comenzile de pe Kiosk cu cele din iiko ---
@@ -1551,20 +1602,28 @@ app.post(['/api/webhooks/kiosk', '/api/webhooks/kitchen', '/api/webhooks/valenti
         // Match restaurant by brand AND city/location
         let matchedRest = null
         const rawBrand = (orderData.brand || '').toLowerCase().replace(/[^a-z0-9]/g, '')
-        const locName = (orderData.locationName || '').toLowerCase()
+        const locName = (orderData.locationName || orderData.kioskName || orderData.kioskId || '').toLowerCase()
         const locId = (orderData.locationId || '').toLowerCase()
-        const cityKey = locName.includes('cluj') || locId.includes('cluj') ? 'cluj'
-            : locName.includes('constanta') || locId.includes('constanta') ? 'constanta'
-                : locName.includes('iasi') || locId.includes('iasi') ? 'iasi'
-                    : locName.includes('timisoara') || locId.includes('timisoara') ? 'timisoara'
-                        : ''
+        const locMerged = `${locName} ${locId}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        const cityKey = locMerged.includes('cluj') || locMerged.includes('cj') ? 'cluj'
+            : locMerged.includes('constanta') || locMerged.includes('ct') ? 'constanta'
+                : locMerged.includes('brasov') || locMerged.includes('bv') ? 'brasov'
+                    : locMerged.includes('iasi') ? 'iasi'
+                        : locMerged.includes('timisoara') ? 'timisoara'
+                            : locMerged.includes('bucuresti') || locMerged.includes('bucharest') ? 'buc'
+                                : locMerged.includes('oradea') ? 'oradea'
+                                    : locMerged.includes('sibiu') ? 'sibiu'
+                                        : locMerged.includes('craiova') ? 'craiova'
+                                            : ''
 
         if (rawBrand && cityKey) {
             matchedRest = (restaurants || []).find(r => {
+                if (r.is_active === false) return false
                 const rName = r.name.toLowerCase()
                 const rCity = (r.city || '').toLowerCase()
                 const bName = (r.brands?.name || '').toLowerCase()
-                const brandMatch = (rawBrand.includes('smash') && (rName.includes('smash') || bName.includes('smash'))) ||
+                const brandMatch = (rawBrand.includes('smash') && ((rName.includes('smash') && !rName.includes('crunch')) || bName.includes('smash'))) ||
+                    (rawBrand.includes('crunch') && (rName.includes('crunch') || bName.includes('crunch'))) ||
                     (rawBrand.includes('poki') && (rName.includes('poki') || bName.includes('poki'))) ||
                     (rawBrand.includes('love') && (rName.includes('love') || bName.includes('love'))) ||
                     (rawBrand.includes('roll') && (rName.includes('roll') || bName.includes('roll'))) ||
@@ -1575,35 +1634,43 @@ app.post(['/api/webhooks/kiosk', '/api/webhooks/kitchen', '/api/webhooks/valenti
         }
         if (!matchedRest && rawBrand) {
             matchedRest = (restaurants || []).find(r => {
+                if (r.is_active === false) return false
                 const rName = r.name.toLowerCase()
                 const bName = (r.brands?.name || '').toLowerCase()
-                return (rawBrand.includes('smash') && (rName.includes('smash') || bName.includes('smash'))) ||
+                return (rawBrand.includes('smash') && ((rName.includes('smash') && !rName.includes('crunch')) || bName.includes('smash'))) ||
+                    (rawBrand.includes('crunch') && (rName.includes('crunch') || bName.includes('crunch'))) ||
                     (rawBrand.includes('poki') && (rName.includes('poki') || bName.includes('poki'))) ||
                     (rawBrand.includes('love') && (rName.includes('love') || bName.includes('love'))) ||
                     (rawBrand.includes('roll') && (rName.includes('roll') || bName.includes('roll')))
             })
         }
         if (!matchedRest && locName) {
-            matchedRest = (restaurants || []).find(r => r.name.toLowerCase().includes(locName) || locName.includes(r.name.toLowerCase()))
+            matchedRest = (restaurants || []).find(r => r.is_active !== false && (r.name.toLowerCase().includes(locName) || locName.includes(r.name.toLowerCase())))
         }
         if (!matchedRest) {
             matchedRest = (restaurants || []).find(r => r.is_active) || (restaurants || [])[0]
         }
 
         const restaurantId = matchedRest ? matchedRest.id : 'kiosk-central'
-        const finalUniqueOrderId = uniqueOrderId || `kiosk_${Date.now()}`
 
-        const total_amount = parseFloat(orderData.totalAmount || orderData.total || 0)
-        let placed_at = orderData.createdAt || payload.timestamp || new Date().toISOString()
+        const total_amount = parseFloat(orderData.totalAmount || orderData.total || orderData.sum || 0)
+        let placed_at = orderData.createdAt || orderData.placed_at || payload.timestamp || new Date().toISOString()
         try {
             placed_at = new Date(placed_at).toISOString()
         } catch (_) {
             placed_at = new Date().toISOString()
         }
+        // Index with wh_YYYY-MM-DD_ prefix (Bucharest day) so fetchLiveAndWebhookOrdersForDay reads Smart Kiosk orders instantly!
+        // If Smart Kiosk provides iikoOrderId, reuse it as the base UUID so extractBaseOrderUuid deduplicates 1:1 with Syrve Cloud.
+        const roOrderDay = new Date(placed_at).toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
+        const iikoUid = String(orderData.iikoOrderId || orderData.iiko_order_id || '').trim()
+        const cleanBaseKiosk = iikoUid || (uniqueOrderId || `kiosk_${Date.now()}`)
+        const finalUniqueOrderId = `wh_${roOrderDay}_${cleanBaseKiosk}_${restaurantId}`
 
         const rawItems = Array.isArray(orderData.items) ? orderData.items : []
         const items = rawItems.map((it, idx) => {
             const modifiersStr = Array.isArray(it.modifiers) && it.modifiers.length > 0 ? ` (${it.modifiers.join(', ')})` : ''
+            const commentStr = it.comment ? ` [${it.comment}]` : ''
             const baseName = it.name || it.product_name || 'Articol'
             const pName = `${baseName}${modifiersStr}${commentStr}`
             const price = parseFloat(it.unitPrice || it.price || 0)
@@ -1663,7 +1730,9 @@ app.post(['/api/webhooks/kiosk', '/api/webhooks/kitchen', '/api/webhooks/valenti
         if (insErr) {
             console.error('[API SERVER] Failed to save Kiosk order to platform_sales:', insErr)
         } else {
-            console.log(`[API SERVER] Saved Kiosk order: #${humanOrderNumber} (${total_amount} RON, ${items.length} items)`)
+            if (typeof localLiveDispatchCache !== 'undefined') localLiveDispatchCache.delete(`raw_syrve_day_${roOrderDay}`)
+            if (global.__EXEC_SUMMARY_CACHE) global.__EXEC_SUMMARY_CACHE.clear()
+            console.log(`[API SERVER] Saved Kiosk order: #${humanOrderNumber} (${total_amount} RON, ${items.length} items, id=${finalUniqueOrderId})`)
         }
 
         res.status(200).json({
@@ -1773,7 +1842,7 @@ app.get('/api/kitchen-status', async (req, res) => {
     }
 })
 
-function getPeriodFilter(period = 'this_month') {
+function getPeriodFilter(period = 'this_month', customFrom = '', customTo = '') {
     const pad = (n) => String(n).padStart(2, '0')
     const now = new Date()
 
@@ -1788,42 +1857,85 @@ function getPeriodFilter(period = 'this_month') {
     const monthName = monthNamesRo[m]
 
     const toDateStr = (dateObj) => `${dateObj.getFullYear()}-${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())}`
+    const isValidYmd = (s) => {
+        if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s.trim())) return false
+        const [Y, M, D] = s.trim().split('-').map(Number)
+        const dt = new Date(Date.UTC(Y, M - 1, D))
+        return dt.getUTCFullYear() === Y && dt.getUTCMonth() === M - 1 && dt.getUTCDate() === D
+    }
 
     let start = null
     let end = null
     let label = ''
     let dateRange = ''
+    let fromYmd = null
+    let toYmd = null
 
-    if (period === 'today') {
+    if (period === 'custom' && isValidYmd(customFrom)) {
+        let f = customFrom.trim()
+        let t = isValidYmd(customTo) ? customTo.trim() : f
+        if (f > t) [f, t] = [t, f]
+        const [fy, fm, fd] = f.split('-').map(Number)
+        const [ty, tm, td] = t.split('-').map(Number)
+        fromYmd = f
+        toYmd = t
+        start = `${f}T00:00:00.000Z`
+        end = `${t}T23:59:59.999Z`
+        if (f === t) {
+            dateRange = `${fd} ${monthNamesRo[fm - 1] || ''} ${fy}`
+            label = dateRange
+        } else if (fy === ty && fm === tm) {
+            dateRange = `${fd} - ${td} ${monthNamesRo[fm - 1] || ''} ${fy}`
+            label = 'Interval'
+        } else if (fy === ty) {
+            dateRange = `${fd} ${monthNamesRo[fm - 1] || ''} - ${td} ${monthNamesRo[tm - 1] || ''} ${fy}`
+            label = 'Interval'
+        } else {
+            dateRange = `${fd} ${monthNamesRo[fm - 1] || ''} ${fy} - ${td} ${monthNamesRo[tm - 1] || ''} ${ty}`
+            label = 'Interval'
+        }
+    } else if (period === 'today') {
         start = `${roDateStr}T00:00:00.000Z`
         end = `${roDateStr}T23:59:59.999Z`
+        fromYmd = roDateStr
+        toYmd = roDateStr
         label = 'Azi'
         dateRange = `${d} ${monthName} ${y}`
     } else if (period === 'yesterday') {
         const yDate = new Date(y, m, d - 1)
-        const yStr = toDateStr(yDate)
-        start = `${yStr}T00:00:00.000Z`
-        end = `${yStr}T23:59:59.999Z`
+        const yDayStr = toDateStr(yDate)
+        start = `${yDayStr}T00:00:00.000Z`
+        end = `${yDayStr}T23:59:59.999Z`
+        fromYmd = yDayStr
+        toYmd = yDayStr
         label = 'Ieri'
         dateRange = `${yDate.getDate()} ${monthNamesRo[yDate.getMonth()]} ${yDate.getFullYear()}`
     } else if (period === 'this_week') {
-        const dayOfWeek = (now.getDay() + 6) % 7 // Luni = 0
+        const dayOfWeek = (new Date(Date.UTC(y, m, d)).getUTCDay() + 6) % 7 // Luni = 0 (strictly Europe/Bucharest date)
         const monday = new Date(y, m, d - dayOfWeek)
         const mondayStr = toDateStr(monday)
         start = `${mondayStr}T00:00:00.000Z`
         end = `${roDateStr}T23:59:59.999Z`
+        fromYmd = mondayStr
+        toYmd = roDateStr
         label = 'Săpt. Curentă'
-        dateRange = `${monday.getDate()} - ${d} ${monthName} ${y}`
+        dateRange = monday.getMonth() === m
+            ? `${monday.getDate()} - ${d} ${monthName} ${y}`
+            : `${monday.getDate()} ${monthNamesRo[monday.getMonth()]} - ${d} ${monthName} ${y}`
     } else if (period === 'last_month') {
         const firstDayPrev = new Date(y, m - 1, 1)
         const lastDayPrev = new Date(y, m, 0)
-        start = `${toDateStr(firstDayPrev)}T00:00:00.000Z`
-        end = `${toDateStr(lastDayPrev)}T23:59:59.999Z`
+        fromYmd = toDateStr(firstDayPrev)
+        toYmd = toDateStr(lastDayPrev)
+        start = `${fromYmd}T00:00:00.000Z`
+        end = `${toYmd}T23:59:59.999Z`
         label = 'Luna Trecută'
         dateRange = `1 - ${lastDayPrev.getDate()} ${monthNamesRo[firstDayPrev.getMonth()]} ${firstDayPrev.getFullYear()}`
     } else if (period === 'this_year') {
-        start = `${y}-01-01T00:00:00.000Z`
-        end = `${roDateStr}T23:59:59.999Z`
+        fromYmd = `${y}-01-01`
+        toYmd = roDateStr
+        start = `${fromYmd}T00:00:00.000Z`
+        end = `${toYmd}T23:59:59.999Z`
         label = 'Anul Curent'
         dateRange = `Anul ${y}`
     } else if (period === 'all') {
@@ -1834,8 +1946,10 @@ function getPeriodFilter(period = 'this_month') {
     } else {
         period = 'this_month'
         const firstDayMonth = new Date(y, m, 1)
-        start = `${toDateStr(firstDayMonth)}T00:00:00.000Z`
-        end = `${roDateStr}T23:59:59.999Z`
+        fromYmd = toDateStr(firstDayMonth)
+        toYmd = roDateStr
+        start = `${fromYmd}T00:00:00.000Z`
+        end = `${toYmd}T23:59:59.999Z`
         label = 'Luna Curentă'
         dateRange = `1 - ${d} ${monthName} ${y}`
     }
@@ -1845,7 +1959,9 @@ function getPeriodFilter(period = 'this_month') {
         label,
         dateRange,
         startDate: start,
-        endDate: end
+        endDate: end,
+        fromYmd,
+        toYmd
     }
 }
 
@@ -1868,7 +1984,13 @@ async function fetchLiveAndWebhookOrdersForDay(dayStr, allRests = []) {
 
     const restByOrgId = {}
         ; (allRests || []).forEach(r => {
-            if (r.iiko_restaurant_id && !restByOrgId[r.iiko_restaurant_id]) {
+            if (!r.iiko_restaurant_id) return
+            const prev = restByOrgId[r.iiko_restaurant_id]
+            const rActive = r.is_active !== false
+            const prevActive = prev ? prev.is_active !== false : false
+            const rIsPrimary = !String(r.name || '').toLowerCase().includes('crunch')
+            const prevIsPrimary = prev ? !String(prev.name || '').toLowerCase().includes('crunch') : false
+            if (!prev || (rActive && !prevActive) || (rActive === prevActive && rIsPrimary && !prevIsPrimary)) {
                 restByOrgId[r.iiko_restaurant_id] = r
             }
         })
@@ -1876,212 +1998,289 @@ async function fetchLiveAndWebhookOrdersForDay(dayStr, allRests = []) {
     const fetchSyrve = async () => {
         global.__SYRVE_TOKEN_CACHE = global.__SYRVE_TOKEN_CACHE || new Map()
         global.__SYRVE_ORGS_CACHE = global.__SYRVE_ORGS_CACHE || new Map()
-        const apiKey = '93a34e75123e47b897e390f31ecfa4cb'
-        const rows = []
-        try {
-            let tokenObj = global.__SYRVE_TOKEN_CACHE.get(apiKey)
-            if (!tokenObj || Date.now() - tokenObj.ts > 900000) {
-                const authRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/access_token', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ apiLogin: apiKey })
-                }), 3000)
-                if (!authRes.ok) return []
-                const authJson = await authRes.json()
-                if (!authJson.token) return []
-                tokenObj = { token: authJson.token, ts: Date.now() }
-                global.__SYRVE_TOKEN_CACHE.set(apiKey, tokenObj)
-            }
+        global.__SYRVE_DEAD_KEY_CACHE = global.__SYRVE_DEAD_KEY_CACHE || new Map()
 
-            let orgs = global.__SYRVE_ORGS_CACHE.get(apiKey)
-            if (!orgs) {
-                const orgRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/organizations', {
+        // Collect all unique Syrve apiLogin keys (primary SM/RM/PW account + SmashMe Cluj Kiosk account + env + active restaurants)
+        const keySet = new Set([
+            '93a34e75123e47b897e390f31ecfa4cb',
+            'd2879e94add948599051d37154e0ad7d'
+        ])
+        if (process.env.SYRVE_SMASHME_API_LOGIN) keySet.add(String(process.env.SYRVE_SMASHME_API_LOGIN).trim())
+        if (process.env.SYRVE_API_LOGINS) {
+            String(process.env.SYRVE_API_LOGINS).split(',').map(s => s.trim()).filter(Boolean).forEach(k => keySet.add(k))
+        }
+        for (const r of (allRests || [])) {
+            const k = r.iiko_config?.api_login || r.iiko_config?.apiLogin
+            if (k && typeof k === 'string' && k.trim().length >= 16) keySet.add(k.trim())
+        }
+
+        const seenOrgIds = new Set()
+        const rows = []
+
+        const fetchForKey = async (apiKey) => {
+            const deadTs = global.__SYRVE_DEAD_KEY_CACHE.get(apiKey)
+            if (deadTs && (Date.now() - deadTs < 900000)) return [] // Skip known 401 key for 15 min (0ms penalty)
+
+            try {
+                let tokenObj = global.__SYRVE_TOKEN_CACHE.get(apiKey)
+                if (!tokenObj || Date.now() - tokenObj.ts > 900000) {
+                    const authRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/access_token', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ apiLogin: apiKey })
+                    }), 3000)
+                    if (authRes.status === 401 || authRes.status === 403) {
+                        global.__SYRVE_DEAD_KEY_CACHE.set(apiKey, Date.now())
+                        console.warn(`[SyrveDirect] apiLogin ${apiKey.slice(0, 8)}... unauthorized (HTTP ${authRes.status}) — cached skip 15m`)
+                        return []
+                    }
+                    if (!authRes.ok) return []
+                    const authJson = await authRes.json()
+                    if (!authJson.token) return []
+                    tokenObj = { token: authJson.token, ts: Date.now() }
+                    global.__SYRVE_TOKEN_CACHE.set(apiKey, tokenObj)
+                }
+
+                let orgs = global.__SYRVE_ORGS_CACHE.get(apiKey)
+                if (!orgs) {
+                    const orgRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/organizations', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenObj.token}` },
+                        body: JSON.stringify({})
+                    }), 3000)
+                    if (!orgRes.ok) return []
+                    const orgJson = await orgRes.json()
+                    orgs = orgJson.organizations || []
+                    global.__SYRVE_ORGS_CACHE.set(apiKey, orgs)
+                }
+                const freshOrgs = orgs.filter(o => o?.id && !seenOrgIds.has(o.id))
+                freshOrgs.forEach(o => seenOrgIds.add(o.id))
+                if (!freshOrgs.length) return []
+
+                const orgNameById = {}
+                freshOrgs.forEach(o => { orgNameById[o.id] = o.name || '' })
+
+                const delivRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/deliveries/by_delivery_date_and_status', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenObj.token}` },
-                    body: JSON.stringify({})
-                }), 3000)
-                if (!orgRes.ok) return []
-                const orgJson = await orgRes.json()
-                orgs = orgJson.organizations || []
-                global.__SYRVE_ORGS_CACHE.set(apiKey, orgs)
-            }
-            if (!orgs.length) return []
-
-            const orgNameById = {}
-            orgs.forEach(o => { orgNameById[o.id] = o.name || '' })
-
-            const delivRes = await withTimeout(fetch('https://api-eu.syrve.live/api/1/deliveries/by_delivery_date_and_status', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenObj.token}` },
-                body: JSON.stringify({
-                    organizationIds: orgs.map(o => o.id),
-                    deliveryDateFrom: `${dayStr} 00:00:00.000`,
-                    deliveryDateTo: `${dayStr} 23:59:59.999`
-                })
-            }), 4500)
-            if (!delivRes.ok) return []
-            const delivData = await delivRes.json()
-
-            for (const grp of (delivData.ordersByOrganizations || [])) {
-                const orgId = grp.organizationId
-                const matchedRest = restByOrgId[orgId] || null
-                const orgName = orgNameById[orgId] || matchedRest?.city || matchedRest?.name || ''
-                const cityCanon = getCanonicalCity(orgName || matchedRest?.city || matchedRest?.name || '')
-                for (const item of (grp.orders || [])) {
-                    const ord = item.order
-                    if (!ord) continue
-                    const stLow = String(ord.status || '').toLowerCase()
-                    if (stLow.includes('cancel') || stLow.includes('delet')) continue
-
-                    const baseId = item.id || ord.id || `ord_${ord.number}`
-                    const rawSource = (ord.sourceKey || '').toLowerCase()
-                    const orderTypeName = (ord.orderType?.name || '').toLowerCase()
-                    const operatorName = (ord.operator?.name || '').toLowerCase()
-                    const conceptionName = (ord.conception?.name || '').toLowerCase()
-                    const customerNameLower = (ord.customer?.name || '').toLowerCase()
-                    const isKiosk = rawSource.includes('kiosk') || orderTypeName.includes('kiosk') || operatorName.includes('kiosk') || conceptionName.includes('kiosk') || customerNameLower.includes('kiosk')
-
-                    let platform = 'casierie'
-                    if (rawSource.includes('glovo') || orderTypeName.includes('glovo')) platform = 'glovo'
-                    else if (rawSource.includes('wolt') || orderTypeName.includes('wolt')) platform = 'wolt'
-                    else if (rawSource.includes('bolt') || orderTypeName.includes('bolt')) platform = 'bolt'
-                    else if (isKiosk) platform = 'kiosk'
-                    else if (orderTypeName.includes('livrare') || orderTypeName.includes('delivery')) platform = 'ecosystem'
-
-                    const ds = ord.whenCreated || ord.whenClosed
-                    const placedAt = ds ? new Date(ds.replace(' ', 'T') + 'Z').toISOString() : new Date().toISOString()
-
-                    const rawCustName = [ord.customer?.name, ord.customer?.surname].filter(Boolean).join(' ').trim() || null
-                    const custComment = ord.customer?.comment || ''
-                    const phoneFromComment = custComment.match(/Phone:\s*([^;]+)/i)?.[1]?.trim() || null
-                    const pickUpCode = custComment.match(/Pick Up Code:\s*([^;]+)/i)?.[1]?.trim() || null
-                    const extOrderId = custComment.match(/OrderId:\s*([^;]+)/i)?.[1]?.trim() || ord.externalNumber || null
-                    const courierPhoneFromComment = custComment.match(/Courier Phone:\s*([^;]+)/i)?.[1]?.trim() || null
-                    const rawCourierFromComment = custComment.match(/Courier:\s*([^;]+)/i)?.[1]?.trim() || null
-                    const cleanCourierFromComment = (rawCourierFromComment && !rawCourierFromComment.includes('IikoMiddleware')) ? rawCourierFromComment : null
-
-                    const custPhone = ord.phone || ord.customer?.phone || phoneFromComment || null
-                    const custAddress = ord.deliveryPoint?.comment || ord.deliveryPoint?.address?.line1 || ord.deliveryPoint?.address?.street?.name || null
-                    const rawCourierObj = ord.courierInfo?.courier || null
-                    // Syrve POS courierInfo.courier without a phone number is always an internal POS cashier/operator or placeholder (Sherpa Karma, Channtel Reema, GLOVO_DEMAND, etc.)
-                    const hasRealSyrveCourierPhone = Boolean(rawCourierObj?.phone || courierPhoneFromComment)
-                    const courierName = (hasRealSyrveCourierPhone && rawCourierObj?.name) || cleanCourierFromComment || null
-                    const courierPhone = rawCourierObj?.phone || courierPhoneFromComment || null
-
-                    const extractedCourier = courierName ? {
-                        name: courierName,
-                        phone: courierPhone || '',
-                        company: platform === 'glovo' ? 'Glovo' : platform === 'wolt' ? 'Wolt' : platform === 'bolt' ? 'Bolt Food' : 'Partener Livrare',
-                        isManual: Boolean(ord.courierInfo?.isCourierSelectedManually)
-                    } : null
-
-                    const custLat = Number(ord.deliveryPoint?.coordinates?.latitude || 0) || null
-                    const custLng = Number(ord.deliveryPoint?.coordinates?.longitude || 0) || null
-                    const extractedCustomer = (rawCustName || custPhone || custAddress || (custLat && custLng)) ? {
-                        name: rawCustName || 'Client',
-                        phone: custPhone,
-                        address: custAddress,
-                        lat: custLat && custLat > 40 ? custLat : null,
-                        lng: custLng && custLng > 20 ? custLng : null,
-                        pickUpCode,
-                        externalOrderId: extOrderId
-                    } : null
-
-                    const extractedTimings = {
-                        whenCreated: ord.whenCreated || null,
-                        whenConfirmed: ord.whenConfirmed || null,
-                        whenPrinted: ord.whenPrinted || null,
-                        whenCookingCompleted: ord.whenCookingCompleted || null,
-                        whenSended: ord.whenSended || null,
-                        whenDelivered: ord.whenDelivered || null,
-                        whenClosed: ord.whenClosed || null,
-                        completeBefore: ord.completeBefore || null
-                    }
-
-                    const items = []
-                    let orderSum = 0
-                    let orderGrossSum = 0
-                    for (const it of (ord.items || [])) {
-                        if (it.product) {
-                            const qty = Number(it.amount) || 1
-                            const unitPrice = Number(it.price) || 0
-                            const itemSum = Number(it.resultSum ?? (unitPrice * qty)) || 0
-                            orderSum += itemSum
-                            orderGrossSum += unitPrice * qty
-                            items.push({
-                                product_name: it.product.name,
-                                price: unitPrice,
-                                amount: qty,
-                                quantity: qty,
-                                sum: itemSum,
-                                _order_meta: items.length === 0 ? {
-                                    orderNumber: ord.number ? String(ord.number) : (ord.externalNumber || null),
-                                    city: orgName,
-                                    conception: ord.conception?.name || orgName,
-                                    customer: extractedCustomer,
-                                    customerName: rawCustName,
-                                    customerPhone: custPhone,
-                                    customerAddress: custAddress,
-                                    courier: extractedCourier,
-                                    courierName,
-                                    courierPhone,
-                                    pickUpCode,
-                                    externalOrderId: extOrderId,
-                                    orderType: ord.orderType?.name || (isKiosk ? 'Smart Kiosk' : (platform === 'casierie' ? 'Casierie (POS)' : 'Livrare')),
-                                    status: ord.status || 'Closed',
-                                    stage: ord.status || 'Closed',
-                                    timings: extractedTimings
-                                } : undefined
-                            })
-                        }
-                    }
-                    if (items.length === 0) continue
-
-                    const netAmount = Number(ord.sum) || Math.round(orderSum * 100) / 100
-                    const grossAmount = orderGrossSum > 0 ? Math.round(orderGrossSum * 100) / 100 : netAmount
-                    if (items[0]?._order_meta) {
-                        items[0]._order_meta.grossSum = grossAmount
-                        items[0]._order_meta.discountSum = Math.max(0, Math.round((grossAmount - netAmount) * 100) / 100)
-                    }
-
-                    const detectedBrand = detectBrandFromItems(items, matchedRest)
-                    const resolvedRest = resolveMatchingRestaurant(allRests, matchedRest, detectedBrand, cityCanon, items[0]?._order_meta) || matchedRest
-
-                    rows.push({
-                        id: baseId,
-                        order_id: resolvedRest ? `${baseId}_${resolvedRest.id}` : baseId,
-                        restaurant_id: resolvedRest?.id || null,
-                        restaurant_city: cityCanon,
-                        brand_name: detectedBrand,
-                        platform,
-                        total_amount: netAmount,
-                        gross_amount: grossAmount,
-                        placed_at: placedAt,
-                        created_at: placedAt,
-                        items
+                    body: JSON.stringify({
+                        organizationIds: freshOrgs.map(o => o.id),
+                        deliveryDateFrom: `${dayStr} 00:00:00.000`,
+                        deliveryDateTo: `${dayStr} 23:59:59.999`
                     })
+                }), 4500)
+                if (!delivRes.ok) return []
+                const delivData = await delivRes.json()
+                const keyRows = []
+
+                for (const grp of (delivData.ordersByOrganizations || [])) {
+                    const orgId = grp.organizationId
+                    const matchedRest = restByOrgId[orgId] || null
+                    const orgName = orgNameById[orgId] || matchedRest?.city || matchedRest?.name || ''
+                    const cityCanon = getCanonicalCity(orgName || matchedRest?.city || matchedRest?.name || '')
+                    for (const item of (grp.orders || [])) {
+                        const ord = item.order
+                        if (!ord) continue
+                        const stLow = String(ord.status || '').toLowerCase()
+                        if (stLow.includes('cancel') || stLow.includes('delet')) continue
+
+                        const baseId = item.id || ord.id || `ord_${ord.number}`
+                        const rawSource = (ord.sourceKey || '').toLowerCase()
+                        const orderTypeName = (ord.orderType?.name || '').toLowerCase()
+                        const operatorName = (ord.operator?.name || '').toLowerCase()
+                        const conceptionName = (ord.conception?.name || '').toLowerCase()
+                        const customerNameLower = (ord.customer?.name || '').toLowerCase()
+                        const extNumLower = String(ord.externalNumber || '').toLowerCase()
+                        const isKiosk = rawSource.includes('kiosk') || orderTypeName.includes('kiosk') || operatorName.includes('kiosk') || conceptionName.includes('kiosk') || customerNameLower.includes('kiosk') || extNumLower.startsWith('kiosk')
+
+                        let platform = 'casierie'
+                        if (rawSource.includes('glovo') || orderTypeName.includes('glovo')) platform = 'glovo'
+                        else if (rawSource.includes('wolt') || orderTypeName.includes('wolt')) platform = 'wolt'
+                        else if (rawSource.includes('bolt') || orderTypeName.includes('bolt')) platform = 'bolt'
+                        else if (isKiosk) platform = 'kiosk'
+                        else if (orderTypeName.includes('livrare') || orderTypeName.includes('delivery')) platform = 'ecosystem'
+
+                        const ds = ord.whenCreated || ord.whenClosed
+                        const placedAt = ds ? new Date(ds.replace(' ', 'T') + 'Z').toISOString() : new Date().toISOString()
+
+                        const rawCustName = [ord.customer?.name, ord.customer?.surname].filter(Boolean).join(' ').trim() || null
+                        const custComment = ord.customer?.comment || ''
+                        const phoneFromComment = custComment.match(/Phone:\s*([^;]+)/i)?.[1]?.trim() || null
+                        const pickUpCode = custComment.match(/Pick Up Code:\s*([^;]+)/i)?.[1]?.trim() || null
+                        const extOrderId = custComment.match(/OrderId:\s*([^;]+)/i)?.[1]?.trim() || ord.externalNumber || null
+                        const courierPhoneFromComment = custComment.match(/Courier Phone:\s*([^;]+)/i)?.[1]?.trim() || null
+                        const rawCourierFromComment = custComment.match(/Courier:\s*([^;]+)/i)?.[1]?.trim() || null
+                        const cleanCourierFromComment = (rawCourierFromComment && !rawCourierFromComment.includes('IikoMiddleware')) ? rawCourierFromComment : null
+
+                        const custPhone = ord.phone || ord.customer?.phone || phoneFromComment || null
+                        const custAddress = ord.deliveryPoint?.comment || ord.deliveryPoint?.address?.line1 || ord.deliveryPoint?.address?.street?.name || null
+                        const rawCourierObj = ord.courierInfo?.courier || null
+                        // Syrve POS courierInfo.courier without a phone number is always an internal POS cashier/operator or placeholder (Sherpa Karma, Channtel Reema, GLOVO_DEMAND, etc.)
+                        const hasRealSyrveCourierPhone = Boolean(rawCourierObj?.phone || courierPhoneFromComment)
+                        const courierName = (hasRealSyrveCourierPhone && rawCourierObj?.name) || cleanCourierFromComment || null
+                        const courierPhone = rawCourierObj?.phone || courierPhoneFromComment || null
+
+                        const extractedCourier = courierName ? {
+                            name: courierName,
+                            phone: courierPhone || '',
+                            company: platform === 'glovo' ? 'Glovo' : platform === 'wolt' ? 'Wolt' : platform === 'bolt' ? 'Bolt Food' : 'Partener Livrare',
+                            isManual: Boolean(ord.courierInfo?.isCourierSelectedManually)
+                        } : null
+
+                        const custLat = Number(ord.deliveryPoint?.coordinates?.latitude || 0) || null
+                        const custLng = Number(ord.deliveryPoint?.coordinates?.longitude || 0) || null
+                        const extractedCustomer = (rawCustName || custPhone || custAddress || (custLat && custLng)) ? {
+                            name: rawCustName || 'Client',
+                            phone: custPhone,
+                            address: custAddress,
+                            lat: custLat && custLat > 40 ? custLat : null,
+                            lng: custLng && custLng > 20 ? custLng : null,
+                            pickUpCode,
+                            externalOrderId: extOrderId
+                        } : null
+
+                        const extractedTimings = {
+                            whenCreated: ord.whenCreated || null,
+                            whenConfirmed: ord.whenConfirmed || null,
+                            whenPrinted: ord.whenPrinted || null,
+                            whenCookingCompleted: ord.whenCookingCompleted || null,
+                            whenSended: ord.whenSended || null,
+                            whenDelivered: ord.whenDelivered || null,
+                            whenClosed: ord.whenClosed || null,
+                            completeBefore: ord.completeBefore || null
+                        }
+
+                        const ordCommentStr = String(ord.comment || '').trim()
+                        const ordCommentUpper = ordCommentStr.toUpperCase()
+                        const kioskTicketMatch = ordCommentStr.match(/Comanda\s+#([A-Za-z0-9\-_]+)/i)
+                        const kioskOrderNum = kioskTicketMatch ? kioskTicketMatch[1] : null
+                        const kioskIdDetected = isKiosk ? (
+                            customerNameLower.includes('cj-1') || ordCommentUpper.includes('CJ-1') || ordCommentUpper.includes('CJ1A') ? 'Kiosk Cluj 1'
+                                : customerNameLower.includes('cj-2') || ordCommentUpper.includes('CJ-2') || ordCommentUpper.includes('CJ2A') ? 'Kiosk Cluj 2'
+                                    : customerNameLower.includes('bv') || ordCommentUpper.includes('BV-1') ? 'Kiosk Brașov'
+                                        : customerNameLower.includes('ct') || ordCommentUpper.includes('SMARTKIOSK CT') ? 'Kiosk Constanța'
+                                            : (rawCustName || 'Smart Kiosk')
+                        ) : null
+                        const diningOptionDetected = isKiosk
+                            ? (ordCommentUpper.includes('LA MASĂ') || ordCommentUpper.includes('LA MASA') ? 'La Masă' : ordCommentUpper.includes('LA PACHET') ? 'La Pachet' : null)
+                            : null
+                        const hasCashPay = (ord.payments || []).some(p => /cash|numerar/i.test(`${p.paymentType?.kind || ''} ${p.paymentType?.name || ''}`))
+                        const hasCardPay = (ord.payments || []).some(p => /card/i.test(`${p.paymentType?.kind || ''} ${p.paymentType?.name || ''}`))
+                        const paymentMethodDetected = isKiosk
+                            ? ((ordCommentUpper.includes('NEPLĂTIT (CASH)') || ordCommentUpper.includes('NEPLATIT (CASH)') || hasCashPay) ? 'Cash'
+                                : (ordCommentUpper.includes('PLĂTIT') || ordCommentUpper.includes('PLATIT') || hasCardPay) ? 'Card' : 'Card')
+                            : null
+
+                        const items = []
+                        let orderSum = 0
+                        let orderGrossSum = 0
+                        for (const it of (ord.items || [])) {
+                            if (it.product) {
+                                const qty = Number(it.amount) || 1
+                                const unitPrice = Number(it.price) || 0
+                                const itemSum = Number(it.resultSum ?? (unitPrice * qty)) || 0
+                                orderSum += itemSum
+                                orderGrossSum += unitPrice * qty
+                                items.push({
+                                    product_name: it.product.name,
+                                    price: unitPrice,
+                                    amount: qty,
+                                    quantity: qty,
+                                    sum: itemSum,
+                                    _order_meta: items.length === 0 ? {
+                                        orderNumber: kioskOrderNum || (ord.number ? String(ord.number) : (ord.externalNumber || null)),
+                                        city: orgName,
+                                        conception: ord.conception?.name || orgName,
+                                        customer: extractedCustomer,
+                                        customerName: rawCustName,
+                                        customerPhone: custPhone,
+                                        customerAddress: custAddress,
+                                        courier: extractedCourier,
+                                        courierName,
+                                        courierPhone,
+                                        pickUpCode,
+                                        externalOrderId: extOrderId,
+                                        kioskId: kioskIdDetected,
+                                        diningOption: diningOptionDetected,
+                                        paymentMethod: paymentMethodDetected,
+                                        isCash: paymentMethodDetected === 'Cash',
+                                        isCard: paymentMethodDetected === 'Card',
+                                        orderType: diningOptionDetected || ord.orderType?.name || (isKiosk ? 'Smart Kiosk' : (platform === 'casierie' ? 'Casierie (POS)' : 'Livrare')),
+                                        status: ord.status || 'Closed',
+                                        stage: ord.status || 'Closed',
+                                        comment: ordCommentStr || null,
+                                        timings: extractedTimings
+                                    } : undefined
+                                })
+                            }
+                        }
+                        if (items.length === 0) continue
+
+                        const netAmount = Number(ord.sum) || Math.round(orderSum * 100) / 100
+                        const grossAmount = orderGrossSum > 0 ? Math.round(orderGrossSum * 100) / 100 : netAmount
+                        if (items[0]?._order_meta) {
+                            items[0]._order_meta.grossSum = grossAmount
+                            items[0]._order_meta.discountSum = Math.max(0, Math.round((grossAmount - netAmount) * 100) / 100)
+                        }
+
+                        // Smash Me Cluj Kiosk hardware (CJ-1 / CJ-2) belongs 100% to Smash Me (never split Kiosk tickets into Crunch)
+                        const detectedBrand = (isKiosk && orgId === '9c63cff6-1d66-442d-a98d-2302656e3943')
+                            ? 'Smash Me'
+                            : detectBrandFromItems(items, matchedRest)
+                        const resolvedRest = resolveMatchingRestaurant(allRests, matchedRest, detectedBrand, cityCanon, items[0]?._order_meta) || matchedRest
+
+                        keyRows.push({
+                            id: baseId,
+                            order_id: resolvedRest ? `${baseId}_${resolvedRest.id}` : baseId,
+                            restaurant_id: resolvedRest?.id || null,
+                            restaurant_city: cityCanon,
+                            brand_name: detectedBrand,
+                            platform,
+                            total_amount: netAmount,
+                            gross_amount: grossAmount,
+                            placed_at: placedAt,
+                            created_at: placedAt,
+                            items
+                        })
+                    }
                 }
+                return keyRows
+            } catch (sErr) {
+                console.warn(`[SyrveDirect] Key ${apiKey.slice(0, 8)} fetch warning:`, sErr.message)
+                return []
             }
-        } catch (sErr) {
-            console.warn('[SyrveDirect] Key fetch warning:', sErr.message)
+        }
+
+        const perKeyResults = await Promise.all([...keySet].map(k => fetchForKey(k)))
+        for (const chunk of perKeyResults) {
+            if (Array.isArray(chunk) && chunk.length > 0) rows.push(...chunk)
         }
         return rows
     }
 
     const fetchIndexedWebhooks = async () => {
+        const allWh = []
         try {
-            const { data, error } = await withTimeout(
-                supabase
-                    .from('platform_sales')
-                    .select('id, restaurant_id, order_id, platform, total_amount, placed_at, created_at, items')
-                    .gte('order_id', `wh_${dayStr}_`)
-                    .lte('order_id', `wh_${dayStr}_zzzzzzzz`)
-                    .limit(3000),
-                2500
-            )
-            if (!error && Array.isArray(data)) return data
+            // Paginate in 1,000-row chunks to bypass Supabase PostgREST's silent max-rows=1000 cap
+            const pageSize = 1000
+            for (let page = 0; page < 5; page++) {
+                const fromIdx = page * pageSize
+                const toIdx = fromIdx + pageSize - 1
+                const { data, error } = await withTimeout(
+                    supabase
+                        .from('platform_sales')
+                        .select('id, restaurant_id, order_id, platform, total_amount, placed_at, created_at, items')
+                        .gte('order_id', `wh_${dayStr}_`)
+                        .lte('order_id', `wh_${dayStr}_zzzzzzzz`)
+                        .range(fromIdx, toIdx),
+                    2500
+                )
+                if (error || !Array.isArray(data) || data.length === 0) break
+                allWh.push(...data)
+                if (data.length < pageSize) break
+            }
         } catch (_) { }
-        return []
+        return allWh
     }
 
     const [syrveDirectRows, dbWebhookRows] = await Promise.all([
@@ -2105,6 +2304,8 @@ async function fetchLiveAndWebhookOrdersForDay(dayStr, allRests = []) {
 app.get('/api/sales/executive-summary', async (req, res) => {
     try {
         const reqPeriod = req.query.period || 'this_month'
+        const reqFrom = String(req.query.from || '').trim()
+        const reqTo = String(req.query.to || '').trim()
         const qCitiesRaw = String(req.query.cities || req.query.city || '').trim()
         const qLocationRaw = String(req.query.location || '').trim()
         const qRestId = String(req.query.restaurant_id || '').trim()
@@ -2120,15 +2321,18 @@ app.get('/api/sales/executive-summary', async (req, res) => {
         const filterChannel = qChannelRaw && qChannelRaw !== 'all' ? qChannelRaw : ''
         const hasAnyFilter = Boolean((allowedCitiesSet && allowedCitiesSet.size > 0) || filterLocation || filterRestId || filterBrand || filterChannel)
 
+        const periodInfo = getPeriodFilter(reqPeriod, reqFrom, reqTo)
+        const roNowStrQuick = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
+        const isPureHistoricalCustom = periodInfo.key === 'custom' && periodInfo.toYmd && periodInfo.toYmd < roNowStrQuick
+
         global.__EXEC_SUMMARY_CACHE = global.__EXEC_SUMMARY_CACHE || new Map()
-        const cacheTtlMs = (reqPeriod === 'today' || reqPeriod === 'yesterday') ? 15000 : 60000
-        const summaryCacheKey = `${reqPeriod}|${qCitiesRaw}|${filterLocation}|${filterRestId}|${filterBrand}|${filterChannel}`
+        const cacheTtlMs = isPureHistoricalCustom ? 300000 : ((periodInfo.key === 'today' || periodInfo.key === 'yesterday' || periodInfo.key === 'custom') ? 15000 : 60000)
+        const summaryCacheKey = `${periodInfo.key}|${periodInfo.fromYmd || ''}|${periodInfo.toYmd || ''}|${qCitiesRaw}|${filterLocation}|${filterRestId}|${filterBrand}|${filterChannel}`
         const cachedSummary = global.__EXEC_SUMMARY_CACHE.get(summaryCacheKey)
         if (cachedSummary && (Date.now() - cachedSummary.ts < cacheTtlMs)) {
             return res.json(cachedSummary.payload)
         }
 
-        const periodInfo = getPeriodFilter(reqPeriod)
         const withTimeout = (promise, ms = 3000) => Promise.race([
             promise,
             new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms))
@@ -2169,13 +2373,25 @@ app.get('/api/sales/executive-summary', async (req, res) => {
         const roNowStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
         const isSameMonthAsCutoff = histCutoffDay.slice(0, 7) === roNowStr.slice(0, 7)
         const isSameYearAsCutoff = histCutoffDay.slice(0, 4) === roNowStr.slice(0, 4)
-        const histBucket = (reqPeriod === 'last_month' && isSameMonthAsCutoff)
+
+        // Check if custom range matches an exact precomputed historical bucket
+        const lastMonthRef = getPeriodFilter('last_month')
+        const thisMonthRef = getPeriodFilter('this_month')
+        const thisYearRef = getPeriodFilter('this_year')
+        const matchedBucketPeriod = periodInfo.key === 'custom'
+            ? (periodInfo.fromYmd === lastMonthRef.fromYmd && periodInfo.toYmd === lastMonthRef.toYmd ? 'last_month'
+                : periodInfo.fromYmd === thisMonthRef.fromYmd && periodInfo.toYmd === thisMonthRef.toYmd ? 'this_month'
+                    : periodInfo.fromYmd === thisYearRef.fromYmd && periodInfo.toYmd === thisYearRef.toYmd ? 'this_year'
+                        : 'custom')
+            : periodInfo.key
+
+        const histBucket = (matchedBucketPeriod === 'last_month' && isSameMonthAsCutoff)
             ? salesHistoryCache?.buckets?.last_month
-            : (reqPeriod === 'this_month' && isSameMonthAsCutoff)
+            : (matchedBucketPeriod === 'this_month' && isSameMonthAsCutoff)
                 ? salesHistoryCache?.buckets?.this_month_hist
-                : (reqPeriod === 'this_year' && isSameYearAsCutoff)
+                : (matchedBucketPeriod === 'this_year' && isSameYearAsCutoff)
                     ? salesHistoryCache?.buckets?.this_year_hist
-                    : reqPeriod === 'all'
+                    : matchedBucketPeriod === 'all'
                         ? salesHistoryCache?.buckets?.all_hist
                         : null
 
@@ -2186,18 +2402,20 @@ app.get('/api/sales/executive-summary', async (req, res) => {
         const toYmdLocal = (dateObj) => `${dateObj.getFullYear()}-${pad2Local(dateObj.getMonth() + 1)}-${pad2Local(dateObj.getDate())}`
         const listDaysInclusive = (fromStr, toStr, maxDays = 10) => {
             if (!fromStr || !toStr || fromStr > toStr) return []
-            const out = []
             const [fy, fm, fd] = fromStr.split('-').map(Number)
             const [ty, tm, td] = toStr.split('-').map(Number)
             if (!fy || !fm || !fd || !ty || !tm || !td) return []
-            const cur = new Date(fy, fm - 1, fd)
+            const startD = new Date(fy, fm - 1, fd)
             const endD = new Date(ty, tm - 1, td)
+            const clampStart = new Date(endD.getFullYear(), endD.getMonth(), endD.getDate() - Math.max(1, maxDays) + 1)
+            const cur = startD > clampStart ? startD : clampStart
+            const out = []
             let guard = 0
-            while (cur <= endD && guard++ < 45) {
+            while (cur <= endD && guard++ < Math.max(1, maxDays) + 1) {
                 out.push(toYmdLocal(cur))
                 cur.setDate(cur.getDate() + 1)
             }
-            return out.slice(-maxDays)
+            return out
         }
         const fetchDaysInBatches = async (dayList) => {
             const all = []
@@ -2236,24 +2454,59 @@ app.get('/api/sales/executive-summary', async (req, res) => {
             return out
         }
 
-        // 1. For today / yesterday: fetch live Syrve + indexed webhook orders
-        if (reqPeriod === 'today' || reqPeriod === 'yesterday') {
-            const targetDay = periodInfo.startDate ? periodInfo.startDate.slice(0, 10) : null
-            const liveDayOrders = await fetchLiveAndWebhookOrdersForDay(targetDay, rests)
-            for (const { o: lo, bk: baseKey } of filterValidLiveOrders(liveDayOrders)) {
-                if (seenOrderIds.has(baseKey)) continue
-                seenOrderIds.add(baseKey)
-                sales.push(lo)
+        // 1. For today / yesterday / single-day custom: fetch live Syrve + indexed webhook orders
+        if (matchedBucketPeriod === 'today' || matchedBucketPeriod === 'yesterday' || (matchedBucketPeriod === 'custom' && periodInfo.fromYmd && periodInfo.fromYmd === periodInfo.toYmd)) {
+            const targetDay = periodInfo.fromYmd || (periodInfo.startDate ? periodInfo.startDate.slice(0, 10) : null)
+            if (targetDay && targetDay <= roNowStr) {
+                const liveDayOrders = await fetchLiveAndWebhookOrdersForDay(targetDay, rests)
+                for (const { o: lo, bk: baseKey } of filterValidLiveOrders(liveDayOrders)) {
+                    if (seenOrderIds.has(baseKey)) continue
+                    seenOrderIds.add(baseKey)
+                    sales.push(lo)
+                }
             }
-        } else if (reqPeriod !== 'last_month') {
-            // Historical periods with live tail: dynamically fetch EVERY gap day from Syrve + webhooks
+            // Fallback to Supabase platform_sales if Syrve returned 0 (e.g., older historical date)
+            if (sales.length === 0 && periodInfo.startDate && periodInfo.endDate) {
+                try {
+                    const { data: dbDayRows, error: dbErr } = await withTimeout(
+                        supabase
+                            .from('platform_sales')
+                            .select('id, restaurant_id, order_id, platform, total_amount, placed_at, items')
+                            .gte('placed_at', periodInfo.startDate)
+                            .lte('placed_at', periodInfo.endDate)
+                            .limit(3500),
+                        3000
+                    )
+                    if (!dbErr && Array.isArray(dbDayRows)) {
+                        for (const { o: lo, bk: baseKey } of filterValidLiveOrders(dbDayRows)) {
+                            if (seenOrderIds.has(baseKey)) continue
+                            seenOrderIds.add(baseKey)
+                            sales.push(lo)
+                        }
+                    }
+                } catch (_) { }
+            }
+        } else if (matchedBucketPeriod !== 'last_month') {
+            // Historical periods with live tail OR custom multi-day range
             const yesterdayInfo = getPeriodFilter('yesterday')
             const yesterdayStr = yesterdayInfo.startDate?.slice(0, 10) || roNowStr
             let daysToFetch = []
-            if (reqPeriod === 'this_week') {
+            let needsSupabaseRange = false
+            if (matchedBucketPeriod === 'custom' && periodInfo.fromYmd && periodInfo.toYmd) {
+                const liveEndStr = periodInfo.toYmd < roNowStr ? periodInfo.toYmd : roNowStr
+                if (periodInfo.fromYmd <= liveEndStr) {
+                    const fullSpanDays = listDaysInclusive(periodInfo.fromYmd, liveEndStr, 60)
+                    if (fullSpanDays.length <= 14) {
+                        daysToFetch = fullSpanDays
+                    } else {
+                        daysToFetch = fullSpanDays.slice(-10)
+                        needsSupabaseRange = true
+                    }
+                }
+            } else if (matchedBucketPeriod === 'this_week') {
                 const weekStartStr = periodInfo.startDate ? periodInfo.startDate.slice(0, 10) : yesterdayStr
                 daysToFetch = listDaysInclusive(weekStartStr, roNowStr, 7)
-            } else if (reqPeriod === 'this_month' || reqPeriod === 'this_year' || reqPeriod === 'all') {
+            } else if (matchedBucketPeriod === 'this_month' || matchedBucketPeriod === 'this_year' || matchedBucketPeriod === 'all') {
                 let fromGapStr = yesterdayStr
                 if (histBucket && histCutoffDay) {
                     const [cy, cm, cd] = histCutoffDay.split('-').map(Number)
@@ -2264,10 +2517,11 @@ app.get('/api/sales/executive-summary', async (req, res) => {
                 daysToFetch = listDaysInclusive(fromGapStr, roNowStr, 10)
             }
             const fetchedDaySet = new Set(daysToFetch)
+            const startMs = periodInfo.startDate ? new Date(periodInfo.startDate).getTime() : 0
+            const endMs = periodInfo.endDate ? new Date(periodInfo.endDate).getTime() : Infinity
+
             if (daysToFetch.length > 0) {
                 const liveTailOrders = await fetchDaysInBatches(daysToFetch)
-                const startMs = periodInfo.startDate ? new Date(periodInfo.startDate).getTime() : 0
-                const endMs = periodInfo.endDate ? new Date(periodInfo.endDate).getTime() : Infinity
                 for (const { o: lo, bk: baseKey } of filterValidLiveOrders(liveTailOrders)) {
                     const dayStr = String(lo.placed_at || '').slice(0, 10)
                     if (histBucket && dayStr && dayStr <= histCutoffDay) continue
@@ -2279,11 +2533,33 @@ app.get('/api/sales/executive-summary', async (req, res) => {
                 }
             }
 
+            // Query Supabase platform_sales for >14-day custom ranges or when Syrve returned 0
+            if (matchedBucketPeriod === 'custom' && (needsSupabaseRange || sales.length === 0) && periodInfo.startDate && periodInfo.endDate) {
+                try {
+                    const { data: dbRangeRows, error: dbErr } = await withTimeout(
+                        supabase
+                            .from('platform_sales')
+                            .select('id, restaurant_id, order_id, platform, total_amount, placed_at, items')
+                            .gte('placed_at', periodInfo.startDate)
+                            .lte('placed_at', periodInfo.endDate)
+                            .limit(5000),
+                        3500
+                    )
+                    if (!dbErr && Array.isArray(dbRangeRows)) {
+                        for (const { o: lo, bk: baseKey } of filterValidLiveOrders(dbRangeRows)) {
+                            const pTime = lo.placed_at ? new Date(lo.placed_at).getTime() : 0
+                            if (pTime && (pTime < startMs || pTime > endMs)) continue
+                            if (seenOrderIds.has(baseKey)) continue
+                            seenOrderIds.add(baseKey)
+                            sales.push(lo)
+                        }
+                    }
+                } catch (_) { }
+            }
+
             // 1b. Supplement from customersService only for days NOT already fetched live from Syrve
             try {
                 const allCusts = Array.from(customersService?.customersByKey?.values?.() || [])
-                const startMs = periodInfo.startDate ? new Date(periodInfo.startDate).getTime() : 0
-                const endMs = periodInfo.endDate ? new Date(periodInfo.endDate).getTime() : Infinity
 
                 for (const c of allCusts) {
                     for (const ro of (c.recent_orders || [])) {
@@ -2600,6 +2876,11 @@ app.get('/api/sales/executive-summary', async (req, res) => {
                 }
             })
 
+        const totalDiscount = Math.max(0, totalGrossRevenue - totalRevenue)
+        const avgGrossTicket = totalOrders > 0 ? Number((totalGrossRevenue / totalOrders).toFixed(2)) : 0
+        const localGrossRevenue = Math.round(((channelStats.kiosk.grossRevenue || channelStats.kiosk.revenue) + (channelStats.casierie.grossRevenue || channelStats.casierie.revenue)) * scaleFactor)
+        const deliveryGrossRevenue = Math.round(((channelStats.glovo.grossRevenue || channelStats.glovo.revenue) + (channelStats.wolt.grossRevenue || channelStats.wolt.revenue) + (channelStats.bolt.grossRevenue || channelStats.bolt.revenue) + (channelStats.direct.grossRevenue || channelStats.direct.revenue)) * scaleFactor)
+
         const responsePayload = {
             success: true,
             period: periodInfo,
@@ -2607,17 +2888,21 @@ app.get('/api/sales/executive-summary', async (req, res) => {
                 totalOrders,
                 totalRevenue,
                 totalGrossRevenue,
-                avgTicket
+                totalDiscount,
+                avgTicket,
+                avgGrossTicket
             },
             local_vs_delivery: {
                 local: {
                     count: localCount,
                     revenue: localRevenue,
+                    grossRevenue: localGrossRevenue,
                     share: totalOrders > 0 ? Math.round((localCount / totalOrders) * 100) : 0
                 },
                 delivery: {
                     count: deliveryCount,
                     revenue: deliveryRevenue,
+                    grossRevenue: deliveryGrossRevenue,
                     share: totalOrders > 0 ? Math.round((deliveryCount / totalOrders) * 100) : 0
                 }
             },
@@ -2679,7 +2964,13 @@ app.get('/api/sales/executive-summary', async (req, res) => {
                 })
             )
         }
-        global.__EXEC_SUMMARY_CACHE.set(summaryCacheKey, { ts: Date.now(), payload: responsePayload })
+        if (totalOrders > 0) {
+            if (global.__EXEC_SUMMARY_CACHE.size > 150) {
+                const oldestKey = global.__EXEC_SUMMARY_CACHE.keys().next().value
+                if (oldestKey) global.__EXEC_SUMMARY_CACHE.delete(oldestKey)
+            }
+            global.__EXEC_SUMMARY_CACHE.set(summaryCacheKey, { ts: Date.now(), payload: responsePayload })
+        }
         res.json(responsePayload)
     } catch (err) {
         res.status(500).json({ success: false, error: err.message })
@@ -2704,6 +2995,7 @@ app.get('/api/webhooks/orders', async (req, res) => {
             .from('platform_sales')
             .select('*')
             .gte('placed_at', sinceDate)
+            .order('placed_at', { ascending: false })
             .limit(Math.max(limit * 3, 500))
 
         if (error) throw error
@@ -2755,7 +3047,7 @@ app.get('/api/webhooks/orders', async (req, res) => {
 
         for (const o of enriched) {
             const rawId = o.order_id || o.id || ''
-            const baseId = rawId.includes('_') && rawId.length > 30 ? rawId.split('_')[0] : rawId
+            const baseId = extractBaseOrderUuid(rawId) || rawId
 
             const itemsText = (o.items || []).map(it => it.product_name || it.name || '').join(' ').toLowerCase()
             const bLower = (o.brand_name || '').toLowerCase()
@@ -2838,10 +3130,13 @@ app.get('/api/dispatch/live', async (req, res) => {
         const restaurantFilter = req.query.restaurant_id
         const channelFilter = req.query.channel
         const periodFilter = req.query.period || 'today'
+        const fromParam = String(req.query.from || '').trim()
+        const toParam = String(req.query.to || '').trim()
         const searchFilter = String(req.query.search || '').replace(/^#+/, '').trim().toLowerCase()
-        const limit = parseInt(req.query.limit || ((periodFilter === 'today' || periodFilter === 'yesterday' || searchFilter) ? '3500' : '2000'))
-        const periodInfo = getPeriodFilter(periodFilter)
-        const targetSyrveDay = (periodFilter === 'today' || periodFilter === 'yesterday') && periodInfo.startDate
+        const limit = parseInt(req.query.limit || ((periodFilter === 'today' || periodFilter === 'yesterday' || periodFilter === 'custom' || searchFilter) ? '3500' : '2000'))
+        const periodInfo = getPeriodFilter(periodFilter, fromParam, toParam)
+        const isSingleDayCustom = periodInfo.key === 'custom' && periodInfo.fromYmd && periodInfo.fromYmd === periodInfo.toYmd
+        const targetSyrveDay = (periodInfo.key === 'today' || periodInfo.key === 'yesterday' || isSingleDayCustom) && periodInfo.startDate
             ? periodInfo.startDate.slice(0, 10)
             : null
 
@@ -2898,10 +3193,14 @@ app.get('/api/dispatch/live', async (req, res) => {
 
         // 2. Fetch orders from Syrve Cloud (direct live) + indexed webhook orders + platform_sales with base period cache
         let rawOrders = []
-        const basePeriodCacheKey = searchFilter ? `raw_search_multi` : `raw_period_${periodFilter}`
+        const basePeriodCacheKey = searchFilter
+            ? `raw_search_multi`
+            : `raw_period_${periodInfo.key}_${periodInfo.fromYmd || ''}_${periodInfo.toYmd || ''}`
+        const roNowDay = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
+        const periodCacheTtl = (periodInfo.key === 'custom' && periodInfo.toYmd && periodInfo.toYmd < roNowDay) ? 300000 : 15000
         const cachedRawPeriod = localLiveDispatchCache.get(basePeriodCacheKey)
 
-        if (cachedRawPeriod && (Date.now() - cachedRawPeriod.timestamp < 15000)) {
+        if (cachedRawPeriod && (Date.now() - cachedRawPeriod.timestamp < periodCacheTtl)) {
             rawOrders = cachedRawPeriod.data
         } else if (searchFilter) {
             const todayInfo = getPeriodFilter('today')
@@ -2920,23 +3219,99 @@ app.get('/api/dispatch/live', async (req, res) => {
                 })
             }
         } else if (targetSyrveDay) {
-            rawOrders = await fetchLiveAndWebhookOrdersForDay(targetSyrveDay, allRests)
+            if (targetSyrveDay <= roNowDay) {
+                rawOrders = await fetchLiveAndWebhookOrdersForDay(targetSyrveDay, allRests)
+            }
+            if (rawOrders.length === 0 && periodInfo.startDate && periodInfo.endDate && periodInfo.key === 'custom') {
+                try {
+                    const { data: dbSingleRows, error: oErr } = await withTimeout(
+                        supabase
+                            .from('platform_sales')
+                            .select('id, restaurant_id, order_id, platform, total_amount, placed_at, created_at, items')
+                            .gte('placed_at', periodInfo.startDate)
+                            .lte('placed_at', periodInfo.endDate)
+                            .limit(1500),
+                        2500
+                    )
+                    if (!oErr && Array.isArray(dbSingleRows) && dbSingleRows.length > 0) {
+                        rawOrders = dbSingleRows
+                    }
+                } catch (_) { }
+            }
             if (rawOrders.length > 0) {
                 localLiveDispatchCache.set(basePeriodCacheKey, {
                     timestamp: Date.now(),
                     data: rawOrders
                 })
-            } else if (cachedRawPeriod && Array.isArray(cachedRawPeriod.data)) {
+            } else if (cachedRawPeriod && Array.isArray(cachedRawPeriod.data) && periodInfo.key === 'today') {
                 rawOrders = cachedRawPeriod.data
+            }
+        } else if (periodInfo.key === 'custom' && periodInfo.fromYmd && periodInfo.toYmd) {
+            const liveEnd = periodInfo.toYmd < roNowDay ? periodInfo.toYmd : roNowDay
+            const customDays = []
+            if (periodInfo.fromYmd <= liveEnd) {
+                const [fy, fm, fd] = periodInfo.fromYmd.split('-').map(Number)
+                const [ty, tm, td] = liveEnd.split('-').map(Number)
+                const cur = new Date(fy, fm - 1, fd)
+                const endD = new Date(ty, tm - 1, td)
+                const p2 = (n) => String(n).padStart(2, '0')
+                let guard = 0
+                while (cur <= endD && guard++ < 35) {
+                    customDays.push(`${cur.getFullYear()}-${p2(cur.getMonth() + 1)}-${p2(cur.getDate())}`)
+                    cur.setDate(cur.getDate() + 1)
+                }
+            }
+            const syrveDaysToFetch = customDays.slice(-7)
+            const syrveBatches = []
+            for (let i = 0; i < syrveDaysToFetch.length; i += 4) {
+                const chunk = syrveDaysToFetch.slice(i, i + 4)
+                const resList = await Promise.all(chunk.map(day => fetchLiveAndWebhookOrdersForDay(day, allRests).catch(() => [])))
+                for (const r of resList) {
+                    if (Array.isArray(r) && r.length > 0) syrveBatches.push(...r)
+                }
+            }
+            let dbRangeOrders = []
+            if (customDays.length > 7 || syrveBatches.length === 0) {
+                try {
+                    const { data: dbRows, error: oErr } = await withTimeout(
+                        supabase
+                            .from('platform_sales')
+                            .select('id, restaurant_id, order_id, platform, total_amount, placed_at, created_at, items')
+                            .gte('placed_at', periodInfo.startDate)
+                            .lte('placed_at', periodInfo.endDate)
+                            .limit(1500),
+                        2500
+                    )
+                    if (!oErr && Array.isArray(dbRows) && dbRows.length > 0) {
+                        dbRangeOrders = dbRows
+                    }
+                } catch (_) { }
+            }
+            const startMs = new Date(periodInfo.startDate).getTime()
+            const endMs = new Date(periodInfo.endDate).getTime()
+            rawOrders = [...syrveBatches, ...dbRangeOrders].filter(o => {
+                const ts = o.placed_at || o.created_at
+                if (!ts) return true
+                const tMs = new Date(ts).getTime()
+                return !isNaN(tMs) ? (tMs >= startMs && tMs <= endMs) : true
+            })
+            rawOrders.sort((a, b) => new Date(b.placed_at || b.created_at || 0) - new Date(a.placed_at || a.created_at || 0))
+            if (rawOrders.length > 0) {
+                localLiveDispatchCache.set(basePeriodCacheKey, {
+                    timestamp: Date.now(),
+                    data: rawOrders
+                })
             }
         } else {
             const todayInfo = getPeriodFilter('today')
             const yesterdayInfo = getPeriodFilter('yesterday')
             const tDay = todayInfo.startDate ? todayInfo.startDate.slice(0, 10) : null
             const yDay = yesterdayInfo.startDate ? yesterdayInfo.startDate.slice(0, 10) : null
+            const includeToday = Boolean(tDay && (!periodInfo.toYmd || tDay <= periodInfo.toYmd) && (!periodInfo.fromYmd || tDay >= periodInfo.fromYmd))
+            const includeYesterday = Boolean(yDay && (!periodInfo.toYmd || yDay <= periodInfo.toYmd) && (!periodInfo.fromYmd || yDay >= periodInfo.fromYmd))
             const [tOrders, yOrders] = await Promise.all([
-                tDay ? fetchLiveAndWebhookOrdersForDay(tDay, allRests) : Promise.resolve([]),
-                yDay ? fetchLiveAndWebhookOrdersForDay(yDay, allRests) : Promise.resolve([])
+                includeToday ? fetchLiveAndWebhookOrdersForDay(tDay, allRests) : Promise.resolve([]),
+                includeYesterday ? fetchLiveAndWebhookOrdersForDay(yDay, allRests) : Promise.resolve([])
             ])
             const candidateLimits = [500, 200]
             for (const tryLim of candidateLimits) {
@@ -2944,6 +3319,7 @@ app.get('/api/dispatch/live', async (req, res) => {
                     let salesQuery = supabase
                         .from('platform_sales')
                         .select('id, restaurant_id, order_id, platform, total_amount, placed_at, created_at, items')
+                        .order('placed_at', { ascending: false })
                         .limit(tryLim)
 
                     if (periodInfo.startDate) {
@@ -2960,7 +3336,15 @@ app.get('/api/dispatch/live', async (req, res) => {
                     }
                 } catch (_) { }
             }
-            rawOrders = [...(tOrders || []), ...(yOrders || []), ...(rawOrders || [])]
+            const rangeStartMs = periodInfo.startDate ? new Date(periodInfo.startDate).getTime() : 0
+            const rangeEndMs = periodInfo.endDate ? new Date(periodInfo.endDate).getTime() : Infinity
+            rawOrders = [...(tOrders || []), ...(yOrders || []), ...(rawOrders || [])].filter(o => {
+                if (!periodInfo.startDate && !periodInfo.endDate) return true
+                const ts = o.placed_at || o.created_at
+                if (!ts) return true
+                const tMs = new Date(ts).getTime()
+                return !isNaN(tMs) ? (tMs >= rangeStartMs && tMs <= rangeEndMs) : true
+            })
             if (rawOrders.length > 0) {
                 rawOrders.sort((a, b) => new Date(b.placed_at || b.created_at || 0) - new Date(a.placed_at || a.created_at || 0))
                 localLiveDispatchCache.set(basePeriodCacheKey, {
@@ -3136,8 +3520,7 @@ app.get('/api/dispatch/live', async (req, res) => {
             const isKioskPlat = rawPlat.includes('kiosk') || rawPlat === 'kitchen'
 
             let bName = detectBrandFromItems(o.items || [], rawRest)
-            // In physical restaurants (Cluj Vivo, Constanța City Park), all Kiosks are Smash Me kiosks
-            if (isKioskPlat && ((rawRest?.name || '').toLowerCase().includes('smash') || meta.kioskId)) {
+            if (isKioskPlat && (rawRest?.name || '').toLowerCase().includes('smash')) {
                 bName = 'Smash Me'
             }
 
@@ -3462,21 +3845,12 @@ app.get('/api/dispatch/live', async (req, res) => {
             let channelBadgeColor = 'slate'
 
             if (isKioskPlat) {
-                // Kiosk hardware exists EXCLUSIVELY for Smash Me & Crunch (e.g. Cluj Vivo, Constanța)
-                // Poki Woki, Roll Master, and Love Sushi NEVER have kiosks — they are in-store Casierie (POS)
-                if (bName === 'Smash Me' || bName === 'Crunch') {
-                    normalizedPlatform = 'kiosk'
-                    channelType = 'kiosk'
-                    channelLabel = 'Smart Kiosk'
-                    channelBadgeColor = 'purple'
-                    kioskCount++
-                } else {
-                    normalizedPlatform = 'casierie'
-                    channelType = 'casierie'
-                    channelLabel = 'Casierie (POS)'
-                    channelBadgeColor = 'blue'
-                    casierieCount++
-                }
+                // Respect real Smart Kiosk orders across ALL brands (e.g. SmartKiosk BV-1, SmartKiosk CT, Smash Me, Crunch, Roll Master, Poki Woki)
+                normalizedPlatform = 'kiosk'
+                channelType = 'kiosk'
+                channelLabel = 'Smart Kiosk'
+                channelBadgeColor = 'purple'
+                kioskCount++
             } else if (isCasieriePlat) {
                 normalizedPlatform = 'casierie'
                 channelType = 'casierie'
@@ -3942,37 +4316,50 @@ app.get('/api/stop-events', async (req, res) => {
 })
 
 
-// ─── Image Proxy (evită hotlink protection de pe Wolt/Glovo CDN) ───
+// ─── Image Proxy (evită hotlink protection de pe Wolt/Glovo CDN — strict HTTPS allowlist, anti-SSRF) ───
 app.get('/api/img', async (req, res) => {
     const { url } = req.query
-    if (!url || typeof url !== 'string') return res.status(400).end()
-    // Allow only known CDN domains
-    const allowed = ['wolt.com', 'woltapi.com', 'glovoapp.com', 'deliveryhero.net',
-        'fastly.net', 'cloudfront.net', 'imgix.net', 'foodplatform.net', 'storage.googleapis.com',
-        'cdn.', 'images.', 'media.', 'img.', 'photos.']
-    const isAllowed = allowed.some(d => url.includes(d)) || url.startsWith('https://')
-    if (!isAllowed) return res.status(403).end()
+    if (!url || typeof url !== 'string' || url.length > 2048) return res.status(400).end()
+    let parsed
+    try {
+        parsed = new URL(url)
+    } catch (_) {
+        return res.status(400).end()
+    }
+    if (parsed.protocol !== 'https:') return res.status(403).end()
+    const host = parsed.hostname.toLowerCase()
+    const allowedSuffixes = [
+        'wolt.com', 'woltapi.com', 'glovoapp.com', 'deliveryhero.net',
+        'fastly.net', 'cloudfront.net', 'imgix.net', 'foodplatform.net',
+        'storage.googleapis.com', 'googleusercontent.com', 'supabase.co',
+        'bolt.eu', 'syrve.live', 'iiko.it'
+    ]
+    const isAllowedHost = allowedSuffixes.some(dom => host === dom || host.endsWith(`.${dom}`))
+    if (!isAllowedHost) return res.status(403).end()
     try {
         const REFERERS = {
             wolt: 'https://wolt.com/',
             glovo: 'https://glovoapp.com/',
             bolt: 'https://food.bolt.eu/',
         }
-        const ref = url.includes('wolt') ? REFERERS.wolt : url.includes('glovo') ? REFERERS.glovo : REFERERS.bolt
-        const resp = await fetch(url, {
+        const ref = host.includes('wolt') ? REFERERS.wolt : host.includes('glovo') ? REFERERS.glovo : REFERERS.bolt
+        const resp = await fetch(parsed.toString(), {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/122 Safari/537.36',
                 'Referer': ref,
                 'Accept': 'image/webp,image/avif,image/*,*/*',
                 'Accept-Encoding': 'gzip, deflate, br',
-            }
+            },
+            signal: AbortSignal.timeout(5000)
         })
         if (!resp.ok) return res.status(resp.status).end()
-        const ct = resp.headers.get('content-type') || 'image/jpeg'
-        res.set('Content-Type', ct)
+        const ct = (resp.headers.get('content-type') || '').toLowerCase()
+        if (!ct.startsWith('image/') || ct.includes('svg')) return res.status(415).end()
+        res.set('Content-Type', ct.split(';')[0])
+        res.set('X-Content-Type-Options', 'nosniff')
         res.set('Cache-Control', 'public, max-age=86400')
-        res.set('Access-Control-Allow-Origin', '*')
         const buf = await resp.arrayBuffer()
+        if (buf.byteLength > 5 * 1024 * 1024) return res.status(413).end()
         res.send(Buffer.from(buf))
     } catch (err) {
         res.status(502).end()
@@ -4088,6 +4475,13 @@ app.post('/api/check-restaurant', async (req, res) => {
 // ─── Check ALL restaurants ───
 app.post('/api/check-all', async (req, res) => {
     try {
+        if (global.checkAllStatus?.isRunning) {
+            return res.status(409).json({
+                success: false,
+                error: 'O verificare globală este deja în curs de desfășurare.',
+                status: global.checkAllStatus
+            })
+        }
         console.log('[API] Starting check of ALL restaurants...')
 
         const { data: restaurants, error } = await supabase
@@ -5848,7 +6242,7 @@ Dacă utilizatorul întreabă ceva general, tehnologic sau din afara platformei 
 app.get('/api/reports/verifications', async (req, res) => {
     try {
         const page = Math.max(1, parseInt(req.query.page) || 1);
-        const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 50));
+        const limit = Math.min(1000, Math.max(1, parseInt(req.query.limit) || 50));
         const offset = (page - 1) * limit;
         const citiesParam = String(req.query.cities || '').trim();
         const allowedCitiesSet = citiesParam
@@ -5867,7 +6261,8 @@ app.get('/api/reports/verifications', async (req, res) => {
 
         let data = [];
         let count = 0;
-        if (!error && Array.isArray(rawRows) && rawRows.length > 0) {
+        const dbSucceededWithRows = !error && Array.isArray(rawRows) && rawRows.length > 0;
+        if (dbSucceededWithRows) {
             const cleaned = [];
             for (const row of rawRows) {
                 if (String(row.final_status || '').toLowerCase() === 'error') continue;
@@ -5896,8 +6291,8 @@ app.get('/api/reports/verifications', async (req, res) => {
             data = cleaned.slice(offset, offset + limit);
         }
 
-        if (!data || data.length === 0) {
-            // Fallback to in-memory liveChecks / cache
+        // Only fall back to in-memory liveChecks on DB error/empty table (NEVER leak other cities when scoped result is empty)
+        if (!dbSucceededWithRows) {
             let checks = global.liveChecks || [];
             if (!checks || checks.length === 0) {
                 checks = loadLiveChecksCache();
@@ -5905,14 +6300,20 @@ app.get('/api/reports/verifications', async (req, res) => {
             const { data: rests } = await supabase.from('restaurants').select('id, name, city');
             const restMap = new Map((rests || []).map(r => [r.id, r]));
 
-            const enriched = (checks || []).map((c, idx) => {
-                const r = restMap.get(c.restaurant_id) || {};
+            const enriched = (checks || []).filter(c => {
+                if (String(c.final_status || '').toLowerCase() === 'error') return false;
+                const r = restMap.get(c.restaurant_id) || restMapLocal.get(c.restaurant_id) || {};
+                const rCity = getCanonicalCity(r.city || r.name || '');
+                if (allowedCitiesSet && allowedCitiesSet.size > 0 && !allowedCitiesSet.has(rCity)) return false;
+                return true;
+            }).map((c, idx) => {
+                const r = restMap.get(c.restaurant_id) || restMapLocal.get(c.restaurant_id) || {};
                 return {
                     id: c.id || `chk_${idx}_${c.restaurant_id}_${c.platform}`,
                     checked_at: c.checked_at || new Date().toISOString(),
                     platform: c.platform,
                     final_status: c.final_status || (c.ui_is_open ? 'available' : 'closed'),
-                    ui_error_message: c.ui_error_message || (c.final_status === 'error' ? 'Eroare scanare' : null),
+                    ui_error_message: c.ui_error_message || null,
                     restaurants: {
                         name: r.name || 'Necunoscut',
                         city: r.city || '-'
@@ -6052,12 +6453,31 @@ app.get('/api/own-brands/products', async (req, res) => {
     }
 })
 
-// Detecteaza produsele care au intrat pe STOP (erau ieri, nu sunt azi)
+// Detecteaza produsele care au intrat pe STOP (compatibil atât cu restaurantId cât și cu brand_id)
 app.get('/api/own-brands/stopped-products', async (req, res) => {
     try {
-        const { brand_id } = req.query
+        const { brand_id, restaurantId } = req.query
+        if (restaurantId) {
+            const { data: checks } = await supabase
+                .from('monitoring_checks')
+                .select('platform, missing_products, disabled_categories, checked_at')
+                .eq('restaurant_id', restaurantId)
+                .order('checked_at', { ascending: false })
+                .limit(10)
+            const products = []
+            const seen = new Set()
+            for (const c of (checks || [])) {
+                for (const p of (Array.isArray(c.missing_products) ? c.missing_products : [])) {
+                    const name = typeof p === 'string' ? p : (p?.name || p?.product_name || '')
+                    if (!name || seen.has(`${c.platform}_${name}`)) continue
+                    seen.add(`${c.platform}_${name}`)
+                    products.push({ name, platform: c.platform, checked_at: c.checked_at })
+                }
+            }
+            return res.json({ success: true, count: products.length, products, stopped: products })
+        }
         const stopped = await ownBrandScraper.detectStoppedProducts(brand_id || null)
-        res.json({ success: true, count: stopped.length, stopped })
+        res.json({ success: true, count: stopped.length, products: stopped, stopped })
     } catch (err) {
         console.error('[API] own-brands/stopped-products error:', err.message)
         res.status(500).json({ success: false, error: err.message })
@@ -6074,8 +6494,8 @@ app.get('/api/nomenclature', async (req, res) => {
         const isSmash = server && server.includes('smashme')
         const IIKO_BASE = 'https://api-eu.syrve.live/api/1';
         const apiLogin = isSmash
-            ? '124d0880f4b44717b69ee21d45fc2656'
-            : 'a1fe30cdeb934aa0af01b6a35244b7f0';
+            ? (process.env.SYRVE_SMASHME_API_LOGIN || 'd2879e94add948599051d37154e0ad7d')
+            : '93a34e75123e47b897e390f31ecfa4cb';
 
         const tokenResp = await fetch(`${IIKO_BASE}/access_token`, {
             method: 'POST',
@@ -6178,6 +6598,8 @@ app.put('/api/settings/restaurants/:id', async (req, res) => {
             .single()
 
         if (error) throw error
+        // Invalidate cached restaurant list so updated schedule/settings take effect immediately
+        global.__CACHED_ALL_RESTS = null
         res.json({ success: true, restaurant: data })
     } catch (err) {
         console.error('[API] /api/settings/restaurants/:id error:', err.message)

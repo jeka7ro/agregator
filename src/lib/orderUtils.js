@@ -407,4 +407,76 @@ export function parseDeliveryAddress(rawAddress = '', lang = 'ro') {
   }
 }
 
+// ─── SECURITY & EXPORT SANITIZATION HELPERS ───
+export function escapeHtml(str = '') {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+export function isSafeHttpUrl(url = '') {
+  if (!url || typeof url !== 'string') return false
+  try {
+    const parsed = new URL(url.trim())
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:'
+  } catch (_) {
+    return false
+  }
+}
+
+export function escapeCsvCell(val) {
+  let str = String(val ?? '')
+  // Neutralize CSV/Excel formula injection (OWASP: leading =, +, -, @, tab, CR)
+  if (/^[\t\r]*[=+\-@]/.test(str)) {
+    str = `'${str}`
+  }
+  return `"${str.replace(/"/g, '""')}"`
+}
+
+// ─── RESTAURANT SCHEDULE (EUROPE/BUCHAREST, DEFAULT 10:00–22:00) ───
+export function getRestaurantWorkingHoursStatus(workingHours = null, nowDate = new Date()) {
+  let roH = 12
+  let roM = 0
+  let roTime = '12:00'
+  let dayKey = 'monday'
+  try {
+    const roWall = nowDate.toLocaleString('sv-SE', { timeZone: 'Europe/Bucharest' })
+    roTime = roWall.slice(11, 16)
+    const parts = roTime.split(':').map(Number)
+    roH = parts[0] || 0
+    roM = parts[1] || 0
+    dayKey = nowDate.toLocaleDateString('en-US', { timeZone: 'Europe/Bucharest', weekday: 'long' }).toLowerCase()
+  } catch (_) {
+    roH = nowDate.getHours()
+    roM = nowDate.getMinutes()
+    roTime = `${String(roH).padStart(2, '0')}:${String(roM).padStart(2, '0')}`
+  }
+
+  const wh = (workingHours && typeof workingHours === 'object') ? workingHours : {}
+  let startStr = wh.start || wh.open || null
+  let endStr = wh.end || wh.close || null
+  if (!startStr && !endStr && wh[dayKey] && typeof wh[dayKey] === 'object') {
+    if (wh[dayKey].closed === true) {
+      return { isOpen: false, start: '10:00', end: '22:00', roTime, label: 'Închis azi' }
+    }
+    startStr = wh[dayKey].open || wh[dayKey].start || null
+    endStr = wh[dayKey].close || wh[dayKey].end || null
+  }
+  const effStart = startStr || '10:00'
+  const effEnd = endStr || '22:00'
+  const [sH, sM] = String(effStart).split(':').map(Number)
+  const [eH, eM] = String(effEnd).split(':').map(Number)
+  const nowMin = roH * 60 + roM
+  const startMin = (sH || 10) * 60 + (sM || 0)
+  const endMin = (eH || 22) * 60 + (eM || 0)
+  const isOpen = startMin <= endMin
+    ? (nowMin >= startMin && nowMin < endMin)
+    : (nowMin >= startMin || nowMin < endMin)
+  return { isOpen, start: effStart, end: effEnd, roTime, label: `${effStart}–${effEnd}` }
+}
+
+
 

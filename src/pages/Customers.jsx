@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
 import { useAuth } from '../lib/AuthContext'
+import { getApiUrl } from '../lib/api'
 import PlatformLogo from '../components/PlatformLogo'
 import BrandAvatar from '../components/BrandAvatar'
 import OrderDetailsModal from '../components/OrderDetailsModal'
-import { parseDeliveryAddress, getCityDisplayName } from '../lib/orderUtils'
+import { parseDeliveryAddress, getCityDisplayName, escapeCsvCell } from '../lib/orderUtils'
 import { getProductImage } from '../lib/productImages'
 import {
   Users,
@@ -37,13 +38,18 @@ import {
   Truck
 } from 'lucide-react'
 
-const API_URL = import.meta.env.VITE_WORKER_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3002')
-
 export default function Customers() {
   const { isDark } = useTheme()
   const { language } = useLanguage()
   const { user, canAccessCity, canAccessBrand, hasScopeRestrictions } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
+  const fetchReqIdRef = useRef(0)
+  const isMountedRef = useRef(true)
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => { isMountedRef.current = false }
+  }, [])
 
   const txt = useCallback((ro, ru, en) => {
     if (language === 'ru') return ru
@@ -214,6 +220,7 @@ export default function Customers() {
   }, [search])
 
   const fetchCustomers = useCallback(async () => {
+    const reqId = ++fetchReqIdRef.current
     setLoading(true)
     try {
       const allowedC = (user?.allowed_cities || ['all']).filter(c => c !== 'all')
@@ -232,8 +239,9 @@ export default function Customers() {
         page: String(page),
         limit: String(rowsPerPage)
       })
-      const resp = await fetch(`${API_URL}/api/customers?${params.toString()}`)
+      const resp = await fetch(getApiUrl(`/api/customers?${params.toString()}`))
       const json = await resp.json()
+      if (!isMountedRef.current || reqId !== fetchReqIdRef.current) return
       if (json.success) {
         let list = json.customers || []
         if (hasScopeRestrictions) {
@@ -262,14 +270,18 @@ export default function Customers() {
         }
       }
     } catch (err) {
+      if (!isMountedRef.current || reqId !== fetchReqIdRef.current) return
       console.error('Failed to fetch customers:', err)
     } finally {
-      setLoading(false)
+      if (isMountedRef.current && reqId === fetchReqIdRef.current) setLoading(false)
     }
   }, [cityFilter, brandFilter, platformFilter, segmentFilter, debouncedSearch, sortConfig, page, rowsPerPage, searchParams, setSearchParams, openCustomerModal, user, hasScopeRestrictions, canAccessCity, canAccessBrand])
 
   useEffect(() => {
     fetchCustomers()
+    return () => {
+      fetchReqIdRef.current += 1
+    }
   }, [fetchCustomers])
 
   const handleSort = (key) => {
@@ -284,9 +296,9 @@ export default function Customers() {
     if (syncing) return
     setSyncing(true)
     try {
-      await fetch(`${API_URL}/api/dispatch/live?period=yesterday&refresh=1`)
-      await fetch(`${API_URL}/api/dispatch/live?period=today&refresh=1`)
-      await fetch(`${API_URL}/api/reviews?limit=200`)
+      await fetch(getApiUrl('/api/dispatch/live?period=yesterday&refresh=1'))
+      await fetch(getApiUrl('/api/dispatch/live?period=today&refresh=1'))
+      await fetch(getApiUrl('/api/reviews?limit=200'))
       await fetchCustomers()
       showToast(txt('Baza de clienți și recenziile au fost sincronizate!', 'База клиентов и отзывы синхронизированы!', 'Customer database and reviews synced!'))
     } catch (_) {
@@ -308,7 +320,7 @@ export default function Customers() {
     if (!selectedCustomer || savingEdit) return
     setSavingEdit(true)
     try {
-      const resp = await fetch(`${API_URL}/api/customers/${encodeURIComponent(selectedCustomer.id)}`, {
+      const resp = await fetch(getApiUrl(`/api/customers/${encodeURIComponent(selectedCustomer.id)}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editForm)
@@ -329,9 +341,14 @@ export default function Customers() {
 
   const handleExportCsv = async () => {
     try {
+      const allowedC = (user?.allowed_cities || ['all']).filter(c => c !== 'all')
+      const allowedB = (user?.allowed_brands || ['all']).filter(b => b !== 'all')
+      const effectiveCity = (cityFilter === 'all' && allowedC.length > 0) ? allowedC.join(',') : cityFilter
+      const effectiveBrand = (brandFilter === 'all' && allowedB.length > 0) ? allowedB.join(',') : brandFilter
+
       const params = new URLSearchParams({
-        city: cityFilter,
-        brand: brandFilter,
+        city: effectiveCity,
+        brand: effectiveBrand,
         platform: platformFilter,
         segment: segmentFilter,
         search: debouncedSearch,
@@ -340,9 +357,16 @@ export default function Customers() {
         page: '1',
         limit: '9999'
       })
-      const resp = await fetch(`${API_URL}/api/customers?${params.toString()}`)
+      const resp = await fetch(getApiUrl(`/api/customers?${params.toString()}`))
       const json = await resp.json()
-      const list = json.customers || customers
+      let list = json.customers || customers
+      if (hasScopeRestrictions) {
+        list = list.filter(c => {
+          if (!canAccessCity(c.city)) return false
+          if (Array.isArray(c.brands) && c.brands.length > 0 && !c.brands.some(b => canAccessBrand(b))) return false
+          return true
+        })
+      }
       const headers = [
         'Nr',
         'Nume Client',
@@ -362,7 +386,7 @@ export default function Customers() {
         'VIP',
         'Note'
       ]
-      const escapeCsv = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`
+      const escapeCsv = escapeCsvCell
       const rows = list.map((c, idx) => {
         const parsed = parseDeliveryAddress(c.address || '', 'ro')
         return [
@@ -438,37 +462,29 @@ export default function Customers() {
         </div>
       )}
 
-      {/* ─── 1. TOP HEADER & ACTIONS ─── */}
+      {/* ─── 1. TOP HEADER & ACTIONS — macOS Tahoe Calm Header ─── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold border border-emerald-500/20">
-            <Users size={17} />
-          </div>
-          <div>
-            <h1 className={`text-base sm:text-lg font-bold tracking-tight uppercase ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              {txt('Bază de Date Clienți · CRM & Recenzii', 'База Данных Клиентов · CRM и Отзывы', 'Customer Database · CRM & Reviews')}
-            </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              {txt(
-                'Clienți reali salvați automat din comenzile Syrve / iiko, Glovo, Wolt, Bolt Food și legați cu recenziile din Reputație',
-                'Реальные клиенты из заказов Syrve / iiko, Glovo, Wolt, Bolt Food, связанные с отзывами',
-                'Real customers saved from Syrve / iiko, Glovo, Wolt, Bolt Food orders and linked with Reputation reviews'
-              )}
-            </p>
-          </div>
+        <div>
+          <h1 className="text-[20px] font-semibold tracking-[-0.02em] text-[#1D1D1F] dark:text-[#F5F5F7]">
+            {txt('Bază de Date Clienți · CRM & Recenzii', 'База клиентов · CRM и Отзывы', 'Customer Database · CRM & Reviews')}
+          </h1>
+          <p className="text-xs text-[#636366] dark:text-[#AEAEB2] mt-0.5">
+            {txt(
+              'Clienți reali salvați automat din comenzile Syrve / iiko, Glovo, Wolt, Bolt Food și legați cu recenziile din Reputație',
+              'Реальные клиенты из заказов Syrve / iiko, Glovo, Wolt, Bolt Food, связанные с отзывами',
+              'Real customers saved from Syrve / iiko, Glovo, Wolt, Bolt Food orders and linked with Reputation reviews'
+            )}
+          </p>
         </div>
 
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
+            type="button"
             onClick={handleSyncFromOrders}
             disabled={syncing}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
-              isDark
-                ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
-                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-xs'
-            }`}
+            className="apple-btn-secondary"
           >
-            <RefreshCw size={13} className={syncing ? 'animate-spin text-emerald-500' : ''} />
+            <RefreshCw size={13} className={syncing ? 'animate-spin text-[#047857]' : ''} />
             <span>
               {syncing
                 ? txt('Sincronizare...', 'Синхронизация...', 'Syncing...')
@@ -477,8 +493,9 @@ export default function Customers() {
           </button>
 
           <button
+            type="button"
             onClick={handleExportCsv}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-all flex items-center gap-1.5 cursor-pointer"
+            className="apple-btn-primary"
           >
             <Download size={13} />
             <span>{txt('Export CSV', 'Экспорт CSV', 'Export CSV')}</span>
@@ -614,10 +631,9 @@ export default function Customers() {
           </div>
         </div>
 
-        {/* Unified Filter Bar: City, Brand, Segment Tabs & Platform Pills */}
+        {/* Unified Filter Bar: Apple Segmented Control + Dropdowns */}
         <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {/* Segment Pills */}
+          <div role="group" className="apple-segmented max-w-full overflow-x-auto">
             {[
               { id: 'all', label: txt('Toți Clienții', 'Все Клиенты', 'All Customers'), count: kpis.total_customers },
               { id: 'with_reviews', label: txt('Cu Recenzii', 'С Отзывами', 'With Reviews'), count: kpis.with_reviews_count || 0 },
@@ -630,21 +646,14 @@ export default function Customers() {
               return (
                 <button
                   key={seg.id}
+                  type="button"
                   onClick={() => { setSegmentFilter(seg.id); setPage(1) }}
-                  className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer select-none ${
-                    active
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : isDark
-                        ? 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white'
-                        : 'bg-slate-100 hover:bg-slate-200/80 text-slate-700 hover:text-slate-900'
+                  className={`apple-segment !h-[26px] !px-2.5 !text-[11px] select-none ${
+                    active ? 'apple-segment-active' : ''
                   }`}
                 >
                   <span>{seg.label}</span>
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] tabular-nums font-bold ${
-                    active
-                      ? 'bg-white/20 text-white'
-                      : isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600'
-                  }`}>
+                  <span className="text-[10px] tabular-nums text-[#636366] dark:text-[#8E8E93]">
                     {seg.count}
                   </span>
                 </button>
@@ -994,9 +1003,9 @@ export default function Customers() {
                         {cust.last_order_at ? (
                           <div>
                             <div className="text-xs font-bold text-slate-800 dark:text-slate-200 tabular-nums">
-                              {new Date(cust.last_order_at).toLocaleDateString('ro-RO', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                              {new Date(cust.last_order_at).toLocaleDateString('ro-RO', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })}
                               {' · '}
-                              {new Date(cust.last_order_at).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
+                              {new Date(cust.last_order_at).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}
                             </div>
                             {lastOrder && (
                               <button
@@ -1204,82 +1213,78 @@ export default function Customers() {
         </div>
       </div>
 
-      {/* ─── 4. DOSAR COMPLET CLIENT (360° FULL CUSTOMER DETAILS: PROFIL, ADRESĂ, RECENZII, COMENZI & PRODUSE) ─── */}
+      {/* ─── 4. DOSAR COMPLET CLIENT 360° (MACOS TAHOE SHEET) ─── */}
       {selectedCustomer && (
         <div
+          role="dialog"
+          aria-modal="true"
           onClick={closeCustomerModal}
-          className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-40 flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200"
+          onKeyDown={(e) => { if (e.key === 'Escape') closeCustomerModal() }}
+          tabIndex={-1}
+          className="fixed inset-0 apple-sheet-backdrop z-40 flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-150"
         >
           <div
             onClick={e => e.stopPropagation()}
-            className={`w-full max-w-4xl max-h-[92vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden ${
-              isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-            }`}
+            className="apple-sheet w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
           >
-            {/* Top Sticky Header */}
-            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            {/* Liquid Glass Sticky Header */}
+            <div className="apple-sheet-header px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-3 min-w-0">
                 {selectedCustomer.avatar_url ? (
                   <img
                     src={selectedCustomer.avatar_url}
                     alt={selectedCustomer.name}
                     referrerPolicy="no-referrer"
-                    className="w-11 h-11 rounded-2xl object-cover border border-emerald-500/30 shrink-0"
+                    className="w-10 h-10 rounded-xl object-cover border border-black/10 dark:border-white/15 shrink-0"
                   />
                 ) : (
-                  <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 text-emerald-500 border border-emerald-500/25 flex items-center justify-center font-black text-sm shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-[#047857]/12 text-[#047857] dark:text-[#10B981] flex items-center justify-center font-semibold text-sm shrink-0">
                     {String(selectedCustomer.name || 'C').slice(0, 2).toUpperCase()}
                   </div>
                 )}
 
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-base sm:text-lg font-black tracking-tight truncate">
+                    <h3 className="text-[16px] font-semibold tracking-tight text-slate-900 dark:text-white truncate">
                       {selectedCustomer.name}
                     </h3>
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30">
+                    <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#047857]/12 text-[#047857] dark:text-[#10B981]">
                       {getCityDisplayName(selectedCustomer.city || '—')}
                     </span>
                     {(selectedCustomer.is_vip || (selectedCustomer.orders_count || 0) >= 3 || (selectedCustomer.total_spent || 0) >= 300) && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400">
                         <Star size={10} className="fill-current" />
                         <span>VIP</span>
                       </span>
                     )}
                     {(selectedCustomer.reviews_count || (selectedCustomer.reviews || []).length) > 0 && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-emerald-500/12 text-emerald-700 dark:text-emerald-400">
                         <Star size={10} className="fill-current" />
-                        <span>{selectedCustomer.avg_rating || '5.0'}/5 ({selectedCustomer.reviews_count || (selectedCustomer.reviews || []).length} {txt('recenzii', 'отзывов', 'reviews')})</span>
+                        <span>{selectedCustomer.avg_rating || '5.0'}/5 ({selectedCustomer.reviews_count || (selectedCustomer.reviews || []).length})</span>
                       </span>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400 flex-wrap tabular-nums">
+                  <div className="flex items-center gap-3 mt-0.5 text-[12px] text-slate-500 dark:text-slate-400 flex-wrap tabular-nums">
                     {selectedCustomer.phone && (
-                      <span className="inline-flex items-center gap-1 font-bold text-slate-700 dark:text-slate-200">
-                        <Phone size={11} className="text-emerald-500" />
+                      <span className="inline-flex items-center gap-1 font-medium text-slate-700 dark:text-slate-200">
+                        <Phone size={11} className="text-[#047857] dark:text-[#10B981]" />
                         <span>{selectedCustomer.phone}</span>
-                        <span className="text-[10px] font-sans font-semibold text-slate-400">
+                        <span className="text-[11px] text-slate-400">
                           ({selectedCustomer.is_direct_phone ? txt('Mobil Direct', 'Прямой моб.', 'Direct Mobile') : txt('Centrală Agregator', 'Колл-центр', 'Aggregator Proxy')})
                         </span>
                       </span>
                     )}
-                    <span>ID: {selectedCustomer.id}</span>
+                    <span className="text-[11px]">ID: {selectedCustomer.id}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowEditPanel(prev => !prev)}
-                  className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors ${
-                    showEditPanel
-                      ? 'bg-emerald-600 text-white border-emerald-600'
-                      : isDark
-                        ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
-                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
-                  }`}
+                  className={showEditPanel ? 'apple-btn-primary !h-8 !px-3' : 'apple-btn-secondary !h-8 !px-3'}
                 >
                   <Edit3 size={13} />
                   <span>{txt('Editează Profil / Note', 'Редактировать Профиль', 'Edit Profile / Notes')}</span>
@@ -1288,61 +1293,62 @@ export default function Customers() {
                 <button
                   type="button"
                   onClick={closeCustomerModal}
-                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                  aria-label="Close"
+                  className="apple-sheet-close"
                 >
-                  <X size={16} />
+                  <X size={15} />
                 </button>
               </div>
             </div>
 
             {/* Scrollable Body of Full Customer Dossier */}
-            <div className="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1 custom-scrollbar">
+            <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1 custom-scrollbar">
               {/* 4 Summary KPI Boxes for this Customer */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                <div className={`p-3 rounded-2xl border ${isDark ? 'bg-slate-800/50 border-slate-700/80' : 'bg-slate-50 border-slate-200'}`}>
-                  <span className="text-[10px] font-bold uppercase text-slate-400 block">
-                    {txt('Total Comenzi', 'Всего Заказов', 'Total Orders')}
+                <div className="apple-inset-card p-3">
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
+                    {txt('Total Comenzi', 'Всего заказов', 'Total Orders')}
                   </span>
-                  <div className="text-lg font-black tabular-nums text-slate-900 dark:text-white mt-0.5">
+                  <div className="text-[18px] font-bold tabular-nums text-slate-900 dark:text-white mt-0.5">
                     {selectedCustomer.orders_count || 1}
                   </div>
-                  <div className="text-[10px] text-slate-400">
+                  <div className="text-[11px] text-slate-400 truncate">
                     {(selectedCustomer.brands || []).join(', ')}
                   </div>
                 </div>
 
-                <div className={`p-3 rounded-2xl border ${isDark ? 'bg-slate-800/50 border-slate-700/80' : 'bg-slate-50 border-slate-200'}`}>
-                  <span className="text-[10px] font-bold uppercase text-slate-400 block">
-                    {txt('Total Cheltuit', 'Всего Потрачено', 'Total Spent')}
+                <div className="apple-inset-card p-3">
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
+                    {txt('Total Cheltuit', 'Всего потрачено', 'Total Spent')}
                   </span>
-                  <div className="text-lg font-black tabular-nums text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  <div className="text-[18px] font-bold tabular-nums text-emerald-700 dark:text-emerald-400 mt-0.5">
                     {formatMoney(selectedCustomer.total_spent)}
                   </div>
-                  <div className="text-[10px] text-slate-400">
+                  <div className="text-[11px] text-slate-400 tabular-nums">
                     {txt('Bon mediu:', 'Средний чек:', 'Avg order:')} {formatMoney(selectedCustomer.avg_order_value || selectedCustomer.total_spent)}
                   </div>
                 </div>
 
-                <div className={`p-3 rounded-2xl border ${isDark ? 'bg-slate-800/50 border-slate-700/80' : 'bg-slate-50 border-slate-200'}`}>
-                  <span className="text-[10px] font-bold uppercase text-slate-400 block">
-                    {txt('Recenzii Client', 'Отзывы Клиента', 'Customer Reviews')}
+                <div className="apple-inset-card p-3">
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
+                    {txt('Recenzii Client', 'Отзывы клиента', 'Customer Reviews')}
                   </span>
-                  <div className="text-lg font-black tabular-nums text-amber-500 mt-0.5">
+                  <div className="text-[18px] font-bold tabular-nums text-amber-600 dark:text-amber-400 mt-0.5">
                     {(selectedCustomer.reviews || []).length > 0
                       ? `${selectedCustomer.avg_rating || '5.0'} / 5`
                       : '—'}
                   </div>
-                  <div className="text-[10px] text-slate-400">
+                  <div className="text-[11px] text-slate-400">
                     {(selectedCustomer.reviews || []).length} {txt('recenzii înregistrate', 'отзывов в базе', 'recorded reviews')}
                   </div>
                 </div>
 
-                <div className={`p-3 rounded-2xl border ${isDark ? 'bg-slate-800/50 border-slate-700/80' : 'bg-slate-50 border-slate-200'}`}>
-                  <span className="text-[10px] font-bold uppercase text-slate-400 block">
-                    {txt('Ultima Activitate', 'Последняя Активность', 'Last Activity')}
+                <div className="apple-inset-card p-3">
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
+                    {txt('Ultima Activitate', 'Последняя активность', 'Last Activity')}
                   </span>
-                  <div className="text-xs font-black tabular-nums text-slate-900 dark:text-white mt-1">
-                    {selectedCustomer.last_order_at ? new Date(selectedCustomer.last_order_at).toLocaleString('ro-RO') : '—'}
+                  <div className="text-[13px] font-semibold tabular-nums text-slate-900 dark:text-white mt-1">
+                    {selectedCustomer.last_order_at ? new Date(selectedCustomer.last_order_at).toLocaleString('ro-RO', { timeZone: 'UTC' }) : '—'}
                   </div>
                   <div className="flex items-center gap-1.5 mt-1">
                     {(selectedCustomer.platforms || []).map(p => (
@@ -1676,7 +1682,7 @@ export default function Customers() {
                             </div>
                             <span className="text-xs text-slate-400 tabular-nums flex items-center gap-1">
                               <Clock size={12} />
-                              {ro.placed_at ? new Date(ro.placed_at).toLocaleString('ro-RO') : ''}
+                              {ro.placed_at ? new Date(ro.placed_at).toLocaleString('ro-RO', { timeZone: 'UTC' }) : ''}
                             </span>
                           </div>
 
@@ -1819,25 +1825,28 @@ export default function Customers() {
         onClose={() => setSelectedOrderModal(null)}
       />
 
-      {/* ─── 6. LIGHTBOX PENTRU POZELE DIN RECENZII ─── */}
+      {/* ─── 6. LIGHTBOX MACOS TAHOE PENTRU POZELE DIN RECENZII ─── */}
       {lightboxPhoto && (
         <div
+          role="dialog"
+          aria-modal="true"
           onClick={() => setLightboxPhoto(null)}
-          className="fixed inset-0 z-60 bg-black/85 backdrop-blur-xs flex items-center justify-center p-4"
+          className="fixed inset-0 z-60 apple-sheet-backdrop flex items-center justify-center p-4 animate-in fade-in duration-150"
         >
-          <div className="relative max-w-3xl max-h-[88vh]">
+          <div className="relative max-w-3xl max-h-[88vh]" onClick={e => e.stopPropagation()}>
             <button
               type="button"
               onClick={() => setLightboxPhoto(null)}
-              className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-slate-900 text-white border border-slate-700 flex items-center justify-center cursor-pointer"
+              aria-label="Close"
+              className="apple-sheet-close absolute top-3 right-3 z-10 !bg-black/60 !text-white hover:!bg-black/80"
             >
-              <X size={16} />
+              <X size={15} />
             </button>
             <img
               src={lightboxPhoto}
               alt="Review zoom"
               referrerPolicy="no-referrer"
-              className="max-w-full max-h-[85vh] rounded-2xl object-contain border border-slate-700 shadow-2xl"
+              className="max-w-full max-h-[85vh] rounded-[20px] object-contain shadow-2xl border border-white/15"
             />
           </div>
         </div>

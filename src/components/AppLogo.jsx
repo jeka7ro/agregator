@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useId } from 'react'
 
 /**
  * 6 REVOLUTIONARY & HIGHLY REPRESENTATIVE LOGO CONCEPTS
@@ -64,6 +64,7 @@ export const LOGO_OPTIONS = [
 ]
 
 export function LogoIcon({ variant = 'radar', size = 36, className = '' }) {
+  const uid = useId().replace(/:/g, '')
   // Option 1: Food + Courier Pin
   if (variant === 'kitchen-pin') {
     return (
@@ -118,8 +119,11 @@ export function LogoIcon({ variant = 'radar', size = 36, className = '' }) {
     )
   }
 
-  // Option 2: Radar Live Dispatch (Animated Smooth Live Radar)
+  // Option 2: Radar Live Dispatch — Apple macOS Tahoe 26 Layered Emerald Glass Squircle
   if (variant === 'radar') {
+    const bgId = `rd-bg-${uid}`
+    const rimId = `rd-rim-${uid}`
+    const swId = `rd-sw-${uid}`
     return (
       <svg
         width={size}
@@ -127,105 +131,46 @@ export function LogoIcon({ variant = 'radar', size = 36, className = '' }) {
         viewBox="0 0 48 48"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className={`shrink-0 drop-shadow-sm transition-transform duration-300 group-hover:scale-105 hover:scale-105 ${className}`}
+        className={`shrink-0 drop-shadow-[0_2px_6px_rgba(4,120,87,0.30)] transition-transform duration-300 group-hover:scale-[1.03] ${className}`}
       >
         <defs>
-          <linearGradient id="rd-bg" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#047857" />
-            <stop offset="100%" stopColor="#0f172a" />
+          <linearGradient id={bgId} x1="6" y1="2" x2="42" y2="46" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#10B981" />
+            <stop offset="52%" stopColor="#047857" />
+            <stop offset="100%" stopColor="#022C22" />
           </linearGradient>
-          <linearGradient id="rd-sweep" x1="24" y1="7" x2="38" y2="20" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#34d399" stopOpacity="0.88" />
-            <stop offset="55%" stopColor="#10b981" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="#06b6d4" stopOpacity="0" />
+          <linearGradient id={rimId} x1="24" y1="1" x2="24" y2="47" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.48" />
+            <stop offset="45%" stopColor="#FFFFFF" stopOpacity="0.06" />
+            <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.16" />
+          </linearGradient>
+          <linearGradient id={swId} x1="24" y1="8" x2="39" y2="23" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="#6EE7B7" stopOpacity="0" />
           </linearGradient>
           <style>{`
-            @keyframes agRadarSweep {
+            @keyframes agTahoeRadarSweep {
               0% { transform: rotate(0deg); }
               100% { transform: rotate(360deg); }
             }
-            @keyframes agRadarRingReverse {
-              0% { transform: rotate(360deg); }
-              100% { transform: rotate(0deg); }
-            }
-            @keyframes agRadarPing {
-              0%, 100% { opacity: 0.35; transform: scale(0.85); }
-              50% { opacity: 1; transform: scale(1.22); }
-            }
-            @keyframes agRadarCoreRipple {
-              0% { r: 3.5px; opacity: 0.75; }
-              100% { r: 15px; opacity: 0; }
-            }
-            .ag-radar-sweep {
+            .ag-tahoe-radar-sweep {
               transform-origin: 24px 24px;
-              animation: agRadarSweep 4.2s linear infinite;
+              animation: agTahoeRadarSweep 5.5s linear infinite;
             }
-            .ag-radar-outer-ring {
-              transform-origin: 24px 24px;
-              animation: agRadarRingReverse 20s linear infinite;
-            }
-            .ag-radar-ping-1 {
-              transform-origin: 32px 18px;
-              animation: agRadarPing 2.8s ease-in-out infinite;
-            }
-            .ag-radar-ping-2 {
-              transform-origin: 16px 29px;
-              animation: agRadarPing 2.8s ease-in-out 0.9s infinite;
-            }
-            .ag-radar-ping-3 {
-              transform-origin: 30px 31px;
-              animation: agRadarPing 2.8s ease-in-out 1.8s infinite;
-            }
-            .ag-radar-ripple {
-              animation: agRadarCoreRipple 3.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+            @media (prefers-reduced-motion: reduce) {
+              .ag-tahoe-radar-sweep { animation: none; }
             }
           `}</style>
         </defs>
-        <rect width="48" height="48" rx="14" fill="url(#rd-bg)" />
-
-        {/* Concentric radar rings */}
-        <circle
-          cx="24"
-          cy="24"
-          r="17"
-          stroke="#10b981"
-          strokeOpacity="0.3"
-          strokeWidth="1.2"
-          strokeDasharray="3 3"
-          className="ag-radar-outer-ring"
-        />
-        <circle cx="24" cy="24" r="11" stroke="#10b981" strokeOpacity="0.4" strokeWidth="1.2" />
-        <circle cx="24" cy="24" r="5" stroke="#34d399" strokeOpacity="0.6" strokeWidth="1.4" />
-
-        {/* Expanding sonar pulse ripple from center */}
-        <circle
-          cx="24"
-          cy="24"
-          r="4"
-          stroke="#34d399"
-          strokeWidth="1.1"
-          fill="none"
-          className="ag-radar-ripple"
-        />
-
-        {/* Crosshair grid */}
-        <line x1="24" y1="6" x2="24" y2="42" stroke="#10b981" strokeOpacity="0.2" strokeWidth="1" />
-        <line x1="6" y1="24" x2="42" y2="24" stroke="#10b981" strokeOpacity="0.2" strokeWidth="1" />
-
-        {/* Smooth rotating radar sweep sector + leading laser line */}
-        <g className="ag-radar-sweep">
-          <path d="M24 24L38.5 13A17 17 0 0 0 24 7Z" fill="url(#rd-sweep)" />
-          <line x1="24" y1="24" x2="24" y2="7" stroke="#6ee7b7" strokeOpacity="0.9" strokeWidth="1.3" strokeLinecap="round" />
+        <rect x="1" y="1" width="46" height="46" rx="11.5" fill={`url(#${bgId})`} />
+        <rect x="1.5" y="1.5" width="45" height="45" rx="11" stroke={`url(#${rimId})`} strokeWidth="1" />
+        <circle cx="24" cy="24" r="14.5" stroke="#FFFFFF" strokeOpacity="0.22" strokeWidth="1.4" />
+        <circle cx="24" cy="24" r="8.5" stroke="#FFFFFF" strokeOpacity="0.34" strokeWidth="1.4" />
+        <g className="ag-tahoe-radar-sweep">
+          <path d="M24 24L35.5 15.2A14.5 14.5 0 0 0 24 9.5Z" fill={`url(#${swId})`} />
+          <line x1="24" y1="24" x2="24" y2="9.5" stroke="#FFFFFF" strokeOpacity="0.88" strokeWidth="1.5" strokeLinecap="round" />
         </g>
-
-        {/* Glowing animated order pings on radar */}
-        <circle cx="32" cy="18" r="2.1" fill="#38bdf8" className="ag-radar-ping-1" />
-        <circle cx="16" cy="29" r="1.7" fill="#34d399" className="ag-radar-ping-2" />
-        <circle cx="30" cy="31" r="1.9" fill="#fbbf24" className="ag-radar-ping-3" />
-
-        {/* Active pulsing core */}
-        <circle cx="24" cy="24" r="3.2" fill="#ffffff" />
-        <circle cx="24" cy="24" r="1.6" fill="#10b981" />
+        <circle cx="24" cy="24" r="3.4" fill="#FFFFFF" />
       </svg>
     )
   }
@@ -430,9 +375,14 @@ export default function AppLogo({
 
       {showText && (
         <div className="min-w-0 text-left flex items-center">
-          <h1 className={`${isLarge ? 'text-2xl' : 'text-lg'} font-black tracking-tight leading-none truncate transition-colors duration-200 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            GetApp<span className="text-[#047857] dark:text-[#10b981] font-black">.</span>F<span className="text-[#047857] dark:text-[#10b981] font-black">oo</span>D
-          </h1>
+          <span
+            className={`${isLarge ? 'text-[26px]' : 'text-[17.5px]'} tracking-[-0.03em] leading-none truncate transition-colors duration-200`}
+            style={{ fontFeatureSettings: '"kern" 1, "liga" 1' }}
+          >
+            <span className={`font-semibold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>GetApp</span>
+            <span className="font-bold text-[#047857] dark:text-[#34D399]">.</span>
+            <span className={`font-normal ${isDark ? 'text-[#AEAEB2]' : 'text-[#48484A]'}`}>Food</span>
+          </span>
         </div>
       )}
     </div>

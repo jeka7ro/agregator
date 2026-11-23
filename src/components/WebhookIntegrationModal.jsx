@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { 
   X, 
   Webhook, 
@@ -18,32 +18,48 @@ import {
 } from 'lucide-react'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
+import { useAuth } from '../lib/AuthContext'
 import PlatformLogo from './PlatformLogo'
-import BrandAvatar, { cleanRestaurantName } from './BrandAvatar'
+import BrandAvatar, { cleanRestaurantName, getBrandInfo } from './BrandAvatar'
 import OrderDetailsModal from './OrderDetailsModal'
 import { getApiUrl } from '../lib/api'
-import { formatDisplayOrderNumber } from '../lib/orderUtils'
+import { formatDisplayOrderNumber, getCanonicalCity } from '../lib/orderUtils'
 
 export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTriggered }) {
   const { isDark } = useTheme()
   const { t, language } = useLanguage()
+  const { user, canAccessCity, canAccessBrand, canAccessRestaurant, hasScopeRestrictions } = useAuth()
+  const isAdmin = user?.role === 'admin'
 
   const [activeTab, setActiveTab] = useState('orders') // 'orders' | 'endpoints'
   const [copiedKey, setCopiedKey] = useState(null)
   
   // Live orders data
-  const [orders, setOrders] = useState([])
+  const [rawOrders, setRawOrders] = useState([])
   const [loadingOrders, setLoadingOrders] = useState(false)
   const [selectedPlatform, setSelectedPlatform] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [activeOrderModal, setActiveOrderModal] = useState(null)
+
+  const orders = useMemo(() => {
+    if (!hasScopeRestrictions) return rawOrders
+    return (rawOrders || []).filter(o => {
+      const oCity = getCanonicalCity(o.restaurant_city || o.city || o.restaurant_name || '')
+      const oBrand = o.brand_name || o.brand || getBrandInfo({ name: o.restaurant_name, brand: o.brand_name })?.name || ''
+      if (!canAccessCity(oCity || o.restaurant_city || o.restaurant_name)) return false
+      if (!canAccessBrand(oBrand || o.restaurant_name)) return false
+      if (o.restaurant_id && !canAccessRestaurant(o.restaurant_id)) return false
+      return true
+    })
+  }, [rawOrders, hasScopeRestrictions, canAccessCity, canAccessBrand, canAccessRestaurant])
+
   const fetchOrders = () => {
     setLoadingOrders(true)
     fetch(getApiUrl('/api/webhooks/orders?limit=100'))
       .then(r => r.json())
       .then(d => {
         if (d.success && Array.isArray(d.orders)) {
-          setOrders(d.orders)
+          setRawOrders(d.orders)
         }
       })
       .catch(console.error)
@@ -52,14 +68,36 @@ export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTrig
 
   useEffect(() => {
     if (isOpen) {
+      if (!isAdmin && activeTab !== 'orders') setActiveTab('orders')
       fetchOrders()
     }
-  }, [isOpen])
+  }, [isOpen, isAdmin])
 
-  // Auto-refresh orders every 15 seconds if modal is open
+  // Escape key dismissal (respect nested OrderDetailsModal)
+  useEffect(() => {
+    if (!isOpen) return
+    const onKey = (e) => {
+      if (e.key === 'Escape' && !activeOrderModal) onClose?.()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isOpen, activeOrderModal, onClose])
+
+  // Auto-refresh orders every 15 seconds if modal is open (respects hidden tab & 22:00-10:00 Bucharest blackout)
   useEffect(() => {
     if (!isOpen || activeTab !== 'orders') return
     const timer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return
+      try {
+        const roHour = Number(
+          new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Europe/Bucharest',
+            hour: '2-digit',
+            hour12: false
+          }).format(new Date())
+        )
+        if (roHour >= 22 || roHour < 10) return
+      } catch (_) {}
       fetchOrders()
     }, 15000)
     return () => clearInterval(timer)
@@ -90,17 +128,18 @@ export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTrig
     const p = (o.platform || '').toLowerCase()
     return p.includes('casierie') || p.includes('pos') || p === 'restaurant' || p === 'in-store'
   }).length
+  const hasOrders = orders.length > 0
   const totalCount = orders.length || 1
-  const glovoPct = Math.round((glovoCount / totalCount) * 100)
-  const woltPct = Math.round((woltCount / totalCount) * 100)
-  const boltPct = Math.round((boltCount / totalCount) * 100)
-  const kioskPct = Math.round((kioskCount / totalCount) * 100)
-  const casieriePct = Math.max(0, 100 - (glovoPct + woltPct + boltPct + kioskPct))
+  const glovoPct = hasOrders ? Math.round((glovoCount / totalCount) * 100) : 0
+  const woltPct = hasOrders ? Math.round((woltCount / totalCount) * 100) : 0
+  const boltPct = hasOrders ? Math.round((boltCount / totalCount) * 100) : 0
+  const kioskPct = hasOrders ? Math.round((kioskCount / totalCount) * 100) : 0
+  const casieriePct = hasOrders ? Math.max(0, 100 - (glovoPct + woltPct + boltPct + kioskPct)) : 0
   const deliveryTotal = glovoCount + woltCount + boltCount
-  const deliveryPct = Math.round((deliveryTotal / totalCount) * 100)
+  const deliveryPct = hasOrders ? Math.round((deliveryTotal / totalCount) * 100) : 0
   const localTotal = kioskCount + casierieCount
-  const localPct = Math.max(0, 100 - deliveryPct)
-  const avgTicket = orders.length > 0 ? (totalRevenue / orders.length).toFixed(2) : '0.00'
+  const localPct = hasOrders ? Math.max(0, 100 - deliveryPct) : 0
+  const avgTicket = hasOrders ? (totalRevenue / orders.length).toFixed(2) : '0.00'
 
   // Filter orders
   const filteredOrders = orders.filter(o => {
@@ -126,117 +165,113 @@ export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTrig
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-200">
-      <div 
-        className={`w-full max-w-4xl rounded-3xl shadow-2xl border flex flex-col max-h-[92vh] overflow-hidden ${
-          isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'
-        }`}
+    <>
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 apple-sheet-backdrop animate-in fade-in duration-150"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="apple-sheet w-full max-w-4xl flex flex-col max-h-[90vh] overflow-hidden"
       >
-        {/* HEADER MODAL */}
-        <div className="p-5 sm:p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-xs">
-              <Webhook size={22} />
+        {/* LIQUID GLASS HEADER */}
+        <div className="apple-sheet-header px-5 py-3.5 flex items-center justify-between gap-4 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-[#047857]/12 dark:bg-[#10B981]/15 text-[#047857] dark:text-[#10B981] flex items-center justify-center shrink-0">
+              <Webhook size={20} />
             </div>
-            <div>
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-[16px] font-semibold tracking-tight text-slate-900 dark:text-white truncate">
                   {t('webhooks.modal_title', 'Webhooks & Comenzi Live (iiko, Wolt, Bolt, Glovo)')}
                 </h3>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/12 text-emerald-700 dark:text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                   {t('webhooks.ready_badge', 'Live Stream Activ')}
                 </span>
               </div>
-              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 font-medium">
+              <p className="text-[12px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
                 {t('webhooks.modal_subtitle', 'Flux continuu de comenzi și alerte operaționale în timp real')}
               </p>
             </div>
           </div>
-          <button 
+          <button
+            type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            aria-label="Close"
+            className="apple-sheet-close"
           >
-            <X size={20} />
+            <X size={15} />
           </button>
         </div>
 
-        {/* NAVIGATION TABS */}
-        <div className="px-6 pt-3 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2 bg-slate-50/80 dark:bg-slate-900/50">
-          <button
-            onClick={() => setActiveTab('orders')}
-            className={`pb-3 px-4 text-xs sm:text-sm font-bold transition-all relative flex items-center gap-2 cursor-pointer ${
-              activeTab === 'orders'
-                ? 'text-emerald-700 dark:text-emerald-400 font-extrabold'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <ShoppingBag size={15} />
-            <span>{t('webhooks.tab_orders', 'Comenzi & Vânzări Live')}</span>
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-emerald-600 text-white dark:bg-emerald-500/20 dark:text-emerald-400">
-              {orders.length}
-            </span>
-            {activeTab === 'orders' && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 dark:bg-emerald-500 rounded-full"></span>
-            )}
-          </button>
+        {/* APPLE SEGMENTED NAVIGATION TABS */}
+        <div className="px-5 py-2.5 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center shrink-0">
+          <div className="apple-segmented">
+            <button
+              type="button"
+              onClick={() => setActiveTab('orders')}
+              className={`apple-segment ${activeTab === 'orders' ? 'apple-segment-active' : ''}`}
+            >
+              <ShoppingBag size={13} />
+              <span>{t('webhooks.tab_orders', 'Comenzi & Vânzări Live')}</span>
+              <span className="px-1.5 rounded-full text-[10px] font-semibold tabular-nums bg-black/[0.06] dark:bg-white/12 text-slate-700 dark:text-slate-200">
+                {orders.length}
+              </span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('endpoints')}
-            className={`pb-3 px-4 text-xs sm:text-sm font-bold transition-all relative flex items-center gap-2 cursor-pointer ${
-              activeTab === 'endpoints'
-                ? 'text-emerald-700 dark:text-emerald-400 font-extrabold'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Layers size={15} />
-            <span>{t('webhooks.tab_endpoints', 'Adrese Webhook Oficiale')}</span>
-            {activeTab === 'endpoints' && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 dark:bg-emerald-500 rounded-full"></span>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('endpoints')}
+                className={`apple-segment ${activeTab === 'endpoints' ? 'apple-segment-active' : ''}`}
+              >
+                <Layers size={13} />
+                <span>{t('webhooks.tab_endpoints', 'Adrese Webhook Oficiale')}</span>
+              </button>
             )}
-          </button>
+          </div>
         </div>
 
         {/* CONTENT BODY */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-6 text-sm flex-1">
+        <div className="p-5 overflow-y-auto space-y-5 text-sm flex-1 custom-scrollbar">
           
           {/* TAB 1: COMENZI & VÂNZĂRI LIVE */}
           {activeTab === 'orders' && (
-            <div className="space-y-5 animate-in fade-in duration-200">
+            <div className="space-y-4">
               {/* Top Banner KPI Strip */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className={`p-4 rounded-2xl border transition-all ${isDark ? 'bg-slate-800/60 border-slate-700/80 shadow-xs' : 'bg-white border-slate-200/90 shadow-2xs'}`}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                <div className="apple-inset-card p-3.5">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400">
                       {t('webhooks.orders_today', 'Comenzi Astăzi')}
                     </span>
-                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                      <ShoppingBag size={16} />
+                    <div className="w-7 h-7 rounded-lg bg-[#047857]/12 text-[#047857] dark:text-[#10B981] flex items-center justify-center">
+                      <ShoppingBag size={14} />
                     </div>
                   </div>
-                  <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                    {orders.length} <span className="text-xs font-bold text-slate-400">comenzi</span>
+                  <div className="text-[24px] font-bold text-slate-900 dark:text-white tracking-tight tabular-nums">
+                    {orders.length} <span className="text-xs font-medium text-slate-400">comenzi</span>
                   </div>
-                  <div className="text-xs text-emerald-700 dark:text-emerald-400 font-bold flex items-center gap-1.5 mt-2">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                    <span>Bon mediu: <strong>{avgTicket} RON</strong></span>
+                  <div className="text-[11.5px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-1 tabular-nums">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span>Bon mediu: <strong className="text-slate-800 dark:text-slate-200">{avgTicket} RON</strong></span>
                   </div>
                 </div>
 
-                <div className={`p-4 rounded-2xl border transition-all ${isDark ? 'bg-slate-800/60 border-slate-700/80 shadow-xs' : 'bg-white border-slate-200/90 shadow-2xs'}`}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                <div className="apple-inset-card p-3.5">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400">
                       {t('webhooks.revenue_today', 'Total Vânzări')}
                     </span>
-                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                      <TrendingUp size={16} />
+                    <div className="w-7 h-7 rounded-lg bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                      <TrendingUp size={14} />
                     </div>
                   </div>
-                  <div className="text-2xl sm:text-3xl font-black text-emerald-700 dark:text-emerald-400 tracking-tight">
-                    {totalRevenue.toLocaleString(localeCode, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs font-bold">RON</span>
+                  <div className="text-[24px] font-bold text-emerald-700 dark:text-emerald-400 tracking-tight tabular-nums">
+                    {totalRevenue.toLocaleString(localeCode, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs font-medium">RON</span>
                   </div>
                   <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-2 flex items-center gap-1.5">
                     <span className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-500"></span>
@@ -354,11 +389,13 @@ export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTrig
                     <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold">
                       <span>Filtru activ: <strong className="capitalize">{selectedPlatform === 'kiosk' ? 'Smart Kiosk' : selectedPlatform === 'casierie' ? 'Casierie' : selectedPlatform}</strong></span>
                       <button 
+                        type="button"
                         onClick={() => setSelectedPlatform('all')}
-                        className="hover:text-red-500 transition-colors ml-1 font-black cursor-pointer"
-                        title="Resetează filtru"
+                        aria-label={t('common.reset', 'Resetează filtru')}
+                        className="hover:text-red-500 transition-colors ml-1 font-black cursor-pointer inline-flex items-center"
+                        title={t('common.reset', 'Resetează filtru')}
                       >
-                        ✕
+                        <X size={12} />
                       </button>
                     </div>
                   )}
@@ -381,10 +418,12 @@ export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTrig
                     />
                     {searchQuery && (
                       <button 
+                        type="button"
                         onClick={() => setSearchQuery('')}
-                        className="text-slate-400 hover:text-slate-600 text-xs ml-1 cursor-pointer"
+                        aria-label={t('common.reset', 'Șterge căutarea')}
+                        className="text-slate-400 hover:text-slate-600 text-xs ml-1 cursor-pointer inline-flex items-center"
                       >
-                        ✕
+                        <X size={12} />
                       </button>
                     )}
                   </div>
@@ -737,13 +776,14 @@ export default function WebhookIntegrationModal({ isOpen, onClose, onWebhookTrig
           </button>
         </div>
       </div>
-
-      {/* MODAL DETALII COMANDĂ & RETETĂ INGREDIENTE (IDENTIC CU KIOSK ADMIN) */}
-      <OrderDetailsModal
-        order={activeOrderModal}
-        isOpen={!!activeOrderModal}
-        onClose={() => setActiveOrderModal(null)}
-      />
     </div>
+
+    {/* MODAL DETALII COMANDĂ & RETETĂ INGREDIENTE (IDENTIC CU KIOSK ADMIN) */}
+    <OrderDetailsModal
+      order={activeOrderModal}
+      isOpen={!!activeOrderModal}
+      onClose={() => setActiveOrderModal(null)}
+    />
+    </>
   )
 }

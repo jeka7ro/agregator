@@ -48,8 +48,8 @@ export class SalesSync {
             // Authenticate keys once
             const tokens = {}
             const apiKeys = [
-                '93a34e75123e47b897e390f31ecfa4cb', // Main Sushi Master / Roll Master / Poki Woki (24 orgs)
-                '124d0880f4b44717b69ee21d45fc2656', // Smash Me Cluj & Constanta
+                '93a34e75123e47b897e390f31ecfa4cb', // Main Sushi Master / Roll Master / Poki Woki (25 orgs)
+                'd2879e94add948599051d37154e0ad7d', // Smash Me Cluj Kiosk (CJ-1 & CJ-2)
                 '78a2206d3b9c4e93b9b5a5ee774f69aa'  // SM Brasov
             ];
             for (const r of restaurants) {
@@ -435,16 +435,6 @@ export class SalesSync {
 
     async syncLiveKiosksToday() {
         try {
-            const apiKey = '124d0880f4b44717b69ee21d45fc2656';
-            const resAuth = await fetch('https://api-eu.syrve.live/api/1/access_token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ apiLogin: apiKey })
-            });
-            if (!resAuth.ok) return { success: false, error: 'Auth failed' };
-            const { token } = await resAuth.json();
-            if (!token) return { success: false, error: 'No token' };
-
             const { data: rests } = await supabase
                 .from('restaurants')
                 .select('id, name, city, is_active, brand_id, iiko_restaurant_id, iiko_config, brands(name)')
@@ -456,6 +446,16 @@ export class SalesSync {
                 ]);
 
             if (!rests || rests.length === 0) return { success: false, error: 'No restaurants' };
+
+            const apiKey = process.env.SYRVE_SMASHME_API_LOGIN || rests.find(r => r.iiko_config?.api_login)?.iiko_config?.api_login || 'd2879e94add948599051d37154e0ad7d';
+            const resAuth = await fetch('https://api-eu.syrve.live/api/1/access_token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ apiLogin: apiKey })
+            });
+            if (!resAuth.ok) return { success: false, error: `Auth failed (HTTP ${resAuth.status})` };
+            const { token } = await resAuth.json();
+            if (!token) return { success: false, error: 'No token' };
 
             const now = new Date();
             const roDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' });
@@ -791,7 +791,8 @@ export class SalesSync {
 
             const updates = [];
             for (const row of needsEnrich) {
-                const baseId = (row.order_id || '').split('_')[0];
+                const rawOid = String(row.order_id || '');
+                const baseId = rawOid.replace(/^(?:wh|pos)_\d{4}-\d{2}-\d{2}_/i, '').split('_')[0];
                 const so = syrveOrderMap.get(baseId);
                 if (!so || !Array.isArray(row.items) || row.items.length === 0) continue;
 

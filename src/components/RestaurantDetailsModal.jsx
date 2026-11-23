@@ -7,7 +7,7 @@ import PlatformLogo from './PlatformLogo'
 import { getApiUrl } from '../lib/api'
 import { supabase } from '../lib/supabaseClient'
 
-export default function RestaurantDetailsModal({ restaurant, isOpen, onClose }) {
+export default function RestaurantDetailsModal({ restaurant, isOpen = true, onClose }) {
   const { isDark } = useTheme()
   const { t, language } = useLanguage()
 
@@ -17,6 +17,13 @@ export default function RestaurantDetailsModal({ restaurant, isOpen, onClose }) 
   const [loadingStops, setLoadingStops] = useState(false)
   const [kitchenStatus, setKitchenStatus] = useState(null)
   const [loadingKitchen, setLoadingKitchen] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen || !restaurant) return
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isOpen, restaurant, onClose])
 
   useEffect(() => {
     if (!isOpen || !restaurant?.id) return
@@ -98,163 +105,162 @@ export default function RestaurantDetailsModal({ restaurant, isOpen, onClose }) 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div 
-        className={`w-full max-w-3xl rounded-3xl shadow-2xl border flex flex-col max-h-[90vh] overflow-hidden transition-all ${
-          isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-        }`}
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      onKeyDown={(e) => { if (e.key === 'Escape') onClose?.() }}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 apple-sheet-backdrop animate-in fade-in duration-150"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="apple-sheet w-full max-w-3xl flex flex-col max-h-[88vh] overflow-hidden"
       >
-        {/* HEADER */}
-        <div className={`p-6 pb-4 border-b flex items-start justify-between gap-4 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
-          <div className="flex items-center gap-3.5">
-            <BrandAvatar brand={restaurant} size={48} className="rounded-2xl shrink-0" />
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold leading-snug">
+        {/* LIQUID GLASS HEADER */}
+        <div className="apple-sheet-header px-5 py-3.5 flex items-center justify-between gap-4 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <BrandAvatar brand={restaurant} size={40} className="rounded-xl shrink-0" />
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-[16px] font-semibold tracking-tight leading-snug text-slate-900 dark:text-white truncate">
                   {cleanedName}
                 </h3>
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                  restaurant.is_active 
-                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800' 
-                    : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-semibold ${
+                  restaurant.is_active
+                    ? 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-400'
+                    : 'bg-black/[0.06] dark:bg-white/10 text-slate-500 dark:text-slate-400'
                 }`}>
                   {restaurant.is_active ? t('common.active') : t('common.inactive')}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-[12px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
                 {restaurant.city} · {restaurant.address || t('common.no_address')}
               </p>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={onClose}
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-              isDark ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'
-            }`}
+            aria-label="Close"
+            className="apple-sheet-close"
           >
-            <X size={18} />
+            <X size={15} />
           </button>
         </div>
 
-        {/* TABS */}
-        <div className={`px-6 pt-3 border-b flex items-center gap-2 ${isDark ? 'border-slate-800 bg-slate-900/50' : 'border-slate-100 bg-slate-50/50'}`}>
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all flex items-center gap-2 ${
-              activeTab === 'overview'
-                ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            <Calendar size={14} />
-            {t('details_modal.tab_overview')}
-          </button>
+        {/* APPLE SEGMENTED TABS */}
+        <div className="px-5 py-2.5 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between shrink-0">
+          <div className="apple-segmented">
+            <button
+              type="button"
+              onClick={() => setActiveTab('overview')}
+              className={`apple-segment ${activeTab === 'overview' ? 'apple-segment-active' : ''}`}
+            >
+              <Calendar size={13} />
+              <span>{t('details_modal.tab_overview')}</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('stops')}
-            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all flex items-center gap-2 ${
-              activeTab === 'stops'
-                ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            <AlertTriangle size={14} />
-            {t('details_modal.tab_stops')}
-            {stops.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-                {stops.length}
-              </span>
-            )}
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('stops')}
+              className={`apple-segment ${activeTab === 'stops' ? 'apple-segment-active' : ''}`}
+            >
+              <AlertTriangle size={13} />
+              <span>{t('details_modal.tab_stops')}</span>
+              {stops.length > 0 && (
+                <span className="px-1.5 rounded-full text-[10px] font-semibold tabular-nums bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                  {stops.length}
+                </span>
+              )}
+            </button>
 
-          <button
-            onClick={() => setActiveTab('menu')}
-            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all flex items-center gap-2 ${
-              activeTab === 'menu'
-                ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            <ShoppingBag size={14} />
-            {t('details_modal.tab_menu')}
-            {stoppedProducts.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300">
-                {stoppedProducts.length}
-              </span>
-            )}
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('menu')}
+              className={`apple-segment ${activeTab === 'menu' ? 'apple-segment-active' : ''}`}
+            >
+              <ShoppingBag size={13} />
+              <span>{t('details_modal.tab_menu')}</span>
+              {stoppedProducts.length > 0 && (
+                <span className="px-1.5 rounded-full text-[10px] font-semibold tabular-nums bg-rose-500/15 text-rose-600 dark:text-rose-400">
+                  {stoppedProducts.length}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* BODY */}
-        <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-6">
+        <div className="p-5 overflow-y-auto custom-scrollbar flex-1 space-y-4">
           
           {/* TAB 1: OVERVIEW */}
           {activeTab === 'overview' && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               
               {/* Metrics row */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-800/50 border-slate-700/60' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                    <Clock size={13} /> {t('settings.field_working_hours')}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="apple-inset-card p-3.5">
+                  <div className="text-[11.5px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <Clock size={13} className="text-[#047857] dark:text-[#10B981]" /> {t('settings.field_working_hours')}
                   </div>
-                  <div className="text-base font-bold mt-1.5 text-slate-900 dark:text-white">
+                  <div className="text-[16px] font-semibold mt-1 text-slate-900 dark:text-white tabular-nums">
                     {openTime} – {closeTime}
                   </div>
-                  <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
+                  <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
                     {t('settings.card_schedules_desc')}
                   </div>
                 </div>
 
-                <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-800/50 border-slate-700/60' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                    <Send size={13} /> Telegram
+                <div className="apple-inset-card p-3.5">
+                  <div className="text-[11.5px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <Send size={13} className="text-[#047857] dark:text-[#10B981]" /> Telegram
                   </div>
-                  <div className="text-xs font-bold mt-1.5 text-slate-900 dark:text-white truncate" title={telegramGroup}>
+                  <div className="text-[13px] font-semibold mt-1 text-slate-900 dark:text-white truncate" title={telegramGroup}>
                     {telegramGroup}
                   </div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">
                     <span className={`w-1.5 h-1.5 rounded-full ${notificationsActive ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
                     {notificationsActive ? 'Alerte Active' : 'Dezactivat'}
                   </div>
                 </div>
 
-                <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-800/50 border-slate-700/60' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                    <Database size={13} /> {t('settings.field_revenue_rate')}
+                <div className="apple-inset-card p-3.5">
+                  <div className="text-[11.5px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <Database size={13} className="text-[#047857] dark:text-[#10B981]" /> {t('settings.field_revenue_rate')}
                   </div>
-                  <div className="text-base font-bold mt-1.5 text-slate-900 dark:text-white">
+                  <div className="text-[16px] font-semibold mt-1 text-slate-900 dark:text-white tabular-nums">
                     {restaurant.revenue_per_hour || 100} RON / h
                   </div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                     Calcul downtime financiar
                   </div>
                 </div>
               </div>
 
               {/* Diagnostic Bucătărie & Comenzi Live (iiko) */}
-              <div className={`p-4 rounded-2xl border transition-all ${
-                kitchenStatus?.kitchen_busy 
-                  ? (isDark ? 'bg-amber-950/20 border-amber-800/40 text-amber-200' : 'bg-amber-50/80 border-amber-200 text-amber-900')
-                  : (isDark ? 'bg-slate-800/40 border-slate-700/60 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700')
+              <div className={`p-3.5 rounded-[14px] border transition-all ${
+                kitchenStatus?.kitchen_busy
+                  ? (isDark ? 'bg-amber-950/20 border-amber-800/40 text-amber-200' : 'bg-amber-50/70 border-amber-200/80 text-amber-900')
+                  : 'apple-inset-card text-slate-700 dark:text-slate-300'
               }`}>
-                <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="flex items-center justify-between gap-3 mb-1.5">
                   <div className="flex items-center gap-2">
-                    <Flame size={16} className={kitchenStatus?.kitchen_busy ? 'text-amber-500 animate-pulse' : 'text-slate-400'} />
-                    <span className="text-xs font-bold uppercase tracking-wider">
-                      Diagnostic Activitate Bucătărie (Ultimele 30 min)
+                    <Flame size={15} className={kitchenStatus?.kitchen_busy ? 'text-amber-500' : 'text-slate-400'} />
+                    <span className="text-[12.5px] font-semibold">
+                      Diagnostic activitate bucătărie (ultimele 30 min)
                     </span>
                   </div>
-                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                  <span className={`text-[10.5px] font-semibold px-2.5 py-0.5 rounded-full ${
                     kitchenStatus?.kitchen_busy
-                      ? 'bg-amber-500 text-white'
-                      : (isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600')
+                      ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
+                      : 'bg-black/[0.06] dark:bg-white/10 text-slate-600 dark:text-slate-300'
                   }`}>
-                    {loadingKitchen ? 'Verificare...' : kitchenStatus?.kitchen_busy ? 'BUCĂTĂRIE ÎN LUCRU' : 'ZERO COMENZI RECENTE'}
+                    {loadingKitchen ? 'Verificare...' : kitchenStatus?.kitchen_busy ? 'Bucătărie activă' : 'Fără comenzi recente'}
                   </span>
                 </div>
-                <div className="text-xs">
+                <div className="text-[12px]">
                   {loadingKitchen ? (
                     <span className="text-slate-400">Se interoghează starea comenzilor live iiko...</span>
                   ) : kitchenStatus?.kitchen_busy ? (
@@ -271,35 +277,33 @@ export default function RestaurantDetailsModal({ restaurant, isOpen, onClose }) 
 
               {/* Platform links */}
               <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
+                <h4 className="text-[12px] font-semibold text-slate-600 dark:text-slate-300 mb-2">
                   {t('settings.section_platform_links')}
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   {['glovo', 'wolt', 'bolt'].map(platform => {
                     const url = restaurant[`${platform}_url`]
                     return (
-                      <div 
+                      <div
                         key={platform}
-                        className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${
-                          isDark ? 'bg-slate-800/50 border-slate-700/60' : 'bg-slate-50 border-slate-200'
-                        }`}
+                        className="apple-inset-card px-3.5 py-2.5 flex items-center justify-between gap-2.5"
                       >
-                        <div className="flex items-center gap-2.5">
-                          <PlatformLogo platform={platform} size={22} />
-                          <span className="text-xs font-bold capitalize">{platform === 'bolt' ? 'Bolt Food' : platform}</span>
+                        <div className="flex items-center gap-2">
+                          <PlatformLogo platform={platform} size={20} />
+                          <span className="text-[12.5px] font-semibold capitalize text-slate-900 dark:text-white">{platform === 'bolt' ? 'Bolt Food' : platform}</span>
                         </div>
                         {url ? (
                           <a
                             href={url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-3 h-7 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold inline-flex items-center gap-1 transition-colors"
+                            className="apple-btn-sm text-[#047857] dark:text-[#10B981]"
                           >
                             <span>Link</span>
                             <ExternalLink size={10} />
                           </a>
                         ) : (
-                          <span className="text-[11px] text-slate-400 italic">Lipsă</span>
+                          <span className="text-[11px] text-slate-400">Lipsă</span>
                         )}
                       </div>
                     )

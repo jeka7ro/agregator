@@ -46,7 +46,7 @@ import BrandAvatar, { getBrandInfo, cleanRestaurantName } from '../components/Br
 import RestaurantDetailsModal from '../components/RestaurantDetailsModal'
 import OrderDetailsModal from '../components/OrderDetailsModal'
 import { getApiUrl } from '../lib/api'
-import { getCanonicalCity, getCityDisplayName } from '../lib/orderUtils'
+import { getCanonicalCity, getCityDisplayName, getRestaurantWorkingHoursStatus } from '../lib/orderUtils'
 import WebhookIntegrationModal from '../components/WebhookIntegrationModal'
 
 function AnimatedNumber({ value }) {
@@ -601,52 +601,35 @@ export default function Monitoring() {
   }
 
   const isWithinWorkingHours = (workingHours) => {
-    if (!workingHours) return true
-    const start = workingHours.start || (typeof workingHours === 'object' && workingHours.open)
-    const end = workingHours.end || (typeof workingHours === 'object' && workingHours.close)
-    if (!start || !end) return true
-
-    const now = new Date()
-    const currentMinutes = now.getHours() * 60 + now.getMinutes()
-
-    const [startH, startM] = start.split(':').map(Number)
-    const [endH, endM] = end.split(':').map(Number)
-    const startMinutes = (startH || 0) * 60 + (startM || 0)
-    const endMinutes = (endH || 0) * 60 + (endM || 0)
-
-    if (startMinutes <= endMinutes) {
-      return currentMinutes >= startMinutes && currentMinutes <= endMinutes
-    } else {
-      return currentMinutes >= startMinutes || currentMinutes <= endMinutes
-    }
+    return getRestaurantWorkingHoursStatus(workingHours).isOpen
   }
 
   const getStatusInfo = (status, isOutsideHours = false) => {
-    if (!status) return {
+    const norm = String(status || '').toLowerCase()
+    if (!norm || norm === 'unchecked') return {
       badgeClass: 'bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
       label: t('common.unchecked'),
       icon: <Activity size={12} className="opacity-50" />
     }
-    const norm = status.toLowerCase()
-    if (norm === 'available' || norm === 'open' || norm === 'online') return {
-      badgeClass: 'bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800',
-      label: t('common.online'),
-      icon: <CheckCircle2 size={12} />
-    }
-    if (isOutsideHours && (norm === 'closed' || norm === 'offline' || norm === 'unavailable')) {
+    if (norm === 'closed' || (isOutsideHours && (norm === 'offline' || norm === 'unavailable'))) {
       return {
-        badgeClass: 'bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
-        label: t('alerts.outside_hours', 'În afara programului'),
+        badgeClass: 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+        label: language === 'ru' ? 'Вне графика' : language === 'en' ? 'After hours' : t('alerts.outside_hours', 'În afara programului'),
         icon: <Clock size={12} />
       }
     }
-    if (norm === 'closed' || norm === 'offline' || norm === 'unavailable') return {
-      badgeClass: 'bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800',
+    if (norm === 'available' || norm === 'open' || norm === 'online') return {
+      badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800',
+      label: t('common.online'),
+      icon: <CheckCircle2 size={12} />
+    }
+    if (norm === 'offline' || norm === 'unavailable') return {
+      badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800',
       label: t('common.offline'),
       icon: <Power size={12} />
     }
     return {
-      badgeClass: 'bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800',
+      badgeClass: 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800',
       label: t('common.error'),
       icon: <AlertTriangle size={12} />
     }
@@ -839,7 +822,7 @@ export default function Monitoring() {
         <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full xl:w-auto flex-wrap">
           {/* Selector Oraș */}
           <div className="relative w-full sm:w-52">
-            <MapPin className="w-4 h-4 text-emerald-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <MapPin className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none ${cityFilter !== 'all' ? 'text-white' : 'text-emerald-500'}`} />
             <select
               value={cityFilter}
               onChange={(e) => handleCityChange(e.target.value)}
@@ -887,22 +870,24 @@ export default function Monitoring() {
             </button>
           )}
 
-          <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
+              type="button"
               onClick={() => setShowWebhookModal(true)}
-              className="px-4 h-10 rounded-full border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 text-sm font-bold shadow-xs transition-all flex items-center justify-center gap-2"
+              className="apple-btn-secondary !h-9"
               title={t('webhooks.modal_title')}
             >
-              <Webhook size={16} />
+              <Webhook size={14} className="text-[#047857] dark:text-[#34D399]" />
               <span className="hidden sm:inline">{t('webhooks.btn_live')}</span>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
             </button>
 
             <button
+              type="button"
               onClick={handleVerifyAll}
-              className="px-5 h-10 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2 flex-1 sm:flex-none cursor-pointer"
+              className="apple-btn-primary !h-9 !px-4 flex-1 sm:flex-none"
             >
-              <Loader2 size={16} className={isVerifying ? "animate-spin" : "hidden"} />
+              <Loader2 size={14} className={isVerifying ? "animate-spin" : "hidden"} />
               <span>
                 {isVerifying
                   ? `${t('monitoring.scanning')}${verifyStatus?.totalChecks > 0 ? ` (${verifyStatus.current}/${verifyStatus.totalChecks})` : ''}`
@@ -912,11 +897,12 @@ export default function Monitoring() {
 
             {isVerifying && (
               <button
+                type="button"
                 onClick={handleStopVerify}
-                className="px-4 h-10 rounded-full bg-red-600 hover:bg-red-700 text-white text-sm font-bold flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+                className="apple-btn-secondary !h-9 !text-rose-600 dark:!text-rose-400"
                 title={t('monitoring.stop_scan')}
               >
-                <XCircle size={16} />
+                <XCircle size={14} />
                 <span>{t('monitoring.stop_label')}</span>
               </button>
             )}
@@ -924,19 +910,15 @@ export default function Monitoring() {
         </div>
       </div>
 
-      {/* VIEW SWITCHER: STATUS VITRINE vs ZONE & RAZA LIVRARE */}
+      {/* VIEW SWITCHER — Apple Segmented Control (segmented-controls.md) */}
       <div className="flex flex-wrap items-center justify-between gap-2.5">
-        <div className={`inline-flex items-center p-1 rounded-full border shadow-xs ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-          }`}>
+        <div role="group" className="apple-segmented">
           <button
             type="button"
             onClick={() => setMonitoringTab('status')}
-            className={`px-4 h-9 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${monitoringTab === 'status'
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'
-              }`}
+            className={`apple-segment !h-8 !px-3.5 ${monitoringTab === 'status' ? 'apple-segment-active' : ''}`}
           >
-            <Store size={14} />
+            <Store size={14} className={monitoringTab === 'status' ? 'text-[#047857] dark:text-[#34D399]' : ''} />
             <span>
               {language === 'ru'
                 ? 'Статус точек и витрин'
@@ -948,12 +930,9 @@ export default function Monitoring() {
           <button
             type="button"
             onClick={() => setMonitoringTab('zones')}
-            className={`px-4 h-9 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${monitoringTab === 'zones'
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'
-              }`}
+            className={`apple-segment !h-8 !px-3.5 ${monitoringTab === 'zones' ? 'apple-segment-active' : ''}`}
           >
-            <MapPin size={14} />
+            <MapPin size={14} className={monitoringTab === 'zones' ? 'text-[#047857] dark:text-[#34D399]' : ''} />
             <span>
               {language === 'ru'
                 ? 'Зоны и радиус доставки (Статистика)'
@@ -961,14 +940,11 @@ export default function Monitoring() {
                   ? 'Delivery Zones & Radius (Stats)'
                   : 'Rază & Zone Livrare (Statistică)'}
             </span>
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold tabular-nums ${monitoringTab === 'zones'
-              ? 'bg-white/20 text-white'
-              : isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
-              }`}>
+            <span className="text-[11px] font-semibold tabular-nums text-[#636366] dark:text-[#8E8E93]">
               {zonesList.length}
             </span>
             {zonesKpis.narrowedCount > 0 && (
-              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" title={`${zonesKpis.narrowedCount} sujate`} />
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" title={`${zonesKpis.narrowedCount} sujate`} />
             )}
           </button>
         </div>
@@ -1050,26 +1026,18 @@ export default function Monitoring() {
                     : '💡 Sursă: coordonatele GPS reale ale clienților din comenzile iiko/Syrve (rază aeriană per bucătărie). Glovo & Wolt transmit GPS; Bolt Food ascunde coordonatele (0, 0).'}
               </div>
               <div className="flex items-center gap-2">
-                <div className={`inline-flex items-center p-0.5 rounded-full border ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
+                <div role="group" className="apple-segmented">
                   <button
                     type="button"
                     onClick={() => setZonesPeriod('today')}
-                    className={`px-3 h-7 rounded-full text-xs font-bold transition-colors cursor-pointer ${
-                      zonesPeriod === 'today'
-                        ? 'bg-emerald-600 text-white shadow-2xs'
-                        : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                    className={`apple-segment !h-[24px] !px-2.5 !text-[11px] ${zonesPeriod === 'today' ? 'apple-segment-active' : ''}`}
                   >
                     {language === 'ru' ? 'Сегодня' : language === 'en' ? 'Today' : 'Azi'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setZonesPeriod('yesterday')}
-                    className={`px-3 h-7 rounded-full text-xs font-bold transition-colors cursor-pointer ${
-                      zonesPeriod === 'yesterday'
-                        ? 'bg-emerald-600 text-white shadow-2xs'
-                        : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                    className={`apple-segment !h-[24px] !px-2.5 !text-[11px] ${zonesPeriod === 'yesterday' ? 'apple-segment-active' : ''}`}
                   >
                     {language === 'ru' ? 'Вчера' : language === 'en' ? 'Yesterday' : 'Ieri'}
                   </button>
@@ -1078,7 +1046,7 @@ export default function Monitoring() {
                   type="button"
                   onClick={handleExportZonesExcel}
                   disabled={zonesList.length === 0}
-                  className="px-3.5 h-8 rounded-full text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-40"
+                  className="apple-btn-primary !h-8 disabled:opacity-40"
                 >
                   <Download size={13} />
                   <span>
@@ -1205,37 +1173,32 @@ export default function Monitoring() {
         </div>
       ) : (
         <>
-          {/* TABS BRANDURI (DOAR CELE 5 AUTORITARE) */}
+          {/* BRAND SEGMENTED CONTROL — Apple Tahoe Pill Track */}
           <div className="flex flex-wrap items-center gap-2 w-full">
-            {allBrands.map(brand => {
-              const isActive = activeBrand === brand;
-              const count = brand === 'all' ? displayedRestaurants.length : groupedByBrand[brand]?.length || 0;
-              return (
-                <button
-                  key={brand}
-                  onClick={() => handleBrandChange(brand)}
-                  className={`px-4 h-9 rounded-full text-xs font-bold transition-all flex items-center gap-2 shadow-xs ${isActive
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : isDark
-                      ? 'bg-slate-900 border border-slate-700 text-slate-300 hover:bg-slate-800'
-                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
-                    }`}
-                >
-                  {brand !== 'all' ? (
-                    <BrandAvatar brand={brand} size={18} className="rounded-full shrink-0" />
-                  ) : (
-                    <Store size={14} className={isActive ? 'text-white' : 'text-slate-400'} />
-                  )}
-                  <span>{brand === 'all' ? t('common.all_brands') : brand}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isActive
-                    ? 'bg-white/20 text-white'
-                    : isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600'
-                    }`}>
-                    {count}
-                  </span>
-                </button>
-              )
-            })}
+            <div role="group" className="apple-segmented max-w-full overflow-x-auto">
+              {allBrands.map(brand => {
+                const isActive = activeBrand === brand;
+                const count = brand === 'all' ? displayedRestaurants.length : groupedByBrand[brand]?.length || 0;
+                return (
+                  <button
+                    key={brand}
+                    type="button"
+                    onClick={() => handleBrandChange(brand)}
+                    className={`apple-segment ${isActive ? 'apple-segment-active' : ''}`}
+                  >
+                    {brand !== 'all' ? (
+                      <BrandAvatar brand={brand} size={16} className="rounded-full shrink-0" />
+                    ) : (
+                      <Store size={13} className="text-[#047857] dark:text-[#34D399]" />
+                    )}
+                    <span>{brand === 'all' ? t('common.all_brands') : brand}</span>
+                    <span className="text-[11px] tabular-nums text-[#636366] dark:text-[#8E8E93]">
+                      {count}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
           {/* CARD TABEL STATUS & RATINGURI LIVE */}
@@ -1246,8 +1209,8 @@ export default function Monitoring() {
                 <thead className={`text-[11px] font-bold uppercase tracking-wider sticky top-0 z-10 select-none border-b ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
                   }`}>
                   <tr>
-                    <th onClick={() => handleSort('index')} className="px-4 py-3.5 w-16 text-center cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors">
-                      {t('monitoring.th_nr')} {sortConfig.key === 'index' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                    <th className="px-4 py-3.5 w-16 text-center">
+                      {t('monitoring.th_nr')}
                     </th>
                     <th onClick={() => handleSort('city')} className="px-4 py-3.5 w-32 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors">
                       {t('monitoring.th_city')} {sortConfig.key === 'city' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
@@ -1426,8 +1389,8 @@ export default function Monitoring() {
                                   <MapPin size={9} className={zoneInfo.is_narrowed ? 'text-rose-500 shrink-0' : 'text-emerald-500 shrink-0'} />
                                   <span>
                                     {zoneInfo.is_narrowed
-                                      ? `${Number(zoneInfo.active_radius_km).toFixed(1)}/${Number(zoneInfo.normal_radius_km).toFixed(1)} км (-${zoneInfo.narrowed_pct}%)`
-                                      : `${language === 'ru' ? 'Радиус' : 'Rază'}: ${Number(zoneInfo.active_radius_km).toFixed(1)} км`}
+                                      ? `${Number(zoneInfo.active_radius_km).toFixed(1)}/${Number(zoneInfo.normal_radius_km).toFixed(1)} ${language === 'ru' ? 'км' : 'km'} (-${zoneInfo.narrowed_pct}%)`
+                                      : `${language === 'ru' ? 'Радиус' : language === 'en' ? 'Radius' : 'Rază'}: ${Number(zoneInfo.active_radius_km).toFixed(1)} ${language === 'ru' ? 'км' : 'km'}`}
                                   </span>
                                 </span>
                               )}
@@ -1441,8 +1404,8 @@ export default function Monitoring() {
                                       className="px-4 py-2.5 text-right text-xs font-medium text-slate-500 dark:text-slate-400"
                                       title={(() => {
                                         const checksForR = checks.filter(c => c.restaurant_id === r.id);
-                                        const orderTimes = checksForR.map(c => c.last_order_at).filter(Boolean).map(t => new Date(t).getTime());
-                                        const checkTimes = checksForR.map(c => c.checked_at).filter(Boolean).map(t => new Date(t).getTime());
+                                        const orderTimes = checksForR.map(c => c.last_order_at).filter(Boolean).map(t => new Date(t).getTime()).filter(Number.isFinite);
+                                        const checkTimes = checksForR.map(c => c.checked_at).filter(Boolean).map(t => new Date(t).getTime()).filter(Number.isFinite);
                                         const parts = [];
                                         if (checkTimes.length > 0) {
                                           parts.push(`${language === 'ru' ? 'Проверка' : 'Verificat'}: ${new Date(Math.max(...checkTimes)).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })}`);
@@ -1455,8 +1418,9 @@ export default function Monitoring() {
                                     >
                                       {(() => {
                                         const checksForR = checks.filter(c => c.restaurant_id === r.id);
-                                        if (checksForR.length === 0) return <span className="opacity-40">{t('common.never')}</span>;
-                                        const latest = new Date(Math.max(...checksForR.map(c => new Date(c.checked_at).getTime())));
+                                        const validCheckTimes = checksForR.map(c => c.checked_at).filter(Boolean).map(t => new Date(t).getTime()).filter(Number.isFinite);
+                                        if (validCheckTimes.length === 0) return <span className="opacity-40">{t('common.never')}</span>;
+                                        const latest = new Date(Math.max(...validCheckTimes));
                                         const diffMins = Math.floor((Date.now() - latest.getTime()) / 60000);
 
                                         if (diffMins < 1) return <span className="text-emerald-600 dark:text-emerald-400 font-bold">{t('common.now')}</span>;
@@ -1527,21 +1491,22 @@ export default function Monitoring() {
         </>
       )}
 
-                {/* MODAL SCANARE GLOBAL */}
+                {/* SHEET SCANARE GLOBAL — macOS Tahoe 26 */}
                 {showReport && typeof document !== 'undefined' && createPortal(
                   <div
+                    role="dialog"
+                    aria-modal="true"
                     onClick={() => {
                       setShowReport(false);
                       if (!isVerifying) setVerifyStatus(null);
                     }}
-                    className="fixed inset-0 m-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                    className="fixed inset-0 m-0 apple-sheet-backdrop z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
                   >
                     <div
                       onClick={(e) => e.stopPropagation()}
-                      className={`rounded-2xl w-full max-w-md shadow-2xl border overflow-hidden flex flex-col max-h-[90vh] ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-                        }`}
+                      className="apple-sheet w-full max-w-md overflow-hidden flex flex-col max-h-[88vh]"
                     >
-                      <div className={`relative p-6 text-center space-y-2.5 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+                      <div className="apple-sheet-header relative px-5 py-4 text-center space-y-2 shrink-0">
                         <button
                           type="button"
                           onClick={() => {
@@ -1549,27 +1514,26 @@ export default function Monitoring() {
                             if (!isVerifying) setVerifyStatus(null);
                           }}
                           aria-label={t('common.close')}
-                          className={`absolute top-4 right-4 w-8 h-8 rounded-full border flex items-center justify-center text-slate-400 transition-colors cursor-pointer ${isDark ? 'border-slate-700 hover:bg-slate-800 hover:text-white' : 'border-slate-200 hover:bg-slate-100 hover:text-slate-700'
-                            }`}
+                          className="apple-sheet-close absolute top-3.5 right-3.5"
                         >
-                          <X size={16} />
+                          <X size={15} />
                         </button>
 
-                        <div className={`w-12 h-12 rounded-full mx-auto flex items-center justify-center ${isVerifying
-                          ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400'
-                          : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
+                        <div className={`w-11 h-11 rounded-2xl mx-auto flex items-center justify-center ${isVerifying
+                          ? 'bg-[#047857]/12 text-[#047857] dark:text-[#10B981]'
+                          : 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400'
                           }`}>
-                          {isVerifying ? <Loader2 size={26} className="animate-spin" /> : <CheckCircle2 size={26} />}
+                          {isVerifying ? <Loader2 size={22} className="animate-spin" /> : <CheckCircle2 size={22} />}
                         </div>
-                        <h3 className="text-lg font-bold">
+                        <h3 className="text-[16px] font-semibold tracking-tight text-slate-900 dark:text-white">
                           {isVerifying ? t('monitoring.scan_modal_title_progress') : t('monitoring.scan_modal_title_done')}
                         </h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                        <p className="text-[12px] text-slate-500 dark:text-slate-400">
                           {isVerifying ? t('monitoring.scan_modal_desc_progress') : t('monitoring.scan_modal_desc_done')}
                         </p>
                       </div>
 
-                      <div className="p-6 overflow-y-auto space-y-3">
+                      <div className="p-5 overflow-y-auto space-y-3 custom-scrollbar">
                         {verifyStatus && (() => {
                           const pct = verifyStatus.totalChecks > 0
                             ? Math.min(100, Math.max(0, Math.round((verifyStatus.current / verifyStatus.totalChecks) * 100)))
@@ -1579,19 +1543,18 @@ export default function Monitoring() {
                             : null;
                           return (
                             <>
-                              {/* Progress Track cleanly contained inside padded modal body */}
-                              <div className={`p-3.5 rounded-2xl border space-y-2 ${isDark ? 'border-slate-800 bg-slate-800/40' : 'border-slate-200 bg-slate-50'}`}>
+                              <div className="apple-inset-card p-3.5 space-y-2">
                                 <div className="flex items-center justify-between text-xs">
-                                  <span className="font-semibold text-slate-600 dark:text-slate-300">
+                                  <span className="font-medium text-slate-600 dark:text-slate-300">
                                     {language === 'ru' ? 'Прогресс проверки' : language === 'en' ? 'Scan progress' : 'Progres verificare'}
                                   </span>
-                                  <span className="font-extrabold tabular-nums text-emerald-600 dark:text-emerald-400">
+                                  <span className="font-semibold tabular-nums text-[#047857] dark:text-[#10B981]">
                                     {pct}%
                                   </span>
                                 </div>
-                                <div className={`w-full h-2.5 rounded-full overflow-hidden border ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-slate-200/80 border-slate-200'}`}>
+                                <div className={`w-full h-2 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-black/[0.08]'}`}>
                                   <div
-                                    className="h-full rounded-full bg-emerald-600 transition-all duration-300"
+                                    className="h-full rounded-full bg-[#047857] dark:bg-[#10B981] transition-all duration-300"
                                     style={{ width: `${pct}%` }}
                                   />
                                 </div>
@@ -1602,21 +1565,20 @@ export default function Monitoring() {
                                 )}
                               </div>
 
-                              <div className={`flex items-center justify-between p-4 rounded-2xl border ${isDark ? 'border-slate-800 bg-slate-800/50' : 'border-slate-200 bg-slate-50'
-                                }`}>
-                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                              <div className="apple-inset-card flex items-center justify-between px-4 py-3">
+                                <span className="text-[13px] font-medium text-slate-700 dark:text-slate-300">
                                   {t('monitoring.scan_modal_verified')}
                                 </span>
-                                <span className="text-base font-bold tabular-nums">
+                                <span className="text-[15px] font-bold tabular-nums text-slate-900 dark:text-white">
                                   <AnimatedNumber value={verifyStatus.current} key={verifyStatus.current} /> / {verifyStatus.totalChecks || '-'}
                                 </span>
                               </div>
 
-                              <div className="flex items-center justify-between p-4 rounded-2xl border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-950/30">
-                                <span className="text-sm font-medium text-rose-700 dark:text-rose-300">
+                              <div className="flex items-center justify-between px-4 py-3 rounded-[14px] border border-rose-500/20 bg-rose-500/8">
+                                <span className="text-[13px] font-medium text-rose-700 dark:text-rose-300">
                                   {t('monitoring.scan_modal_stopped')}
                                 </span>
-                                <span className="text-base font-bold tabular-nums text-rose-600 dark:text-rose-400">
+                                <span className="text-[15px] font-bold tabular-nums text-rose-600 dark:text-rose-400">
                                   <AnimatedNumber value={verifyStatus.offline} key={verifyStatus.offline} />
                                 </span>
                               </div>
@@ -1625,15 +1587,15 @@ export default function Monitoring() {
                         })()}
                       </div>
 
-                      <div className={`p-4 border-t flex items-center justify-between gap-2 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+                      <div className="px-5 py-3 border-t border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between gap-2 shrink-0">
                         <div>
                           {isVerifying && (
                             <button
                               type="button"
                               onClick={handleStopVerify}
-                              className="px-4 h-9 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold inline-flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                              className="h-8 px-3.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
                             >
-                              <XCircle size={14} />
+                              <XCircle size={13} />
                               <span>{t('monitoring.stop_label')}</span>
                             </button>
                           )}
@@ -1644,8 +1606,7 @@ export default function Monitoring() {
                             setShowReport(false);
                             if (!isVerifying) setVerifyStatus(null);
                           }}
-                          className={`px-5 h-9 rounded-full text-xs sm:text-sm font-bold transition-colors cursor-pointer ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                            }`}
+                          className="apple-btn-secondary"
                         >
                           {t('common.close')}
                         </button>
@@ -1655,35 +1616,41 @@ export default function Monitoring() {
                   document.body
                 )}
 
-                {/* MODAL DETALII VERIFICARE */}
+                {/* SHEET DETALII VERIFICARE — macOS Tahoe 26 */}
                 {selectedCheckDetail && (
-                  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className={`rounded-2xl w-full max-w-lg shadow-2xl border overflow-hidden flex flex-col max-h-[90vh] ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-                      }`}>
-
+                  <div
+                    role="dialog"
+                    aria-modal="true"
+                    onClick={() => setSelectedCheckDetail(null)}
+                    className="fixed inset-0 apple-sheet-backdrop z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
+                  >
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="apple-sheet w-full max-w-lg overflow-hidden flex flex-col max-h-[88vh]"
+                    >
                       {/* Header */}
-                      <div className={`px-6 py-5 border-b flex items-center justify-between ${isDark ? 'border-slate-800' : 'border-slate-100'
-                        }`}>
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full border flex items-center justify-center ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'
+                      <div className="apple-sheet-header px-5 py-3.5 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${isDark ? 'bg-white/[0.06] border-white/10' : 'bg-white border-black/[0.08]'
                             }`}>
-                            <PlatformLogo platform={selectedCheckDetail.platform} size={22} />
+                            <PlatformLogo platform={selectedCheckDetail.platform} size={20} />
                           </div>
-                          <div>
-                            <h3 className="text-base font-bold">
+                          <div className="min-w-0">
+                            <h3 className="text-[15px] font-semibold tracking-tight text-slate-900 dark:text-white truncate">
                               {t('monitoring.modal_title')}
                             </h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-                              {cleanRestaurantName(selectedCheckDetail.restaurant.name)} • {selectedCheckDetail.restaurant.city}
+                            <p className="text-[12px] text-slate-500 dark:text-slate-400 truncate">
+                              {cleanRestaurantName(selectedCheckDetail.restaurant.name)} · {selectedCheckDetail.restaurant.city}
                             </p>
                           </div>
                         </div>
                         <button
+                          type="button"
                           onClick={() => setSelectedCheckDetail(null)}
-                          className={`w-8 h-8 rounded-full border flex items-center justify-center text-slate-500 transition-colors ${isDark ? 'border-slate-700 hover:bg-slate-800' : 'border-slate-200 hover:bg-slate-100'
-                            }`}
+                          aria-label="Close"
+                          className="apple-sheet-close"
                         >
-                          <X size={16} />
+                          <X size={15} />
                         </button>
                       </div>
 
@@ -1781,22 +1748,22 @@ export default function Monitoring() {
                             </div>
                             <div className="grid grid-cols-3 gap-2 text-xs">
                               <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
-                                <span className="text-[10px] text-slate-400 block">{language === 'ru' ? 'Макс. сегодня' : 'Max. azi'}</span>
-                                <strong className="tabular-nums font-extrabold text-slate-900 dark:text-white">{selectedCheckDetail.zoneInfo.active_radius_km} км</strong>
+                                <span className="text-[10px] text-slate-400 block">{language === 'ru' ? 'Макс. сегодня' : language === 'en' ? 'Max today' : 'Max. azi'}</span>
+                                <strong className="tabular-nums font-extrabold text-slate-900 dark:text-white">{selectedCheckDetail.zoneInfo.active_radius_km} {language === 'ru' ? 'км' : 'km'}</strong>
                               </div>
                               <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
-                                <span className="text-[10px] text-slate-400 block">{language === 'ru' ? 'Средняя дальность' : 'Distanță medie'}</span>
-                                <strong className="tabular-nums font-extrabold text-blue-600 dark:text-blue-400">{selectedCheckDetail.zoneInfo.avg_distance_km} км</strong>
+                                <span className="text-[10px] text-slate-400 block">{language === 'ru' ? 'Средняя дальность' : language === 'en' ? 'Avg. distance' : 'Distanță medie'}</span>
+                                <strong className="tabular-nums font-extrabold text-blue-600 dark:text-blue-400">{selectedCheckDetail.zoneInfo.avg_distance_km} {language === 'ru' ? 'км' : 'km'}</strong>
                               </div>
                               <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
-                                <span className="text-[10px] text-slate-400 block">{language === 'ru' ? 'Норма точки' : 'Rază normală'}</span>
-                                <strong className="tabular-nums font-extrabold text-emerald-600 dark:text-emerald-400">{selectedCheckDetail.zoneInfo.normal_radius_km} км</strong>
+                                <span className="text-[10px] text-slate-400 block">{language === 'ru' ? 'Норма точки' : language === 'en' ? 'Normal radius' : 'Rază normală'}</span>
+                                <strong className="tabular-nums font-extrabold text-emerald-600 dark:text-emerald-400">{selectedCheckDetail.zoneInfo.normal_radius_km} {language === 'ru' ? 'км' : 'km'}</strong>
                               </div>
                             </div>
                             <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center justify-between pt-1">
-                              <span>{language === 'ru' ? 'По кольцам дальности:' : 'Pe inele de distanță:'}</span>
+                              <span>{language === 'ru' ? 'По кольцам дальности:' : language === 'en' ? 'By distance ring:' : 'Pe inele de distanță:'}</span>
                               <span className="tabular-nums font-bold text-slate-700 dark:text-slate-200">
-                                &lt;2км: {selectedCheckDetail.zoneInfo.under_2km} · 2–4км: {selectedCheckDetail.zoneInfo.between_2_4km} · 4+км: {selectedCheckDetail.zoneInfo.over_4km}
+                                &lt;2{language === 'ru' ? 'км' : 'km'}: {selectedCheckDetail.zoneInfo.under_2km} · 2–4{language === 'ru' ? 'км' : 'km'}: {selectedCheckDetail.zoneInfo.between_2_4km} · 4+{language === 'ru' ? 'км' : 'km'}: {selectedCheckDetail.zoneInfo.over_4km}
                               </span>
                             </div>
                           </div>
@@ -1901,6 +1868,7 @@ export default function Monitoring() {
                 {dossierRestaurant && (
                   <RestaurantDetailsModal
                     restaurant={dossierRestaurant}
+                    isOpen={Boolean(dossierRestaurant)}
                     onClose={() => setDossierRestaurant(null)}
                   />
                 )}
@@ -1919,32 +1887,37 @@ export default function Monitoring() {
                   onClose={() => setSelectedOrderForModal(null)}
                 />
 
-                {/* MODAL MECANISMUL 2A: CONECTARE EMAIL (jeka7ro@gmail.com) & PARSARE RECENZIE DIN MAIL */}
+                {/* SHEET CONECTARE EMAIL — macOS Tahoe 26 */}
                 {showEmailModal && (
-                  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className={`rounded-2xl w-full max-w-xl shadow-2xl border overflow-hidden flex flex-col max-h-[90vh] ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-                      }`}>
-                      <div className={`px-6 py-4 border-b flex items-center justify-between ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                            <Mail size={18} />
+                  <div
+                    role="dialog"
+                    aria-modal="true"
+                    onClick={() => setShowEmailModal(false)}
+                    className="fixed inset-0 apple-sheet-backdrop z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
+                  >
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="apple-sheet w-full max-w-xl overflow-hidden flex flex-col max-h-[88vh]"
+                    >
+                      <div className="apple-sheet-header px-5 py-3.5 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-[#047857]/12 text-[#047857] dark:text-[#10B981] flex items-center justify-center shrink-0">
+                            <Mail size={17} />
                           </div>
-                          <div>
-                            <h3 className="text-base font-bold">Conectare Email Recenzii (jeka7ro@gmail.com)</h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">Extrage automat Restaurantul, Platforma, Nota, Comentariul și leagă de Comanda iiko</p>
+                          <div className="min-w-0">
+                            <h3 className="text-[15px] font-semibold tracking-tight text-slate-900 dark:text-white truncate">Conectare Email Recenzii (jeka7ro@gmail.com)</h3>
+                            <p className="text-[12px] text-slate-500 dark:text-slate-400 truncate">Extrage automat Restaurantul, Platforma, Nota, Comentariul și leagă de Comanda iiko</p>
                           </div>
                         </div>
-                        <button onClick={() => setShowEmailModal(false)} className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
-                          <X size={16} />
+                        <button type="button" onClick={() => setShowEmailModal(false)} aria-label="Close" className="apple-sheet-close">
+                          <X size={15} />
                         </button>
                       </div>
 
-                      <form onSubmit={handleParseEmail} className="p-6 overflow-y-auto space-y-4">
-                        {/* Auto-Forwarding Webhook Info */}
-                        <div className={`p-3.5 rounded-xl border text-xs space-y-1.5 ${isDark ? 'bg-slate-800/50 border-slate-700/80 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
-                          }`}>
+                      <form onSubmit={handleParseEmail} className="p-5 overflow-y-auto space-y-4 custom-scrollbar">
+                        <div className="apple-inset-card p-3.5 text-xs space-y-1.5 text-slate-700 dark:text-slate-300">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-extrabold uppercase tracking-wider text-[10px] text-emerald-600 dark:text-emerald-400">
+                            <span className="font-semibold text-[11px] text-emerald-600 dark:text-emerald-400">
                               ● Cont Conectat: jeka7ro@gmail.com (Glovo / Wolt / Bolt / Google)
                             </span>
                             <button
@@ -1954,19 +1927,19 @@ export default function Monitoring() {
                                 setCopiedWebhookUrl(true)
                                 setTimeout(() => setCopiedWebhookUrl(false), 2000)
                               }}
-                              className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                              className="apple-btn-sm !h-6"
                             >
                               {copiedWebhookUrl ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
-                              <span>{copiedWebhookUrl ? 'Copiat!' : 'Copiază Webhook Mail'}</span>
+                              <span>{copiedWebhookUrl ? 'Copiat!' : 'Copiază Webhook'}</span>
                             </button>
                           </div>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                            Poți redirecționa automat emailurile pe <code className="tabular-nums font-bold">/api/webhooks/email-review</code> sau lipi mai jos orice email de recenzie primit pentru asociere instantă cu bonul din iiko:
+                            Poți redirecționa automat emailurile pe <code className="tabular-nums font-semibold">/api/webhooks/email-review</code> sau lipi mai jos orice email de recenzie primit pentru asociere instantă cu bonul din iiko:
                           </p>
                         </div>
 
                         <div>
-                          <label className="block text-xs font-bold mb-1.5 text-slate-700 dark:text-slate-300">
+                          <label className="block text-[12px] font-medium mb-1 text-slate-700 dark:text-slate-300">
                             Subiect Email (ex: „New review on Glovo - Smash Me Constanța - Order #118248”)
                           </label>
                           <input
@@ -1974,13 +1947,12 @@ export default function Monitoring() {
                             value={emailSubject}
                             onChange={e => setEmailSubject(e.target.value)}
                             placeholder="Subiectul emailului primit pe jeka7ro@gmail.com..."
-                            className={`w-full px-3.5 h-10 rounded-xl border text-xs font-medium outline-none ${isDark ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
-                              }`}
+                            className={`w-full px-3.5 h-9 rounded-xl border text-xs font-medium outline-none ${isDark ? 'bg-white/[0.06] border-white/12 text-white focus:border-[#10B981]' : 'bg-white border-black/12 text-slate-900 focus:border-[#047857]'}`}
                           />
                         </div>
 
                         <div>
-                          <label className="block text-xs font-bold mb-1.5 text-slate-700 dark:text-slate-300">
+                          <label className="block text-[12px] font-medium mb-1 text-slate-700 dark:text-slate-300">
                             Conținutul / Textul Emailului de Recenzie
                           </label>
                           <textarea
@@ -1988,26 +1960,16 @@ export default function Monitoring() {
                             value={emailBody}
                             onChange={e => setEmailBody(e.target.value)}
                             placeholder="Lipește aici corpul emailului (include ID-ul comenzii dacă apare în mail, nota 1-5⭐ sau /și comentariul clientului)..."
-                            className={`w-full p-3.5 rounded-xl border text-xs font-medium outline-none ${isDark ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
-                              }`}
+                            className={`w-full p-3 rounded-xl border text-xs font-medium outline-none ${isDark ? 'bg-white/[0.06] border-white/12 text-white focus:border-[#10B981]' : 'bg-white border-black/12 text-slate-900 focus:border-[#047857]'}`}
                           />
                         </div>
 
                         <div className="flex justify-end gap-2 pt-2">
-                          <button
-                            type="button"
-                            onClick={() => setShowEmailModal(false)}
-                            className={`px-4 h-10 rounded-full text-xs font-bold ${isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
-                              }`}
-                          >
+                          <button type="button" onClick={() => setShowEmailModal(false)} className="apple-btn-secondary">
                             Anulează
                           </button>
-                          <button
-                            type="submit"
-                            disabled={emailParsing}
-                            className="px-5 h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                          >
-                            {emailParsing ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                          <button type="submit" disabled={emailParsing} className="apple-btn-primary disabled:opacity-50">
+                            {emailParsing ? <Loader2 size={13} className="animate-spin" /> : <Mail size={13} />}
                             <span>Extrage Recenzia & Leagă de Bonul iiko</span>
                           </button>
                         </div>
@@ -2016,64 +1978,71 @@ export default function Monitoring() {
                   </div>
                 )}
 
-                {/* MODAL MECANISMUL 2B: SCRAPERE PUPPETEER PORTALURI B2B (GLOVO PARTNER & WOLT MERCHANT) */}
+                {/* SHEET SCRAPERE B2B — macOS Tahoe 26 */}
                 {showScraperInfoModal && (
-                  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className={`rounded-2xl w-full max-w-xl shadow-2xl border overflow-hidden flex flex-col max-h-[90vh] ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-                      }`}>
-                      <div className={`px-6 py-4 border-b flex items-center justify-between ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                            <Bot size={18} />
+                  <div
+                    role="dialog"
+                    aria-modal="true"
+                    onClick={() => setShowScraperInfoModal(false)}
+                    className="fixed inset-0 apple-sheet-backdrop z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
+                  >
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="apple-sheet w-full max-w-xl overflow-hidden flex flex-col max-h-[88vh]"
+                    >
+                      <div className="apple-sheet-header px-5 py-3.5 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-amber-500/12 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                            <Bot size={17} />
                           </div>
-                          <div>
-                            <h3 className="text-base font-bold">Scrapere B2B — Glovo Partner & Wolt Merchant</h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">Extragere automată recenzii din contul master jeka7ro@gmail.com</p>
+                          <div className="min-w-0">
+                            <h3 className="text-[15px] font-semibold tracking-tight text-slate-900 dark:text-white truncate">Scrapere B2B — Glovo Partner & Wolt Merchant</h3>
+                            <p className="text-[12px] text-slate-500 dark:text-slate-400 truncate">Extragere automată recenzii din contul master jeka7ro@gmail.com</p>
                           </div>
                         </div>
-                        <button onClick={() => setShowScraperInfoModal(false)} className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
-                          <X size={16} />
+                        <button type="button" onClick={() => setShowScraperInfoModal(false)} aria-label="Close" className="apple-sheet-close">
+                          <X size={15} />
                         </button>
                       </div>
 
-                      <div className="p-6 overflow-y-auto space-y-4 text-xs">
-                        <div className={`p-4 rounded-xl border space-y-2 ${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                          <div className="font-extrabold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                      <div className="p-5 overflow-y-auto space-y-3.5 text-xs custom-scrollbar">
+                        <div className="apple-inset-card p-3.5 space-y-2">
+                          <div className="font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
                             <PlatformLogo platform="glovo" size={15} />
                             <span>1. Glovo Partner (GlovoPartnerScraper)</span>
                           </div>
                           <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                            Încarcă sesiunea salvată din <code className="tabular-nums font-bold">glovo-cookies.json</code> pentru bypass 2FA/Cloudflare, accesează <code className="tabular-nums">portal.glovoapp.com/reviews/</code>, extrage recenziile din DOM și calculează sentimentul în română/engleză.
+                            Încarcă sesiunea salvată din <code className="tabular-nums font-semibold">glovo-cookies.json</code> pentru bypass 2FA/Cloudflare, accesează <code className="tabular-nums">portal.glovoapp.com/reviews/</code>, extrage recenziile din DOM și calculează sentimentul în română/engleză.
                           </p>
-                          <div className="p-2 rounded-lg bg-slate-900 text-emerald-400 tabular-nums text-[11px]">
+                          <div className="px-3 py-2 rounded-lg bg-[#16171B] text-emerald-400 tabular-nums text-[11px]">
                             node workers/src/scrapers/glv-init.js
                           </div>
                         </div>
 
-                        <div className={`p-4 rounded-xl border space-y-2 ${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                          <div className="font-extrabold text-sky-600 dark:text-sky-400 flex items-center gap-1.5">
+                        <div className="apple-inset-card p-3.5 space-y-2">
+                          <div className="font-semibold text-[#047857] dark:text-[#34D399] flex items-center gap-1.5">
                             <PlatformLogo platform="wolt" size={15} />
                             <span>2. Wolt Merchant (WoltPartnerScraper)</span>
                           </div>
                           <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                            Accesează <code className="tabular-nums">merchant.wolt.com/app/experience/search</code> cu <code className="tabular-nums font-bold">jeka7ro@gmail.com</code>, așteaptă confirmarea Magic Link pe email (2 minute) și extrage feedback-ul clienților.
+                            Accesează <code className="tabular-nums">merchant.wolt.com/app/experience/search</code> cu <code className="tabular-nums font-semibold">jeka7ro@gmail.com</code>, așteaptă confirmarea Magic Link pe email (2 minute) și extrage feedback-ul clienților.
                           </p>
-                          <div className="p-2 rounded-lg bg-slate-900 text-emerald-400 tabular-nums text-[11px]">
+                          <div className="px-3 py-2 rounded-lg bg-[#16171B] text-emerald-400 tabular-nums text-[11px]">
                             node workers/src/scrapers/run-reputation.js
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between gap-3 pt-2">
+                        <div className="flex items-center justify-between gap-2 pt-2">
                           <button
                             type="button"
                             onClick={() => {
                               setShowScraperInfoModal(false)
                               fileInputRef.current?.click()
                             }}
-                            className="px-4 h-10 rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1.5 cursor-pointer"
+                            className="apple-btn-secondary"
                           >
-                            <Upload size={14} />
-                            <span>Sau Importă Raport Excel/CSV</span>
+                            <Upload size={13} />
+                            <span>Importă Raport Excel/CSV</span>
                           </button>
 
                           <button
@@ -2083,10 +2052,10 @@ export default function Monitoring() {
                               handleTriggerPortalScrapers()
                               setShowScraperInfoModal(false)
                             }}
-                            className="px-5 h-10 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                            className="apple-btn-primary disabled:opacity-50"
                           >
-                            {isScrapingPortals ? <Loader2 size={14} className="animate-spin" /> : <Bot size={14} />}
-                            <span>Pornește Scanarea Portalurilor Acum</span>
+                            {isScrapingPortals ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />}
+                            <span>Pornește Scanarea Portalurilor</span>
                           </button>
                         </div>
                       </div>

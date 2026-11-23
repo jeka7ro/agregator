@@ -33,21 +33,31 @@ const checkers = {
     iiko: new IikoChecker()
 }
 
-// ─── HELPER: Working Hours Check ───
+// ─── HELPER: Working Hours Check (supports both { start, end } from Settings UI and { monday..sunday }) ───
 function isWithinWorkingHours(restaurant) {
-    // If no working_hours defined OR empty object, assume always open
-    if (!restaurant.working_hours || Object.keys(restaurant.working_hours).length === 0) {
+    const wh = restaurant?.working_hours
+    if (!wh || typeof wh !== 'object' || Object.keys(wh).length === 0) {
         return true
     }
 
     const now = new Date()
-    const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
-    const currentTime = now.toTimeString().slice(0, 5) // HH:MM
+    const currentDay = now.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'Europe/Bucharest' }).toLowerCase()
+    const currentTime = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Bucharest' })
 
-    const daySchedule = restaurant.working_hours[currentDay]
-    if (!daySchedule) return false
+    // Format 1: Settings UI saves { start: '10:00', end: '22:00', telegram_group_id, notification_enabled }
+    if (wh.start && wh.end) {
+        return currentTime >= String(wh.start) && currentTime <= String(wh.end)
+    }
 
-    return currentTime >= daySchedule.open && currentTime <= daySchedule.close
+    // Format 2: Per-weekday schedule { monday: { open, close }, ... }
+    const daySchedule = wh[currentDay]
+    if (daySchedule && daySchedule.open && daySchedule.close) {
+        return currentTime >= daySchedule.open && currentTime <= daySchedule.close
+    }
+
+    // If working_hours only holds metadata (telegram_group_id / notification_enabled), do not silence alerts
+    const hasWeekdayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].some(d => wh[d])
+    return !hasWeekdayKeys
 }
 
 // ─── HELPER: Get Previous Rating ───
@@ -440,8 +450,8 @@ cron.schedule('50 21 * * *', async () => {
 console.log('Workers started successfully!')
 console.log('Night Blackout Window: 22:00 - 10:00 (ALL checks and syncs stopped)')
 console.log('Monitoring schedule: 11:00, 13:00, 17:00, 18:00, 19:00')
-console.log('Antigravity Notifier schedule: Every 3 minutes (10:00 - 22:00 only)')
-console.log('Competitive intelligence scan scheduled for 10:15 daily')
+console.log('Antigravity Notifier schedule: Every 15 minutes (10:00 - 22:00 only)')
+console.log('Competitive intelligence scan: Manual trigger only')
 console.log('Automated Sales Sync scheduled for 10:05, 14:00, 18:00, 21:50')
 console.log('Press Ctrl+C to stop\n')
 

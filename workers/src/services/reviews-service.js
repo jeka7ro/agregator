@@ -585,7 +585,9 @@ export class ReviewsService {
                 finish({ success: false, error: 'Timeout la citirea IMAP din Gmail (25s). Încearcă din nou.' })
             }, 25000)
 
-            const socket = tls.connect(port || 993, host || 'imap.gmail.com', { servername: host || 'imap.gmail.com', rejectUnauthorized: false })
+            const safeHost = 'imap.gmail.com'
+            const safePort = 993
+            const socket = tls.connect(safePort, safeHost, { servername: safeHost, rejectUnauthorized: true })
 
             socket.on('error', (err) => {
                 finish({ success: false, error: `Eroare conexiune IMAP: ${err.message}` })
@@ -597,8 +599,9 @@ export class ReviewsService {
                 if (step === 'GREETING' && buffer.includes('OK')) {
                     buffer = ''
                     step = 'LOGIN'
-                    const cleanPass = appPassword.replace(/\s+/g, '')
-                    socket.write(`A1 LOGIN "${email}" "${cleanPass}"\r\n`)
+                    const cleanEmail = String(email || '').replace(/[\r\n"\\]/g, '').trim()
+                    const cleanPass = String(appPassword || '').replace(/[\s\r\n"\\]/g, '')
+                    socket.write(`A1 LOGIN "${cleanEmail}" "${cleanPass}"\r\n`)
                 } else if (step === 'LOGIN' && (buffer.includes('A1 OK') || buffer.includes('A1 NO') || buffer.includes('A1 BAD'))) {
                     if (!buffer.includes('A1 OK')) {
                         return finish({
@@ -646,7 +649,8 @@ export class ReviewsService {
                         const subject = this._decodeMimeWords(rawSubject)
                         const from = fromMatch ? this._decodeMimeWords(fromMatch[1].trim()) : ''
                         const msgId = msgIdMatch ? msgIdMatch[1].trim() : `${subject}_${dateMatch ? dateMatch[1].trim() : ''}`
-                        const emailDateIso = dateMatch ? new Date(dateMatch[1].trim()).toISOString() : new Date().toISOString()
+                        const parsedEmailDate = dateMatch ? new Date(dateMatch[1].trim()) : null
+                        const emailDateIso = (parsedEmailDate && !Number.isNaN(parsedEmailDate.getTime())) ? parsedEmailDate.toISOString() : new Date().toISOString()
 
                         // Extract BODY[1] and BODY[2]
                         const b1Section = blk.split(/BODY\[1\](?:<\d+>)?\s+\{\d+\}\r\n/i)[1] || ''
@@ -705,18 +709,21 @@ export class ReviewsService {
                             }
                         } else {
                             if (this.reviews.some(r => r.email_message_id === msgId)) continue
-                            const res = await this.ingestFromEmail({
-                                subject,
-                                body: decodedText.slice(0, 1500),
-                                from,
-                                receivedAt: emailDateIso
-                            })
-                            if (res?.items?.length) {
-                                for (const it of res.items) {
+                            try {
+                                const res = await this.parseAndIngestEmail({
+                                    subject,
+                                    body: decodedText.slice(0, 1500),
+                                    from,
+                                    receivedAt: emailDateIso
+                                })
+                                const ingestedList = res?.items || res?.addedReviews || (res?.review ? [res.review] : [])
+                                for (const it of ingestedList) {
                                     it.email_message_id = msgId
                                     importedCount++
                                     importedList.push(it)
                                 }
+                            } catch (parseErr) {
+                                console.warn('[ReviewsService] Non-GMB email parse skipped:', parseErr.message)
                             }
                         }
                     }
@@ -1205,8 +1212,6 @@ export class ReviewsService {
                 customer_phone: customerPhone,
                 customer_avatar: raw.customer_avatar || null,
                 review_photos: Array.isArray(raw.review_photos) ? raw.review_photos : [],
-                review_url: raw.review_url || null,
-                email_message_id: raw.email_message_id || null,
                 comment: rawComment,
                 comment_translations: raw.comment_translations || {
                     ro: rawComment,

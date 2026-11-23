@@ -109,7 +109,7 @@ export default function LogoShowcase() {
                 {/* Bottom Select Action */}
                 <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between">
                   <span className={`text-xs font-bold ${isSelected ? 'text-emerald-400' : 'text-slate-400 group-hover:text-white'}`}>
-                    {isSelected ? '✓ Logo Activ în Aplicație' : 'Apasă pentru a alege'}
+                    {isSelected ? 'Logo Activ în Aplicație' : 'Apasă pentru a alege'}
                   </span>
                   <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
                     isSelected ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700'

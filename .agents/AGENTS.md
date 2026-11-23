@@ -36,3 +36,15 @@ Când utilizatorul scrie chiar și un singur cuvânt precum **`telegram`**, **`t
    node scripts/check-antigravity-telegram.cjs
    ```
 3. Acest script citește direct după `message_id` din chat-ul `Antigravity bot` (`@antygrtybot`, `chat_id: 1641990960`) unde utilizatorul dă forward la mesajele și capturile lui Igor, și salvează eventualele poze în `data/telegram_inbox/msg_<id>.jpg`. Citește pozele nou descărcate cu `read_file` și rezolvă / răspunde direct la ce este în ultimele mesaje!
+
+## Reguli de Inginerie Karpathy (OBLIGATORIU — `.agents/rules/karpathy-guidelines.md`)
+Aplică cele 4 principii din skill-ul `.agents/skills/karpathy-guidelines/SKILL.md` la fiecare modificare:
+1. **Think Before Coding:** enunță explicit ipotezele, nu ghici pe ascuns, întreabă când e ambiguu, semnalează soluții mai simple.
+2. **Simplicity First:** cod minim care rezolvă exact cererea — zero abstracții speculative sau feature-uri necerute.
+3. **Surgical Changes:** atinge strict fișierele și liniile cerute; nu reforma/refactoriza cod adiacent și nu atinge fișiere nelegate din working tree.
+4. **Goal-Driven Execution:** definește criterii verificabile concrete (inclusiv testare pe rolul/scope-ul exact afectat: ex. manager pe un oraș + admin) și verifică E2E înainte să declari finalizat.
+
+## Reguli UI/UX Apple Design & HIG (OBLIGATORIU — `.agents/rules/apple-design-guidelines.md`)
+Pentru orice modificare vizuală, layout, tabel, grafic, dark mode, Liquid Glass sau audit UI/UX în `src/`:
+- Încarcă `.agents/skills/apple-design/SKILL.md` și citește strict paginile relevante din `.agents/skills/apple-design/references/hig/` (8–12 fișiere: setul de bază `accessibility.md`, `layout.md`, `typography.md`, `color.md`, `designing-for-macos.md`, `references/cross-platform.md` + 3–6 pagini pentru ce e pe ecran).
+- Folosește cifre verificabile (contrast WCAG `>= 4.5:1`, `tabular-nums`, zero scroll orizontal mobil, `prefers-reduced-motion` / `prefers-reduced-transparency`), aplică Liquid Glass exclusiv pe navigație/bare (nu pe conținut de date) și citează regula exactă (`file.md › Heading` + `path:line`).
