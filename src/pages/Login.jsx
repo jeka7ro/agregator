@@ -23,6 +23,9 @@ import { useLanguage } from '../lib/LanguageContext'
 import AppLogo from '../components/AppLogo'
 import LanguageToggle from '../components/LanguageToggle'
 import UserAvatar, { compressAvatarImage } from '../components/UserAvatar'
+import { preloadDashboard } from '../App'
+import { prefetchLiveChecks } from '../hooks/useLiveChecks'
+import { prefetchExecutiveSales } from '../hooks/useExecutiveSales'
 
 export default function Login() {
   const {
@@ -86,6 +89,19 @@ export default function Login() {
     }
   }, [pendingFirstLoginUser])
 
+  // Idle-preload the Dashboard JS chunk while user is typing credentials on /login
+  useEffect(() => {
+    const runPreload = () => {
+      preloadDashboard().catch(() => {})
+    }
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(runPreload, { timeout: 1500 })
+      return () => window.cancelIdleCallback(id)
+    }
+    const timer = setTimeout(runPreload, 600)
+    return () => clearTimeout(timer)
+  }, [])
+
   useEffect(() => {
     if (user && !pendingFirstLoginUser) {
       const firstPage = (user.allowed_pages || [])[0] || 'dashboard'
@@ -134,6 +150,11 @@ export default function Login() {
             'Первый вход по приглашению: пожалуйста, установите личный пароль.'
           )
         })
+      } else if (res.user) {
+        // Warm up Dashboard chunk + API data in parallel while React Router transitions
+        preloadDashboard().catch(() => {})
+        prefetchLiveChecks()
+        prefetchExecutiveSales(res.user, 'this_month', 5000)
       }
     } catch (err) {
       let msg = err.message || ''

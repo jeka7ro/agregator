@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-import * as XLSX from 'xlsx'
 import {
   Search,
   Store,
@@ -532,7 +531,7 @@ export default function Reputation() {
     e.target.value = ''
 
     try {
-      const arrayBuffer = await file.arrayBuffer()
+      const [XLSX, arrayBuffer] = await Promise.all([import('xlsx'), file.arrayBuffer()])
       const workbook = XLSX.read(arrayBuffer, { type: 'array' })
       const sheetName = workbook.SheetNames[0]
       const sheet = workbook.Sheets[sheetName]

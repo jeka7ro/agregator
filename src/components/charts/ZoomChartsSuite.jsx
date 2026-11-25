@@ -11,9 +11,9 @@ export default function ZoomChartsSuite({ restaurants = [], checks = [], salesDa
   const [isExpanded, setIsExpanded] = useState(false)
 
   return (
-    <div className="w-full space-y-2.5">
-      {/* Clean Executive Header — Compact Laptop Rhythm */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="w-full h-full flex flex-col space-y-2">
+      {/* Clean Executive Header — Compact Laptop & Ultrawide Rhythm */}
+      <div className="flex flex-wrap items-center justify-between gap-2 shrink-0">
         <h3 className="text-[13px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] flex items-center gap-2">
           <LayoutGrid size={15} className="text-[#047857] dark:text-[#10B981]" />
           <span>{tr('charts.suite_title', 'Analiză Operațională & Vizuală')}</span>
@@ -61,7 +61,7 @@ export default function ZoomChartsSuite({ restaurants = [], checks = [], salesDa
       </div>
 
       {/* Grid of Charts */}
-      <div className={`grid gap-3.5 transition-all duration-300 ${
+      <div className={`flex-1 grid gap-3 transition-all duration-300 ${
         activeView === 'both' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'
       }`}>
         {(activeView === 'both' || activeView === 'pie') && (

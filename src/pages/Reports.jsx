@@ -1204,7 +1204,7 @@ export default function Reports() {
               </div>
 
               {/* ROW 3: Interactive Visual Donuts (Canale & Branduri) & Bar Chart (Top Orașe) */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
                 {/* Card 1: Canale & Kiosks Donut */}
                 <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
@@ -1336,7 +1336,7 @@ export default function Reports() {
               </div>
 
               {/* ROW 4: Bestselling Products (de sus în jos) & Workpoints Matrix */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 min-[2050px]:grid-cols-2 gap-4">
 
                 {/* Left: Top Produse (Bestsellers de sus în jos) */}
                 <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col">
@@ -1350,7 +1350,7 @@ export default function Reports() {
                     </span>
                   </div>
 
-                  <div className="overflow-y-auto max-h-[460px] pr-1 space-y-2.5 custom-scrollbar">
+                  <div className="overflow-y-auto max-h-[460px] 2xl:max-h-[640px] min-[2400px]:max-h-[820px] pr-1 space-y-2.5 custom-scrollbar">
                     {filteredProducts.map((p, idx) => {
                       const maxProdRev = filteredProducts[0]?.revenue || 1
                       const pct = Math.min(100, Math.round((p.revenue / maxProdRev) * 100))
@@ -1427,7 +1427,7 @@ export default function Reports() {
                     />
                   </div>
 
-                  <div className="overflow-y-auto max-h-[460px] pr-1 space-y-2.5 custom-scrollbar">
+                  <div className="overflow-y-auto max-h-[460px] 2xl:max-h-[640px] min-[2400px]:max-h-[820px] pr-1 space-y-2.5 custom-scrollbar">
                     {filteredWorkpoints.length === 0 ? (
                       <div className="py-16 text-center text-xs text-slate-400 font-medium">
                         {t('reports.no_workpoints_match', 'Nicio bucătărie nu corespunde filtrelor selectate.')}

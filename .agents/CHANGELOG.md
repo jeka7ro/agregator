@@ -1,5 +1,79 @@
 # Jurnal de modificări (Antigravity ↔ Paperclip)
 
+### 2026-11-24 16:53 — Fix Loop Tremurat `ResizeObserver` pe `CumulativeHourlyChart.jsx`
+- **Autor:** Antigravity
+- **Ce s-a făcut:** Eliminat bucla de feedback vertical din `ResizeObserver` în [CumulativeHourlyChart.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/CumulativeHourlyChart.jsx): în modul inline înălțimea `H` depinde acum strict de lățimea măsurată `measuredWidth` (niciodată de propria înălțime a containerului), iar în Fullscreen direct de `window.innerHeight`, eliminând 100% orice oscilație/tremurat.
+- **Fișiere:** `src/components/charts/CumulativeHourlyChart.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, live pe `http://localhost:5174`, așteaptă aprobare push & deploy)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-24 16:50 — Păstrare Stare Sidebar în Fullscreen (`MainLayout.jsx`)
+- **Autor:** Antigravity
+- **Ce s-a făcut:** Eliminat auto-colapsarea sidebar-ului la intrarea în Fullscreen din [MainLayout.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/layouts/MainLayout.jsx) — sidebar-ul rămâne exact în starea aleasă de utilizator.
+- **Fișiere:** `src/layouts/MainLayout.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, live pe `http://localhost:5174`, așteaptă aprobare push & deploy)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-24 16:49 — Layout Multi-Panel Cockpit 100% Full-Bleed pe 5K / 49" Ultrawide + Auto-Slim Sidebar în Fullscreen
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - Eliminat complet marginile laterale negre (`max-w-[2880px]` / `max-w-[3440px]` / `mx-auto`) din [MainLayout.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/layouts/MainLayout.jsx) → layout **100% edge-to-edge full-bleed** pe orice monitor (inclusiv `5120×1440` Super-Ultrawide) + auto-colapsare a sidebar-ului la rail subțire de iconițe (`68px`, stil TradePro) la intrarea în Fullscreen (cu restaurare automată la ieșire).
+  - Rearanjat automat componentele din [Dashboard.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dashboard.jsx) în **Cockpit Multi-Panel** pe ecrane late (`>= 2050px`), păstrând intact layout-ul compact de laptop (`< 2050px`):
+    - **Rândul 1:** 5 carduri Uptime KPI (`5 cols`) + Sumar Vânzări & Selector Perioadă (`7 cols`) side-by-side pe un singur rând.
+    - **Rândul 2 (3 grafice side-by-side):** `Total Comenzi Cumulat` (`5 cols`) | `Distribuție Vânzări` + `Evoluție Uptime` (`7 cols`) aliniate la același nivel.
+    - **Rândul 3 (3 panouri executive side-by-side):** `Matrice Branduri` (`5 cols`) | `Top Orașe` (`4 cols`) | `Rețea Operațională / Alerte + Stop-List iiko` (`3 cols`).
+  - Optimizat și [CouriersMap.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/CouriersMap.jsx) (`9/3` cols full-height), [Reports.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Reports.jsx), [ZoomChartsSuite.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/ZoomChartsSuite.jsx), [CumulativeHourlyChart.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/CumulativeHourlyChart.jsx) și [index.css](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/index.css).
+- **Fișiere:** `src/layouts/MainLayout.jsx`, `src/pages/Dashboard.jsx`, `src/components/charts/ZoomChartsSuite.jsx`, `src/components/charts/CumulativeHourlyChart.jsx`, `src/pages/CouriersMap.jsx`, `src/pages/Reports.jsx`, `src/index.css`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, live pe `http://localhost:5174`, așteaptă aprobare push & deploy)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-24 16:45 — Buton Global Fullscreen în Header-ul de Sus + Scalare Adaptivă pe Toate Paginile (Laptop → 5K Ultrawide)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - Adăugat butonul global **Fullscreen (`Maximize2` / `Minimize2`)** direct în **header-ul flotant de sus** din [MainLayout.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/layouts/MainLayout.jsx) (lângă selectorul de limbă și Dark/Light Mode, vizibil pe toate paginile), conectat la Fullscreen API nativ (`requestFullscreen` / `webkitRequestFullscreen` + sincronizare `Esc` + declanșare automată `resize` pentru hărți Leaflet și grafice SVG).
+  - Optimizat layout-ul global pe toate paginile pentru ecrane de la **laptop 13"–15"** până la **monitoare 2K / 4K / 5K & 49" Ultrawide** ([MainLayout.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/layouts/MainLayout.jsx), [index.css](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/index.css), [CouriersMap.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/CouriersMap.jsx), [Reports.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Reports.jsx)): containere fluide `max-w-[2880px]` (`max-w-[3440px]` în Fullscreen), scalare tipografică progresivă (`16px` laptop → `16.5px` 2K → `17.5px` 5K → `18.5px` super-ultrawide), relaxare `max-w` pe coloane de tabel și deblocare înălțime hartă/rapoarte pe ecrane mari.
+- **Fișiere:** `src/layouts/MainLayout.jsx`, `src/index.css`, `src/pages/CouriersMap.jsx`, `src/pages/Reports.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, live pe `http://localhost:5174`, așteaptă aprobare push & deploy)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-24 16:37 — Fullscreen Adaptiv Laptop → 5K Ultrawide pe Graficul `Total Comenzi Cumulat`
+- **Autor:** Antigravity
+- **Ce s-a făcut:** Adăugat butonul de **Fullscreen** (`Maximize2` / `Minimize2` + tastă `Esc` + click pe backdrop, randat curat în portal `document.body`) pe [CumulativeHourlyChart.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/CumulativeHourlyChart.jsx) și conectat selectorul de perioadă direct din [Dashboard.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dashboard.jsx) (accesibil și în Fullscreen fără a ieși din vizualizare, cf. Apple HIG `going-full-screen.md`). Implementat `ResizeObserver` cu geometrie pixel-exactă `1:1` de la laptop (`1280px`) până la monitoare **5K & 49" Ultrawide** (`max-w-[3600px]`, scalare dinamică fonturi, bare, `4–6` intervale Y-axis și footer executiv în Fullscreen cu Ora de Vârf, Medie Orară și Bon Mediu, fără deformare SVG și fără suprapuneri).
+- **Fișiere:** `src/components/charts/CumulativeHourlyChart.jsx`, `src/pages/Dashboard.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, live pe `http://localhost:5174`, așteaptă aprobare push & deploy)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-24 16:31 — Filtrare Completă pe Perioadă + Paletă Apple Blue + Zero Suprapuneri în `Total Comenzi Cumulat`
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - Extins `/api/sales/cumulative-hourly` pe ambele backend-uri ([api.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/netlify/functions/api.js), [api-server.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/api-server.js)) și hook-ul [useCumulativeHourly.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/hooks/useCumulativeHourly.js) pentru **toate perioadele din Dashboard** (`today`, `yesterday`, `this_week` vs săptămâna anterioară `16.11–17.11`, `this_month` vs `last_month`, `last_month` vs `this_month`, `this_year`, `all`, `custom`), cu paritate 1:1 la comandă și leu față de `Сводка Продаж & Каналов`.
+  - Schimbat paleta barelor și curbei principale în [CumulativeHourlyChart.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/CumulativeHourlyChart.jsx) din verde-mentă în **Apple System Blue** (`#93C5FD → #60A5FA` / `#2563EB` Light, `#3B82F6 → #1D4ED8` Dark) + Warm Amber/Violet pentru comparație.
+  - Eliminat complet suprapunerile de texte & valori: separare verticală a benzilor (bare `~68%` înălțime vs curbe `~85%` deasupra), valori RON poziționate curat jos în bare cu detecție 2D bounding-box `boxesOverlap()` împotriva tuturor pill-urilor și punctelor, și stivuire curată deasupra curbei pentru pill-urile `X зак/cmd`.
+- **Fișiere:** `netlify/functions/api.js`, `workers/src/api-server.js`, `src/hooks/useCumulativeHourly.js`, `src/components/charts/CumulativeHourlyChart.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, live pe `http://localhost:5174`, așteaptă aprobare push & deploy)
+- **Build / Teste:** `npm run build` (`682ms`), paritate 1:1 pe toate cele 6 perioade (`today`, `yesterday`, `this_week`, `this_month`, `last_month`, `this_year`), `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-24 16:21 — Grafic Dedicat Full-Width „Total Comenzi Cumulat” pe Dashboard (Varianta C + Paritate Dual-Backend)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - Adăugat endpoint-ul `/api/sales/cumulative-hourly` cu paritate 1:1 în ambele backend-uri ([api.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/netlify/functions/api.js) + [api-server.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/api-server.js)): calculează ritmul orar cumulat (`10:00 → ora curentă RO`, cu tăiere exactă la minutul curent `HH:MM` pentru comparație echitabilă apple-to-apple față de **Ieri** sau **aceeași zi acum 7 zile** `-7z`, respectând complet scope-ul RBAC `cities`, `brands`, `restaurants`, și cu **Netlify Durable CDN** `public, durable, max-age=60, stale-while-revalidate=300` + `Netlify-Vary: query`).
+  - Creat hook SWR [useCumulativeHourly.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/hooks/useCumulativeHourly.js) (cache `localStorage` 0ms la relogare, curățat automat la logout, deduplicare in-flight, refresh automat la 2 min doar în 10:00–22:00 RO).
+  - Creat componenta Apple macOS Tahoe [CumulativeHourlyChart.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/CumulativeHourlyChart.jsx) (dual-axis Combo Chart SVG: bare cumulate RON + curbe spline netede comenzi cu pill-uri non-suprapuse, controale `Fără | • Ieri | • DD.MM (-7z)` și `RON + Cmd | RON | Comenzi`, badge-uri delta `% RON` / `% cmd` cu săgeți + semne pentru accesibilitate, tooltip glassmorphic la hover/tastatură, Light + Dark mode, i18n RO/EN/RU) și montat full-width deasupra `ZoomChartsSuite` în [Dashboard.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dashboard.jsx), păstrând intact `Evoluție Uptime & Disponibilitate`.
+- **Fișiere:** `netlify/functions/api.js`, `workers/src/api-server.js`, `src/hooks/useCumulativeHourly.js`, `src/components/charts/CumulativeHourlyChart.jsx`, `src/pages/Dashboard.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, live pe `http://localhost:5174`, așteaptă aprobare push & deploy)
+- **Build / Teste:** `npm run build` (`609ms`), `node --check` OK, paritate 1:1 `360` comenzi / `41.331 RON` între `executive-summary?period=today` și `cumulative-hourly`, scope Cluj/București verificat (`12–15ms`), `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-24 10:02 — Optimizare Majoră Viteză Încărcare Login → Dashboard & Backend Serverless + Durable CDN
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - **Backend Cold-Start (`39 MB → 3.4 MB` bundle, cold-import `82ms`):** Eliminat importul static al fișierului `data/customers-cache.json` (`36 MB`) și hidratarea sincronă la startup din `netlify/functions/api.js` + `workers/src/services/customers-service.js` (`ensureCustomersHydrated()` / `ensureLoaded()` se încarcă lazy de pe disc cu `included_files` în `netlify.toml` doar la `/api/customers*` sau rapoarte custom >14 zile). Mutat `_saveToSupabase` pe `context.waitUntil()` în `/api/auth/login` și `/api/auth/heartbeat`.
+  - **Netlify Durable CDN (`fwd=bypass → hit`):** Activat `Netlify-CDN-Cache-Control: public, durable, max-age=..., stale-while-revalidate=...` + `Netlify-Vary: query` pe `/api/settings/restaurants` (`300s/3600s`), `/api/live-checks` (`60s/300s`), `/api/sales/executive-summary` (`60s–3600s` după perioadă) și `/api/reviews` (`120s/600s`).
+  - **Cache Istoric Vânzări (`cutoff 2026-11-17 → 2026-11-23`):** Consolidat cele 6 zile încheiate (`18–23 nov`, `6.859` comenzi unice incl. SmashMe Cluj Kiosk) în `data/sales-history-cache.json` (paritate matematică 100%: `26.396` comenzi / `3.656.387 RON` net / `4.599.655 RON` gross pe `this_month`, `0` diferențe pe Cluj/București; `this_month` cold scăzut de la `6.141ms` local / `15.9s` prod → `232–418ms`!).
+  - **Frontend Code-Splitting, Lazy Assets & 0ms SWR:** Convertit toate cele 12 pagini în `React.lazy()` (`src/App.jsx`), eliminat dublul `<AuthProvider>` (dubla `/api/users` + heartbeat), split vendor chunks în `vite.config.js` (bundle inițial `/login` scăzut de la `1.816 KB / 501 KB gzip` → `~135 KB gzip`), mutat `xlsx` (`424 KB`) pe dynamic `import('xlsx')` în `Monitoring.jsx` și `Reputation.jsx`, eliminat `leaflet.css`/`leaflet.js` blocante din `index.html` și încărcat on-demand prin `src/lib/loadLeaflet.js` doar în `CouriersMap.jsx` și `OrderLiveRouteMap.jsx`. Deduplicat request-urile concurente `useLiveChecks` (`MainLayout` + `Dashboard`) + `useExecutiveSales`, mutat cache-ul SWR pe `localStorage` (curățat automat la logout) și adăugat idle-prefetch `Dashboard` + pre-warm API la autentificare din `Login.jsx`.
+- **Fișiere:** `index.html`, `vite.config.js`, `netlify.toml`, `src/App.jsx`, `src/lib/loadLeaflet.js`, `src/lib/AuthContext.jsx`, `src/hooks/useLiveChecks.js`, `src/hooks/useExecutiveSales.js`, `src/pages/Login.jsx`, `src/pages/Monitoring.jsx`, `src/pages/Reputation.jsx`, `src/pages/CouriersMap.jsx`, `src/components/OrderLiveRouteMap.jsx`, `netlify/functions/api.js`, `workers/src/api-server.js`, `workers/src/services/customers-service.js`, `data/sales-history-cache.json`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, live pe `http://localhost:5174`, așteaptă aprobare push & deploy)
+- **Build / Teste:** `npm run build` (`841ms`, `index.js` `45.4 KB`), `node --check` OK, esbuild Netlify bundle `3.4 MB` (`82ms` cold-import, `11.481` clienți lazy-hydrated), paritate matematică 100% (`0` diferențe), `run_prepush_audit.py` VERDE.
+
 ### 2026-11-23 12:24 — Unificare Filtre Etape & Canale pe 1 Singur Rând în Dispecerat Live (`Dispatch.jsx`)
 - **Autor:** Antigravity
 - **Ce s-a făcut:** Compactat și aliniat filtrele de etape (`Toate / Bucătărie / Gata / La Curier / Livrate / Sesizări`) și canale (`Kiosk / POS / Agregatori / Propriu`) pe **un singur rând curat** (`xl:flex-nowrap justify-between`, două `.apple-segmented` armonizate în Deep Brand Emerald, fără textul redundant `Canal:`, cu tooltip complet la hover și contrast `text-white` pe segmentul activ) în [`src/pages/Dispatch.jsx`](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dispatch.jsx).

@@ -4,6 +4,123 @@ import { useAuth } from '../lib/AuthContext'
 import { getCanonicalCity } from '../lib/orderUtils'
 import { getBrandInfo } from '../components/BrandAvatar'
 
+const SALES_CACHE_PREFIX = 'exec_sales_v6_'
+const SALES_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000 // 12h for instant 0ms SWR paint while live data revalidates
+const inFlightSalesRequests = new Map()
+const memorySalesCache = new Map()
+
+function readSalesCache(cacheKey) {
+  const mem = memorySalesCache.get(cacheKey)
+  if (mem && mem.success) return mem
+  try {
+    if (typeof window !== 'undefined') {
+      const raw = localStorage.getItem(cacheKey)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed?.data?.success && (Date.now() - (parsed.ts || 0) < SALES_CACHE_MAX_AGE_MS)) {
+          memorySalesCache.set(cacheKey, parsed.data)
+          return parsed.data
+        }
+      }
+    }
+  } catch (_) {}
+  return null
+}
+
+function writeSalesCache(cacheKey, data) {
+  if (!data || !data.success) return
+  memorySalesCache.set(cacheKey, data)
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data }))
+    }
+  } catch (_) {
+    // Quota exceeded: trim old sales cache entries and retry once
+    try {
+      const keysToDelete = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i)
+        if (k && k.startsWith(SALES_CACHE_PREFIX) && k !== cacheKey) keysToDelete.push(k)
+      }
+      keysToDelete.forEach(k => localStorage.removeItem(k))
+      localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data }))
+    } catch (_) {}
+  }
+}
+
+export function clearExecutiveSalesCache() {
+  memorySalesCache.clear()
+  inFlightSalesRequests.clear()
+  try {
+    if (typeof window !== 'undefined') {
+      const lsKeys = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i)
+        if (k && k.startsWith(SALES_CACHE_PREFIX)) lsKeys.push(k)
+      }
+      lsKeys.forEach(k => localStorage.removeItem(k))
+    }
+  } catch (_) {}
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('ag-auth-cache-purge', () => {
+    memorySalesCache.clear()
+    inFlightSalesRequests.clear()
+  })
+}
+
+function buildSalesCacheKey(period, customFrom, customTo, allowedCitiesKey) {
+  return `${SALES_CACHE_PREFIX}${period}_${customFrom}_${customTo}_${allowedCitiesKey || 'all'}`
+}
+
+async function fetchExecutiveSalesShared({ period, limit, customFrom, customTo, allowedCitiesKey }) {
+  const cacheKey = buildSalesCacheKey(period, customFrom, customTo, allowedCitiesKey)
+  const existing = inFlightSalesRequests.get(cacheKey)
+  if (existing) return existing
+
+  const params = new URLSearchParams({ period, limit: String(limit) })
+  if (period === 'custom' && customFrom) {
+    params.set('from', customFrom)
+    if (customTo) params.set('to', customTo)
+  }
+  if (allowedCitiesKey) params.set('cities', allowedCitiesKey)
+
+  const reqPromise = (async () => {
+    const res = await fetch(getApiUrl(`/api/sales/executive-summary?${params.toString()}`))
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+    if (data && data.success) {
+      writeSalesCache(cacheKey, data)
+      return data
+    }
+    throw new Error(data?.error || 'Failed to fetch sales summary')
+  })()
+
+  inFlightSalesRequests.set(cacheKey, reqPromise)
+  try {
+    return await reqPromise
+  } finally {
+    if (inFlightSalesRequests.get(cacheKey) === reqPromise) {
+      inFlightSalesRequests.delete(cacheKey)
+    }
+  }
+}
+
+export function prefetchExecutiveSales(user, period = 'this_month', limit = 5000) {
+  if (!user) return Promise.resolve(null)
+  const allowedCitiesKey = user.role === 'admin'
+    ? ''
+    : (user.allowed_cities || ['all']).filter(c => c && c !== 'all').join(',')
+  return fetchExecutiveSalesShared({
+    period,
+    limit,
+    customFrom: '',
+    customTo: '',
+    allowedCitiesKey
+  }).catch(() => null)
+}
+
 export function useExecutiveSales(period = 'this_month', limit = 2000, customRange = null) {
   const { user, canAccessCity, canAccessBrand, canAccessRestaurant, hasScopeRestrictions } = useAuth()
   const allowedCitiesKey = useMemo(() => {
@@ -15,21 +132,10 @@ export function useExecutiveSales(period = 'this_month', limit = 2000, customRan
   const customFrom = period === 'custom' && customRange?.from ? String(customRange.from).trim() : ''
   const customTo = period === 'custom' && customRange?.to ? String(customRange.to).trim() : customFrom
 
-  const cacheKey = `exec_sales_v5_${period}_${customFrom}_${customTo}_${allowedCitiesKey || 'all'}`
+  const cacheKey = buildSalesCacheKey(period, customFrom, customTo, allowedCitiesKey)
 
-  const [salesData, setSalesData] = useState(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        const cached = sessionStorage.getItem(cacheKey)
-        if (cached) {
-          const parsed = JSON.parse(cached)
-          if (parsed && parsed.success) return parsed
-        }
-      }
-    } catch (_) {}
-    return null
-  })
-  const [loading, setLoading] = useState(() => !salesData)
+  const [salesData, setSalesData] = useState(() => readSalesCache(cacheKey))
+  const [loading, setLoading] = useState(() => !readSalesCache(cacheKey))
   const [error, setError] = useState(null)
   const reqIdRef = useRef(0)
   const isMountedRef = useRef(true)
@@ -42,55 +148,35 @@ export function useExecutiveSales(period = 'this_month', limit = 2000, customRan
   const fetchSales = useCallback(async () => {
     const reqId = ++reqIdRef.current
     try {
-      setLoading(true)
-      const params = new URLSearchParams({ period, limit: String(limit) })
-      if (period === 'custom' && customFrom) {
-        params.set('from', customFrom)
-        if (customTo) params.set('to', customTo)
-      }
-      if (allowedCitiesKey) params.set('cities', allowedCitiesKey)
-      const res = await fetch(getApiUrl(`/api/sales/executive-summary?${params.toString()}`))
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
+      if (!readSalesCache(cacheKey)) setLoading(true)
+      const data = await fetchExecutiveSalesShared({
+        period,
+        limit,
+        customFrom,
+        customTo,
+        allowedCitiesKey
+      })
       if (!isMountedRef.current || reqId !== reqIdRef.current) return
-      if (data && data.success) {
-        setSalesData(data)
-        setError(null)
-        try {
-          sessionStorage.setItem(cacheKey, JSON.stringify(data))
-        } catch (_) {}
-      } else {
-        throw new Error(data?.error || 'Failed to fetch sales summary')
-      }
+      setSalesData(data)
+      setError(null)
     } catch (err) {
       if (!isMountedRef.current || reqId !== reqIdRef.current) return
       console.warn('[useExecutiveSales] Fetch error:', err.message)
       setError(err.message)
       // Anti-Wipe: fallback la cache dacă serverul are un glitch temporar
-      try {
-        const cached = sessionStorage.getItem(cacheKey)
-        if (cached) {
-          const parsed = JSON.parse(cached)
-          if (parsed && parsed.success) {
-            setSalesData(parsed)
-          }
-        }
-      } catch (_) {}
+      const cached = readSalesCache(cacheKey)
+      if (cached) setSalesData(cached)
     } finally {
       if (isMountedRef.current && reqId === reqIdRef.current) setLoading(false)
     }
   }, [period, limit, customFrom, customTo, allowedCitiesKey, cacheKey])
 
   useEffect(() => {
-    try {
-      const cached = sessionStorage.getItem(cacheKey)
-      if (cached) {
-        const parsed = JSON.parse(cached)
-        if (parsed && parsed.success) {
-          setSalesData(parsed)
-        }
-      }
-    } catch (_) {}
+    const cached = readSalesCache(cacheKey)
+    if (cached) {
+      setSalesData(cached)
+      setLoading(false)
+    }
     fetchSales()
     // Immutable historical periods never need background polling (0 wasted function invocations)
     if (period === 'yesterday' || period === 'last_month') return

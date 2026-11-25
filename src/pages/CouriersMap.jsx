@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
+import { loadLeaflet } from '../lib/loadLeaflet'
 import { useAuth } from '../lib/AuthContext'
 import { useLiveDispatch } from '../hooks/useLiveDispatch'
 import { useLiveChecks } from '../hooks/useLiveChecks'
@@ -797,6 +798,7 @@ export default function CouriersMap() {
   const markersLayerRef = useRef(null)
   const streetRoutesCacheRef = useRef(new Map())
   const [streetRoutes, setStreetRoutes] = useState({})
+  const [leafletReady, setLeafletReady] = useState(() => Boolean(typeof window !== 'undefined' && window.L))
 
   const {
     orders,
@@ -1022,30 +1024,43 @@ export default function CouriersMap() {
     }
   }, [deliveryOrders, selectedCity, selectedBrand, selectedRestaurantId, selectedFleet, streetRoutes, language])
 
-  // Inițializare hartă Leaflet cu tile-uri Google Maps Stradal (fără watermark)
+  // Inițializare hartă Leaflet cu tile-uri Google Maps Stradal (încărcat la cerere doar pe hartă)
   useEffect(() => {
-    if (!mapContainerRef.current || !window.L) return
-    if (leafletMapRef.current) return
+    let cancelled = false
+    let createdMap = null
 
-    const L = window.L
-    const map = L.map(mapContainerRef.current, {
-      center: [ROMANIA_CENTER.lat, ROMANIA_CENTER.lng],
-      zoom: ROMANIA_CENTER.zoom,
-      zoomControl: true,
-      scrollWheelZoom: false
-    })
+    const initMap = (L) => {
+      if (cancelled || !mapContainerRef.current || !L || leafletMapRef.current) return
+      const map = L.map(mapContainerRef.current, {
+        center: [ROMANIA_CENTER.lat, ROMANIA_CENTER.lng],
+        zoom: ROMANIA_CENTER.zoom,
+        zoomControl: true,
+        scrollWheelZoom: false
+      })
 
-    tileLayerRef.current = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ro', {
-      attribution: '&copy; Google Maps · OSRM Street Routing',
-      maxZoom: 20
-    }).addTo(map)
+      tileLayerRef.current = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ro', {
+        attribution: '&copy; Google Maps · OSRM Street Routing',
+        maxZoom: 20
+      }).addTo(map)
 
-    markersLayerRef.current = L.layerGroup().addTo(map)
-    leafletMapRef.current = map
+      markersLayerRef.current = L.layerGroup().addTo(map)
+      leafletMapRef.current = map
+      createdMap = map
+      setLeafletReady(true)
+    }
+
+    if (window.L) {
+      initMap(window.L)
+    } else {
+      loadLeaflet().then(initMap).catch(() => {})
+    }
 
     return () => {
-      map.remove()
-      leafletMapRef.current = null
+      cancelled = true
+      if (createdMap) {
+        createdMap.remove()
+        leafletMapRef.current = null
+      }
     }
   }, [])
 
@@ -1548,7 +1563,7 @@ export default function CouriersMap() {
         </div>
       `)
     })
-  }, [filteredDeliveries, deliveryOrders, selectedOrderId, language, streetRoutes])
+  }, [filteredDeliveries, deliveryOrders, selectedOrderId, language, streetRoutes, leafletReady])
 
   const handleSelectOrderCard = (ord) => {
     if (selectedOrderId === ord.id) {
@@ -1898,7 +1913,7 @@ export default function CouriersMap() {
           className={`${
             isMapFullscreen
               ? 'fixed inset-3 z-[9995] shadow-2xl'
-              : 'relative lg:col-span-8 h-[calc(100vh-225px)] min-h-[430px] max-h-[680px]'
+              : 'relative lg:col-span-8 min-[2050px]:col-span-9 h-[calc(100vh-195px)] min-h-[440px] max-h-[1400px]'
           } rounded-2xl border overflow-hidden flex flex-col ${
             isDark ? 'bg-slate-900 border-slate-800 couriers-map-dark' : 'bg-white border-slate-200 shadow-xs'
           }`}
@@ -2012,7 +2027,7 @@ export default function CouriersMap() {
         </div>
 
         {/* Panou lateral adaptat exact la înălțimea hărții pe laptop */}
-        <div className={`lg:col-span-4 rounded-2xl border flex flex-col h-[calc(100vh-225px)] min-h-[430px] max-h-[680px] overflow-hidden ${
+        <div className={`lg:col-span-4 min-[2050px]:col-span-3 rounded-2xl border flex flex-col h-[calc(100vh-195px)] min-h-[440px] max-h-[1400px] overflow-hidden ${
           isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
         }`}>
           <div className={`px-3.5 py-2.5 border-b flex items-center justify-between ${

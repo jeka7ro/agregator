@@ -194,6 +194,12 @@ class CustomersService {
     this.customersById = new Map()
     this.dirty = false
     this.lastSavedAt = 0
+    this._loaded = false
+  }
+
+  ensureLoaded() {
+    if (this._loaded) return
+    this._loaded = true
     this._loadFromDisk()
     this._loadReviewsFromDisk()
   }
@@ -226,6 +232,7 @@ class CustomersService {
 
   hydrateFromStatic(raw) {
     if (!raw || this.customersByKey.size > 0) return
+    this._loaded = true
     const list = Array.isArray(raw?.customers) ? raw.customers : (Array.isArray(raw) ? raw : [])
     for (const c of list) {
       if (c && c.key && c.id) {
@@ -537,6 +544,7 @@ class CustomersService {
 
   ingestOrders(orders = []) {
     if (!Array.isArray(orders) || orders.length === 0) return 0
+    this.ensureLoaded()
     let touchedCount = 0
 
     for (const o of orders) {
@@ -732,6 +740,7 @@ class CustomersService {
   }
 
   updateCustomer(id, patch = {}) {
+    this.ensureLoaded()
     const rec = this.customersById.get(id)
     if (!rec) return null
     if (patch.name !== undefined && String(patch.name).trim()) rec.name = String(patch.name).trim()
@@ -760,6 +769,7 @@ class CustomersService {
     page = 1,
     limit = 25
   } = {}) {
+    this.ensureLoaded()
     const all = Array.from(this.customersByKey.values())
 
     const allowedCitiesList = (city && city !== 'all')

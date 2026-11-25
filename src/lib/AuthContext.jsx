@@ -1,7 +1,24 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { getApiUrl } from './api'
 import { getCanonicalCity } from './orderUtils'
 import { getBrandInfo } from '../components/BrandAvatar'
+
+function purgeScopedAppCaches() {
+  try {
+    if (typeof window === 'undefined') return
+    const toRemove = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k && (k.startsWith('exec_sales_v') || k.startsWith('live_checks_'))) {
+        toRemove.push(k)
+      }
+    }
+    toRemove.forEach(k => localStorage.removeItem(k))
+    sessionStorage.removeItem('live_checks_restaurants_v2')
+    sessionStorage.removeItem('live_checks_data_v2')
+    window.dispatchEvent(new Event('ag-auth-cache-purge'))
+  } catch (_) {}
+}
 
 const AuthContext = createContext(null)
 
@@ -112,10 +129,12 @@ export function AuthProvider({ children }) {
   })
 
   const [pendingFirstLoginUser, setPendingFirstLoginUser] = useState(null)
+  const lastFreshLoginAtRef = useRef(0)
 
   const saveSessionUser = useCallback((nextUser) => {
     if (!nextUser) {
       setUser(null)
+      purgeScopedAppCaches()
       try {
         localStorage.removeItem(STORAGE_USER_KEY)
         localStorage.setItem(STORAGE_LOGGED_OUT_KEY, '1')
@@ -165,33 +184,42 @@ export function AuthProvider({ children }) {
       }).catch(() => {})
     }
 
-    sendHeartbeat(true)
-    const hbTimer = setInterval(() => sendHeartbeat(false), 10 * 60 * 1000)
+    // Defer non-critical heartbeat + user profile refresh slightly so Dashboard API fetches get priority bandwidth
+    const startupTimer = setTimeout(() => {
+      if (cancelled) return
+      sendHeartbeat(true)
 
-    fetch(getApiUrl('/api/users'))
-      .then(r => r.json())
-      .then(data => {
-        if (cancelled || !data?.success || !Array.isArray(data.users)) return
-        const fresh = data.users.find(u => u.id === activeUserId || u.email === activeUserEmail)
-        if (fresh) {
-          if (fresh.status === 'blocked') {
-            saveSessionUser(null)
-            return
+      // Skip immediate /api/users re-sync if user just logged in (< 10s ago — login already returned fresh user)
+      if (Date.now() - lastFreshLoginAtRef.current < 10000) return
+
+      fetch(getApiUrl('/api/users'))
+        .then(r => r.json())
+        .then(data => {
+          if (cancelled || !data?.success || !Array.isArray(data.users)) return
+          const fresh = data.users.find(u => u.id === activeUserId || u.email === activeUserEmail)
+          if (fresh) {
+            if (fresh.status === 'blocked') {
+              saveSessionUser(null)
+              return
+            }
+            saveSessionUser({
+              ...fresh,
+              status: 'active',
+              must_change_password: Boolean(fresh.must_change_password),
+              is_impersonated: activeIsImpersonated,
+              // Preserve local avatar if user just updated it
+              avatar_url: fresh.avatar_url || user?.avatar_url || ''
+            })
           }
-          saveSessionUser({
-            ...fresh,
-            status: 'active',
-            must_change_password: Boolean(fresh.must_change_password),
-            is_impersonated: activeIsImpersonated,
-            // Preserve local avatar if user just updated it
-            avatar_url: fresh.avatar_url || user?.avatar_url || ''
-          })
-        }
-      })
-      .catch(() => {})
+        })
+        .catch(() => {})
+    }, 1500)
+
+    const hbTimer = setInterval(() => sendHeartbeat(false), 10 * 60 * 1000)
 
     return () => {
       cancelled = true
+      clearTimeout(startupTimer)
       clearInterval(hbTimer)
     }
   }, [activeUserId, activeUserEmail, activeIsImpersonated])
@@ -210,6 +238,7 @@ export function AuthProvider({ children }) {
       setPendingFirstLoginUser(data.user)
       return { mustChangePassword: true, user: data.user }
     }
+    lastFreshLoginAtRef.current = Date.now()
     setPendingFirstLoginUser(null)
     saveSessionUser({ ...data.user, is_impersonated: false })
     return { mustChangePassword: false, user: data.user }

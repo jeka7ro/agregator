@@ -2300,6 +2300,468 @@ async function fetchLiveAndWebhookOrdersForDay(dayStr, allRests = []) {
     return combined
 }
 
+// Cumulative Hourly Pacing across ALL Dashboard periods (today, yesterday, this_week, this_month, last_month, this_year, custom) — 1:1 Parity with Netlify Function
+app.get('/api/sales/cumulative-hourly', async (req, res) => {
+    try {
+        const now = new Date()
+        const roWall = now.toLocaleString('sv-SE', { timeZone: 'Europe/Bucharest' })
+        const roTodayStr = roWall.slice(0, 10)
+        const roNowHour = parseInt(roWall.slice(11, 13), 10) || 0
+        const roNowMin = parseInt(roWall.slice(14, 16), 10) || 0
+        const roNowTimeStr = roWall.slice(11, 16)
+        const cutoffMinOfDayNow = roNowHour * 60 + roNowMin
+
+        const pad2H = (n) => String(n).padStart(2, '0')
+        const shiftYmd = (ymd, deltaDays) => {
+            const [yy, mm, dd] = ymd.split('-').map(Number)
+            const dt = new Date(yy, mm - 1, dd + deltaDays)
+            return `${dt.getFullYear()}-${pad2H(dt.getMonth() + 1)}-${pad2H(dt.getDate())}`
+        }
+        const formatShortDm = (ymd) => `${ymd.slice(8, 10)}.${ymd.slice(5, 7)}`
+        const listDays = (fromS, toS, cap = 14) => {
+            if (!fromS || !toS || fromS > toS) return []
+            const out = []
+            let cur = fromS
+            let g = 0
+            while (cur <= toS && g++ < cap) {
+                out.push(cur)
+                cur = shiftYmd(cur, 1)
+            }
+            return out
+        }
+
+        const reqPeriodRaw = String(req.query.period || '').trim().toLowerCase()
+        const reqDateRaw = String(req.query.date || '').trim()
+        const reqFromRaw = String(req.query.from || '').trim()
+        const reqToRaw = String(req.query.to || reqFromRaw).trim()
+
+        const effectivePeriod = ['today', 'yesterday', 'this_week', 'this_month', 'last_month', 'this_year', 'all', 'custom'].includes(reqPeriodRaw)
+            ? reqPeriodRaw
+            : (reqDateRaw ? 'custom' : 'today')
+
+        const compareModeRaw = String(req.query.compare || 'primary').trim().toLowerCase()
+        const compareMode = compareModeRaw === 'none'
+            ? 'none'
+            : (compareModeRaw === 'prev_week' || compareModeRaw === 'secondary' ? 'secondary' : 'primary')
+
+        const qCitiesRaw = String(req.query.cities || req.query.city || '').trim()
+        const qBrandsRaw = String(req.query.brands || req.query.brand || '').trim()
+        const qRestsRaw = String(req.query.restaurants || '').trim()
+
+        const allowedCitiesSet = qCitiesRaw && qCitiesRaw.toLowerCase() !== 'all'
+            ? new Set(qCitiesRaw.split(',').map(c => getCanonicalCity(c.trim())).filter(Boolean))
+            : null
+        const allowedBrandsSet = qBrandsRaw && qBrandsRaw.toLowerCase() !== 'all'
+            ? new Set(qBrandsRaw.split(',').map(b => b.trim().toLowerCase()).filter(Boolean))
+            : null
+        const allowedRestsSet = qRestsRaw && qRestsRaw.toLowerCase() !== 'all'
+            ? new Set(qRestsRaw.split(',').map(r => r.trim()).filter(Boolean))
+            : null
+        const hasAnyScope = Boolean(allowedCitiesSet || allowedBrandsSet || allowedRestsSet)
+
+        const isSingleDayCustom = effectivePeriod === 'custom' && /^\d{4}-\d{2}-\d{2}$/.test(reqFromRaw || reqDateRaw) && (!(reqToRaw) || (reqFromRaw || reqDateRaw) === reqToRaw)
+        const includesToday = effectivePeriod === 'today' || effectivePeriod === 'this_week' || effectivePeriod === 'this_month' || effectivePeriod === 'this_year' || effectivePeriod === 'all' || (effectivePeriod === 'custom' && (reqToRaw || reqFromRaw || reqDateRaw) >= roTodayStr)
+
+        const cacheKey = `cum_hr_v2|${effectivePeriod}|${reqDateRaw}|${reqFromRaw}|${reqToRaw}|${compareMode}|${qCitiesRaw}|${qBrandsRaw}|${qRestsRaw}`
+        const ttlMs = includesToday ? 30000 : 1800000
+        global.__CUMULATIVE_HOURLY_CACHE = global.__CUMULATIVE_HOURLY_CACHE || new Map()
+        const cached = global.__CUMULATIVE_HOURLY_CACHE.get(cacheKey)
+        if (cached && (Date.now() - cached.ts < ttlMs)) {
+            return res.json(cached.data)
+        }
+
+        let rests = global.__CACHED_ALL_RESTS || loadRestaurantsCache() || []
+        if (!Array.isArray(rests) || rests.length === 0) {
+            try {
+                const { data: fetchedRests } = await supabase.from('restaurants').select('*, brands(name)')
+                if (Array.isArray(fetchedRests) && fetchedRests.length > 0) {
+                    rests = fetchedRests
+                    global.__CACHED_ALL_RESTS = fetchedRests
+                    global.__CACHED_ALL_RESTS_TS = Date.now()
+                }
+            } catch (_) { }
+        }
+        const restMap = {}
+        for (const r of (rests || [])) restMap[r.id] = r
+
+        try {
+            const histPath = path.resolve(__dirname, '..', '..', 'data', 'sales-history-cache.json')
+            if (fs.existsSync(histPath)) {
+                const st = fs.statSync(histPath)
+                if (!global.__SALES_HISTORY_CACHE || global.__SALES_HISTORY_MTIME !== st.mtimeMs) {
+                    global.__SALES_HISTORY_CACHE = JSON.parse(fs.readFileSync(histPath, 'utf8'))
+                    global.__SALES_HISTORY_MTIME = st.mtimeMs
+                }
+            }
+        } catch (_) { }
+        const salesHistoryCache = global.__SALES_HISTORY_CACHE || null
+        const histCutoffDay = salesHistoryCache?.cutoff_date || '2026-11-23'
+        const isSameMonthAsCutoff = histCutoffDay.slice(0, 7) === roTodayStr.slice(0, 7)
+        const isSameYearAsCutoff = histCutoffDay.slice(0, 4) === roTodayStr.slice(0, 4)
+
+        const normalizeRestBrandEarlyH = (rawB) => {
+            const b = String(rawB || 'Roll Master')
+            if (b.toLowerCase().includes('sushi master')) return 'Roll Master'
+            if (b.toLowerCase().includes('ikura')) return 'Poki Woki'
+            return b
+        }
+        const createEmptyHourArr = () => Array.from({ length: 24 }, () => ({ orders: 0, revenue: 0 }))
+
+        const aggregateOrdersIntoHours = (rawList, cutoffMinuteForLastDay = null, cutoffTargetDay = null) => {
+            const cancelledBases = new Set()
+            const closedOrDeliveredBases = new Set()
+            for (const o of (rawList || [])) {
+                const bk = extractBaseOrderUuid(o.order_id || o.id)
+                if (!bk) continue
+                const m = (o.items || [])[0]?._order_meta || {}
+                const stLow = String(m.status || m.stage || o.status || '').toLowerCase()
+                if (stLow.includes('closed') || stLow.includes('deliv')) closedOrDeliveredBases.add(bk)
+                else if (stLow.includes('cancel') || stLow.includes('delet')) cancelledBases.add(bk)
+            }
+
+            const seen = new Set()
+            const byHour = createEmptyHourArr()
+            let earliestHour = 23
+            let latestHour = 10
+
+            for (const o of (rawList || [])) {
+                const bk = extractBaseOrderUuid(o.order_id || o.id)
+                if (!bk || seen.has(bk)) continue
+                if (cancelledBases.has(bk) && !closedOrDeliveredBases.has(bk)) continue
+                const m = (o.items || [])[0]?._order_meta || {}
+                if (m.isPartnerMetaOnly) continue
+
+                let rest = restMap[o.restaurant_id]
+                let bName = o.brand_name || detectBrandFromItems(o.items || [], rest) || rest?.brands?.name || 'Roll Master'
+                if (bName.toLowerCase().includes('sushi master')) bName = 'Roll Master'
+                if (bName.toLowerCase().includes('ikura')) bName = 'Poki Woki'
+                const city = getCanonicalCity(rest?.city || o.city || o.restaurant_city || rest?.name || o.restaurant_name) || 'Alte Orașe'
+                if (city !== 'Alte Orașe') {
+                    const matchedBrandRest = resolveMatchingRestaurant(rests, rest, bName, city)
+                    if (matchedBrandRest) rest = matchedBrandRest
+                }
+                const resolvedRestId = String(rest?.id || o.restaurant_id || '')
+
+                if (allowedCitiesSet && !allowedCitiesSet.has(city)) continue
+                if (allowedBrandsSet && !allowedBrandsSet.has(bName.toLowerCase())) continue
+                if (allowedRestsSet && (!resolvedRestId || !allowedRestsSet.has(resolvedRestId))) continue
+
+                seen.add(bk)
+                const amt = Number(o.total_amount) || 0
+
+                let h = 12
+                let min = 0
+                let ordDay = ''
+                if (o.placed_at) {
+                    ordDay = String(o.placed_at).slice(0, 10)
+                    const d = new Date(o.placed_at)
+                    if (!isNaN(d.getTime())) {
+                        h = d.getUTCHours()
+                        min = d.getUTCMinutes()
+                    }
+                }
+                if (cutoffMinuteForLastDay !== null && (!cutoffTargetDay || ordDay === cutoffTargetDay) && (h * 60 + min) > cutoffMinuteForLastDay) {
+                    continue
+                }
+
+                if (h >= 0 && h < 24) {
+                    byHour[h].orders += 1
+                    byHour[h].revenue += amt
+                    if (h < earliestHour) earliestHour = h
+                    if (h > latestHour) latestHour = h
+                }
+            }
+            return { byHour, earliestHour, latestHour }
+        }
+
+        const extractHoursFromHistBucket = (bucket) => {
+            const byHour = createEmptyHourArr()
+            if (!bucket || !Array.isArray(bucket.heatmapMatrix)) return { byHour, earliestHour: 10, latestHour: 22 }
+            let ratio = 1
+            if (hasAnyScope) {
+                let matchedCnt = 0
+                for (const [rid, rdata] of Object.entries(bucket.restStats || {})) {
+                    const r = restMap[rid]
+                    const cCanon = getCanonicalCity(r?.city || r?.name || '') || 'Alte Orașe'
+                    const bName = normalizeRestBrandEarlyH(r?.brands?.name)
+                    if (allowedCitiesSet && !allowedCitiesSet.has(cCanon)) continue
+                    if (allowedBrandsSet && !allowedBrandsSet.has(bName.toLowerCase())) continue
+                    if (allowedRestsSet && !allowedRestsSet.has(String(rid))) continue
+                    matchedCnt += Number(rdata.count) || 0
+                }
+                ratio = (bucket.totalOrders > 0 && matchedCnt > 0) ? (matchedCnt / bucket.totalOrders) : 0
+            }
+            let earliestHour = 23
+            let latestHour = 10
+            for (let di = 0; di < 7; di++) {
+                for (let hi = 0; hi < 24; hi++) {
+                    const cell = bucket.heatmapMatrix[di]?.[hi]
+                    if (!cell) continue
+                    const cnt = hasAnyScope ? Math.round((cell.count || 0) * ratio) : (cell.count || 0)
+                    const rev = hasAnyScope ? ((cell.revenue || 0) * ratio) : (cell.revenue || 0)
+                    if (cnt > 0 || rev > 0) {
+                        byHour[hi].orders += cnt
+                        byHour[hi].revenue += rev
+                        if (hi < earliestHour) earliestHour = hi
+                        if (hi > latestHour) latestHour = hi
+                    }
+                }
+            }
+            return { byHour, earliestHour, latestHour }
+        }
+
+        const mergeHourAggs = (a, b) => {
+            const byHour = createEmptyHourArr()
+            for (let h = 0; h < 24; h++) {
+                byHour[h].orders = (a.byHour[h]?.orders || 0) + (b.byHour[h]?.orders || 0)
+                byHour[h].revenue = (a.byHour[h]?.revenue || 0) + (b.byHour[h]?.revenue || 0)
+            }
+            return {
+                byHour,
+                earliestHour: Math.min(a.earliestHour, b.earliestHour),
+                latestHour: Math.max(a.latestHour, b.latestHour)
+            }
+        }
+
+        const fetchMultiDayOrders = async (dayList) => {
+            const out = []
+            for (let i = 0; i < dayList.length; i += 4) {
+                const chunk = dayList.slice(i, i + 4)
+                const resArr = await Promise.all(chunk.map(d => fetchLiveAndWebhookOrdersForDay(d, rests).catch(() => [])))
+                for (const r of resArr) if (Array.isArray(r) && r.length > 0) out.push(...r)
+            }
+            return out
+        }
+
+        let baseAgg = { byHour: createEmptyHourArr(), earliestHour: 10, latestHour: 10 }
+        let cmpAgg = null
+        let isBaseTodayOnly = false
+        let periodBadge = ''
+        let baseSeriesLabel = { ro: 'Azi', en: 'Today', ru: 'Сегодня' }
+        let primaryCmpOpt = null
+        let secondaryCmpOpt = null
+        let activeCmpOpt = null
+
+        if (effectivePeriod === 'today' || effectivePeriod === 'yesterday' || isSingleDayCustom) {
+            const baseDate = effectivePeriod === 'today'
+                ? roTodayStr
+                : (effectivePeriod === 'yesterday'
+                    ? shiftYmd(roTodayStr, -1)
+                    : ((reqFromRaw || reqDateRaw) <= roTodayStr ? (reqFromRaw || reqDateRaw) : roTodayStr))
+            isBaseTodayOnly = baseDate === roTodayStr
+            const prevDayDate = shiftYmd(baseDate, -1)
+            const prevWeekDate = shiftYmd(baseDate, -7)
+
+            baseSeriesLabel = isBaseTodayOnly
+                ? { ro: 'Azi', en: 'Today', ru: 'Сегодня' }
+                : (effectivePeriod === 'yesterday'
+                    ? { ro: `Ieri (${formatShortDm(baseDate)})`, en: `Yesterday (${formatShortDm(baseDate)})`, ru: `Вчера (${formatShortDm(baseDate)})` }
+                    : { ro: formatShortDm(baseDate), en: formatShortDm(baseDate), ru: formatShortDm(baseDate) })
+
+            primaryCmpOpt = isBaseTodayOnly
+                ? { key: 'primary', ro: 'Ieri', en: 'Yesterday', ru: 'Вчера', title: prevDayDate }
+                : { key: 'primary', ro: formatShortDm(prevDayDate), en: formatShortDm(prevDayDate), ru: formatShortDm(prevDayDate), title: prevDayDate }
+            secondaryCmpOpt = { key: 'secondary', ro: formatShortDm(prevWeekDate), en: formatShortDm(prevWeekDate), ru: formatShortDm(prevWeekDate), title: prevWeekDate }
+
+            const cmpDate = compareMode === 'primary' ? prevDayDate : (compareMode === 'secondary' ? prevWeekDate : null)
+            activeCmpOpt = compareMode === 'primary' ? primaryCmpOpt : (compareMode === 'secondary' ? secondaryCmpOpt : null)
+            periodBadge = isBaseTodayOnly ? `${roNowTimeStr}` : `${formatShortDm(baseDate)}`
+
+            const [bRaw, cRaw] = await Promise.all([
+                fetchLiveAndWebhookOrdersForDay(baseDate, rests).catch(() => []),
+                cmpDate ? fetchLiveAndWebhookOrdersForDay(cmpDate, rests).catch(() => []) : Promise.resolve([])
+            ])
+            baseAgg = aggregateOrdersIntoHours(bRaw, null, null)
+            cmpAgg = cmpDate ? aggregateOrdersIntoHours(cRaw, isBaseTodayOnly ? cutoffMinOfDayNow : null, null) : null
+        } else if (effectivePeriod === 'this_week') {
+            const [ry, rm, rd] = roTodayStr.split('-').map(Number)
+            const dtNow = new Date(ry, rm - 1, rd)
+            const dow = dtNow.getDay()
+            const mondayOffset = dow === 0 ? -6 : (1 - dow)
+            const weekStartStr = shiftYmd(roTodayStr, mondayOffset)
+            const curDays = listDays(weekStartStr, roTodayStr, 7)
+            const prevDays = curDays.map(d => shiftYmd(d, -7))
+            const prevRangeShort = prevDays.length > 1 ? `${formatShortDm(prevDays[0])}–${formatShortDm(prevDays[prevDays.length - 1])}` : formatShortDm(prevDays[0])
+            const curRangeShort = curDays.length > 1 ? `${formatShortDm(curDays[0])}–${formatShortDm(curDays[curDays.length - 1])}` : formatShortDm(curDays[0])
+
+            baseSeriesLabel = { ro: `Săpt. curentă (${curRangeShort})`, en: `This week (${curRangeShort})`, ru: `Тек. неделя (${curRangeShort})` }
+            primaryCmpOpt = { key: 'primary', ro: `Săpt. ant. (${prevRangeShort})`, en: `Prev week (${prevRangeShort})`, ru: `Пред. нед. (${prevRangeShort})`, title: prevRangeShort }
+            activeCmpOpt = compareMode !== 'none' ? primaryCmpOpt : null
+            periodBadge = curRangeShort
+
+            const [bRaw, cRaw] = await Promise.all([
+                fetchMultiDayOrders(curDays),
+                activeCmpOpt ? fetchMultiDayOrders(prevDays) : Promise.resolve([])
+            ])
+            baseAgg = aggregateOrdersIntoHours(bRaw, null, null)
+            cmpAgg = activeCmpOpt ? aggregateOrdersIntoHours(cRaw, cutoffMinOfDayNow, prevDays[prevDays.length - 1]) : null
+        } else if (effectivePeriod === 'this_month') {
+            const monthHist = isSameMonthAsCutoff ? salesHistoryCache?.buckets?.this_month_hist : null
+            const lastMonthHist = isSameMonthAsCutoff ? salesHistoryCache?.buckets?.last_month : null
+            const tailStart = monthHist ? shiftYmd(histCutoffDay, 1) : `${roTodayStr.slice(0, 7)}-01`
+            const tailDays = listDays(tailStart, roTodayStr, 10)
+
+            baseSeriesLabel = { ro: 'Luna Curentă', en: 'This Month', ru: 'Тек. Месяц' }
+            primaryCmpOpt = lastMonthHist ? { key: 'primary', ro: 'Luna Trecută', en: 'Last Month', ru: 'Прошл. Месяц', title: 'last_month' } : null
+            activeCmpOpt = (compareMode !== 'none' && primaryCmpOpt) ? primaryCmpOpt : null
+            periodBadge = `01–${formatShortDm(roTodayStr)}`
+
+            const tailRaw = await fetchMultiDayOrders(tailDays)
+            const tailAgg = aggregateOrdersIntoHours(tailRaw, null, null)
+            const histAgg = monthHist ? extractHoursFromHistBucket(monthHist) : { byHour: createEmptyHourArr(), earliestHour: 10, latestHour: 10 }
+            baseAgg = mergeHourAggs(histAgg, tailAgg)
+            cmpAgg = (activeCmpOpt && lastMonthHist) ? extractHoursFromHistBucket(lastMonthHist) : null
+        } else if (effectivePeriod === 'last_month') {
+            const lastMonthHist = isSameMonthAsCutoff ? salesHistoryCache?.buckets?.last_month : null
+            const monthHist = isSameMonthAsCutoff ? salesHistoryCache?.buckets?.this_month_hist : null
+            baseSeriesLabel = { ro: 'Luna Trecută', en: 'Last Month', ru: 'Прошлый Месяц' }
+            primaryCmpOpt = monthHist ? { key: 'primary', ro: 'Luna Curentă', en: 'This Month', ru: 'Тек. Месяц', title: 'this_month' } : null
+            activeCmpOpt = (compareMode !== 'none' && primaryCmpOpt) ? primaryCmpOpt : null
+            periodBadge = 'last_month'
+
+            baseAgg = lastMonthHist ? extractHoursFromHistBucket(lastMonthHist) : { byHour: createEmptyHourArr(), earliestHour: 10, latestHour: 22 }
+            if (activeCmpOpt && monthHist) {
+                const tailDays = listDays(shiftYmd(histCutoffDay, 1), roTodayStr, 10)
+                const tailRaw = await fetchMultiDayOrders(tailDays)
+                cmpAgg = mergeHourAggs(extractHoursFromHistBucket(monthHist), aggregateOrdersIntoHours(tailRaw, null, null))
+            }
+        } else if (effectivePeriod === 'this_year' || effectivePeriod === 'all') {
+            const yrHist = effectivePeriod === 'all'
+                ? salesHistoryCache?.buckets?.all_hist
+                : (isSameYearAsCutoff ? salesHistoryCache?.buckets?.this_year_hist : null)
+            const tailDays = yrHist ? listDays(shiftYmd(histCutoffDay, 1), roTodayStr, 10) : [roTodayStr]
+            baseSeriesLabel = effectivePeriod === 'all'
+                ? { ro: 'Total Istoric', en: 'All Time', ru: 'Все Периоды' }
+                : { ro: `Anul ${roTodayStr.slice(0, 4)}`, en: `Year ${roTodayStr.slice(0, 4)}`, ru: `Год ${roTodayStr.slice(0, 4)}` }
+            periodBadge = roTodayStr.slice(0, 4)
+
+            const tailRaw = await fetchMultiDayOrders(tailDays)
+            baseAgg = mergeHourAggs(
+                yrHist ? extractHoursFromHistBucket(yrHist) : { byHour: createEmptyHourArr(), earliestHour: 10, latestHour: 22 },
+                aggregateOrdersIntoHours(tailRaw, null, null)
+            )
+            cmpAgg = null
+        } else {
+            const cFrom = /^\d{4}-\d{2}-\d{2}$/.test(reqFromRaw) ? reqFromRaw : roTodayStr
+            const cToRaw = /^\d{4}-\d{2}-\d{2}$/.test(reqToRaw) ? reqToRaw : cFrom
+            const cTo = cToRaw > roTodayStr ? roTodayStr : cToRaw
+            const curDays = listDays(cFrom, cTo, 14)
+            const spanLen = Math.max(1, curDays.length)
+            const prevDays = spanLen <= 7 ? curDays.map(d => shiftYmd(d, -spanLen)) : []
+            const rangeShort = `${formatShortDm(cFrom)}–${formatShortDm(cTo)}`
+
+            baseSeriesLabel = { ro: rangeShort, en: rangeShort, ru: rangeShort }
+            primaryCmpOpt = prevDays.length > 0
+                ? { key: 'primary', ro: `${formatShortDm(prevDays[0])}–${formatShortDm(prevDays[prevDays.length - 1])}`, en: `${formatShortDm(prevDays[0])}–${formatShortDm(prevDays[prevDays.length - 1])}`, ru: `${formatShortDm(prevDays[0])}–${formatShortDm(prevDays[prevDays.length - 1])}`, title: `${prevDays[0]}..${prevDays[prevDays.length - 1]}` }
+                : null
+            activeCmpOpt = (compareMode !== 'none' && primaryCmpOpt) ? primaryCmpOpt : null
+            periodBadge = rangeShort
+
+            const [bRaw, cRaw] = await Promise.all([
+                fetchMultiDayOrders(curDays),
+                activeCmpOpt ? fetchMultiDayOrders(prevDays) : Promise.resolve([])
+            ])
+            baseAgg = aggregateOrdersIntoHours(bRaw, null, null)
+            cmpAgg = activeCmpOpt ? aggregateOrdersIntoHours(cRaw, cTo === roTodayStr ? cutoffMinOfDayNow : null, cTo === roTodayStr ? prevDays[prevDays.length - 1] : null) : null
+        }
+
+        const startHour = 10
+        const endHour = isBaseTodayOnly
+            ? Math.min(23, Math.max(10, roNowHour, baseAgg.latestHour))
+            : Math.min(23, Math.max(22, baseAgg.latestHour, cmpAgg?.latestHour || 22))
+
+        let cumBaseOrders = 0
+        let cumBaseRev = 0
+        let cumCmpOrders = 0
+        let cumCmpRev = 0
+        for (let h = 0; h < startHour; h++) {
+            cumBaseOrders += baseAgg.byHour[h].orders
+            cumBaseRev += baseAgg.byHour[h].revenue
+            if (cmpAgg) {
+                cumCmpOrders += cmpAgg.byHour[h].orders
+                cumCmpRev += cmpAgg.byHour[h].revenue
+            }
+        }
+
+        const points = []
+        for (let h = startHour; h <= endHour; h++) {
+            const bH = baseAgg.byHour[h]
+            const cH = cmpAgg ? cmpAgg.byHour[h] : { orders: 0, revenue: 0 }
+            cumBaseOrders += bH.orders
+            cumBaseRev += bH.revenue
+            cumCmpOrders += cH.orders
+            cumCmpRev += cH.revenue
+            points.push({
+                hour: h,
+                label: `${pad2H(h)}:00`,
+                baseOrders: cumBaseOrders,
+                baseRevenue: Math.round(cumBaseRev * 100) / 100,
+                baseHourOrders: bH.orders,
+                baseHourRevenue: Math.round(bH.revenue * 100) / 100,
+                compareOrders: cmpAgg ? cumCmpOrders : null,
+                compareRevenue: cmpAgg ? Math.round(cumCmpRev * 100) / 100 : null,
+                compareHourOrders: cmpAgg ? cH.orders : null,
+                compareHourRevenue: cmpAgg ? Math.round(cH.revenue * 100) / 100 : null
+            })
+        }
+
+        for (let h = endHour + 1; h < 24; h++) {
+            cumBaseOrders += baseAgg.byHour[h].orders
+            cumBaseRev += baseAgg.byHour[h].revenue
+            if (cmpAgg) {
+                cumCmpOrders += cmpAgg.byHour[h].orders
+                cumCmpRev += cmpAgg.byHour[h].revenue
+            }
+        }
+        if (points.length > 0) {
+            const lastP = points[points.length - 1]
+            lastP.baseOrders = cumBaseOrders
+            lastP.baseRevenue = Math.round(cumBaseRev * 100) / 100
+            if (cmpAgg) {
+                lastP.compareOrders = cumCmpOrders
+                lastP.compareRevenue = Math.round(cumCmpRev * 100) / 100
+            }
+        }
+
+        const deltaRevenuePct = cmpAgg && cumCmpRev > 0
+            ? Math.round(((cumBaseRev - cumCmpRev) / cumCmpRev) * 100)
+            : null
+        const deltaOrdersPct = cmpAgg && cumCmpOrders > 0
+            ? Math.round(((cumBaseOrders - cumCmpOrders) / cumCmpOrders) * 100)
+            : null
+
+        const payload = {
+            success: true,
+            period: effectivePeriod,
+            isBaseToday: isBaseTodayOnly,
+            roNowTime: roNowTimeStr,
+            periodBadge,
+            baseSeriesLabel,
+            compareMode: activeCmpOpt ? activeCmpOpt.key : 'none',
+            activeCompareOption: activeCmpOpt,
+            compareOptions: {
+                primary: primaryCmpOpt,
+                secondary: secondaryCmpOpt
+            },
+            summary: {
+                baseRevenue: Math.round(cumBaseRev * 100) / 100,
+                baseOrders: cumBaseOrders,
+                compareRevenue: cmpAgg ? Math.round(cumCmpRev * 100) / 100 : null,
+                compareOrders: cmpAgg ? cumCmpOrders : null,
+                deltaRevenuePct,
+                deltaOrdersPct
+            },
+            points
+        }
+
+        global.__CUMULATIVE_HOURLY_CACHE.set(cacheKey, { ts: Date.now(), data: payload })
+        res.json(payload)
+    } catch (err) {
+        console.error('[API] /api/sales/cumulative-hourly error:', err.message)
+        res.status(500).json({ success: false, error: err.message })
+    }
+})
+
 // Executive Sales & Channel Distribution Summary (Kiosk vs POS Casierie vs Delivery)
 app.get('/api/sales/executive-summary', async (req, res) => {
     try {
@@ -2369,7 +2831,7 @@ app.get('/api/sales/executive-summary', async (req, res) => {
             }
         } catch (_) { }
         const salesHistoryCache = global.__SALES_HISTORY_CACHE || null
-        const histCutoffDay = salesHistoryCache?.cutoff_date || '2026-11-17'
+        const histCutoffDay = salesHistoryCache?.cutoff_date || '2026-11-23'
         const roNowStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
         const isSameMonthAsCutoff = histCutoffDay.slice(0, 7) === roNowStr.slice(0, 7)
         const isSameYearAsCutoff = histCutoffDay.slice(0, 4) === roNowStr.slice(0, 4)
@@ -2557,9 +3019,21 @@ app.get('/api/sales/executive-summary', async (req, res) => {
                 } catch (_) { }
             }
 
-            // 1b. Supplement from customersService only for days NOT already fetched live from Syrve
+            // 1b. Supplement from customersService only when there are historical days outside histBucket & fetchedDaySet
             try {
-                const allCusts = Array.from(customersService?.customersByKey?.values?.() || [])
+                let hasUncoveredGap = false
+                if (histBucket && histCutoffDay && daysToFetch.length > 0) {
+                    const [cy, cm, cd] = histCutoffDay.split('-').map(Number)
+                    const expectedNextDay = toYmdFn(new Date(cy, cm - 1, cd + 1))
+                    if (daysToFetch[0] > expectedNextDay) hasUncoveredGap = true
+                }
+                const needsCustomerSupplement = (matchedBucketPeriod === 'custom' && needsSupabaseRange)
+                    || (!histBucket && matchedBucketPeriod !== 'this_week')
+                    || hasUncoveredGap
+                if (needsCustomerSupplement) customersService.ensureLoaded?.()
+                const allCusts = needsCustomerSupplement
+                    ? Array.from(customersService?.customersByKey?.values?.() || [])
+                    : []
 
                 for (const c of allCusts) {
                     for (const ro of (c.recent_orders || [])) {

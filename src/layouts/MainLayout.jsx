@@ -27,7 +27,9 @@ import {
   ChevronDown,
   UserCog,
   LogOut,
-  RotateCcw
+  RotateCcw,
+  Maximize2,
+  Minimize2
 } from 'lucide-react'
 
 export default function MainLayout() {
@@ -40,6 +42,7 @@ export default function MainLayout() {
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const [isAppFullscreen, setIsAppFullscreen] = useState(false)
   const userMenuRef = useRef(null)
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -51,6 +54,44 @@ export default function MainLayout() {
       return false
     }
   })
+
+  useEffect(() => {
+    const syncFsState = () => {
+      const fsActive = Boolean(document.fullscreenElement || document.webkitFullscreenElement)
+      setIsAppFullscreen(fsActive)
+      document.documentElement.classList.toggle('app-fullscreen', fsActive)
+      // Trigger ResizeObserver / Leaflet invalidateSize cleanly across all active views
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 180)
+    }
+    document.addEventListener('fullscreenchange', syncFsState)
+    document.addEventListener('webkitfullscreenchange', syncFsState)
+    syncFsState()
+    return () => {
+      document.removeEventListener('fullscreenchange', syncFsState)
+      document.removeEventListener('webkitfullscreenchange', syncFsState)
+      document.documentElement.classList.remove('app-fullscreen')
+    }
+  }, [])
+
+  // Notify charts & Leaflet maps whenever sidebar width changes
+  useEffect(() => {
+    const t = setTimeout(() => window.dispatchEvent(new Event('resize')), 220)
+    return () => clearTimeout(t)
+  }, [isSidebarCollapsed])
+
+  const toggleAppFullscreen = async () => {
+    try {
+      const fsEl = document.fullscreenElement || document.webkitFullscreenElement
+      if (!fsEl) {
+        const root = document.documentElement
+        if (root.requestFullscreen) await root.requestFullscreen()
+        else if (root.webkitRequestFullscreen) root.webkitRequestFullscreen()
+      } else {
+        if (document.exitFullscreen) await document.exitFullscreen()
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen()
+      }
+    } catch (_) {}
+  }
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -128,10 +169,10 @@ export default function MainLayout() {
   return (
     <div className={`min-h-screen w-full max-w-[100vw] overflow-x-hidden flex apple-app-canvas transition-colors duration-200 ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>
 
-      {/* FLOATING INSET LIQUID GLASS SIDEBAR — Laptop-Optimized macOS Tahoe (214px / 232px) */}
+      {/* FLOATING INSET LIQUID GLASS SIDEBAR — Adaptive Laptop → 5K Ultrawide */}
       <aside
         aria-label={t('nav.menu')}
-        className={`${isSidebarCollapsed ? 'w-[68px]' : 'w-[214px] xl:w-[232px]'} shrink-0 sticky top-0 h-screen p-2 pr-0 flex flex-col z-30 transition-[width] duration-200`}
+        className={`${isSidebarCollapsed ? 'w-[68px]' : 'w-[214px] xl:w-[232px] 2xl:w-[246px]'} shrink-0 sticky top-0 h-screen p-2 pr-0 flex flex-col z-30 transition-[width] duration-200`}
       >
         <div className="h-full flex flex-col rounded-[18px] apple-glass-sidebar overflow-hidden transition-colors duration-200">
           {/* Logo Section */}
@@ -242,9 +283,9 @@ export default function MainLayout() {
       {/* MAIN CONTENT AREA — Content glides smoothly beneath the Floating macOS Tahoe Liquid Glass Toolbar */}
       <main className="flex-1 min-w-0 h-screen overflow-y-auto overflow-x-hidden custom-scrollbar relative">
 
-        {/* FLOATING LIQUID GLASS TOOLBAR (Compact 44px macOS Tahoe Bar) */}
-        <div className="sticky top-0 z-30 px-2.5 md:px-4 pt-2 pb-1 pointer-events-none">
-          <header className="pointer-events-auto h-11 px-2 md:px-3 rounded-full flex items-center justify-between gap-2 apple-glass-toolbar transition-colors">
+        {/* FLOATING LIQUID GLASS TOOLBAR — 100% Full-Bleed Edge-to-Edge (zero side margins on 5K/Ultrawide) */}
+        <div className={`sticky top-0 z-30 px-2.5 md:px-3.5 ${isAppFullscreen ? 'pt-1.5 pb-1' : 'pt-2 pb-1'} pointer-events-none`}>
+          <header className="pointer-events-auto h-11 px-2 md:px-3 rounded-full flex items-center justify-between gap-2 apple-glass-toolbar transition-colors w-full">
 
             {/* Left: Clean macOS Sidebar Toggle (+ contextual Reset pill ONLY when URL filters are active) */}
             <div className="flex items-center gap-2 min-w-0">
@@ -289,9 +330,30 @@ export default function MainLayout() {
               })()}
             </div>
 
-            {/* Right: Concentric macOS Tahoe Capsules — Language, Theme & Full User Profile */}
+            {/* Right: Concentric macOS Tahoe Capsules — Language, Fullscreen, Theme & Full User Profile */}
             <div className="flex items-center gap-2 shrink-0">
               <LanguageToggle />
+
+              <button
+                type="button"
+                onClick={toggleAppFullscreen}
+                aria-label={
+                  isAppFullscreen
+                    ? (language === 'ru' ? 'Выйти из полноэкранного режима' : language === 'en' ? 'Exit Fullscreen' : 'Ieși din ecran complet')
+                    : (language === 'ru' ? 'На весь экран' : language === 'en' ? 'Fullscreen' : 'Ecran complet')
+                }
+                aria-pressed={isAppFullscreen}
+                className={`apple-btn-secondary !w-8 !h-8 !p-0 shrink-0 ${
+                  isAppFullscreen ? '!border-[#047857]/50 !text-[#047857] dark:!border-[#34D399]/50 dark:!text-[#34D399] !bg-emerald-500/10' : ''
+                }`}
+                title={
+                  isAppFullscreen
+                    ? (language === 'ru' ? 'Свернуть экран (Esc)' : language === 'en' ? 'Exit Fullscreen (Esc)' : 'Ieși din ecran complet (Esc)')
+                    : (language === 'ru' ? 'Полный экран (ноутбук → 5K Ultrawide)' : language === 'en' ? 'Fullscreen (Laptop → 5K Ultrawide)' : 'Ecran complet (Laptop → 5K Ultrawide)')
+                }
+              >
+                {isAppFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
 
               <button
                 type="button"
@@ -399,8 +461,8 @@ export default function MainLayout() {
           </header>
         </div>
 
-        {/* OUTLET CONTENT AREA — Compact Laptop Padding */}
-        <div className="px-3 pb-5 pt-2 md:px-4 md:pb-6 w-full max-w-full">
+        {/* OUTLET CONTENT AREA — 100% Full-Bleed Adaptive Command Center (Laptop → 5K → 49" Ultrawide, zero dead margins) */}
+        <div className={`px-2.5 pb-4 pt-1.5 md:px-3.5 md:pb-5 w-full max-w-none app-fluid-shell ${isAppFullscreen ? 'app-fluid-fullscreen' : ''}`}>
           <Outlet />
         </div>
       </main>

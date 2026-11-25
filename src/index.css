@@ -581,3 +581,42 @@ tbody td {
     scroll-behavior: auto !important;
   }
 }
+
+/* ============================================================================
+   Multi-Display Adaptive Cockpit — 13" Laptop → 2K/QHD → 4K/5K → 49" Ultrawide
+   100% edge-to-edge full-bleed layout with crisp TradePro-grade information
+   density (zero empty black margins on 5K / 5120x1440 super-ultrawide!).
+   ============================================================================ */
+@media (min-width: 1920px) {
+  html {
+    font-size: 16px;
+  }
+  .app-fluid-shell table td[class*="max-w-"],
+  .app-fluid-shell table th[class*="max-w-"] {
+    max-width: 280px;
+  }
+}
+
+@media (min-width: 2400px) {
+  html {
+    font-size: 16.5px;
+  }
+  .app-fluid-shell table td[class*="max-w-"],
+  .app-fluid-shell table th[class*="max-w-"] {
+    max-width: 360px;
+  }
+}
+
+@media (min-width: 3400px) {
+  html {
+    font-size: 17px;
+  }
+  .app-fluid-shell table td[class*="max-w-"],
+  .app-fluid-shell table th[class*="max-w-"] {
+    max-width: 440px;
+  }
+}
+
+html.app-fullscreen body {
+  overflow: hidden;
+}

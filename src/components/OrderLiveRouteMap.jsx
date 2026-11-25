@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useMemo } from 'react'
 import { Store, Bike, MapPin, Navigation, ExternalLink, CheckCircle2, AlertTriangle, ShieldAlert, Maximize2, Minimize2, LocateFixed, X } from 'lucide-react'
 import { getBrandInfo, cleanRestaurantName } from './BrandAvatar'
 import { getCanonicalCity, getCityDisplayName, formatDisplayOrderNumber, parseDeliveryAddress, escapeHtml } from '../lib/orderUtils'
+import { loadLeaflet } from '../lib/loadLeaflet'
 
 const CITY_COORDS = {
   'BUCURESTI': { lat: 44.4268, lng: 26.1025 },
@@ -262,6 +263,7 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
   const [streetRoute, setStreetRoute] = useState(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showAuditPopup, setShowAuditPopup] = useState(false)
+  const [leafletReady, setLeafletReady] = useState(() => Boolean(typeof window !== 'undefined' && window.L))
 
   const orderKey = order?.id || order?.order_id || order?.order_number || 'ord'
 
@@ -532,34 +534,49 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
     leafletMapRef.current.fitBounds(bounds, { padding: [42, 42], maxZoom: 16, animate })
   }
 
-  // Inițializare hartă Leaflet în modal
+  // Inițializare hartă Leaflet în modal (încărcat la cerere doar la deschiderea hărții)
   useEffect(() => {
-    if (!mapContainerRef.current || !window.L) return
-    if (leafletMapRef.current) return
+    let cancelled = false
+    let createdMap = null
+    let resizeTimer = null
 
-    const L = window.L
-    const map = L.map(mapContainerRef.current, {
-      center: [restCoords.lat, restCoords.lng],
-      zoom: 13,
-      zoomControl: true,
-      scrollWheelZoom: false
-    })
+    const initMap = (L) => {
+      if (cancelled || !mapContainerRef.current || !L || leafletMapRef.current) return
+      const map = L.map(mapContainerRef.current, {
+        center: [restCoords.lat, restCoords.lng],
+        zoom: 13,
+        zoomControl: true,
+        scrollWheelZoom: false
+      })
 
-    L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ro', {
-      attribution: '&copy; Google Maps · OSRM Street Routing',
-      maxZoom: 20
-    }).addTo(map)
+      L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ro', {
+        attribution: '&copy; Google Maps · OSRM Street Routing',
+        maxZoom: 20
+      }).addTo(map)
 
-    layerRef.current = L.layerGroup().addTo(map)
-    leafletMapRef.current = map
+      layerRef.current = L.layerGroup().addTo(map)
+      leafletMapRef.current = map
+      createdMap = map
+      setLeafletReady(true)
 
-    setTimeout(() => {
-      map.invalidateSize()
-    }, 150)
+      resizeTimer = setTimeout(() => {
+        if (!cancelled && leafletMapRef.current) map.invalidateSize()
+      }, 150)
+    }
+
+    if (window.L) {
+      initMap(window.L)
+    } else {
+      loadLeaflet().then(initMap).catch(() => {})
+    }
 
     return () => {
-      map.remove()
-      leafletMapRef.current = null
+      cancelled = true
+      if (resizeTimer) clearTimeout(resizeTimer)
+      if (createdMap) {
+        createdMap.remove()
+        leafletMapRef.current = null
+      }
     }
   }, [])
 
@@ -767,7 +784,7 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
       lastFittedKeyRef.current = fitKey
       recenterMap(false)
     }
-  }, [orderKey, restCoords, routeInfo, courierPhase, language, streetRoute])
+  }, [orderKey, restCoords, routeInfo, courierPhase, language, streetRoute, leafletReady])
 
   const depLabel = language === 'ru' ? 'Выезд' : language === 'en' ? 'Departure' : 'Plecare'
   const estLabel = routeInfo.isDelivered

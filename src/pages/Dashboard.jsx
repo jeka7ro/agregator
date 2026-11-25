@@ -28,6 +28,7 @@ import PlatformLogo from '../components/PlatformLogo'
 import RestaurantDetailsModal from '../components/RestaurantDetailsModal'
 import WebhookIntegrationModal from '../components/WebhookIntegrationModal'
 import ZoomChartsSuite from '../components/charts/ZoomChartsSuite'
+import CumulativeHourlyChart from '../components/charts/CumulativeHourlyChart'
 import AppleDateRangePicker, { formatYmdRangeDisplay } from '../components/AppleDateRangePicker'
 import { useExecutiveSales } from '../hooks/useExecutiveSales'
 import { escapeCsvCell, getRestaurantWorkingHoursStatus } from '../lib/orderUtils'
@@ -667,51 +668,55 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* KPI Cards Grid — Compact 5-Column Laptop Strip (zero empty whitespace) */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
-        <div className={`px-3.5 py-2.5 rounded-2xl shadow-sm border flex flex-col justify-between transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-          }`}>
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <Store size={15} className="text-[#047857] dark:text-[#34D399] shrink-0" />
-              <span className="text-[12px] font-semibold text-[#48484A] dark:text-[#AEAEB2] truncate">
-                {t('dashboard.locations_card')}
+      {/* ROW 1 — Adaptive Top Command Strip:
+          • Laptop / 2K (< 2050px): 5 Operational KPI Cards above 4 Sales & Period Cards
+          • 5K / 49" Ultrawide (>= 2050px): BOTH side-by-side on 1 unified edge-to-edge cockpit row! */}
+      <div className="grid grid-cols-1 min-[2050px]:grid-cols-12 gap-2.5 items-stretch">
+        {/* Operational Status KPIs (Left 5 cols on Ultrawide) */}
+        <div className="min-[2050px]:col-span-5 grid grid-cols-2 md:grid-cols-5 gap-2.5">
+          <div className={`px-3.5 py-2.5 rounded-2xl shadow-sm border flex flex-col justify-between transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+            }`}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Store size={15} className="text-[#047857] dark:text-[#34D399] shrink-0" />
+                <span className="text-[12px] font-semibold text-[#48484A] dark:text-[#AEAEB2] truncate">
+                  {t('dashboard.locations_card')}
+                </span>
+              </div>
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${
+                stats.isScheduleClosed
+                  ? 'bg-slate-500/12 text-[#636366] dark:text-[#AEAEB2]'
+                  : 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-400'
+              }`}>
+                {stats.isScheduleClosed
+                  ? (language === 'ru' ? 'Вне графика' : language === 'en' ? 'After hours' : 'Program închis')
+                  : t('common.active')}
               </span>
             </div>
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${
-              stats.isScheduleClosed
-                ? 'bg-slate-500/12 text-[#636366] dark:text-[#AEAEB2]'
-                : 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-400'
-            }`}>
-              {stats.isScheduleClosed
-                ? (language === 'ru' ? 'Вне графика' : language === 'en' ? 'After hours' : 'Program închis')
-                : t('common.active')}
-            </span>
+            <div className="flex items-baseline gap-1.5 mt-1.5">
+              <span className="text-[20px] font-bold tracking-[-0.02em] tabular-nums leading-none text-[#1D1D1F] dark:text-[#F5F5F7]">
+                {stats.isScheduleClosed ? stats.activeRestaurants : (stats.openNowLocations > 0 && stats.closedScheduleLocations > 0 ? `${stats.openNowLocations}/${stats.activeRestaurants}` : stats.activeRestaurants)}
+              </span>
+              <span className="text-[11px] text-[#636366] dark:text-[#8E8E93] font-medium truncate">
+                {stats.isScheduleClosed
+                  ? `${stats.scheduleLabel}`
+                  : t('common.locations', 'locații')}
+              </span>
+            </div>
+            <div className={`h-1.5 w-full rounded-full overflow-hidden mt-2 ${isDark ? 'bg-white/10' : 'bg-black/[0.06]'}`}>
+              <div className={`h-full rounded-full w-full ${stats.isScheduleClosed ? 'bg-slate-400/50 dark:bg-slate-600/70' : 'bg-gradient-to-r from-[#047857] to-[#10B981]'}`} />
+            </div>
           </div>
-          <div className="flex items-baseline gap-1.5 mt-1.5">
-            <span className="text-[20px] font-bold tracking-[-0.02em] tabular-nums leading-none text-[#1D1D1F] dark:text-[#F5F5F7]">
-              {stats.isScheduleClosed ? stats.activeRestaurants : (stats.openNowLocations > 0 && stats.closedScheduleLocations > 0 ? `${stats.openNowLocations}/${stats.activeRestaurants}` : stats.activeRestaurants)}
-            </span>
-            <span className="text-[11px] text-[#636366] dark:text-[#8E8E93] font-medium truncate">
-              {stats.isScheduleClosed
-                ? `${stats.scheduleLabel}`
-                : t('common.locations', 'locații')}
-            </span>
-          </div>
-          <div className={`h-1.5 w-full rounded-full overflow-hidden mt-2 ${isDark ? 'bg-white/10' : 'bg-black/[0.06]'}`}>
-            <div className={`h-full rounded-full w-full ${stats.isScheduleClosed ? 'bg-slate-400/50 dark:bg-slate-600/70' : 'bg-gradient-to-r from-[#047857] to-[#10B981]'}`} />
-          </div>
+
+          <KPICard title="Glovo" online={stats.health.glovo.online} closed={stats.health.glovo.closed} total={stats.health.glovo.total} platform="glovo" isDark={isDark} t={t} language={language} />
+          <KPICard title="Wolt" online={stats.health.wolt.online} closed={stats.health.wolt.closed} total={stats.health.wolt.total} platform="wolt" isDark={isDark} t={t} language={language} />
+          <KPICard title="Bolt Food" online={stats.health.bolt.online} closed={stats.health.bolt.closed} total={stats.health.bolt.total} platform="bolt" isDark={isDark} t={t} language={language} />
+          <KPICard title="iiko" online={stats.health.iiko.online} closed={stats.health.iiko.closed} total={stats.health.iiko.total} platform="iiko" isDark={isDark} t={t} language={language} />
         </div>
 
-        <KPICard title="Glovo" online={stats.health.glovo.online} closed={stats.health.glovo.closed} total={stats.health.glovo.total} platform="glovo" isDark={isDark} t={t} language={language} />
-        <KPICard title="Wolt" online={stats.health.wolt.online} closed={stats.health.wolt.closed} total={stats.health.wolt.total} platform="wolt" isDark={isDark} t={t} language={language} />
-        <KPICard title="Bolt Food" online={stats.health.bolt.online} closed={stats.health.bolt.closed} total={stats.health.bolt.total} platform="bolt" isDark={isDark} t={t} language={language} />
-        <KPICard title="iiko" online={stats.health.iiko.online} closed={stats.health.iiko.closed} total={stats.health.iiko.total} platform="iiko" isDark={isDark} t={t} language={language} />
-      </div>
-
-      {/* Executive Sales & Channel Performance Strip — Laptop Compact Density */}
-      <div className={`px-3.5 py-3 rounded-2xl shadow-sm border transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-        }`}>
+        {/* Executive Sales & Channel Performance Strip (Right 7 cols on Ultrawide) */}
+        <div className={`min-[2050px]:col-span-7 px-3.5 py-2.5 rounded-2xl shadow-sm border flex flex-col justify-between transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
         <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5 pb-2 border-b border-black/[0.06] dark:border-white/[0.08]">
           <div className="flex items-center gap-2 shrink-0">
             <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
@@ -865,22 +870,42 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+        </div>
       </div>
 
-      {/* ZoomCharts™ Visual Intelligence Suite (DrillDown Donut + ZoomTime Timeline) */}
-      <ZoomChartsSuite
-        restaurants={restaurants}
-        checks={checks}
-        salesData={salesData}
-        isDark={isDark}
-        t={t}
-      />
+      {/* ROW 2 — Adaptive 3-Panel Visual Intelligence Cockpit:
+          • Laptop / 2K (< 2050px): Cumulative Chart full-width above 2-col ZoomChartsSuite
+          • 5K / 49" Ultrawide (>= 2050px): ALL 3 CHARTS SIDE-BY-SIDE (Cumulative | Donut | Uptime) in 1 crisp wall! */}
+      <div className="grid grid-cols-1 min-[2050px]:grid-cols-12 gap-3 items-stretch">
+        <div className="min-[2050px]:col-span-5 min-w-0 flex flex-col">
+          <CumulativeHourlyChart
+            selectedPeriod={selectedPeriod}
+            customRange={customRange}
+            onPeriodChange={handlePeriodChange}
+            periodOptions={PERIOD_OPTIONS}
+            isDark={isDark}
+            language={language}
+          />
+        </div>
 
-      {/* SECTIUNE EXECUTIVA: PERFORMANTA BRANDURI & TOP ORASE */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        <div className="min-[2050px]:col-span-7 min-w-0 flex flex-col">
+          <ZoomChartsSuite
+            restaurants={restaurants}
+            checks={checks}
+            salesData={salesData}
+            isDark={isDark}
+            t={t}
+          />
+        </div>
+      </div>
 
-        {/* 1. Brand Executive Matrix (2 coloane pe ecran mare) */}
-        <div className={`lg:col-span-2 min-w-0 rounded-2xl shadow-sm border overflow-hidden flex flex-col transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+      {/* ROW 3 — Adaptive 3-Panel Executive Cockpit:
+          • Laptop / 2K (< 2050px): Brand Matrix (2 cols) + Top Cities (1 col), Alerts below
+          • 5K / 49" Ultrawide (>= 2050px): Brand Matrix (5 cols) | Top Cities (4 cols) | Live Alerts & Stop-List (3 cols) SIDE-BY-SIDE! */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 min-[2050px]:grid-cols-12 gap-3 items-stretch">
+
+        {/* 1. Brand Executive Matrix */}
+        <div className={`lg:col-span-2 min-[2050px]:col-span-5 min-w-0 rounded-2xl shadow-sm border overflow-hidden flex flex-col transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
           }`}>
           {/* Header */}
           <div className={`p-3.5 border-b flex items-center justify-between gap-3 ${isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-100 bg-slate-50/60'
@@ -1022,8 +1047,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* 2. Top Orașe & Hub-uri Regionale — zero clipping pe laptop */}
-        <div className={`min-w-0 rounded-2xl shadow-sm border overflow-hidden flex flex-col transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+        {/* 2. Top Orașe & Hub-uri Regionale */}
+        <div className={`min-[2050px]:col-span-4 min-w-0 rounded-2xl shadow-sm border overflow-hidden flex flex-col max-h-[520px] min-[2050px]:max-h-[430px] transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
           }`}>
           {/* Header */}
           <div className={`p-3.5 border-b flex items-center justify-between gap-2 ${isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-100 bg-slate-50/60'
@@ -1125,10 +1150,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-      </div>
-
-      {/* 3. Centru de Alertă & Excepții Operaționale (100% sincer față de programul de funcționare) */}
-      <div className={`p-4 rounded-2xl shadow-sm border transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+        {/* 3. Centru de Alertă & Excepții Operaționale + Stop-List (Right 3 cols on 5K Ultrawide, full-width below on Laptop/2K) */}
+        <div className="lg:col-span-3 min-[2050px]:col-span-3 min-w-0 flex flex-col gap-3">
+      <div className={`p-4 rounded-2xl shadow-sm border flex-1 transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
         }`}>
         {operationalExceptions.length === 0 ? (
           stats.isScheduleClosed ? (
@@ -1329,6 +1353,8 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+        </div>
+      </div>
 
       {/* Modal Dosar Tehnic */}
       {dossierRestaurant && (

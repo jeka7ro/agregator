@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import * as XLSX from 'xlsx'
 import {
   AlertCircle,
   Search,
@@ -268,7 +267,7 @@ export default function Monitoring() {
     e.target.value = ''
 
     try {
-      const arrayBuffer = await file.arrayBuffer()
+      const [XLSX, arrayBuffer] = await Promise.all([import('xlsx'), file.arrayBuffer()])
       const workbook = XLSX.read(arrayBuffer, { type: 'array' })
       const sheetName = workbook.SheetNames[0]
       const sheet = workbook.Sheets[sheetName]
@@ -578,8 +577,9 @@ export default function Monitoring() {
     return { avgGlovo, avgWolt, totalOrdersGps, farOrders, farPct, narrowedCount, sumUnder2, sumBetween24 }
   }, [zonesList])
 
-  const handleExportZonesExcel = () => {
+  const handleExportZonesExcel = async () => {
     if (zonesList.length === 0) return
+    const XLSX = await import('xlsx')
     const rows = zonesList.map((z, i) => ({
       '#': i + 1,
       'Хаб / Город': z.hub_label || z.city,
