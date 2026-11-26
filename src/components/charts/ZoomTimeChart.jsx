@@ -561,7 +561,7 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
                   y1={y}
                   x2={width - padding.right}
                   y2={y}
-                  stroke={isDark ? '#1e293b' : '#f1f5f9'}
+                  stroke={isDark ? '#2C2C2E' : '#f1f5f9'}
                   strokeDasharray="3 3"
                   strokeWidth="1"
                 />
@@ -571,7 +571,7 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
                   textAnchor="end"
                   fontSize="9"
                   fontWeight="bold"
-                  fill={isDark ? '#64748b' : '#94a3b8'}
+                  fill={isDark ? '#8E8E93' : '#94a3b8'}
                 >
                   {val}%
                 </text>
@@ -623,7 +623,7 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
               textAnchor="middle"
               fontSize="9"
               fontWeight="bold"
-              fill={isDark ? '#64748b' : '#94a3b8'}
+              fill={isDark ? '#8E8E93' : '#94a3b8'}
             >
               {rangePreset === '7d' || rangePreset === '30d' ? pt.formattedDate : pt.formattedTime}
             </text>
@@ -658,7 +658,7 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
                 cy={hoveredPoint.y}
                 r="4.5"
                 fill="#06b6d4"
-                stroke={isDark ? '#0f172a' : '#ffffff'}
+                stroke={isDark ? '#1C1C1E' : '#ffffff'}
                 strokeWidth="2"
               />
             </g>

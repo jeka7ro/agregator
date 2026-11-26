@@ -1,5 +1,108 @@
 # Jurnal de modificări (Antigravity ↔ Paperclip)
 
+### 2026-11-26 20:07 — Fix Jurnal Audit STOP (Zero Stopuri False Bolt, Deduplicare UUID, Corecție Decalaț 2h & Status Real Revenit/TG)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - În [live-platform-checkers.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/lib/live-platform-checkers.js): eliminat complet marcarea falsă `unavailable` pe Bolt din `cityWideSearch` (`instant: false`) fără confirmare directă `getProviderAvailabilityStatus` + deduplicare pe `provider_id` și deduplicare logică pe `(nume, oraș, platformă)` la scrierea `stop_events` + marcare onestă `telegram_alert_sent` doar când mesajul Telegram chiar s-a trimis.
+  - Paritate `1:1` în [api-server.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/api-server.js) și [api.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/netlify/functions/api.js): reparat decalajul de 2 ore UTC vs ora României la `active_orders_at_stop`, filtrare strictă pe locație/brand (fără a amesteca alte branduri din oraș), verificare oră reală de finalizare a bonurilor (`timings` / `exact_timings`), deduplicare rânduri duplicate și `telegram_alert_sent` real (nu hardcodat `true`).
+  - În [Dispatch.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dispatch.jsx): afișare clară `Oprit` (roșu) vs `Revenit HH:MM (durată)` (verde) și badge onest `TG Notificat` / `Înregistrat`.
+  - Curățat cele 6 înregistrări false de azi ale `ORADEA (Poki Woki)` din `stop_events` (cu acordul explicit al utilizatorului).
+- **Fișiere:** `lib/live-platform-checkers.js`, `workers/src/api-server.js`, `netlify/functions/api.js`, `src/pages/Dispatch.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local — fără push)
+- **Build / Teste:** Checkup complet E2E + `node --check` + `npm run build` + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-26 19:56 — Fix Vizibilitate Trafic & Curieri în Detalii Comandă (Orașe Medii + Toggle `Пробки / Trafic` pe Mini-Hartă)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - Extins [OrderWeatherBadge.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/OrderWeatherBadge.jsx) cu fereastră progresivă (`±45m` → `±90m` → `pe zi` → `telemetrie comandă`), astfel încât și în orașele medii (ex. Oradea `#17233` la `19:37`, unde ultimii 45 min au avut doar predări Bolt `0m` iar cu 50 min înainte erau comenzi Glovo cu așteptare `21–36m`) să afișeze mereu rândul **„Трафик и курьеры в городе”** cu fereastra exactă și cifrele reale.
+  - Adăugat butonul toggle **`Пробки / Trafic`** (Google Maps Live Traffic transparent, `0 €`) direct și pe mini-harta de traseu din Detalii Comandă ([OrderLiveRouteMap.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/OrderLiveRouteMap.jsx)).
+- **Fișiere:** `src/components/OrderWeatherBadge.jsx`, `src/components/OrderLiveRouteMap.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local — fără push)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-26 17:45 — Fix Rută Click pe Oraș Meteo Dashboard (`/couriers` → `/couriers-map`) + Redirect Alias & Catch-All în `App.jsx`
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - Corectat link-ul de navigare la click pe un oraș din bara meteo pe [Dashboard.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dashboard.jsx#L1426-L1429) din `/couriers?city=...` în `/couriers-map?city=...`.
+  - Adăugat în [App.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/App.jsx#L38-L62) alias `/couriers` → `/couriers-map` (păstrând `?city=...`) și fallback `*` → `/dashboard` ca să nu mai poată apărea niciodată ecran gol „No routes matched”.
+- **Fișiere:** `src/pages/Dashboard.jsx`, `src/App.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local — fără push)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-26 17:42 — Meteo Dashboard Ultra-Compact (Micro-Chip-uri pe 1 Rând, Mutat Jos + Fix Pastilă `Все`)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - Mutat blocul meteo în [Dashboard.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dashboard.jsx) în partea de jos (după Row 4), lăsând KPI-urile, graficele, matricea de branduri și top orașe neîntrerupte sus.
+  - Compactat [WeatherCitiesStrip.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/WeatherCitiesStrip.jsx) de ~3× în **micro-chip-uri pe 1 linie (`30px` înălțime, `flex-wrap`, zero scrollbar)** și reparat clasa butonului activ `apple-segment apple-segment-active` (fără colțuri tăiate pe `Все (19)`).
+- **Fișiere:** `src/pages/Dashboard.jsx`, `src/components/WeatherCitiesStrip.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local — fără push)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-26 17:38 — Eliminare 100% Tentă Albastră (Tailwind Slate) din Dark Mode Peste Tot
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - În [index.css](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/index.css): schimbat `--apple-seg-track` din albastru-navy (`rgba(30, 41, 59, 0.72)`) în neutru pur macOS Tahoe (`rgba(255, 255, 255, 0.065)`) și suprascris global în `html.dark` toate variabilele Tailwind v4 `--color-slate-*` și `--color-gray-*` pe paleta Apple HIG True Neutrals (`#111214`, `#1C1C1E`, `#262629`, `#36363A`, `#48484A`, `#8E8E93`, `#9E9EA4` — WCAG AA `>= 5.5:1`, zero tentă albastră pe toate barele de filtre, dropdown-uri, search bar-uri, segmented controls `RO/EN/RU`, brand tabs, paginare și borduri, păstrând Light Mode 100% neatins).
+  - Curățat și ultimele hex-uri `#1e293b` / `#0f172a` din [ZoomDrilldownPie.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/ZoomDrilldownPie.jsx), [ZoomTimeChart.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/ZoomTimeChart.jsx), [CouriersMap.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/CouriersMap.jsx) și [OrderLiveRouteMap.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/OrderLiveRouteMap.jsx).
+- **Fișiere:** `src/index.css`, `src/components/charts/ZoomDrilldownPie.jsx`, `src/components/charts/ZoomTimeChart.jsx`, `src/pages/CouriersMap.jsx`, `src/components/OrderLiveRouteMap.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local — fără push)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-26 17:38 — Eliminare 100% Tentă Albastră (Tailwind Slate) din Dark Mode Peste Tot
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - În [index.css](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/index.css): schimbat `--apple-seg-track` din albastru-navy (`rgba(30, 41, 59, 0.72)`) în neutru pur macOS Tahoe (`rgba(255, 255, 255, 0.065)`) și suprascris global în `html.dark` toate variabilele Tailwind v4 `--color-slate-*` și `--color-gray-*` pe paleta Apple HIG True Neutrals (`#111214`, `#1C1C1E`, `#262629`, `#36363A`, `#48484A`, `#8E8E93`, `#9E9EA4` — WCAG AA `>= 5.5:1`, zero tentă albastră pe toate barele de filtre, dropdown-uri, search bar-uri, segmented controls `RO/EN/RU`, brand tabs, paginare și borduri, păstrând Light Mode 100% neatins).
+  - Curățat și ultimele hex-uri `#1e293b` / `#0f172a` din [ZoomDrilldownPie.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/ZoomDrilldownPie.jsx), [ZoomTimeChart.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/ZoomTimeChart.jsx), [CouriersMap.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/CouriersMap.jsx) și [OrderLiveRouteMap.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/OrderLiveRouteMap.jsx).
+- **Fișiere:** `src/index.css`, `src/components/charts/ZoomDrilldownPie.jsx`, `src/components/charts/ZoomTimeChart.jsx`, `src/pages/CouriersMap.jsx`, `src/components/OrderLiveRouteMap.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local — fără push)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-26 17:32 — Trafic Rutier Live pe Harta Curierilor + Indice Trafic & Curieri în Oraș la Ora Comenzii (0 €)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - Adăugat butonul toggle **`Trafic / Пробки / Traffic`** pe [CouriersMap.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/CouriersMap.jsx) cu strat transparent **Google Maps Live Traffic** (străzi verde / galben / roșu, refresh automat la 2 min, `0 €`, zero API keys) montat pe `trafficPane` separat (`zIndex: 415`, în afara `.leaflet-tile-pane`) ca în Dark Mode culorile de blocaj să nu se inverseze + legendă de trafic în bara flotantă.
+  - Extins [OrderWeatherBadge.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/OrderWeatherBadge.jsx) cu rândul **„Trafic & curieri în oraș (±45m)”** calculat din telemetria reală a livrărilor din același oraș în fereastra `±45 min` a comenzii (mediană timp pe drum vs norma orașului + așteptare curier + număr comenzi în fereastră; `0 €`, zero apeluri externe, funcționează și retroactiv pe comenzi de ieri / luna trecută), integrat în [Dispatch.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dispatch.jsx), [CouriersMap.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/CouriersMap.jsx) și [OrderDetailsModal.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/OrderDetailsModal.jsx).
+- **Fișiere:** `src/pages/CouriersMap.jsx`, `src/components/OrderWeatherBadge.jsx`, `src/pages/Dispatch.jsx`, `src/components/OrderDetailsModal.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local — NU s-a făcut push, așteaptă verificarea și acordul utilizatorului)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-26 17:24 — Fix HUD Meteo pe Harta Curierilor (Mereu Vizibil și pe Comandă Izolată / Zoom Stradal)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - Rezolvat bug-ul din [CouriersMap.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/CouriersMap.jsx) unde, când butonul `Meteo / Погода` era activ și utilizatorul selecta o comandă sau făcea zoom într-un oraș fără filtru de oraș, vremea dispărea complet de pe hartă.
+  - Acum HUD-ul flotant Liquid Glass stânga-sus afișează **întotdeauna** vremea cât timp `Meteo / Погода` este activ: (1) vremea orașului comenzii selectate (`#15738 Botoșani → 1°C Ninsoare`), (2) vremea orașului filtrat, (3) vremea celui mai apropiat oraș de centrul hărții la zoom stradal (`>= 9`, actualizat automat la pan/zoom), sau (4) rezumatul rețelei + cei 19 pini meteo pe orașe (`zIndexOffset: 900`) la vedere de țară.
+- **Fișiere:** `src/pages/CouriersMap.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, pregătit pentru push & deploy)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-26 17:18 — Vremea & Temperatura Exactă la Ora Comenzii în Toate Ferestrele „Detalii Comandă” (inclusiv istoric)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - Adăugat hook-ul `useOrderWeather(city, timestamp, fallbackName)` în [useNetworkWeather.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/hooks/useNetworkWeather.js) care extrage exact orașul, data și ora (ora României) a comenzii și încarcă automat temperatura reală, temperatura resimțită, starea vremii (ploaie / ninsoare / ceață / senin), precipitațiile (`mm`) și vântul (`km/h`) din **Open-Meteo Hourly Forecast** (ultimele 55 zile) și **Open-Meteo Historical Archive** (>55 zile) — `0 €`, zero încărcare DB/Netlify, cu cache persistent în `localStorage` per `(oraș, zi)`.
+  - Creat componenta Apple-style [OrderWeatherBadge.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/OrderWeatherBadge.jsx) (Light/Dark, RO/EN/RU, `tabular-nums`, badge-uri semantice ploaie/ninsoare/vânt) și integrat în toate cele 3 modale de detalii comandă: [Dispatch.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dispatch.jsx) (Dispecerat Live), [CouriersMap.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/CouriersMap.jsx) (Harta Curierilor) și [OrderDetailsModal.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/OrderDetailsModal.jsx) (CRM Clienți, Reputație, Monitorizare, Webhooks).
+- **Fișiere:** `src/hooks/useNetworkWeather.js`, `src/components/OrderWeatherBadge.jsx`, `src/components/OrderDetailsModal.jsx`, `src/pages/Dispatch.jsx`, `src/pages/CouriersMap.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, pregătit pentru push & deploy)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-26 17:03 — Meteo Live: Carduri Clare în Grid pe Dashboard (fără scrollbar) + Pini Meteo & Radar Ploaie DIRECT pe Harta Curierilor
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - Creat [useNetworkWeather.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/hooks/useNetworkWeather.js): un singur apel HTTP client-side direct către **Open-Meteo** (100% gratuit, `0` invocări Netlify, cache `15 min` în `localStorage`) pentru toate cele **19 orașe operaționale**.
+  - Reproiectat [WeatherCitiesStrip.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/WeatherCitiesStrip.jsx) ca **grid curat de carduri meteo Apple-style** (`grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 xl:grid-cols-10`, **zero scrollbar orizontal**, temperatură mare `18px tabular-nums`, titlu extern deasupra cardurilor, filtru `Toate / Ploaie-Ninsoare` + collapse salvat în `localStorage`) pe [Dashboard.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dashboard.jsx).
+  - Pe [CouriersMap.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/CouriersMap.jsx): scos complet bara de deasupra hărții și pus vremea **direct pe harta Leaflet** (etichete meteo live peste fiecare oraș cu `❄️ 0° Suceava`, `🌧 3° București`, click = zoom pe oraș + card meteo flotant Liquid Glass stânga-sus când e selectat un oraș) + toggle **`Meteo / Погода`** și **`Radar Ploaie / Радар осадков`** (**RainViewer** gratuit pe `rainRadarPane` neafectat de Dark Mode invert).
+- **Fișiere:** `src/hooks/useNetworkWeather.js`, `src/components/WeatherCitiesStrip.jsx`, `src/pages/CouriersMap.jsx`, `src/pages/Dashboard.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, pregătit pentru push & deploy)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-26 16:26 — Unificare Buton „Verifică Status / Проверить статус” + Fereastră Modală Scanare Live și pe Dashboard + Fix Polling Prematur Netlify
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - Unificat eticheta butonului principal de scanare pe **ambele pagini** (Dashboard + Monitorizare) în [translations.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/lib/translations.js): `Verifică Status` (RO) / `Check Status` (EN) / `Проверить статус` (RU).
+  - Adăugat același modal macOS Tahoe `.apple-sheet` de progres și rezultat al scanării live (canale verificate, durată reală, `Canale Oprite` + lista canalelor oprite) și în [Dashboard.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dashboard.jsx) (identic cu [Monitoring.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Monitoring.jsx)).
+  - Eliminat polling-ul prematur `/api/check-status` care oprea spinner-ul după 2–4s pe Netlify Serverless înainte să se termine `POST /api/check-all` (~7–8s); înlocuit cu progres fluid + `AbortController` real pe butonul Stop în ambele pagini.
+- **Fișiere:** `src/lib/translations.js`, `src/pages/Dashboard.jsx`, `src/pages/Monitoring.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (pregătit pentru push & deploy)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
 ### 2026-11-26 16:05 — Monitorizare 100% REALĂ Live (Wolt + Bolt + Glovo fără Puppeteer), Cron Automat la 5 Minute, Webhook Stopuri Valentin, Fix `stop_audit_log` & Calibrare Rază Cluj
 - **Autor:** Antigravity
 - **Ce s-a făcut:**

@@ -4,6 +4,7 @@ import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
 import BrandAvatar, { cleanRestaurantName } from './BrandAvatar'
 import OrderLiveRouteMap from './OrderLiveRouteMap'
+import OrderWeatherBadge from './OrderWeatherBadge'
 import { formatDisplayOrderNumber, parseDeliveryAddress, isSafeHttpUrl } from '../lib/orderUtils'
 import { getProductImage } from '../lib/productImages'
 
@@ -218,6 +219,14 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
                   </div>
                 </div>
               )}
+
+              {/* VREMEA & TRAFICUL LA ORA COMENZII (OPEN-METEO + TELEMETRIE FLOTĂ) */}
+              <OrderWeatherBadge
+                city={order.restaurant_city || order.city || meta.city || ''}
+                restaurantName={order.restaurant_name || order.brand_name || customerInfo?.address || ''}
+                timestamp={order.placed_at || order.created_at || timings.whenCreated || timings.when_created}
+                order={order}
+              />
 
               {/* SECȚIUNE PRODUSE — macOS Inset Grouped List */}
               <div>

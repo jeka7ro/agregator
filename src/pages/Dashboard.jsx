@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useLiveChecks } from '../hooks/useLiveChecks'
 import { useTheme } from '../lib/ThemeContext'
@@ -10,6 +11,8 @@ import {
   Store,
   ExternalLink,
   AlertTriangle,
+  CheckCircle2,
+  X,
   Download,
   FileText,
   ShoppingBag,
@@ -30,6 +33,7 @@ import WebhookIntegrationModal from '../components/WebhookIntegrationModal'
 import ZoomChartsSuite from '../components/charts/ZoomChartsSuite'
 import CumulativeHourlyChart from '../components/charts/CumulativeHourlyChart'
 import AppleDateRangePicker, { formatYmdRangeDisplay } from '../components/AppleDateRangePicker'
+import WeatherCitiesStrip from '../components/WeatherCitiesStrip'
 import { useExecutiveSales } from '../hooks/useExecutiveSales'
 import { getRestaurantWorkingHoursStatus } from '../lib/orderUtils'
 import { exportSheetsToExcel } from '../lib/excelExport'
@@ -597,68 +601,65 @@ export default function Dashboard() {
     }
   }
 
+  const [showScanReport, setShowScanReport] = useState(false)
+  const verifyAbortRef = useRef(null)
+
   const handleVerifyAll = () => {
+    if (isVerifying) {
+      setShowScanReport(true)
+      return
+    }
+    if (verifyAbortRef.current) verifyAbortRef.current.abort()
+    const controller = new AbortController()
+    verifyAbortRef.current = controller
+
+    const expectedTotal = Math.max(1, tableRows.length * 4 || 204)
     setIsVerifying(true)
-    setVerifyStatus({ isRunning: true, totalChecks: tableRows.length || 204, current: 0, errors: 0, offline: 0, results: [] })
-    fetch(getApiUrl('/api/check-all'), { method: 'POST' })
+    setShowScanReport(true)
+    setVerifyStatus({ isRunning: true, totalChecks: expectedTotal, current: 0, errors: 0, offline: 0, results: [] })
+    fetch(getApiUrl('/api/check-all'), { method: 'POST', signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json().catch(() => null)
         if (data?.status) {
-          setVerifyStatus(data.status)
-          if (!data.status.isRunning) {
-            setIsVerifying(false)
-            fetchData(true)
-          }
+          setVerifyStatus({ ...data.status, isRunning: false })
+          setIsVerifying(false)
+          fetchData(true)
+        } else {
+          setIsVerifying(false)
         }
       })
       .catch((err) => {
+        if (err?.name === 'AbortError') return
         console.error(err)
         setIsVerifying(false)
+        setVerifyStatus(prev => prev ? { ...prev, isRunning: false, error: err.message } : null)
       })
   }
 
   const handleStopVerify = () => {
+    if (verifyAbortRef.current) {
+      verifyAbortRef.current.abort()
+      verifyAbortRef.current = null
+    }
     fetch(getApiUrl('/api/check-stop'), { method: 'POST' }).catch(console.error)
     setIsVerifying(false)
+    setVerifyStatus(prev => prev ? { ...prev, isRunning: false } : null)
   }
 
-  const isVerifyingRef = useRef(isVerifying)
-  useEffect(() => {
-    isVerifyingRef.current = isVerifying
-  }, [isVerifying])
-
-  // Monitor live check progress ONLY while a verification scan is actively running (0 idle invocations)
+  // Smooth live progress ticker while synchronous /api/check-all runs (~7-8s) — prevents stale serverless /api/check-status premature stop
   useEffect(() => {
     if (!isVerifying) return
-    let consecutiveFailures = 0
-    const checkStatus = async () => {
-      if (typeof document !== 'undefined' && document.hidden) return
-      try {
-        const res = await fetch(getApiUrl('/api/check-status'))
-        if (res.ok) {
-          consecutiveFailures = 0
-          const data = await res.json()
-          if (data.success && data.status) {
-            setVerifyStatus(data.status)
-            if (!data.status.isRunning) {
-              setIsVerifying(false)
-              fetchData(true)
-            }
-          }
-        } else {
-          consecutiveFailures++
-          if (consecutiveFailures >= 3) setIsVerifying(false)
-        }
-      } catch (_) {
-        consecutiveFailures++
-        if (consecutiveFailures >= 3) setIsVerifying(false)
-      }
-    }
-
-    const interval = setInterval(checkStatus, 4000)
-    return () => clearInterval(interval)
-  }, [isVerifying, fetchData])
+    const timer = setInterval(() => {
+      setVerifyStatus(prev => {
+        if (!prev || !prev.isRunning) return prev
+        const maxDuringScan = Math.max(1, Math.round((prev.totalChecks || 204) * 0.92))
+        const nextCur = Math.min(maxDuringScan, (prev.current || 0) + Math.max(8, Math.round((prev.totalChecks || 204) / 14)))
+        return { ...prev, current: nextCur }
+      })
+    }, 550)
+    return () => clearInterval(timer)
+  }, [isVerifying])
 
   if (loading && restaurants.length === 0) {
     return (
@@ -1421,6 +1422,12 @@ export default function Dashboard() {
       )}
       </div>
 
+      {/* ROW 5 — Condiții Meteo Live în Orașele Rețelei (compact, jos, click = zoom pe Harta Curierilor) */}
+      <WeatherCitiesStrip
+        collapsible
+        onSelectCity={(cityKey) => navigate(cityKey === 'all' ? '/couriers-map' : `/couriers-map?city=${encodeURIComponent(cityKey)}`)}
+      />
+
       {/* Modal Dosar Tehnic */}
       {dossierRestaurant && (
         <RestaurantDetailsModal
@@ -1436,6 +1443,146 @@ export default function Dashboard() {
         onClose={() => setShowWebhookModal(false)}
         onWebhookTriggered={() => fetchData(true)}
       />
+
+      {/* SHEET SCANARE LIVE — macOS Tahoe 26 (identic cu Monitoring) */}
+      {showScanReport && typeof document !== 'undefined' && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => {
+            setShowScanReport(false)
+            if (!isVerifying) setVerifyStatus(null)
+          }}
+          className="fixed inset-0 m-0 apple-sheet-backdrop z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="apple-sheet w-full max-w-md overflow-hidden flex flex-col max-h-[88vh]"
+          >
+            <div className="apple-sheet-header relative px-5 py-4 text-center space-y-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowScanReport(false)
+                  if (!isVerifying) setVerifyStatus(null)
+                }}
+                aria-label={t('common.close')}
+                className="apple-sheet-close absolute top-3.5 right-3.5"
+              >
+                <X size={15} />
+              </button>
+
+              <div className={`w-11 h-11 rounded-2xl mx-auto flex items-center justify-center ${isVerifying
+                ? 'bg-[#047857]/12 text-[#047857] dark:text-[#10B981]'
+                : 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400'
+                }`}>
+                {isVerifying ? <Loader2 size={22} className="animate-spin" /> : <CheckCircle2 size={22} />}
+              </div>
+              <h3 className="text-[16px] font-semibold tracking-tight text-slate-900 dark:text-white">
+                {isVerifying ? t('monitoring.scan_modal_title_progress') : t('monitoring.scan_modal_title_done')}
+              </h3>
+              <p className="text-[12px] text-slate-500 dark:text-slate-400">
+                {isVerifying ? t('monitoring.scan_modal_desc_progress') : t('monitoring.scan_modal_desc_done')}
+              </p>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-3 custom-scrollbar">
+              {verifyStatus && (() => {
+                const pct = verifyStatus.totalChecks > 0
+                  ? Math.min(100, Math.max(0, Math.round((verifyStatus.current / verifyStatus.totalChecks) * 100)))
+                  : (isVerifying ? 0 : 100)
+                return (
+                  <>
+                    <div className="apple-inset-card p-3.5 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium text-slate-600 dark:text-slate-300">
+                          {language === 'ru' ? 'Прогресс проверки' : language === 'en' ? 'Scan progress' : 'Progres verificare'}
+                        </span>
+                        <span className="font-semibold tabular-nums text-[#047857] dark:text-[#10B981]">
+                          {pct}%
+                        </span>
+                      </div>
+                      <div className={`w-full h-2 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-black/[0.08]'}`}>
+                        <div
+                          className="h-full rounded-full bg-[#047857] dark:bg-[#10B981] transition-all duration-300"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      {!isVerifying && verifyStatus.duration_ms > 0 && (
+                        <div className="text-[11px] tabular-nums text-slate-500 dark:text-slate-400">
+                          {language === 'ru'
+                            ? `Проверено live за ${(verifyStatus.duration_ms / 1000).toFixed(1)} сек`
+                            : language === 'en'
+                              ? `Live scan completed in ${(verifyStatus.duration_ms / 1000).toFixed(1)}s`
+                              : `Scanare live finalizată în ${(verifyStatus.duration_ms / 1000).toFixed(1)}s`}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="apple-inset-card flex items-center justify-between px-4 py-3">
+                      <span className="text-[13px] font-medium text-slate-700 dark:text-slate-300">
+                        {t('monitoring.scan_modal_verified')}
+                      </span>
+                      <span className="text-[15px] font-bold tabular-nums text-slate-900 dark:text-white">
+                        {verifyStatus.current} / {verifyStatus.totalChecks || '-'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between px-4 py-3 rounded-[14px] border border-rose-500/20 bg-rose-500/8">
+                      <span className="text-[13px] font-medium text-rose-700 dark:text-rose-300">
+                        {t('monitoring.scan_modal_stopped')}
+                      </span>
+                      <span className="text-[15px] font-bold tabular-nums text-rose-600 dark:text-rose-400">
+                        {verifyStatus.offline || 0}
+                      </span>
+                    </div>
+
+                    {!isVerifying && Array.isArray(verifyStatus.results) && verifyStatus.results.length > 0 && (
+                      <div className="apple-inset-card p-3 space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar">
+                        {verifyStatus.results.slice(0, 12).map((item, idx) => (
+                          <div key={idx} className="flex items-center justify-between gap-2 text-[11.5px]">
+                            <span className="font-semibold text-rose-600 dark:text-rose-400 truncate">
+                              {cleanRestaurantName(item.restaurant)} · {String(item.platform || '').toUpperCase()}
+                            </span>
+                            <span className="text-slate-500 dark:text-slate-400 truncate max-w-[48%] text-right">
+                              {item.reason || item.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
+            </div>
+
+            <div className="px-5 py-3 border-t border-black/[0.06] dark:border-white/[0.08] flex items-center justify-end gap-2 shrink-0">
+              {isVerifying ? (
+                <button
+                  type="button"
+                  onClick={handleStopVerify}
+                  className="apple-btn-secondary !text-rose-600 dark:!text-rose-400"
+                >
+                  <Square size={12} />
+                  <span>{t('monitoring.stop_scan')}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowScanReport(false)
+                    setVerifyStatus(null)
+                  }}
+                  className="apple-btn-secondary"
+                >
+                  {t('common.close')}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
     </div>
   )

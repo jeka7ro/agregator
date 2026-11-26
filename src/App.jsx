@@ -35,6 +35,11 @@ function RootRedirect() {
   return <Navigate to={{ pathname: '/dashboard', search: location.search }} replace />
 }
 
+function CouriersAliasRedirect() {
+  const location = useLocation()
+  return <Navigate to={{ pathname: '/couriers-map', search: location.search }} replace />
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -46,6 +51,7 @@ function App() {
             <Route path="/" element={<RootRedirect />} />
             <Route path="/dispatch" element={<Dispatch />} />
             <Route path="/couriers-map" element={<CouriersMap />} />
+            <Route path="/couriers" element={<CouriersAliasRedirect />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/monitoring" element={<Monitoring />} />
             <Route path="/reputation" element={<Reputation />} />
@@ -54,6 +60,7 @@ function App() {
             <Route path="/reports" element={<Reports />} />
             <Route path="/users" element={<UsersManagement />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="*" element={<RootRedirect />} />
           </Route>
         </Routes>
       </Suspense>

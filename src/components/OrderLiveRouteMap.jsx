@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from 'react'
-import { Store, Bike, MapPin, Navigation, ExternalLink, CheckCircle2, AlertTriangle, ShieldAlert, Maximize2, Minimize2, LocateFixed, X } from 'lucide-react'
+import { Store, Bike, MapPin, Navigation, ExternalLink, CheckCircle2, AlertTriangle, ShieldAlert, Maximize2, Minimize2, LocateFixed, X, Car } from 'lucide-react'
 import { getBrandInfo, cleanRestaurantName } from './BrandAvatar'
 import { getCanonicalCity, getCityDisplayName, formatDisplayOrderNumber, parseDeliveryAddress, escapeHtml } from '../lib/orderUtils'
 import { loadLeaflet } from '../lib/loadLeaflet'
@@ -256,6 +256,7 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
   const mapContainerRef = useRef(null)
   const leafletMapRef = useRef(null)
   const layerRef = useRef(null)
+  const trafficLayerRef = useRef(null)
   const lastFittedKeyRef = useRef(null)
   const onOpenCustomerDossierRef = useRef(onOpenCustomerDossier)
   onOpenCustomerDossierRef.current = onOpenCustomerDossier
@@ -263,6 +264,7 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
   const [streetRoute, setStreetRoute] = useState(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showAuditPopup, setShowAuditPopup] = useState(false)
+  const [showTraffic, setShowTraffic] = useState(false)
   const [leafletReady, setLeafletReady] = useState(() => Boolean(typeof window !== 'undefined' && window.L))
 
   const orderKey = order?.id || order?.order_id || order?.order_number || 'ord'
@@ -554,6 +556,12 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
         maxZoom: 20
       }).addTo(map)
 
+      if (!map.getPane('trafficPane')) {
+        const tp = map.createPane('trafficPane')
+        tp.style.zIndex = '415'
+        tp.style.pointerEvents = 'none'
+      }
+
       layerRef.current = L.layerGroup().addTo(map)
       leafletMapRef.current = map
       createdMap = map
@@ -576,9 +584,33 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
       if (createdMap) {
         createdMap.remove()
         leafletMapRef.current = null
+        trafficLayerRef.current = null
       }
     }
   }, [])
+
+  // Live Google Maps transparent traffic overlay on mini-map (0 EUR)
+  useEffect(() => {
+    const map = leafletMapRef.current
+    const L = typeof window !== 'undefined' ? window.L : null
+    if (!map || !L) return
+    if (trafficLayerRef.current) {
+      try { map.removeLayer(trafficLayerRef.current) } catch (_) { }
+      trafficLayerRef.current = null
+    }
+    if (!showTraffic) return
+    const bucket = Math.floor(Date.now() / 120000)
+    trafficLayerRef.current = L.tileLayer(
+      `https://mt1.google.com/vt/lyrs=h@159000000,traffic|seconds_into_week:-1&style=3&x={x}&y={y}&z={z}&hl=ro&t=${bucket}`,
+      { pane: 'trafficPane', opacity: 0.92, maxZoom: 20 }
+    ).addTo(map)
+    return () => {
+      if (trafficLayerRef.current && leafletMapRef.current) {
+        try { leafletMapRef.current.removeLayer(trafficLayerRef.current) } catch (_) { }
+        trafficLayerRef.current = null
+      }
+    }
+  }, [showTraffic, leafletReady])
 
   // Gestionare Fullscreen (activare scrollWheelZoom în Fullscreen + redimensionare automată)
   useEffect(() => {
@@ -627,7 +659,7 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
         <div style="
           position: relative;
           width: 32px; height: 32px; border-radius: 50%;
-          background: #0f172a; border: 2.5px solid #10b981;
+          background: #1C1C1E; border: 2.5px solid #10b981;
           display: flex; align-items: center; justify-content: center;
           box-shadow: 0 4px 12px rgba(0,0,0,0.45);
         ">
@@ -635,7 +667,7 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
           <span style="
             position: absolute; bottom: -3px; right: -3px;
             width: 14px; height: 14px; border-radius: 50%;
-            background: #10b981; border: 1.5px solid #0f172a;
+            background: #10b981; border: 1.5px solid #1C1C1E;
             display: flex; align-items: center; justify-content: center;
           ">
             <svg viewBox="0 0 24 24" width="8" height="8" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
@@ -750,7 +782,7 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
           position: relative;
           display: inline-flex; align-items: center; gap: 4px;
           padding: 3px 8px 3px 4px; border-radius: 999px;
-          background: #0f172a; border: 2px solid ${statusColor};
+          background: #1C1C1E; border: 2px solid ${statusColor};
           color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
           font-size: 10.5px; font-weight: 900; white-space: nowrap;
           box-shadow: 0 5px 15px rgba(0,0,0,0.5);
@@ -1022,6 +1054,22 @@ export default function OrderLiveRouteMap({ order, isDark = false, language = 'r
 
           {/* Liquid Glass Floating Map Controls (un singur loc — fără butoane duplicate în header) */}
           <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1 p-1 rounded-full apple-glass-toolbar">
+            <button
+              type="button"
+              onClick={() => setShowTraffic(prev => !prev)}
+              aria-pressed={showTraffic}
+              title={language === 'ru' ? 'Пробки Live на маршруте' : language === 'en' ? 'Live Route Traffic' : 'Trafic Live pe traseu'}
+              className={`h-7 px-2 rounded-full text-[10.5px] font-semibold inline-flex items-center gap-1 cursor-pointer transition-colors ${
+                showTraffic
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-xs'
+                  : isDark
+                    ? 'hover:bg-white/12 text-slate-100'
+                    : 'hover:bg-black/[0.06] text-slate-700'
+              }`}
+            >
+              <Car size={12} />
+              <span>{language === 'ru' ? 'Пробки' : language === 'en' ? 'Traffic' : 'Trafic'}</span>
+            </button>
             <button
               type="button"
               onClick={() => recenterMap(true)}

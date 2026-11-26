@@ -44,6 +44,7 @@ import { useLiveChecks } from '../hooks/useLiveChecks'
 import BrandAvatar, { getBrandInfo, cleanRestaurantName } from '../components/BrandAvatar'
 import PlatformLogo from '../components/PlatformLogo'
 import OrderLiveRouteMap from '../components/OrderLiveRouteMap'
+import OrderWeatherBadge from '../components/OrderWeatherBadge'
 import AppleDateRangePicker, { formatYmdRangeDisplay } from '../components/AppleDateRangePicker'
 import { getProductImage } from '../lib/productImages'
 import { getCanonicalCity, getCityDisplayName, maskPhone, maskCustomerName, maskAddress, formatDisplayOrderNumber, parseDeliveryAddress } from '../lib/orderUtils'
@@ -2258,19 +2259,37 @@ export default function Dispatch() {
                   </td>
                 </tr>
               ) : (
-                filteredStopAuditLog.slice(0, 10).map((log, idx) => (
+                filteredStopAuditLog.slice(0, 10).map((log, idx) => {
+                  const isResolved = Boolean(log.resumed_at)
+                  const localeStr = language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-US' : 'ro-RO'
+                  const resumedTimeStr = isResolved
+                    ? new Date(log.resumed_at).toLocaleTimeString(localeStr, { hour: '2-digit', minute: '2-digit' })
+                    : null
+                  const durLabel = `${log.duration_minutes ?? 0}${language === 'ru' ? 'м' : 'm'}`
+                  return (
                   <tr key={log.id || idx} className={isDark ? 'hover:bg-slate-800/50' : 'hover:bg-slate-50'}>
                     <td className="py-3 px-3 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse shrink-0"></span>
+                        <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${isResolved ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'}`}></span>
                         <div>
-                          <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1 text-xs">
+                          <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1 text-xs tabular-nums">
                             <Calendar size={12} className="text-slate-400 shrink-0" />
-                            <span>{new Date(log.stopped_at).toLocaleDateString(language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-US' : 'ro-RO', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                            <span>{new Date(log.stopped_at).toLocaleDateString(localeStr, { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                           </div>
-                          <div className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1 mt-0.5">
-                            <Clock size={11} className="shrink-0" />
-                            <span>{new Date(log.stopped_at).toLocaleTimeString(language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-US' : 'ro-RO', { hour: '2-digit', minute: '2-digit' })}</span>
+                          <div className="text-[11px] font-semibold flex items-center gap-1.5 mt-0.5 tabular-nums">
+                            <span className="text-rose-600 dark:text-rose-400 inline-flex items-center gap-1">
+                              <Clock size={11} className="shrink-0" />
+                              {new Date(log.stopped_at).toLocaleTimeString(localeStr, { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            {isResolved ? (
+                              <span className="text-emerald-600 dark:text-emerald-400 text-[10.5px]">
+                                → {resumedTimeStr} ({durLabel})
+                              </span>
+                            ) : (
+                              <span className="text-rose-600 dark:text-rose-400 text-[10.5px]">
+                                · {language === 'ru' ? 'На стопе' : language === 'en' ? 'Active' : 'Oprit'} ({durLabel})
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -2288,27 +2307,34 @@ export default function Dispatch() {
                       <PlatformLogo platform={log.platform} size={20} />
                     </td>
                     <td className="py-3 px-3 text-center">
-                      <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-extrabold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
+                      <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-extrabold tabular-nums bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
                         {t('dispatch.tickets_count', '{count} bonuri', { count: log.active_orders_at_stop })}
                       </span>
                     </td>
-                    <td className="py-3 px-3 text-center font-bold text-slate-700 dark:text-slate-300">
+                    <td className="py-3 px-3 text-center font-bold tabular-nums text-slate-700 dark:text-slate-300">
                       {log.last_5_kitchen_avg_min} {language === 'ru' ? 'мин' : 'min'}
                     </td>
-                    <td className="py-3 px-3 text-center font-bold text-slate-700 dark:text-slate-300">
+                    <td className="py-3 px-3 text-center font-bold tabular-nums text-slate-700 dark:text-slate-300">
                       {log.last_5_delivery_avg_min} {language === 'ru' ? 'мин' : 'min'}
                     </td>
-                    <td className="py-3 px-3 text-slate-600 dark:text-slate-400 max-w-[220px] truncate" title={log.reason}>
+                    <td className="py-3 px-3 text-slate-600 dark:text-slate-400 max-w-[240px] truncate" title={log.reason}>
                       {log.reason || 'Depășire timpi bucătărie'}
                     </td>
                     <td className="py-3 px-3 text-right whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                        <Send size={10} />
-                        {t('dispatch.telegram_sent_badge', 'TG Notificat')}
-                      </span>
+                      {log.telegram_alert_sent ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/12 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25">
+                          <Send size={10} />
+                          {t('dispatch.telegram_sent_badge', 'TG Notificat')}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-black/[0.05] dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 border border-black/[0.08] dark:border-white/[0.10]">
+                          {language === 'ru' ? 'Зафиксирован' : language === 'en' ? 'Logged' : 'Înregistrat'}
+                        </span>
+                      )}
                     </td>
                   </tr>
-                ))
+                  )
+                })
               )}
             </tbody>
           </table>
@@ -2493,6 +2519,15 @@ export default function Dispatch() {
                       </div>
                     )}
                   </div>
+
+                  {/* Vremea & Traficul exacte la ora și data comenzii */}
+                  <OrderWeatherBadge
+                    city={selectedOrder.restaurant_city || selectedOrder.city || ''}
+                    restaurantName={selectedOrder.restaurant_name || selectedOrder.customer?.address || ''}
+                    timestamp={selectedOrder.placed_at || selectedOrder.created_at}
+                    order={selectedOrder}
+                    peerOrders={orders}
+                  />
 
                   {/* Banner Problemă dacă există */}
                   {selectedOrder.problem && (

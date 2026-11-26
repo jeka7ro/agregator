@@ -4539,6 +4539,38 @@ app.get('/api/dispatch/live', async (req, res) => {
             dbStops = loadStopEventsCache() || []
         }
 
+        // Helpers to compare real UTC stop timestamps against Romania wall-clock order timestamps accurately (zero 2h timezone drift!)
+        const utcIsoToRoWallMs = (iso) => {
+            if (!iso) return NaN
+            const d = new Date(iso)
+            if (Number.isNaN(d.getTime())) return NaN
+            const roStr = d.toLocaleString('sv-SE', { timeZone: 'Europe/Bucharest' }).replace(' ', 'T') + 'Z'
+            return new Date(roStr).getTime()
+        }
+        const orderWallClockMs = (ts) => {
+            if (!ts) return NaN
+            const m = String(ts).trim().match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}(?::\d{2})?)/)
+            if (m) return new Date(`${m[1]}T${m[2].length === 5 ? m[2] + ':00' : m[2]}Z`).getTime()
+            return new Date(ts).getTime()
+        }
+        const orderDoneWallClockMs = (eo, placedRoMs) => {
+            const rawDone = eo.exact_timings?.delivered_at || eo.exact_timings?.closed_at || eo.exact_timings?.cooking_completed_at || eo.delivered_at || eo.closed_at
+            if (rawDone) {
+                const ms = orderWallClockMs(rawDone)
+                if (!Number.isNaN(ms)) return ms
+            }
+            const hhmm = eo.timings?.delivered_time || eo.timings?.sended_time || eo.timings?.cooking_completed_time
+            const placedYmd = String(eo.placed_at || eo.created_at || '').slice(0, 10)
+            if (hhmm && /^\d{2}:\d{2}/.test(hhmm) && /^\d{4}-\d{2}-\d{2}$/.test(placedYmd)) {
+                const fullTime = hhmm.length === 5 ? `${hhmm}:00` : hhmm.slice(0, 8)
+                let ms = new Date(`${placedYmd}T${fullTime}Z`).getTime()
+                if (!Number.isNaN(ms) && !Number.isNaN(placedRoMs) && ms < placedRoMs - 3600000) ms += 86400000
+                return ms
+            }
+            return NaN
+        }
+
+        const seenStopAuditKeys = new Set()
         const stopAuditLog = (dbStops || [])
             .filter(s => {
                 if (!s.stopped_at) return false
@@ -4556,31 +4588,36 @@ app.get('/api/dispatch/live', async (req, res) => {
                     ? `Locație închisă temporar pe ${(s.platform || 'agregator').toUpperCase()} în timpul programului`
                     : s.reason
 
-                // Compute REAL order metrics at the exact moment of the stop (NEVER fabricate charCodeAt fallback numbers!)
-                const stopMs = s.stopped_at ? new Date(s.stopped_at).getTime() : NaN
+                // Compute REAL order metrics at the exact Romania wall-clock moment of the stop (matched to exact brand + city)
+                const stopRoMs = utcIsoToRoWallMs(s.stopped_at)
                 let realActiveCount = config.active_orders_count ?? null
                 let realKitchenAvg = config.last_5_kitchen_avg_min ?? null
                 let realDeliveryAvg = config.last_5_delivery_avg_min ?? null
-                if (!Number.isNaN(stopMs) && (realActiveCount === null || realKitchenAvg === null || realDeliveryAvg === null)) {
+                if (!Number.isNaN(stopRoMs) && (realActiveCount === null || realKitchenAvg === null || realDeliveryAvg === null)) {
+                    const normB = String(bName || '').toLowerCase()
                     const restOrders = enrichedOrders.filter(eo => {
-                        const sameRest = (s.restaurant_id && eo.restaurant_id === s.restaurant_id) ||
-                            (cName && getCanonicalCity(eo.restaurant_city || eo.restaurant_name || '') === cName)
-                        if (!sameRest) return false
-                        const placedMs = eo.created_at ? new Date(eo.created_at).getTime() : NaN
-                        return !Number.isNaN(placedMs) && placedMs <= stopMs
+                        const sameRestId = Boolean(s.restaurant_id && eo.restaurant_id === s.restaurant_id)
+                        const sameCityBrand = Boolean(
+                            cName &&
+                            getCanonicalCity(eo.restaurant_city || eo.restaurant_name || '') === cName &&
+                            String(eo.brand_name || '').toLowerCase() === normB
+                        )
+                        if (!sameRestId && !sameCityBrand) return false
+                        const placedRoMs = orderWallClockMs(eo.placed_at || eo.created_at)
+                        return !Number.isNaN(placedRoMs) && placedRoMs <= stopRoMs
                     })
                     if (realActiveCount === null) {
                         realActiveCount = restOrders.filter(eo => {
-                            const placedMs = new Date(eo.created_at).getTime()
-                            const doneTs = eo.delivered_at || eo.closed_at
-                            if (doneTs) {
-                                const doneMs = new Date(doneTs).getTime()
-                                return !Number.isNaN(doneMs) && doneMs >= stopMs
+                            const placedRoMs = orderWallClockMs(eo.placed_at || eo.created_at)
+                            const doneRoMs = orderDoneWallClockMs(eo, placedRoMs)
+                            if (!Number.isNaN(doneRoMs)) {
+                                return doneRoMs >= stopRoMs
                             }
-                            return (stopMs - placedMs) <= 60 * 60000
+                            if (eo.stage === 'delivered') return false
+                            return (stopRoMs - placedRoMs) <= 45 * 60000
                         }).length
                     }
-                    const priorSorted = [...restOrders].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                    const priorSorted = [...restOrders].sort((a, b) => orderWallClockMs(b.placed_at || b.created_at) - orderWallClockMs(a.placed_at || a.created_at))
                     if (realKitchenAvg === null) {
                         const kSamples = priorSorted.map(o => Number(o.kitchen_minutes)).filter(n => Number.isFinite(n) && n > 0 && n < 180).slice(0, 5)
                         realKitchenAvg = kSamples.length > 0 ? Math.round(kSamples.reduce((a, b) => a + b, 0) / kSamples.length) : 0
@@ -4600,19 +4637,24 @@ app.get('/api/dispatch/live', async (req, res) => {
                     platform: s.platform,
                     stopped_at: s.stopped_at,
                     resumed_at: s.resumed_at,
-                    duration_minutes: s.duration_minutes || (s.resumed_at ? Math.round((new Date(s.resumed_at) - new Date(s.stopped_at)) / 60000) : Math.round((now - new Date(s.stopped_at)) / 60000)),
+                    duration_minutes: s.duration_minutes || (s.resumed_at ? Math.max(1, Math.round((new Date(s.resumed_at) - new Date(s.stopped_at)) / 60000)) : Math.max(1, Math.round((now - new Date(s.stopped_at)) / 60000))),
                     estimated_loss: s.estimated_loss_amount || 0,
                     active_orders_at_stop: realActiveCount ?? 0,
                     last_5_kitchen_avg_min: realKitchenAvg ?? 0,
                     last_5_delivery_avg_min: realDeliveryAvg ?? 0,
                     reason: cleanReason,
-                    telegram_alert_sent: true
+                    telegram_alert_sent: Boolean(config.telegram_alert_sent === true)
                 }
             })
             .filter(log => {
                 if (!log.restaurant_name || log.restaurant_name === 'Restaurant' || !log.city || log.city === 'Oraș') return false
                 if (targetCityCanon && log.city !== targetCityCanon) return false
                 if (brandFilter && brandFilter !== 'all' && log.brand !== brandFilter) return false
+                // Deduplicate duplicate restaurant UUID rows for the exact same physical store + platform + minute
+                const minuteKey = String(log.stopped_at || '').slice(0, 16)
+                const dedupeKey = `${log.city}|${String(log.brand || '').toLowerCase()}|${String(log.platform || '').toLowerCase()}|${minuteKey}`
+                if (seenStopAuditKeys.has(dedupeKey)) return false
+                seenStopAuditKeys.add(dedupeKey)
                 return true
             })
 

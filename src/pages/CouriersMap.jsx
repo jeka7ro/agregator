@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   MapPin,
   Navigation,
@@ -19,7 +19,12 @@ import {
   ShieldAlert,
   Maximize2,
   Minimize2,
-  LocateFixed
+  LocateFixed,
+  CloudRain,
+  CloudSun,
+  Car,
+  Droplets,
+  Wind
 } from 'lucide-react'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
@@ -27,9 +32,12 @@ import { loadLeaflet } from '../lib/loadLeaflet'
 import { useAuth } from '../lib/AuthContext'
 import { useLiveDispatch } from '../hooks/useLiveDispatch'
 import { useLiveChecks } from '../hooks/useLiveChecks'
+import { useNetworkWeather } from '../hooks/useNetworkWeather'
 import BrandAvatar, { getBrandInfo, cleanRestaurantName } from '../components/BrandAvatar'
 import PlatformLogo from '../components/PlatformLogo'
 import OrderLiveRouteMap from '../components/OrderLiveRouteMap'
+import OrderWeatherBadge from '../components/OrderWeatherBadge'
+import { WeatherIcon } from '../components/WeatherCitiesStrip'
 import { getProductImage } from '../lib/productImages'
 import { getCanonicalCity, getCityDisplayName, formatDisplayOrderNumber, parseDeliveryAddress, escapeHtml, isSafeHttpUrl } from '../lib/orderUtils'
 
@@ -769,7 +777,11 @@ export default function CouriersMap() {
     }
   }
 
-  const [selectedCity, setSelectedCity] = useState('all')
+  const [searchParams] = useSearchParams()
+  const [selectedCity, setSelectedCity] = useState(() => {
+    const qCity = searchParams.get('city')
+    return qCity ? getCanonicalCity(qCity) || 'all' : 'all'
+  })
   const [selectedBrand, setSelectedBrand] = useState('all')
   const [selectedRestaurantId, setSelectedRestaurantId] = useState('all')
   const [selectedFleet, setSelectedFleet] = useState('all') // 'all', 'glovo', 'wolt', 'bolt'
@@ -778,6 +790,14 @@ export default function CouriersMap() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedOrderId, setSelectedOrderId] = useState(null)
   const [modalOrder, setModalOrder] = useState(null)
+  const [showRainRadar, setShowRainRadar] = useState(false)
+  const [rainRadarTime, setRainRadarTime] = useState(null)
+  const [rainRadarLoading, setRainRadarLoading] = useState(false)
+  const [showTrafficLayer, setShowTrafficLayer] = useState(false)
+  const [showWeatherOnMap, setShowWeatherOnMap] = useState(true)
+  const [mapZoomLevel, setMapZoomLevel] = useState(ROMANIA_CENTER.zoom)
+  const [mapCenter, setMapCenter] = useState({ lat: ROMANIA_CENTER.lat, lng: ROMANIA_CENTER.lng })
+  const { cities: weatherCities } = useNetworkWeather()
 
   useEffect(() => {
     if (!modalOrder) return
@@ -795,6 +815,9 @@ export default function CouriersMap() {
   const mapContainerRef = useRef(null)
   const leafletMapRef = useRef(null)
   const tileLayerRef = useRef(null)
+  const rainRadarLayerRef = useRef(null)
+  const trafficLayerRef = useRef(null)
+  const weatherLayerRef = useRef(null)
   const markersLayerRef = useRef(null)
   const streetRoutesCacheRef = useRef(new Map())
   const [streetRoutes, setStreetRoutes] = useState({})
@@ -1043,7 +1066,27 @@ export default function CouriersMap() {
         maxZoom: 20
       }).addTo(map)
 
+      // Dedicated panes OUTSIDE .leaflet-tile-pane so Dark Mode invert filter NEVER distorts real traffic/radar colors!
+      if (!map.getPane('trafficPane')) {
+        const tp = map.createPane('trafficPane')
+        tp.style.zIndex = '415'
+        tp.style.pointerEvents = 'none'
+      }
+      if (!map.getPane('rainRadarPane')) {
+        const rp = map.createPane('rainRadarPane')
+        rp.style.zIndex = '420'
+        rp.style.pointerEvents = 'none'
+      }
+
       markersLayerRef.current = L.layerGroup().addTo(map)
+      weatherLayerRef.current = L.layerGroup().addTo(map)
+      const syncViewport = () => {
+        setMapZoomLevel(map.getZoom())
+        const ctr = map.getCenter()
+        if (ctr) setMapCenter({ lat: ctr.lat, lng: ctr.lng })
+      }
+      map.on('zoomend', syncViewport)
+      map.on('moveend', syncViewport)
       leafletMapRef.current = map
       createdMap = map
       setLeafletReady(true)
@@ -1060,9 +1103,202 @@ export default function CouriersMap() {
       if (createdMap) {
         createdMap.remove()
         leafletMapRef.current = null
+        rainRadarLayerRef.current = null
+        trafficLayerRef.current = null
+        weatherLayerRef.current = null
       }
     }
   }, [])
+
+  // Direct on-map city weather pins (clean Apple-style badges right on the Leaflet map — ZERO top strip clutter!)
+  useEffect(() => {
+    const layer = weatherLayerRef.current
+    const L = typeof window !== 'undefined' ? window.L : null
+    if (!layer || !L) return
+    layer.clearLayers()
+
+    // Show overview city weather badges directly on map when toggled ON, no single order isolated, and zoom < 11
+    if (!showWeatherOnMap || selectedOrderId || mapZoomLevel >= 11) return
+
+    const iconGlyph = (type) => {
+      switch (type) {
+        case 'storm': return '⛈️'
+        case 'snow': return '❄️'
+        case 'heavy_rain': return '🌧️'
+        case 'rain': return '🌦️'
+        case 'fog': return '🌫️'
+        case 'cloudy': return '☁️'
+        case 'partly_cloudy': return '⛅'
+        case 'moon': return '🌙'
+        default: return '☀️'
+      }
+    }
+
+    for (const c of (weatherCities || [])) {
+      if (typeof canAccessCity === 'function' && !canAccessCity(c.key)) continue
+      if (selectedCity !== 'all' && selectedCity !== c.key) continue
+      if (c.temp === null) continue
+
+      const condText = escapeHtml(c.conditionLabel?.[language] || c.conditionLabel?.ro || '')
+      const isSevere = c.severity === 'severe'
+      const isRain = c.severity === 'rain'
+      const bg = isSevere
+        ? 'rgba(136,19,55,0.92)'
+        : isRain
+          ? 'rgba(12,74,110,0.92)'
+          : (isDark ? 'rgba(28,28,30,0.90)' : 'rgba(255,255,255,0.94)')
+      const border = isSevere
+        ? 'rgba(251,113,133,0.75)'
+        : isRain
+          ? 'rgba(56,189,248,0.75)'
+          : (isDark ? 'rgba(255,255,255,0.20)' : 'rgba(15,23,42,0.16)')
+      const textColor = (isSevere || isRain || isDark) ? '#f8fafc' : '#0f172a'
+      const subColor = isSevere ? '#fecdd3' : isRain ? '#bae6fd' : (isDark ? '#94a3b8' : '#475569')
+
+      const weatherIcon = L.divIcon({
+        className: 'custom-weather-pin',
+        html: `
+          <div style="
+            display:inline-flex; align-items:center; gap:4px;
+            padding:3px 7px; border-radius:999px;
+            background:${bg}; border:1px solid ${border};
+            color:${textColor}; font-family:system-ui,-apple-system,sans-serif;
+            font-size:11px; font-weight:700; line-height:1;
+            box-shadow:0 3px 10px rgba(0,0,0,0.32);
+            white-space:nowrap; backdrop-filter:blur(6px);
+            transform:translate(-50%,-135%);
+            cursor:pointer;
+          ">
+            <span style="font-size:11px; line-height:1;">${iconGlyph(c.icon)}</span>
+            <span style="font-variant-numeric:tabular-nums;">${c.temp}°</span>
+            <span style="font-size:10px; font-weight:600; color:${subColor}; max-width:74px; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(c.label)}</span>
+          </div>
+        `,
+        iconSize: [0, 0],
+        iconAnchor: [0, 0]
+      })
+
+      const marker = L.marker([c.lat, c.lng], { icon: weatherIcon, zIndexOffset: 900 })
+      marker.bindTooltip(
+        `<div style="font-family:system-ui,sans-serif;font-size:11px;line-height:1.35;">
+          <b>${escapeHtml(c.label)}</b> · <b>${c.temp}°C</b> (${condText})<br/>
+          ${language === 'ru' ? 'Ощущается' : language === 'en' ? 'Feels like' : 'Resimțit'}: ${c.feelsLike ?? c.temp}°C · ${language === 'ru' ? 'Ветер' : language === 'en' ? 'Wind' : 'Vânt'}: ${c.wind} km/h${c.precip > 0 ? ` · ${c.precip} mm` : ''}
+        </div>`,
+        { direction: 'top', offset: [0, -28] }
+      )
+      marker.on('click', () => {
+        setSelectedCity(c.key)
+        setSelectedRestaurantId('all')
+      })
+      marker.addTo(layer)
+    }
+  }, [weatherCities, showWeatherOnMap, selectedOrderId, selectedCity, mapZoomLevel, isDark, language, leafletReady, canAccessCity])
+
+  // Live RainViewer precipitation radar overlay (0 EUR public API, refreshes every 5 min while active)
+  useEffect(() => {
+    const map = leafletMapRef.current
+    const L = typeof window !== 'undefined' ? window.L : null
+    if (!map || !L) return
+
+    const removeRadar = () => {
+      if (rainRadarLayerRef.current) {
+        try {
+          map.removeLayer(rainRadarLayerRef.current)
+        } catch (_) { }
+        rainRadarLayerRef.current = null
+      }
+    }
+
+    if (!showRainRadar) {
+      removeRadar()
+      setRainRadarTime(null)
+      setRainRadarLoading(false)
+      return
+    }
+
+    let cancelled = false
+    const loadRadarFrame = async () => {
+      setRainRadarLoading(true)
+      try {
+        const res = await fetch('https://api.rainviewer.com/public/weather-maps.json')
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const json = await res.json()
+        const past = json?.radar?.past || []
+        const latest = past[past.length - 1]
+        if (cancelled || !latest?.path || !json?.host || !leafletMapRef.current) return
+
+        removeRadar()
+        const tileUrl = `${json.host}${latest.path}/256/{z}/{x}/{y}/2/1_1.png`
+        rainRadarLayerRef.current = L.tileLayer(tileUrl, {
+          pane: 'rainRadarPane',
+          opacity: 0.62,
+          maxNativeZoom: 7,
+          maxZoom: 20,
+          attribution: '&copy; RainViewer'
+        }).addTo(leafletMapRef.current)
+        if (latest.time) {
+          setRainRadarTime(
+            new Date(latest.time * 1000).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })
+          )
+        }
+      } catch (err) {
+        console.warn('[RainRadar] Error loading RainViewer tiles:', err?.message)
+      } finally {
+        if (!cancelled) setRainRadarLoading(false)
+      }
+    }
+
+    loadRadarFrame()
+    const timer = setInterval(loadRadarFrame, 5 * 60 * 1000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+      removeRadar()
+    }
+  }, [showRainRadar, leafletReady])
+
+  // Live Google Maps transparent traffic overlay (0 EUR, separate trafficPane so Dark Mode never inverts green/amber/red!)
+  useEffect(() => {
+    const map = leafletMapRef.current
+    const L = typeof window !== 'undefined' ? window.L : null
+    if (!map || !L) return
+
+    const removeTraffic = () => {
+      if (trafficLayerRef.current) {
+        try {
+          map.removeLayer(trafficLayerRef.current)
+        } catch (_) { }
+        trafficLayerRef.current = null
+      }
+    }
+
+    if (!showTrafficLayer) {
+      removeTraffic()
+      return
+    }
+
+    const mountTraffic = () => {
+      if (!leafletMapRef.current) return
+      removeTraffic()
+      const bucket = Math.floor(Date.now() / 120000)
+      trafficLayerRef.current = L.tileLayer(
+        `https://mt1.google.com/vt/lyrs=h@159000000,traffic|seconds_into_week:-1&style=3&x={x}&y={y}&z={z}&hl=ro&t=${bucket}`,
+        {
+          pane: 'trafficPane',
+          opacity: 0.92,
+          maxZoom: 20,
+          attribution: '&copy; Google Traffic'
+        }
+      ).addTo(leafletMapRef.current)
+    }
+
+    mountTraffic()
+    const timer = setInterval(mountTraffic, 2 * 60 * 1000)
+    return () => {
+      clearInterval(timer)
+      removeTraffic()
+    }
+  }, [showTrafficLayer, leafletReady])
 
   // Geocodare adresă client + calcul traseu stradal real (OSRM Driving) ON-DEMAND (la click pe comandă + max 3 curieri activi pe drum, cu cache în sessionStorage)
   useEffect(() => {
@@ -1893,6 +2129,7 @@ export default function CouriersMap() {
           onClick={() => setIsMapFullscreen(false)}
         />
       )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         {/* Harta Leaflet */}
         <div
@@ -1919,6 +2156,97 @@ export default function CouriersMap() {
           }`}
         >
           <div ref={mapContainerRef} className="w-full flex-1 min-h-0 z-10" />
+
+          {/* HUD Meteo Liquid Glass stânga-sus — mereu vizibil când butonul „Meteo / Погода” e activ (pe comandă selectată, oraș selectat, zoom stradal sau rezumat țară) */}
+          {showWeatherOnMap && Array.isArray(weatherCities) && weatherCities.length > 0 && (() => {
+            const accessibleCities = weatherCities.filter(c =>
+              c.temp !== null && (typeof canAccessCity !== 'function' || canAccessCity(c.key))
+            )
+            if (accessibleCities.length === 0) return null
+
+            let focusedCity = null
+            if (selectedOrderId) {
+              const selOrd = filteredDeliveries.find(o => o.id === selectedOrderId) || deliveryOrders.find(o => o.id === selectedOrderId)
+              const ordCityCanon = getCanonicalCity(selOrd?.cityCanon || selOrd?.restaurant_city || selOrd?.restaurant_name || '')
+              focusedCity = accessibleCities.find(c => c.key === ordCityCanon)
+                || accessibleCities.find(c => ordCityCanon && (ordCityCanon.includes(c.key) || c.key.includes(ordCityCanon)))
+                || null
+            }
+            if (!focusedCity && selectedCity !== 'all') {
+              focusedCity = accessibleCities.find(c => c.key === selectedCity) || null
+            }
+            if (!focusedCity && mapZoomLevel >= 9 && mapCenter) {
+              let best = null
+              let bestDist = Infinity
+              for (const c of accessibleCities) {
+                const d = Math.hypot(c.lat - mapCenter.lat, (c.lng - mapCenter.lng) * 0.72)
+                if (d < bestDist) {
+                  bestDist = d
+                  best = c
+                }
+              }
+              focusedCity = best
+            }
+
+            if (focusedCity) {
+              const condText = focusedCity.conditionLabel?.[language] || focusedCity.conditionLabel?.ro || ''
+              const isSevere = focusedCity.severity === 'severe'
+              const isRain = focusedCity.severity === 'rain'
+              return (
+                <div className={`absolute top-3 left-14 z-20 max-w-[260px] px-3 py-1.5 rounded-2xl apple-glass-toolbar flex items-center gap-2.5 text-xs ${
+                  isSevere ? 'ring-1 ring-rose-500/45' : isRain ? 'ring-1 ring-sky-500/40' : ''
+                }`}>
+                  <WeatherIcon type={focusedCity.icon} size={18} />
+                  <div className="leading-tight min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-slate-900 dark:text-white truncate">{focusedCity.label}</span>
+                      <span className={`font-bold tabular-nums shrink-0 ${
+                        isSevere ? 'text-rose-600 dark:text-rose-300' : isRain ? 'text-sky-600 dark:text-sky-300' : 'text-[#047857] dark:text-[#34D399]'
+                      }`}>
+                        {focusedCity.temp}°C
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10.5px] text-slate-600 dark:text-slate-300 tabular-nums flex-wrap">
+                      <span>{condText}</span>
+                      {focusedCity.precip > 0 && (
+                        <span className="inline-flex items-center gap-0.5 text-sky-600 dark:text-sky-300 font-semibold">
+                          <Droplets size={10} /> {focusedCity.precip} mm
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-0.5">
+                        <Wind size={10} /> {focusedCity.wind} km/h
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+
+            // Zoom-out pe toată țara: rezumat compact rețea + pini meteo direct pe orașe
+            const temps = accessibleCities.map(c => c.temp)
+            const minT = Math.min(...temps)
+            const maxT = Math.max(...temps)
+            const wetCount = accessibleCities.filter(c => c.severity === 'severe' || c.severity === 'rain').length
+            const severeCount = accessibleCities.filter(c => c.severity === 'severe').length
+            return (
+              <div className="absolute top-3 left-14 z-20 px-3 py-1.5 rounded-2xl apple-glass-toolbar flex items-center gap-2 text-[11.5px]">
+                <CloudSun size={15} className="text-[#047857] dark:text-[#34D399] shrink-0" />
+                <span className="font-bold tabular-nums text-slate-900 dark:text-white">
+                  {minT}°…{maxT}°C
+                </span>
+                {wetCount > 0 && (
+                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold tabular-nums ${
+                    severeCount > 0
+                      ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
+                      : 'bg-sky-500/15 text-sky-700 dark:text-sky-300'
+                  }`}>
+                    <Droplets size={10} />
+                    {wetCount} {language === 'ru' ? 'осадки' : language === 'en' ? 'wet' : 'ploaie/ninsoare'}
+                  </span>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Controale Flotante Liquid Glass Dreapta-Sus pe Hartă */}
           <div className="absolute top-3 right-3 z-20 flex items-center gap-2 flex-wrap justify-end">
@@ -1960,6 +2288,60 @@ export default function CouriersMap() {
             })()}
 
             <div className="flex items-center gap-1 p-1 rounded-full apple-glass-toolbar">
+              <button
+                type="button"
+                onClick={() => setShowWeatherOnMap(prev => !prev)}
+                aria-pressed={showWeatherOnMap}
+                title={language === 'ru' ? 'Погода по городам на карте' : language === 'en' ? 'City Weather on Map' : 'Vremea pe Orașe pe Hartă'}
+                className={`h-7 px-2.5 rounded-full text-[11px] font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
+                  showWeatherOnMap
+                    ? 'bg-[#047857] hover:bg-[#065f46] text-white dark:bg-[#10B981] dark:text-slate-950 shadow-xs'
+                    : isDark
+                      ? 'hover:bg-white/12 text-slate-100'
+                      : 'hover:bg-black/[0.06] text-slate-800'
+                }`}
+              >
+                <CloudSun size={13} />
+                <span>{language === 'ru' ? 'Погода' : language === 'en' ? 'Weather' : 'Meteo'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowTrafficLayer(prev => !prev)}
+                aria-pressed={showTrafficLayer}
+                title={language === 'ru' ? 'Пробки на дорогах Live (Google Traffic)' : language === 'en' ? 'Live Road Traffic (Google Traffic)' : 'Trafic Rutier Live (Google Traffic)'}
+                className={`h-7 px-2.5 rounded-full text-[11px] font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
+                  showTrafficLayer
+                    ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-xs'
+                    : isDark
+                      ? 'hover:bg-white/12 text-slate-100'
+                      : 'hover:bg-black/[0.06] text-slate-800'
+                }`}
+              >
+                <Car size={13} />
+                <span>{language === 'ru' ? 'Пробки' : language === 'en' ? 'Traffic' : 'Trafic'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowRainRadar(prev => !prev)}
+                aria-pressed={showRainRadar}
+                title={language === 'ru' ? 'Радар осадков Live (RainViewer)' : language === 'en' ? 'Live Rain Radar (RainViewer)' : 'Radar Ploaie Live (RainViewer)'}
+                className={`h-7 px-2.5 rounded-full text-[11px] font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
+                  showRainRadar
+                    ? 'bg-sky-600 hover:bg-sky-700 text-white shadow-xs'
+                    : isDark
+                      ? 'hover:bg-white/12 text-slate-100'
+                      : 'hover:bg-black/[0.06] text-slate-800'
+                }`}
+              >
+                <CloudRain size={13} className={rainRadarLoading ? 'animate-pulse' : ''} />
+                <span>{language === 'ru' ? 'Радар осадков' : language === 'en' ? 'Rain Radar' : 'Radar Ploaie'}</span>
+                {showRainRadar && rainRadarTime && (
+                  <span className="text-[10px] opacity-90 tabular-nums">{rainRadarTime}</span>
+                )}
+              </button>
+
               <button
                 type="button"
                 onClick={recenterMainMap}
@@ -2023,6 +2405,32 @@ export default function CouriersMap() {
             <span className="flex items-center gap-1 font-medium">
               <span className="w-2 h-2 rounded-full bg-sky-500 inline-block"></span> {ui.legendAtCust}
             </span>
+            {showTrafficLayer && (
+              <>
+                <span className="h-3 w-px bg-black/15 dark:bg-white/15 hidden sm:inline-block" />
+                <span className="flex items-center gap-1.5 font-semibold text-amber-700 dark:text-amber-300">
+                  <Car size={11} />
+                  <span>{language === 'ru' ? 'Пробки:' : language === 'en' ? 'Traffic:' : 'Trafic:'}</span>
+                  <span
+                    className="w-10 h-1.5 rounded-full inline-block"
+                    style={{ background: 'linear-gradient(90deg, #22c55e 0%, #f59e0b 50%, #ef4444 85%, #991b1b 100%)' }}
+                  />
+                </span>
+              </>
+            )}
+            {showRainRadar && (
+              <>
+                <span className="h-3 w-px bg-black/15 dark:bg-white/15 hidden sm:inline-block" />
+                <span className="flex items-center gap-1.5 font-semibold text-sky-700 dark:text-sky-300">
+                  <CloudRain size={11} />
+                  <span>{language === 'ru' ? 'Осадки:' : language === 'en' ? 'Rain:' : 'Ploaie:'}</span>
+                  <span
+                    className="w-10 h-1.5 rounded-full inline-block"
+                    style={{ background: 'linear-gradient(90deg, #38bdf8 0%, #22c55e 40%, #f59e0b 75%, #ef4444 100%)' }}
+                  />
+                </span>
+              </>
+            )}
           </div>
         </div>
 
@@ -2496,6 +2904,15 @@ export default function CouriersMap() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Vremea & Traficul exacte la ora și data comenzii */}
+                  <OrderWeatherBadge
+                    city={modalOrder.cityCanon || modalOrder.restaurant_city || ''}
+                    restaurantName={modalOrder.restaurant_name || modalOrder.customer?.address || ''}
+                    timestamp={modalOrder.placed_at || modalOrder.exact_timings?.created_at || modalOrder.created_at}
+                    order={modalOrder}
+                    peerOrders={deliveryOrders}
+                  />
 
                   {/* Produse din comandă — Grouped Inset List */}
                   <div>

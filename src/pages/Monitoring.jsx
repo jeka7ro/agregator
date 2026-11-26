@@ -638,82 +638,73 @@ export default function Monitoring() {
   const [isVerifying, setIsVerifying] = useState(false)
   const [verifyStatus, setVerifyStatus] = useState(null)
   const [showReport, setShowReport] = useState(false)
+  const verifyAbortRef = useRef(null)
 
   const handleVerifyAll = () => {
     if (isVerifying) {
       setShowReport(true)
       return
     }
+    if (verifyAbortRef.current) verifyAbortRef.current.abort()
+    const controller = new AbortController()
+    verifyAbortRef.current = controller
+
     setIsVerifying(true)
     setShowReport(true)
-    setVerifyStatus({ isRunning: true, totalChecks: 0, current: 0, errors: 0, offline: 0, results: [] })
-    fetch(getApiUrl('/api/check-all'), { method: 'POST' })
+    setVerifyStatus({ isRunning: true, totalChecks: 204, current: 0, errors: 0, offline: 0, results: [] })
+    fetch(getApiUrl('/api/check-all'), { method: 'POST', signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json().catch(() => null)
         if (data?.status) {
-          setVerifyStatus(data.status)
-          if (!data.status.isRunning) {
-            setIsVerifying(false)
-            await Promise.all([fetchData(true, true), fetchZones(true)])
-            const timeStr = new Date().toLocaleTimeString(language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-US' : 'ro-RO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-            showToast(
-              'success',
-              language === 'ru'
-                ? `Данные обновлены live в ${timeStr} (${data.status.totalChecks || 0} каналов проверено, оффлайн: ${data.status.offline || 0})`
-                : language === 'en'
-                  ? `Live data refreshed at ${timeStr} (${data.status.totalChecks || 0} channels checked, offline: ${data.status.offline || 0})`
-                  : `Date actualizate live la ${timeStr} (${data.status.totalChecks || 0} canale verificate, oprite: ${data.status.offline || 0})`
-            )
-          }
+          setVerifyStatus({ ...data.status, isRunning: false })
+          setIsVerifying(false)
+          await Promise.all([fetchData(true, true), fetchZones(true)])
+          const timeStr = new Date().toLocaleTimeString(language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-US' : 'ro-RO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+          showToast(
+            'success',
+            language === 'ru'
+              ? `Данные обновлены live в ${timeStr} (${data.status.totalChecks || 0} каналов проверено, оффлайн: ${data.status.offline || 0})`
+              : language === 'en'
+                ? `Live data refreshed at ${timeStr} (${data.status.totalChecks || 0} channels checked, offline: ${data.status.offline || 0})`
+                : `Date actualizate live la ${timeStr} (${data.status.totalChecks || 0} canale verificate, oprite: ${data.status.offline || 0})`
+          )
+        } else {
+          setIsVerifying(false)
         }
       })
       .catch((err) => {
+        if (err?.name === 'AbortError') return
         console.error(err)
         setIsVerifying(false)
+        setVerifyStatus(prev => prev ? { ...prev, isRunning: false, error: err.message } : null)
         showToast('error', language === 'ru' ? 'Не удалось обновить статус. Попробуйте ещё раз.' : 'Eroare la actualizarea live. Încearcă din nou.')
       })
   }
 
   const handleStopVerify = () => {
+    if (verifyAbortRef.current) {
+      verifyAbortRef.current.abort()
+      verifyAbortRef.current = null
+    }
     fetch(getApiUrl('/api/check-stop'), { method: 'POST' }).catch(console.error)
     setIsVerifying(false)
     setVerifyStatus(prev => prev ? { ...prev, isRunning: false } : null)
   }
 
+  // Smooth live progress ticker while synchronous /api/check-all runs (~7-8s) — avoids stale serverless /api/check-status premature stops
   useEffect(() => {
-    let interval;
-    let consecutiveFailures = 0;
-    if (isVerifying) {
-      interval = setInterval(async () => {
-        try {
-          const res = await fetch(getApiUrl('/api/check-status'))
-          if (res.ok) {
-            consecutiveFailures = 0
-            const data = await res.json()
-            setVerifyStatus(data.status)
-            if (data.status && !data.status.isRunning) {
-              setIsVerifying(false)
-              fetchData(true)
-            }
-          } else {
-            consecutiveFailures++
-            if (consecutiveFailures >= 2) {
-              setIsVerifying(false)
-              setVerifyStatus(prev => prev ? { ...prev, isRunning: false } : null)
-            }
-          }
-        } catch (err) {
-          console.error(err)
-          consecutiveFailures++
-          if (consecutiveFailures >= 3) {
-            setIsVerifying(false)
-          }
-        }
-      }, 2000)
-    }
-    return () => clearInterval(interval)
-  }, [isVerifying, fetchData])
+    if (!isVerifying) return
+    const timer = setInterval(() => {
+      setVerifyStatus(prev => {
+        if (!prev || !prev.isRunning) return prev
+        const maxDuringScan = Math.max(1, Math.round((prev.totalChecks || 204) * 0.92))
+        const nextCur = Math.min(maxDuringScan, (prev.current || 0) + Math.max(8, Math.round((prev.totalChecks || 204) / 14)))
+        return { ...prev, current: nextCur }
+      })
+    }, 550)
+    return () => clearInterval(timer)
+  }, [isVerifying])
 
   // Filtered reviews for the Inbox Recenzii & Reputație tab (MUST be before early return!)
   const filteredReviews = useMemo(() => {

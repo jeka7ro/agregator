@@ -540,7 +540,7 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
               cy={cy} 
               r={outerRadius} 
               fill="none" 
-              stroke={isDark ? '#1e293b' : '#f1f5f9'} 
+              stroke={isDark ? '#2C2C2E' : '#f1f5f9'} 
               strokeWidth={outerRadius - innerRadius} 
             />
 
