@@ -15,6 +15,7 @@ import { config } from './config.js'
 import { salesSync } from './services/sales-sync.js'
 
 import { loadLiveChecksCache, saveLiveChecksCache, loadStopEventsCache, saveStopEventsCache } from './utils/cache.js'
+import { runFullLivePlatformScan } from '../../lib/live-platform-checkers.js'
 
 global.liveChecks = loadLiveChecksCache() // Incarcam ultimele verificari din cache local
 
@@ -386,16 +387,37 @@ function isWithinActiveHours() {
 }
 
 // ─── START ───
-// Schedule at peak hours: 11:00, 13:00, 17:00, 18:00, 19:00
-const SCHEDULE = '0 11,13,17,18,19 * * *'
-console.log(`Scheduling checks at: 11:00, 13:00, 17:00, 18:00, 19:00 (Oprit 22:00 - 10:00)`)
+// Automated real-time HTTP monitoring every 5 minutes during RO business hours (10:00–21:55, stopped 22:00–10:00)
+const SCHEDULE = '*/5 10-21 * * *'
+console.log(`Scheduling live checks every 5 minutes: 10:00 - 21:55 RO (Oprit 22:00 - 10:00)`)
 
-cron.schedule(SCHEDULE, () => {
+cron.schedule(SCHEDULE, async () => {
     if (!isWithinActiveHours()) return
-    runMonitoringCycle()
+    try {
+        const { data: restaurants } = await supabase.from('restaurants').select('*').eq('is_active', true)
+        if (!Array.isArray(restaurants) || restaurants.length === 0) return
+        const summary = await runFullLivePlatformScan({
+            restaurants,
+            supabase,
+            persistToDb: true,
+            notifyTelegram: true
+        })
+        if (Array.isArray(summary.checks)) {
+            for (const chk of summary.checks) {
+                if (chk.final_status === 'error' || chk.raw_data?.is_scraper_error) continue
+                const idx = global.liveChecks.findIndex(c => c.restaurant_id === chk.restaurant_id && c.platform === chk.platform)
+                if (idx >= 0) global.liveChecks[idx] = chk
+                else global.liveChecks.push(chk)
+            }
+            saveLiveChecksCache(global.liveChecks)
+        }
+        console.log(`[5m LiveMonitor] ${summary.valid_checked}/${summary.total_tasks} valid in ${summary.duration_ms}ms | offline=${summary.offline} | opened=${summary.stop_events_opened} | resolved=${summary.stop_events_resolved}`)
+    } catch (err) {
+        console.error('[5m LiveMonitor] Error:', err.message)
+    }
 })
 
-console.log('Next check will run at the next scheduled hour (11:00, 13:00, 17:00, 18:00 or 19:00)')
+console.log('Next live check will run within 5 minutes (10:00–21:55 RO)')
 
 // Daily summary cron preserved below...
 // (Skipping integration with the new module here since new module handles atomic incidents, not daily aggregates yet)

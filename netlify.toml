@@ -7,7 +7,7 @@
 
 [functions]
   node_bundler = "esbuild"
-  included_files = ["data/customers-cache.json"]
+  included_files = ["data/customers-cache.json", "data/platform-store-map.json"]
 
 [[redirects]]
   from = "/api/*"

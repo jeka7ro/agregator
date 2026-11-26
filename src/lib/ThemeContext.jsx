@@ -1,15 +1,20 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const ThemeContext = createContext();
+const THEME_STORAGE_KEY = 'app-theme-user-v3';
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem('app-theme-v2');
-    if (saved === 'dark' || saved === 'light') return saved;
+    try {
+      const saved = localStorage.getItem(THEME_STORAGE_KEY);
+      if (saved === 'dark' || saved === 'light') return saved;
+    } catch (_) {}
     return 'light';
   });
   const isDark = theme === 'dark';
 
+  // Apply DOM classes without auto-stamping localStorage on mount;
+  // localStorage is ONLY written when the user explicitly toggles the theme!
   useEffect(() => {
     if (isDark) {
       document.documentElement.classList.add('dark');
@@ -20,10 +25,28 @@ export function ThemeProvider({ children }) {
       document.documentElement.style.colorScheme = 'light';
       document.documentElement.style.backgroundColor = '#EEF1F0';
     }
-    localStorage.setItem('app-theme-v2', theme);
-  }, [isDark, theme]);
+  }, [isDark]);
 
-  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  // Keep open tabs synchronized when the user switches theme in another tab
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === THEME_STORAGE_KEY && (e.newValue === 'dark' || e.newValue === 'light')) {
+        setTheme(e.newValue);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  const toggleTheme = () => {
+    setTheme(prev => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      try {
+        localStorage.setItem(THEME_STORAGE_KEY, next);
+      } catch (_) {}
+      return next;
+    });
+  };
 
   const colors = {
     text: isDark ? '#F8FAFC' : '#0F172A',

@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useId } from 'react'
-import { createPortal } from 'react-dom'
-import { TrendingUp, TrendingDown, RotateCw, Maximize2, Minimize2, X, Flame, Clock, BarChart3 } from 'lucide-react'
+import { TrendingUp, TrendingDown, RotateCw } from 'lucide-react'
 import { useCumulativeHourly } from '../../hooks/useCumulativeHourly'
 
 // Compute clean, human-friendly Y-axis upper bound & ticks (Apple HIG charts.md › Axes)
@@ -93,20 +92,36 @@ function boxesOverlap(a, b, pad = 2) {
 export default function CumulativeHourlyChart({
   selectedPeriod = 'this_month',
   customRange = null,
-  onPeriodChange = null,
-  periodOptions = null,
   isDark = false,
   language = 'ro'
 }) {
   const uid = useId().replace(/:/g, '')
-  const [compareMode, setCompareMode] = useState('primary') // 'none' | 'primary' | 'secondary'
-  const [metricMode, setMetricMode] = useState('both') // 'both' | 'ron' | 'orders'
+  const [compareMode, setCompareMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ag_pref_cumul_compare_v1')
+      if (saved === 'none' || saved === 'primary' || saved === 'secondary') return saved
+    } catch (_) {}
+    return 'primary'
+  })
+  const [metricMode, setMetricMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ag_pref_cumul_metric_v1')
+      if (saved === 'both' || saved === 'ron' || saved === 'orders') return saved
+    } catch (_) {}
+    return 'both'
+  })
   const [hoverIdx, setHoverIdx] = useState(null)
-  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  useEffect(() => {
+    try { localStorage.setItem('ag_pref_cumul_compare_v1', compareMode) } catch (_) {}
+  }, [compareMode])
+
+  useEffect(() => {
+    try { localStorage.setItem('ag_pref_cumul_metric_v1', metricMode) } catch (_) {}
+  }, [metricMode])
 
   const plotContainerRef = useRef(null)
   const [measuredWidth, setMeasuredWidth] = useState(980)
-  const [viewportH, setViewportH] = useState(() => (typeof window !== 'undefined' ? window.innerHeight : 900))
 
   const tr = (ro, en, ru) => (language === 'ru' ? ru : language === 'en' ? en : ro)
 
@@ -120,22 +135,7 @@ export default function CumulativeHourlyChart({
     }
   }, [selectedPeriod, customRange?.from, customRange?.to])
 
-  // Escape key & body scroll lock when Fullscreen is active (Apple HIG going-full-screen.md)
-  useEffect(() => {
-    if (!isFullscreen) return
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    const onKeyDown = (e) => {
-      if (e.key === 'Escape') setIsFullscreen(false)
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.body.style.overflow = prevOverflow
-      window.removeEventListener('keydown', onKeyDown)
-    }
-  }, [isFullscreen])
-
-  // Live width-only ResizeObserver + viewport height listener (zero height-feedback loop!)
+  // Live width-only ResizeObserver (mathematically zero height-feedback oscillation!)
   useEffect(() => {
     const el = plotContainerRef.current
     if (!el) return
@@ -143,10 +143,6 @@ export default function CumulativeHourlyChart({
       const w = Math.round(el.getBoundingClientRect().width)
       if (w > 0) {
         setMeasuredWidth(prev => (Math.abs(prev - w) < 6 ? prev : w))
-      }
-      if (typeof window !== 'undefined') {
-        const vh = window.innerHeight
-        setViewportH(prev => (Math.abs(prev - vh) < 6 ? prev : vh))
       }
     }
     measureWidth()
@@ -160,7 +156,7 @@ export default function CumulativeHourlyChart({
       if (ro) ro.disconnect()
       window.removeEventListener('resize', measureWidth)
     }
-  }, [isFullscreen])
+  }, [])
 
   const { data, loading } = useCumulativeHourly({
     period: selectedPeriod,
@@ -208,22 +204,17 @@ export default function CumulativeHourlyChart({
     }
   }, [isDark, isSecondary])
 
-  // Dynamic 1:1 pixel dimensions — width-only inline + viewport-height fullscreen (mathematically zero resize oscillation!)
-  const W = isFullscreen
-    ? Math.max(600, Math.min(3400, (measuredWidth || 1400) - 32))
-    : Math.max(540, Math.min(2400, (measuredWidth || 980) - 24))
-
-  const H = isFullscreen
-    ? Math.max(340, Math.min(980, viewportH - 255))
-    : Math.max(295, Math.min(395, Math.round(W * 0.27)))
+  // Dynamic 1:1 pixel dimensions — width-only & matched cleanly to 430px sibling chart card height
+  const W = Math.max(540, Math.min(2400, (measuredWidth || 980) - 24))
+  const H = Math.max(295, Math.min(352, Math.round(W * 0.27)))
 
   const isWide = W >= 1380
   const isUltraWide = W >= 2050
 
   const PAD = {
-    top: isFullscreen ? 54 : 44,
+    top: 44,
     right: isUltraWide ? 78 : (isWide ? 68 : 62),
-    bottom: isFullscreen ? 42 : 34,
+    bottom: 34,
     left: isUltraWide ? 92 : (isWide ? 82 : 74)
   }
   const plotW = Math.max(200, W - PAD.left - PAD.right)
@@ -335,7 +326,7 @@ export default function CumulativeHourlyChart({
       const cmpDotBox = (showLines && hasCompare && cmpOrdY !== null) ? { x: cx - dotBaseR - 3, y: cmpOrdY - dotBaseR - 3, w: (dotBaseR + 3) * 2, h: (dotBaseR + 3) * 2 } : null
 
       // Guaranteed zero-collision placement for bar RON labels
-      const allowFullLabels = isFullscreen && barW >= 54
+      const allowFullLabels = isUltraWide && barW >= 54
       const baseRevText = formatCompactMoney(p.baseRevenue, allowFullLabels)
       const cmpRevText = hasCompare ? formatCompactMoney(p.compareRevenue, allowFullLabels) : ''
       const textH = barFontSize + 3
@@ -418,27 +409,7 @@ export default function CumulativeHourlyChart({
       baseLinePath: buildSmoothSplinePath(baseLinePts, baselineY),
       cmpLinePath: hasCompare ? buildSmoothSplinePath(cmpLinePts, baselineY) : ''
     }
-  }, [points, hasCompare, showBars, showLines, hoverIdx, plotW, plotH, baselineY, cmdShort, H, PAD.left, PAD.top, isWide, isUltraWide, isFullscreen, pillFontSize, pillH, barFontSize, dotBaseR])
-
-  // Fullscreen Executive Footer Insights (Peak Hour, Hourly Pace Average, Average Ticket)
-  const fullscreenInsights = useMemo(() => {
-    if (!points.length) return null
-    let peak = points[0]
-    for (const p of points) {
-      if ((p.baseHourRevenue || 0) > (peak.baseHourRevenue || 0)) peak = p
-    }
-    const activeHours = Math.max(1, points.filter(p => (p.baseHourOrders || 0) > 0).length)
-    const totalRev = Number(data?.summary?.baseRevenue || 0)
-    const totalOrd = Number(data?.summary?.baseOrders || 0)
-    return {
-      peakLabel: peak?.label || '—',
-      peakOrders: peak?.baseHourOrders || 0,
-      peakRevenue: Math.round(peak?.baseHourRevenue || 0),
-      avgRevPerHour: Math.round(totalRev / activeHours),
-      avgOrdPerHour: Math.round((totalOrd / activeHours) * 10) / 10,
-      avgTicket: totalOrd > 0 ? Math.round(totalRev / totalOrd) : 0
-    }
-  }, [points, data?.summary?.baseRevenue, data?.summary?.baseOrders])
+  }, [points, hasCompare, showBars, showLines, hoverIdx, plotW, plotH, baselineY, cmdShort, H, PAD.left, PAD.top, isWide, isUltraWide, pillFontSize, pillH, barFontSize, dotBaseR])
 
   const summary = data?.summary || {}
   const baseLabelObj = data?.baseSeriesLabel || { ro: 'Azi', en: 'Today', ru: 'Сегодня' }
@@ -461,224 +432,175 @@ export default function CumulativeHourlyChart({
 
   const ariaSummary = `${tr('Total Comenzi Cumulat', 'Cumulative Orders & Revenue', 'Накопительный Итог Заказов')}: ${baseLabel} ${Math.round(summary.baseRevenue || 0)} ${currencyShort}, ${summary.baseOrders || 0} ${ordersWord}${hasCompare ? `; ${cmpLabel} ${Math.round(summary.compareRevenue || 0)} ${currencyShort}, ${summary.compareOrders || 0} ${ordersWord}` : ''}.`
 
-  const activeBluePillClass = '!bg-gradient-to-b !from-[#3B82F6] !to-[#2563EB] !text-white !shadow-[0_2px_8px_rgba(37,99,235,0.34)]'
-
-  const chartCardContent = (
-    <section
-      aria-label={ariaSummary}
-      className={
-        isFullscreen
-          ? `w-full max-w-[3600px] mx-auto h-full flex flex-col rounded-2xl xl:rounded-3xl shadow-2xl border overflow-hidden transition-colors ${
-              isDark ? 'bg-[#0F1419] border-white/[0.12] text-[#F5F5F7]' : 'bg-white border-black/[0.10] text-[#1D1D1F]'
-            }`
-          : `w-full h-full flex flex-col rounded-2xl shadow-sm border transition-colors overflow-hidden ${
-              isDark ? 'bg-slate-900 border-slate-800 text-[#F5F5F7]' : 'bg-white border-slate-200 text-[#1D1D1F]'
-            }`
-      }
-    >
-      {/* Header Row — Title + Live Period Totals (Left) & Controls + Fullscreen Button (Right) */}
-      <div className={`px-4 ${isFullscreen ? 'py-4 sm:px-6' : 'pt-3.5 pb-2.5'} border-b flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 shrink-0 ${
-        isDark ? 'border-white/[0.08]' : 'border-black/[0.06]'
-      }`}>
-        {/* Left: Apple Blue Squircle Icon + Title + Inline Legend Summary */}
-        <div className="flex items-start gap-3 min-w-0">
-          <div
-            className={`${isFullscreen ? 'w-10 h-10 rounded-[12px]' : 'w-9 h-9 rounded-[11px]'} shrink-0 flex items-center justify-center text-white shadow-[0_4px_12px_rgba(37,99,235,0.30)]`}
-            style={{ background: 'linear-gradient(155deg, #3B82F6 0%, #2563EB 55%, #1D4ED8 100%)' }}
+  const controlsBlock = (
+    <div className="flex flex-wrap items-center gap-2 shrink-0">
+      {/* Comparison Switcher — GetApp.Food Deep Brand Emerald (`apple-segment-active`) */}
+      {(primaryOpt || secondaryOpt) && (
+        <div role="group" aria-label={tr('Comparație perioadă', 'Period comparison', 'Сравнение')} className="apple-segmented">
+          <button
+            type="button"
+            onClick={() => setCompareMode('none')}
+            className={`apple-segment !h-[24px] !px-2.5 !text-[11px] ${compareMode === 'none' ? 'apple-segment-active' : ''}`}
           >
-            <TrendingUp size={isFullscreen ? 20 : 18} strokeWidth={2.25} />
-          </div>
-
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className={`${isFullscreen ? 'text-[16px] sm:text-[18px]' : 'text-[14px]'} font-bold tracking-[-0.015em] text-[#1D1D1F] dark:text-[#F5F5F7]`}>
-                {tr('Total Comenzi Cumulat', 'Cumulative Orders & Revenue', 'Накопительный Итог Заказов')}
-              </h3>
-              {badgeText && (
-                <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-semibold tabular-nums ${
-                  isDark ? 'bg-white/[0.06] text-[#AEAEB2]' : 'bg-black/[0.045] text-[#636366]'
-                }`}>
-                  {badgeText}
-                </span>
-              )}
-              {loading && (
-                <RotateCw size={12} className="animate-spin text-[#2563EB] dark:text-[#60A5FA]" />
-              )}
-            </div>
-
-            {/* Inline Comparison Totals (tabular-nums) */}
-            <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 ${isFullscreen ? 'text-[13px]' : 'text-[12px]'} tabular-nums`}>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ backgroundColor: palette.baseBarStroke }} />
-                <span className="text-[#636366] dark:text-[#AEAEB2] font-medium">{baseLabel}:</span>
-                <strong className="font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">
-                  {(summary.baseRevenue || 0).toLocaleString('ro-RO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} {currencyShort}
-                </strong>
-                <span className="font-semibold" style={{ color: palette.baseLine }}>
-                  · {(summary.baseOrders || 0).toLocaleString('ro-RO')} {ordersWord}
-                </span>
-              </span>
-
-              {hasCompare && summary.compareRevenue !== null && (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ backgroundColor: palette.cmpBarStroke }} />
-                  <span className="text-[#636366] dark:text-[#AEAEB2] font-medium">{cmpLabel}:</span>
-                  <strong className="font-semibold text-[#3A3A3C] dark:text-[#D1D1D6]">
-                    {(summary.compareRevenue || 0).toLocaleString('ro-RO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} {currencyShort}
-                  </strong>
-                  <span className="font-semibold" style={{ color: palette.cmpLine }}>
-                    · {(summary.compareOrders || 0).toLocaleString('ro-RO')} {cmdShort}
-                  </span>
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right: Period Switcher (in Fullscreen) + Compare + Metric + Fullscreen Toggle + Delta Pills */}
-        <div className="flex flex-col items-start lg:items-end gap-1.5 shrink-0">
-          <div className="flex flex-wrap items-center gap-2">
-            {/* In Fullscreen mode, keep Dashboard Period selector accessible without exiting (Apple HIG going-full-screen.md) */}
-            {isFullscreen && Array.isArray(periodOptions) && typeof onPeriodChange === 'function' && (
-              <div role="group" aria-label={tr('Perioadă', 'Period', 'Период')} className="apple-segmented">
-                {periodOptions.map(opt => {
-                  const isSel = selectedPeriod === opt.key
-                  return (
-                    <button
-                      key={opt.key}
-                      type="button"
-                      onClick={() => onPeriodChange(opt.key)}
-                      className={`apple-segment !h-[26px] !px-2.5 !text-[11px] ${isSel ? activeBluePillClass : ''}`}
-                    >
-                      {opt[language] || opt.ro}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-
-            {/* Comparison Switcher */}
-            {(primaryOpt || secondaryOpt) && (
-              <div role="group" aria-label={tr('Comparație perioadă', 'Period comparison', 'Сравнение')} className="apple-segmented">
-                <button
-                  type="button"
-                  onClick={() => setCompareMode('none')}
-                  className={`apple-segment ${isFullscreen ? '!h-[26px]' : '!h-[24px]'} !px-2.5 !text-[11px] ${compareMode === 'none' ? activeBluePillClass : ''}`}
-                >
-                  {tr('Fără', 'Off', 'Без')}
-                </button>
-                {primaryOpt && (
-                  <button
-                    type="button"
-                    onClick={() => setCompareMode('primary')}
-                    title={primaryOpt.title}
-                    className={`apple-segment ${isFullscreen ? '!h-[26px]' : '!h-[24px]'} !px-2.5 !text-[11px] tabular-nums ${compareMode === 'primary' ? activeBluePillClass : ''}`}
-                  >
-                    <span
-                      className="w-1.5 h-1.5 rounded-full shrink-0"
-                      style={{ backgroundColor: compareMode === 'primary' ? '#FFFFFF' : '#F59E0B' }}
-                    />
-                    <span>{primaryOpt[language] || primaryOpt.ro}</span>
-                  </button>
-                )}
-                {secondaryOpt && (
-                  <button
-                    type="button"
-                    onClick={() => setCompareMode('secondary')}
-                    title={secondaryOpt.title}
-                    className={`apple-segment ${isFullscreen ? '!h-[26px]' : '!h-[24px]'} !px-2.5 !text-[11px] tabular-nums ${compareMode === 'secondary' ? activeBluePillClass : ''}`}
-                  >
-                    <span
-                      className="w-1.5 h-1.5 rounded-full shrink-0"
-                      style={{ backgroundColor: compareMode === 'secondary' ? '#FFFFFF' : '#8B5CF6' }}
-                    />
-                    <span>{secondaryOpt[language] || secondaryOpt.ro}</span>
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Metric Switcher: RON + Cmd | RON | Comenzi */}
-            <div role="group" aria-label={tr('Mod afișare', 'Display metric', 'Метрика')} className="apple-segmented">
-              <button
-                type="button"
-                onClick={() => setMetricMode('both')}
-                className={`apple-segment ${isFullscreen ? '!h-[26px]' : '!h-[24px]'} !px-2.5 !text-[11px] ${metricMode === 'both' ? activeBluePillClass : ''}`}
-              >
-                {tr('RON + Cmd', 'RON + Ord', 'RON + Зак')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setMetricMode('ron')}
-                className={`apple-segment ${isFullscreen ? '!h-[26px]' : '!h-[24px]'} !px-2.5 !text-[11px] ${metricMode === 'ron' ? activeBluePillClass : ''}`}
-              >
-                RON
-              </button>
-              <button
-                type="button"
-                onClick={() => setMetricMode('orders')}
-                className={`apple-segment ${isFullscreen ? '!h-[26px]' : '!h-[24px]'} !px-2.5 !text-[11px] ${metricMode === 'orders' ? activeBluePillClass : ''}`}
-              >
-                {tr('Comenzi', 'Orders', 'Заказы')}
-              </button>
-            </div>
-
-            {/* Fullscreen Toggle Button (matches ZoomChartsSuite Apple style, Escape to close) */}
+            {tr('Fără', 'Off', 'Без')}
+          </button>
+          {primaryOpt && (
             <button
               type="button"
-              onClick={() => setIsFullscreen(prev => !prev)}
-              aria-label={isFullscreen ? tr('Ieși din ecran complet', 'Exit fullscreen', 'Выйти из полноэкранного режима') : tr('Ecran complet', 'Fullscreen', 'На весь экран')}
-              title={isFullscreen ? tr('Ieși din ecran complet (Esc)', 'Exit fullscreen (Esc)', 'Свернуть (Esc)') : tr('Ecran complet (adaptat laptop → 5K ultrawide)', 'Fullscreen (laptop → 5K ultrawide)', 'На весь экран (ноутбук → 5K ultrawide)')}
-              className={`apple-btn-secondary ${isFullscreen ? '!h-[30px] !px-2.5 gap-1.5' : '!w-[28px] !h-[28px] !px-0'}`}
+              onClick={() => setCompareMode('primary')}
+              title={primaryOpt.title}
+              className={`apple-segment !h-[24px] !px-2.5 !text-[11px] tabular-nums ${compareMode === 'primary' ? 'apple-segment-active' : ''}`}
             >
-              {isFullscreen ? (
-                <>
-                  <Minimize2 size={13} />
-                  <span className="text-[11px] font-semibold hidden sm:inline">Esc</span>
-                  <X size={13} className="sm:hidden" />
-                </>
-              ) : (
-                <Maximize2 size={13} />
-              )}
+              <span
+                className="w-1.5 h-1.5 rounded-full shrink-0"
+                style={{ backgroundColor: compareMode === 'primary' ? '#FFFFFF' : '#F59E0B' }}
+              />
+              <span>{primaryOpt[language] || primaryOpt.ro}</span>
             </button>
-          </div>
-
-          {/* Delta Percentage Badges */}
-          {hasCompare && (deltaRev !== null || deltaOrd !== null) && (
-            <div className="flex items-center gap-1.5 text-[11px] font-bold tabular-nums">
-              {deltaRev !== null && (
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${
-                  deltaRev >= 0
-                    ? 'bg-emerald-500/12 text-[#047857] dark:bg-emerald-500/18 dark:text-[#34D399]'
-                    : 'bg-rose-500/12 text-[#BE123C] dark:bg-rose-500/18 dark:text-[#FB7185]'
-                }`}>
-                  {deltaRev >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                  <span>{deltaRev > 0 ? `+${deltaRev}` : deltaRev}% RON</span>
-                </span>
-              )}
-              {deltaOrd !== null && (
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${
-                  deltaOrd >= 0
-                    ? 'bg-emerald-500/12 text-[#047857] dark:bg-emerald-500/18 dark:text-[#34D399]'
-                    : 'bg-rose-500/12 text-[#BE123C] dark:bg-rose-500/18 dark:text-[#FB7185]'
-                }`}>
-                  {deltaOrd >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                  <span>{deltaOrd > 0 ? `+${deltaOrd}` : deltaOrd}% {cmdShort}</span>
-                </span>
-              )}
-            </div>
+          )}
+          {secondaryOpt && (
+            <button
+              type="button"
+              onClick={() => setCompareMode('secondary')}
+              title={secondaryOpt.title}
+              className={`apple-segment !h-[24px] !px-2.5 !text-[11px] tabular-nums ${compareMode === 'secondary' ? 'apple-segment-active' : ''}`}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full shrink-0"
+                style={{ backgroundColor: compareMode === 'secondary' ? '#FFFFFF' : '#8B5CF6' }}
+              />
+              <span>{secondaryOpt[language] || secondaryOpt.ro}</span>
+            </button>
           )}
         </div>
+      )}
+
+      {/* Metric Switcher: RON + Cmd | RON | Comenzi */}
+      <div role="group" aria-label={tr('Mod afișare', 'Display metric', 'Метрика')} className="apple-segmented">
+        <button
+          type="button"
+          onClick={() => setMetricMode('both')}
+          className={`apple-segment !h-[24px] !px-2.5 !text-[11px] ${metricMode === 'both' ? 'apple-segment-active' : ''}`}
+        >
+          {tr('RON + Cmd', 'RON + Ord', 'RON + Зак')}
+        </button>
+        <button
+          type="button"
+          onClick={() => setMetricMode('ron')}
+          className={`apple-segment !h-[24px] !px-2.5 !text-[11px] ${metricMode === 'ron' ? 'apple-segment-active' : ''}`}
+        >
+          RON
+        </button>
+        <button
+          type="button"
+          onClick={() => setMetricMode('orders')}
+          className={`apple-segment !h-[24px] !px-2.5 !text-[11px] ${metricMode === 'orders' ? 'apple-segment-active' : ''}`}
+        >
+          {tr('Comenzi', 'Orders', 'Заказы')}
+        </button>
+      </div>
+    </div>
+  )
+
+  const summaryTotalsStrip = (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] tabular-nums">
+      <span className="inline-flex items-center gap-1.5">
+        <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ backgroundColor: palette.baseBarStroke }} />
+        <span className="text-[#636366] dark:text-[#AEAEB2] font-medium">{baseLabel}:</span>
+        <strong className="font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">
+          {(summary.baseRevenue || 0).toLocaleString('ro-RO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} {currencyShort}
+        </strong>
+        <span className="font-semibold" style={{ color: palette.baseLine }}>
+          · {(summary.baseOrders || 0).toLocaleString('ro-RO')} {ordersWord}
+        </span>
+      </span>
+
+      {hasCompare && summary.compareRevenue !== null && (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ backgroundColor: palette.cmpBarStroke }} />
+          <span className="text-[#636366] dark:text-[#AEAEB2] font-medium">{cmpLabel}:</span>
+          <strong className="font-semibold text-[#3A3A3C] dark:text-[#D1D1D6]">
+            {(summary.compareRevenue || 0).toLocaleString('ro-RO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} {currencyShort}
+          </strong>
+          <span className="font-semibold" style={{ color: palette.cmpLine }}>
+            · {(summary.compareOrders || 0).toLocaleString('ro-RO')} {cmdShort}
+          </span>
+        </span>
+      )}
+    </div>
+  )
+
+  const deltaBadgesBlock = hasCompare && (deltaRev !== null || deltaOrd !== null) && (
+    <div className="flex items-center gap-1.5 text-[11px] font-bold tabular-nums shrink-0">
+      {deltaRev !== null && (
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${
+          deltaRev >= 0
+            ? 'bg-emerald-500/12 text-[#047857] dark:bg-emerald-500/18 dark:text-[#34D399]'
+            : 'bg-rose-500/12 text-[#BE123C] dark:bg-rose-500/18 dark:text-[#FB7185]'
+        }`}>
+          {deltaRev >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+          <span>{deltaRev > 0 ? `+${deltaRev}` : deltaRev}% RON</span>
+        </span>
+      )}
+      {deltaOrd !== null && (
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${
+          deltaOrd >= 0
+            ? 'bg-emerald-500/12 text-[#047857] dark:bg-emerald-500/18 dark:text-[#34D399]'
+            : 'bg-rose-500/12 text-[#BE123C] dark:bg-rose-500/18 dark:text-[#FB7185]'
+        }`}>
+          {deltaOrd >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+          <span>{deltaOrd > 0 ? `+${deltaOrd}` : deltaOrd}% {cmdShort}</span>
+        </span>
+      )}
+    </div>
+  )
+
+  return (
+    <div className="w-full h-full flex flex-col space-y-2">
+      {/* Clean Executive Section Header ABOVE the card — 1:1 rhythm with ZoomChartsSuite */}
+      <div className="flex flex-wrap items-center justify-between gap-2 min-h-[30px] shrink-0">
+        <div className="flex items-center gap-2 min-w-0 flex-wrap">
+          <h3 className="text-[13px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] flex items-center gap-2">
+            <TrendingUp size={15} className="text-[#047857] dark:text-[#10B981] shrink-0" />
+            <span>{tr('Total Comenzi Cumulat', 'Cumulative Orders & Revenue', 'Накопительный Итог Заказов')}</span>
+          </h3>
+          {badgeText && (
+            <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-semibold tabular-nums ${
+              isDark ? 'bg-white/[0.06] text-[#AEAEB2]' : 'bg-black/[0.05] text-[#636366]'
+            }`}>
+              {badgeText}
+            </span>
+          )}
+          {loading && (
+            <RotateCw size={12} className="animate-spin text-[#047857] dark:text-[#10B981]" />
+          )}
+        </div>
+
+        {controlsBlock}
       </div>
 
-      {/* Main Chart Body — Measured Live via ResizeObserver for 1:1 Crisp Pixel Geometry */}
-      <div
-        ref={plotContainerRef}
-        className={`relative flex-1 flex flex-col justify-center ${isFullscreen ? 'min-h-[340px] px-4 sm:px-7 py-3' : 'min-h-[295px] px-3 sm:px-4 pt-2 pb-3'}`}
+      <section
+        aria-label={ariaSummary}
+        className={`w-full flex-1 min-h-[430px] flex flex-col rounded-2xl shadow-sm border transition-colors overflow-hidden ${
+          isDark ? 'bg-slate-900 border-slate-800 text-[#F5F5F7]' : 'bg-white border-slate-200 text-[#1D1D1F]'
+        }`}
       >
+        {/* Compact Summary Totals & Delta Strip inside the card top */}
+        <div className={`px-4 py-2.5 border-b flex flex-wrap items-center justify-between gap-2 shrink-0 ${
+          isDark ? 'border-white/[0.08]' : 'border-black/[0.06]'
+        }`}>
+          {summaryTotalsStrip}
+          {deltaBadgesBlock}
+        </div>
+
+        {/* Main Chart Body — Measured Live via ResizeObserver for 1:1 Crisp Pixel Geometry */}
+        <div
+          ref={plotContainerRef}
+          className="relative flex-1 flex flex-col justify-center min-h-[295px] px-3 sm:px-4 pt-2 pb-3"
+        >
         {loading && points.length === 0 ? (
           <div className="h-[260px] flex items-center justify-center gap-2.5 text-xs font-medium text-[#636366] dark:text-[#AEAEB2]">
-            <RotateCw size={15} className="animate-spin text-[#2563EB] dark:text-[#60A5FA]" />
+            <RotateCw size={15} className="animate-spin text-[#047857] dark:text-[#10B981]" />
             <span>{tr('Se încarcă ritmul orar cumulat...', 'Loading cumulative hourly pace...', 'Загрузка почасовой динамики...')}</span>
           </div>
         ) : points.length === 0 ? (
@@ -781,17 +703,23 @@ export default function CumulativeHourlyChart({
                 )}
               </g>
 
-              {/* Hover Vertical Highlight Column */}
-              {hoveredPoint && (
-                <rect
-                  x={hoveredPoint.cx - hoveredPoint.slotW * 0.44}
-                  y={PAD.top}
-                  width={hoveredPoint.slotW * 0.88}
-                  height={plotH}
-                  rx={8}
-                  fill={isDark ? 'rgba(96, 165, 250, 0.08)' : 'rgba(37, 99, 235, 0.05)'}
-                />
-              )}
+              {/* Hover Vertical Highlight Column — capped width so single-bar mornings don't wash the whole plot */}
+              {hoveredPoint && (() => {
+                const hoverW = Math.min(
+                  hoveredPoint.slotW * 0.88,
+                  hasCompare ? Math.max(96, hoveredPoint.barW * 2 + 28) : Math.max(84, hoveredPoint.barW + 32)
+                )
+                return (
+                  <rect
+                    x={hoveredPoint.cx - hoverW / 2}
+                    y={PAD.top}
+                    width={hoverW}
+                    height={plotH}
+                    rx={8}
+                    fill={isDark ? 'rgba(96, 165, 250, 0.08)' : 'rgba(37, 99, 235, 0.05)'}
+                  />
+                )
+              })()}
 
               {/* Cumulative RON Paired Bars */}
               {showBars && chartMath.computed.map((pt) => {
@@ -966,7 +894,7 @@ export default function CumulativeHourlyChart({
                   <text
                     key={`xlabel-${pt.hour}`}
                     x={pt.cx}
-                    y={baselineY + (isFullscreen ? 24 : 20)}
+                    y={baselineY + 20}
                     textAnchor="middle"
                     fontSize={axisFontSize}
                     fontWeight={hoverIdx === pt.idx ? '700' : '500'}
@@ -1061,77 +989,7 @@ export default function CumulativeHourlyChart({
           </div>
         )}
       </div>
-
-      {/* Fullscreen Executive KPI Strip (uses 4K / 5K / Ultrawide vertical room meaningfully) */}
-      {isFullscreen && fullscreenInsights && (
-        <div className={`px-4 sm:px-6 py-3 border-t grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0 tabular-nums ${
-          isDark ? 'border-white/[0.08] bg-white/[0.02]' : 'border-black/[0.06] bg-slate-50/70'
-        }`}>
-          <div className={`px-3.5 py-2 rounded-xl border flex items-center justify-between gap-3 ${
-            isDark ? 'bg-white/[0.03] border-white/[0.07]' : 'bg-white border-black/[0.05]'
-          }`}>
-            <div className="flex items-center gap-2 text-[11.5px] font-medium text-[#636366] dark:text-[#AEAEB2]">
-              <Flame size={14} className="text-amber-500 shrink-0" />
-              <span>{tr('Ora de vârf', 'Peak hour', 'Час пик')}</span>
-            </div>
-            <div className="text-right">
-              <span className="text-[13px] font-bold">{fullscreenInsights.peakLabel}</span>
-              <span className="text-[11.5px] text-[#636366] dark:text-[#AEAEB2] ml-2">
-                {fullscreenInsights.peakRevenue.toLocaleString('ro-RO')} {currencyShort} · {fullscreenInsights.peakOrders.toLocaleString('ro-RO')} {cmdShort}
-              </span>
-            </div>
-          </div>
-
-          <div className={`px-3.5 py-2 rounded-xl border flex items-center justify-between gap-3 ${
-            isDark ? 'bg-white/[0.03] border-white/[0.07]' : 'bg-white border-black/[0.05]'
-          }`}>
-            <div className="flex items-center gap-2 text-[11.5px] font-medium text-[#636366] dark:text-[#AEAEB2]">
-              <Clock size={14} className="text-blue-500 shrink-0" />
-              <span>{tr('Medie orară', 'Hourly average', 'Среднее в час')}</span>
-            </div>
-            <div className="text-right">
-              <span className="text-[13px] font-bold">{fullscreenInsights.avgRevPerHour.toLocaleString('ro-RO')} {currencyShort}</span>
-              <span className="text-[11.5px] text-[#636366] dark:text-[#AEAEB2] ml-2">
-                · {fullscreenInsights.avgOrdPerHour} {cmdShort}/{tr('oră', 'hr', 'ч')}
-              </span>
-            </div>
-          </div>
-
-          <div className={`px-3.5 py-2 rounded-xl border flex items-center justify-between gap-3 ${
-            isDark ? 'bg-white/[0.03] border-white/[0.07]' : 'bg-white border-black/[0.05]'
-          }`}>
-            <div className="flex items-center gap-2 text-[11.5px] font-medium text-[#636366] dark:text-[#AEAEB2]">
-              <BarChart3 size={14} className="text-emerald-500 shrink-0" />
-              <span>{tr('Bon mediu', 'Avg. ticket', 'Средний чек')}</span>
-            </div>
-            <div className="text-right">
-              <span className="text-[13px] font-bold">{fullscreenInsights.avgTicket.toLocaleString('ro-RO')} {currencyShort}</span>
-              <span className="text-[11.5px] text-[#636366] dark:text-[#AEAEB2] ml-2">
-                / {tr('comandă', 'order', 'заказ')}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-    </section>
+      </section>
+    </div>
   )
-
-  if (isFullscreen && typeof document !== 'undefined') {
-    return createPortal(
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={tr('Total Comenzi Cumulat — Ecran complet', 'Cumulative Orders & Revenue — Fullscreen', 'Накопительный Итог Заказов — Полный экран')}
-        className="fixed inset-0 z-[9999] p-2 sm:p-4 xl:p-6 bg-black/55 backdrop-blur-md flex items-center justify-center"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) setIsFullscreen(false)
-        }}
-      >
-        {chartCardContent}
-      </div>,
-      document.body
-    )
-  }
-
-  return chartCardContent
 }

@@ -7,7 +7,8 @@ import { getApiUrl } from '../lib/api'
 import PlatformLogo from '../components/PlatformLogo'
 import BrandAvatar from '../components/BrandAvatar'
 import OrderDetailsModal from '../components/OrderDetailsModal'
-import { parseDeliveryAddress, getCityDisplayName, escapeCsvCell } from '../lib/orderUtils'
+import { parseDeliveryAddress, getCityDisplayName } from '../lib/orderUtils'
+import { exportSheetsToExcel } from '../lib/excelExport'
 import { getProductImage } from '../lib/productImages'
 import {
   Users,
@@ -339,7 +340,7 @@ export default function Customers() {
     }
   }
 
-  const handleExportCsv = async () => {
+  const handleExportExcel = async () => {
     try {
       const allowedC = (user?.allowed_cities || ['all']).filter(c => c !== 'all')
       const allowedB = (user?.allowed_brands || ['all']).filter(b => b !== 'all')
@@ -372,57 +373,50 @@ export default function Customers() {
         'Nume Client',
         'Telefon',
         'Tip Telefon',
-        'Oras',
+        'Oraș',
         'Strada',
-        'Detalii Adresa / Instructiuni',
+        'Detalii Adresă / Instrucțiuni',
         'Branduri',
         'Platforme',
         'Nr Comenzi',
         'Nr Recenzii',
-        'Nota Medie Recenzii',
+        'Notă Medie Recenzii',
         'Total Cheltuit (RON)',
         'Bon Mediu (RON)',
-        'Ultima Comanda',
+        'Ultima Comandă',
         'VIP',
         'Note'
       ]
-      const escapeCsv = escapeCsvCell
       const rows = list.map((c, idx) => {
         const parsed = parseDeliveryAddress(c.address || '', 'ro')
-        return [
-          idx + 1,
-          c.name || '',
-          c.phone || '',
-          c.is_direct_phone ? 'Mobil Direct' : 'Centrala Agregator',
-          c.city || '',
-          parsed.streetAddress || '',
-          c.address || '',
-          (c.brands || []).join(' | '),
-          (c.platforms || []).join(' | '),
-          c.orders_count || 1,
-          c.reviews_count || (c.reviews || []).length || 0,
-          c.avg_rating ? `${c.avg_rating}/5` : '',
-          Number(c.total_spent || 0).toFixed(2),
-          Number(c.avg_order_value || 0).toFixed(2),
-          c.last_order_at ? new Date(c.last_order_at).toLocaleString('ro-RO') : '',
-          c.is_vip ? 'DA' : 'NU',
-          c.notes || ''
-        ].map(escapeCsv).join(',')
+        return {
+          'Nr': idx + 1,
+          'Nume Client': c.name || '',
+          'Telefon': c.phone || '',
+          'Tip Telefon': c.is_direct_phone ? 'Mobil Direct' : 'Centrală Agregator',
+          'Oraș': c.city || '',
+          'Strada': parsed.streetAddress || '',
+          'Detalii Adresă / Instrucțiuni': c.address || '',
+          'Branduri': (c.brands || []).join(' | '),
+          'Platforme': (c.platforms || []).join(' | '),
+          'Nr Comenzi': Number(c.orders_count || 1),
+          'Nr Recenzii': Number(c.reviews_count || (c.reviews || []).length || 0),
+          'Notă Medie Recenzii': c.avg_rating ? Number(c.avg_rating) : '',
+          'Total Cheltuit (RON)': Math.round(Number(c.total_spent || 0) * 100) / 100,
+          'Bon Mediu (RON)': Math.round(Number(c.avg_order_value || 0) * 100) / 100,
+          'Ultima Comandă': c.last_order_at ? new Date(c.last_order_at).toLocaleString('ro-RO') : '',
+          'VIP': c.is_vip ? 'DA' : 'NU',
+          'Note': c.notes || ''
+        }
       })
 
-      const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `clienti_${cityFilter !== 'all' ? cityFilter.toLowerCase() + '_' : ''}${new Date().toISOString().slice(0, 10)}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      showToast(txt(`Export CSV generat (${list.length} clienți)!`, `CSV экспортирован (${list.length} клиентов)!`, `CSV exported (${list.length} customers)!`))
+      await exportSheetsToExcel(
+        [{ name: 'Clienți', headers, rows }],
+        `clienti_${cityFilter !== 'all' ? cityFilter.toLowerCase() + '_' : ''}${new Date().toISOString().slice(0, 10)}.xlsx`
+      )
+      showToast(txt(`Export Excel generat (${list.length} clienți)!`, `Excel экспортирован (${list.length} клиентов)!`, `Excel exported (${list.length} customers)!`))
     } catch (_) {
-      showToast(txt('Eroare la exportul CSV.', 'Ошибка экспорта CSV.', 'CSV export failed.'))
+      showToast(txt('Eroare la exportul Excel.', 'Ошибка экспорта Excel.', 'Excel export failed.'))
     }
   }
 
@@ -494,11 +488,11 @@ export default function Customers() {
 
           <button
             type="button"
-            onClick={handleExportCsv}
+            onClick={handleExportExcel}
             className="apple-btn-primary"
           >
             <Download size={13} />
-            <span>{txt('Export CSV', 'Экспорт CSV', 'Export CSV')}</span>
+            <span>{txt('Export Excel', 'Экспорт Excel', 'Export Excel')}</span>
           </button>
         </div>
       </div>

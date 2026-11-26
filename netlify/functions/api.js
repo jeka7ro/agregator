@@ -10,8 +10,10 @@ import liveChecksCacheStatic from '../../data/live-checks-cache.json'
 import stopEventsCacheStatic from '../../data/stop-events-cache.json'
 import salesHistoryCacheStatic from '../../data/sales-history-cache.json'
 import appUsersStatic from '../../data/app-users.json'
+import platformStoreMapStatic from '../../data/platform-store-map.json'
 import customersService from '../../workers/src/services/customers-service.js'
 import { usersService } from '../../workers/src/services/users-service.js'
+import { runFullLivePlatformScan, sendTelegramStopAlert, isRestaurantWorkingNow } from '../../lib/live-platform-checkers.js'
 
 const fastWithTimeout = (promise, ms = 1400) => Promise.race([
   promise,
@@ -1307,7 +1309,7 @@ export default async (req, context) => {
           check.verified_via = 'schedule_closed'
           check.ui_error_message = `În afara programului (${sched.label})`
         } else if (platform === 'iiko' && iikoAct) {
-          if (scraperErr || iikoAct.lastMs > checkMs || check.final_status !== 'available') {
+          if (scraperErr || iikoAct.lastMs > checkMs || check.final_status === 'unchecked') {
             check.final_status = 'available'
             check.ui_is_open = true
             check.ui_can_order = true
@@ -1330,8 +1332,8 @@ export default async (req, context) => {
           } else if (check.final_status === 'available' && exactAct.lastMs > checkMs) {
             check.checked_at = exactAct.lastIso
           }
-        } else if (kitchenAct && (scraperErr || check.final_status === 'unchecked' || (check.final_status === 'available' && kitchenAct.lastMs > checkMs))) {
-          // Scraper timed out / stale check, while this physical kitchen IS receiving live orders on this platform today
+        } else if (kitchenAct && (scraperErr || check.final_status === 'unchecked')) {
+          // Only recover technical scraper timeout / unchecked using sibling kitchen live orders — NEVER overwrite an explicit live STOP!
           check.final_status = 'available'
           check.ui_is_open = true
           check.ui_can_order = true
@@ -1349,13 +1351,7 @@ export default async (req, context) => {
           check.verified_via = 'scraper_timeout'
         }
 
-        // If a manual live refresh was triggered recently, stamp checked_at so "Ultima Verif." immediately updates (while preserving exact last_order_at!)
-        if (manualVerifiedMs > 0 && check.final_status === 'available') {
-          const curMs = check.checked_at ? new Date(check.checked_at).getTime() : 0
-          if (manualVerifiedMs > curMs) {
-            check.checked_at = globalThis.__LAST_LIVE_CHECK_AT
-          }
-        }
+        // Keep genuine check.checked_at from the actual live platform check / live order (NEVER overwrite with fake "Now" timestamp!)
 
         // Attach latest rating if available
         const rInfo = ratingsMap.get(k)
@@ -1410,17 +1406,54 @@ export default async (req, context) => {
     }
 
     if (path === '/check-all' && req.method === 'POST') {
-      const payload = await buildLiveChecksSnapshot(true)
-      const activeRests = (Array.isArray(restaurantsCacheStatic)
+      let activeRests = (Array.isArray(restaurantsCacheStatic)
         ? restaurantsCacheStatic
         : (Array.isArray(restaurantsCacheStatic?.restaurants) ? restaurantsCacheStatic.restaurants : []))
         .filter(r => r.is_active !== false)
+
+      if (supabase) {
+        try {
+          const { data: sbRests } = await withTimeout(
+            supabase.from('restaurants').select('*').eq('is_active', true),
+            2000
+          )
+          if (Array.isArray(sbRests) && sbRests.length > 0) activeRests = sbRests
+        } catch (_) { }
+      }
+
+      // Execute REAL live HTTP probes across Wolt, Bolt, and Glovo (zero Puppeteer, writes real results to Supabase)
+      let scan = { duration_ms: 0, total_tasks: 0, valid_checked: 0, errors: 0, offline: 0, stopped_channels: [], checks: [] }
+      try {
+        scan = await runFullLivePlatformScan({
+          restaurants: activeRests,
+          storeMap: platformStoreMapStatic,
+          supabase,
+          persistToDb: Boolean(supabase),
+          notifyTelegram: true,
+          budgetMs: 6500
+        })
+      } catch (scanErr) {
+        console.error('[Netlify check-all] Live scan error:', scanErr.message)
+      }
+
+      // Invalidate snapshot cache so immediate rebuild reflects brand-new live checks
+      globalThis.__LIVE_CHECKS_SNAPSHOT = null
+      const payload = await buildLiveChecksSnapshot(true)
+
       const checkMap = new Map()
       for (const c of (payload.checks || [])) {
         checkMap.set(`${c.restaurant_id}_${String(c.platform || '').toLowerCase()}`, c)
       }
+      // Also overlay direct results from this exact scan (even if Supabase insert lagged)
+      for (const c of (scan.checks || [])) {
+        if (c.final_status !== 'error' && !c.raw_data?.is_scraper_error) {
+          checkMap.set(`${c.restaurant_id}_${c.platform}`, c)
+        }
+      }
+
       let totalChecks = 0
       let offline = 0
+      const offlineList = []
       for (const r of activeRests) {
         for (const p of ['glovo', 'wolt', 'bolt', 'iiko']) {
           const hasPlat = p === 'iiko'
@@ -1430,18 +1463,33 @@ export default async (req, context) => {
           totalChecks++
           const chkObj = checkMap.get(`${r.id}_${p}`)
           const st = String(chkObj?.final_status || 'unchecked').toLowerCase()
-          if (!chkObj?.outside_working_hours && !['available', 'open', 'online', 'unchecked', 'closed'].includes(st)) offline++
+          const isStoppedDuringHours = !chkObj?.outside_working_hours && ['closed', 'unavailable', 'offline', 'stopped'].includes(st)
+          if (isStoppedDuringHours) {
+            offline++
+            offlineList.push({
+              restaurant: r.name,
+              platform: p,
+              status: st,
+              reason: chkObj?.ui_error_message || 'Oprit (STOP)'
+            })
+          }
         }
       }
+
       globalThis.__NETLIFY_CHECK_STATUS = {
         isRunning: false,
         totalChecks,
         current: totalChecks,
-        errors: 0,
+        validChecked: scan.valid_checked,
+        errors: scan.errors || 0,
         offline,
-        results: []
+        duration_ms: scan.duration_ms || 0,
+        results: offlineList
       }
-      return new Response(JSON.stringify({ success: true, status: globalThis.__NETLIFY_CHECK_STATUS }), { status: 200, headers: CORS_HEADERS })
+      return new Response(JSON.stringify({ success: true, status: globalThis.__NETLIFY_CHECK_STATUS }), {
+        status: 200,
+        headers: { ...CORS_HEADERS, 'Cache-Control': 'no-store' }
+      })
     }
 
     if (path === '/check-status' && req.method === 'GET') {
@@ -2097,6 +2145,16 @@ export default async (req, context) => {
         return `${bucharestFmt.format(d)}.${ms}`
       }
 
+      const getCourierStatusRank = (st) => {
+        const u = String(st || '').toUpperCase()
+        if (!u) return 0
+        if (u.includes('DELIVERED') || u.includes('DROPPED') || u.includes('DROP_OFF') || u.includes('DROPOFF') || u.includes('COMPLETED') || u.includes('CANCEL')) return 5
+        if (u.includes('AT CUSTOMER') || u.includes('AT_CUSTOMER') || u.includes('ARRIVED') || u.includes('AT_DROPOFF')) return 4
+        if (u.includes('PICKED') || u.includes('IN_TRANSIT') || u.includes('IN TRANSIT') || u.includes('ON_WAY') || u.includes('ON WAY') || u.includes('OUT_FOR_DELIVERY') || u.includes('DELAYED')) return 3
+        if (u.includes('AT RESTAURANT') || u.includes('AT_RESTAURANT') || u.includes('AT_PICKUP') || u.includes('ASSIGNED') || u.includes('ACCEPTED')) return 2
+        return 1
+      }
+
       const mergedMetaByUuid = new Map()
       const mergedMetaByOrderNum = new Map()
       for (const o of (rawOrders || [])) {
@@ -2123,13 +2181,17 @@ export default async (req, context) => {
         if (isCourierDeliv && !prev.courierDelivTs) prev.courierDelivTs = toBucharestTsStr(valCached?.delivTs || curTimings.realDeliveredAt || curTimings.whenDelivered)
         if (!isCourierDeliv && curTimings.whenDelivered && !prev.iikoDelivTs) prev.iikoDelivTs = toBucharestTsStr(curTimings.whenDelivered)
         if (!isCourierDeliv && curTimings.whenClosed && !prev.iikoClosedTs) prev.iikoClosedTs = toBucharestTsStr(curTimings.whenClosed)
-        const rowCStatus = valCached?.courierStatus || m.courierStatus || null
-        if (rowCStatus && (!prev.courierStatus || String(rowCStatus).toUpperCase().includes('DELIVERED'))) {
+        const rowCStatus = valCached?.courierStatus || m.courierStatus || m.courier?.status || null
+        if (rowCStatus && getCourierStatusRank(rowCStatus) >= getCourierStatusRank(prev.courierStatus)) {
           prev.courierStatus = rowCStatus
         }
 
         const cStatusUpper = String(prev.courierStatus || '').toUpperCase()
-        const isCourierOnWayActive = Boolean(!prev.courierDelivTs && (prev.courierSendTs || cStatusUpper.includes('PICKED') || cStatusUpper.includes('AT CUSTOMER') || cStatusUpper.includes('IN_TRANSIT') || cStatusUpper.includes('ON_WAY')))
+        const isCourierDelivered = Boolean(prev.courierDelivTs || cStatusUpper.includes('DELIVERED') || cStatusUpper.includes('DROPPED') || cStatusUpper.includes('DROP_OFF') || cStatusUpper.includes('DROPOFF') || cStatusUpper.includes('COMPLETED'))
+        const isCourierCancelled = Boolean(cStatusUpper.includes('CANCEL'))
+        const isCourierWaitingAtRest = Boolean(!isCourierDelivered && !isCourierCancelled && (cStatusUpper.includes('AT RESTAURANT') || cStatusUpper.includes('AT_RESTAURANT') || cStatusUpper.includes('AT_PICKUP') || cStatusUpper.includes('ASSIGNED') || cStatusUpper.includes('ACCEPTED')))
+        const isCourierOnWayActive = Boolean(!isCourierDelivered && !isCourierCancelled && (prev.courierSendTs || cStatusUpper.includes('PICKED') || cStatusUpper.includes('AT CUSTOMER') || cStatusUpper.includes('AT_CUSTOMER') || cStatusUpper.includes('ARRIVED') || cStatusUpper.includes('AT_DROPOFF') || cStatusUpper.includes('IN_TRANSIT') || cStatusUpper.includes('IN TRANSIT') || cStatusUpper.includes('ON_WAY') || cStatusUpper.includes('ON WAY') || cStatusUpper.includes('OUT_FOR_DELIVERY') || cStatusUpper.includes('DELAYED')))
+        const isCourierInfoOnly = Boolean(!isCourierDelivered && !isCourierCancelled && !isCourierOnWayActive && !isCourierWaitingAtRest && (cStatusUpper.includes('INFO_RECEIVED') || cStatusUpper.includes('CREATED') || cStatusUpper.includes('PENDING')))
 
         prev.timings = {
           whenCreated: toBucharestTsStr(prev.timings.whenCreated || curTimings.whenCreated || null),
@@ -2139,10 +2201,13 @@ export default async (req, context) => {
           whenSended: prev.courierSendTs || prev.iikoSendTs || null,
           whenArrivedAtCustomer: prev.courierArrivedTs || null,
           realDeliveredAt: prev.courierDelivTs || null,
-          whenDelivered: prev.courierDelivTs || (isCourierOnWayActive ? null : (prev.iikoDelivTs || null)),
-          whenClosed: prev.courierDelivTs || (isCourierOnWayActive ? null : (prev.iikoClosedTs || null)),
+          whenDelivered: prev.courierDelivTs || ((isCourierOnWayActive || isCourierWaitingAtRest) ? null : (prev.iikoDelivTs || null)),
+          whenClosed: prev.courierDelivTs || ((isCourierOnWayActive || isCourierWaitingAtRest) ? null : (prev.iikoClosedTs || null)),
           completeBefore: toBucharestTsStr(prev.timings.completeBefore || curTimings.completeBefore || null),
-          isCourierActiveOnWay: isCourierOnWayActive
+          isCourierActiveOnWay: isCourierOnWayActive,
+          isCourierWaitingAtRest,
+          isCourierInfoOnly,
+          isCourierCancelled
         }
         const validRowCourier = !isCashierOrAutoAggregatorCourier(m.courier, m.operator, o.platform) ? m.courier : null
         if (validRowCourier || m.trackingUrl || m.courierOrderId || valCached?.courier) {
@@ -2153,8 +2218,7 @@ export default async (req, context) => {
           if (valCached?.courierOrderId) prev.courier.awb = valCached.courierOrderId
           if (m.deliveryFee && !prev.courier.deliveryFee) prev.courier.deliveryFee = m.deliveryFee
           if (valCached?.deliveryFee) prev.courier.deliveryFee = valCached.deliveryFee
-          if (m.courierStatus && !prev.courier.status) prev.courier.status = m.courierStatus
-          if (valCached?.courierStatus) prev.courier.status = valCached.courierStatus
+          if (prev.courierStatus) prev.courier.status = prev.courierStatus
         }
         if (m.customer && (!prev.customer || !prev.customer.phone)) {
           prev.customer = { ...(prev.customer || {}), ...m.customer }
@@ -2166,6 +2230,9 @@ export default async (req, context) => {
         } else if (isCourierOnWayActive) {
           prev.status = 'OnWay'
           prev.stage = 'OnWay'
+        } else if (isCourierWaitingAtRest) {
+          prev.status = 'Waiting'
+          prev.stage = 'Waiting'
         } else if (stLower.includes('closed') || stLower.includes('deliv')) {
           prev.status = m.status || m.stage
           prev.stage = m.stage || m.status
@@ -2301,17 +2368,34 @@ export default async (req, context) => {
         const tCreated = parseIikoTs(rawTimings.whenCreated)
         const tCooked = parseIikoTs(rawTimings.whenCookingCompleted)
         const tSended = parseIikoTs(rawTimings.whenSended)
-        const tDelivered = parseIikoTs(rawTimings.realDeliveredAt || rawTimings.whenDelivered || rawTimings.whenClosed)
-        const hasRealIikoTimings = Boolean(tCreated && (tCooked || tSended || tDelivered || rawStatus))
+        const tDeliveredRaw = parseIikoTs(rawTimings.realDeliveredAt || rawTimings.whenDelivered || rawTimings.whenClosed)
+        const hasRealIikoTimings = Boolean(tCreated && (tCooked || tSended || tDeliveredRaw || rawStatus))
+
+        // Wolt Drive / partner couriers that only emit INFO_RECEIVED (no Delivered webhook):
+        // Do NOT trust premature iiko POS check-close as customer delivery during the active delivery window (< 35m after handoff)
+        const handoffRefTs = tSended || tCooked || tCreated
+        const minSinceHandoff = handoffRefTs ? Math.max(0, Math.round((Date.now() - handoffRefTs.getTime()) / 60000)) : elapsedMin
+        const isUnconfirmedLiveCourier = Boolean(
+          !isInRestaurant &&
+          rawTimings.isCourierInfoOnly &&
+          !rawTimings.realDeliveredAt &&
+          minSinceHandoff < 35 &&
+          elapsedMin <= 65
+        )
+        const tDelivered = (rawTimings.isCourierActiveOnWay || rawTimings.isCourierWaitingAtRest || isUnconfirmedLiveCourier) ? null : tDeliveredRaw
 
         const realCookMin = (tCreated && tCooked) ? Math.max(1, Math.round((tCooked - tCreated) / 60000)) : null
         const realWaitMin = (tCooked && tSended) ? Math.max(0, Math.round((tSended - tCooked) / 60000)) : null
         const realDelivMin = (tSended && tDelivered) ? Math.max(0, Math.round((tDelivered - tSended) / 60000)) : null
         const realTotalMin = (tCreated && tDelivered) ? Math.max(1, Math.round((tDelivered - tCreated) / 60000)) : null
-        const isClosedAtHandoff = Boolean(!isInRestaurant && !rawTimings.realDeliveredAt && tSended && tDelivered && Math.abs(tDelivered - tSended) <= 90000)
+        const isClosedAtHandoff = Boolean(
+          !isInRestaurant &&
+          !rawTimings.realDeliveredAt &&
+          (rawTimings.isCourierInfoOnly || rawTimings.isCourierCancelled || (tSended && tDelivered && Math.abs(tDelivered - tSended) <= 90000))
+        )
 
         if (hasRealIikoTimings && !isKioskPlat) {
-          if (tDelivered || ((rawStatus === 'closed' || rawStatus === 'delivered') && !rawTimings.isCourierActiveOnWay)) {
+          if (tDelivered || ((rawStatus === 'closed' || rawStatus === 'delivered') && !rawTimings.isCourierActiveOnWay && !rawTimings.isCourierWaitingAtRest && !isUnconfirmedLiveCourier)) {
             stage = 'delivered'
             stageLabel = isInRestaurant ? 'Servit în Restaurant' : 'Livrat'
             statusColor = 'emerald'
@@ -2319,7 +2403,15 @@ export default async (req, context) => {
             kTime = realCookMin !== null ? realCookMin : (realTotalMin || 15)
             wTime = realWaitMin !== null ? realWaitMin : 0
             dTime = (isInRestaurant || isClosedAtHandoff) ? 0 : (realDelivMin !== null ? realDelivMin : 0)
-          } else if (tSended || rawStatus === 'onway') {
+          } else if (rawTimings.isCourierWaitingAtRest && elapsedMin <= 120) {
+            stage = 'ready'
+            stageLabel = 'Gata / Așteaptă Curier'
+            statusColor = 'purple'
+            waitingCourierCount++
+            kTime = realCookMin || Math.min(20, Math.max(1, elapsedMin))
+            wTime = tCooked ? Math.max(1, Math.round((Date.now() - tCooked.getTime()) / 60000)) : Math.max(1, elapsedMin - kTime)
+            dTime = 0
+          } else if (tSended || rawStatus === 'onway' || rawTimings.isCourierActiveOnWay || isUnconfirmedLiveCourier) {
             if (elapsedMin <= 120) {
               stage = 'on_way'
               stageLabel = 'La Curier (Pe drum)'
@@ -2327,7 +2419,7 @@ export default async (req, context) => {
               onWayCount++
               kTime = realCookMin || 16
               wTime = realWaitMin !== null ? realWaitMin : 0
-              dTime = tSended ? Math.max(1, Math.round((Date.now() - tSended.getTime()) / 60000)) : Math.max(1, elapsedMin - kTime - wTime)
+              dTime = handoffRefTs ? Math.max(1, Math.round((Date.now() - handoffRefTs.getTime()) / 60000)) : Math.max(1, elapsedMin - kTime - wTime)
             } else {
               stage = 'delivered'
               stageLabel = isInRestaurant ? 'Servit în Restaurant' : 'Livrat'
@@ -2641,19 +2733,20 @@ export default async (req, context) => {
             when_sended: rawTimings.whenSended || null,
             when_arrived_at_customer: rawTimings.whenArrivedAtCustomer || null,
             real_delivered_at: rawTimings.realDeliveredAt || null,
-            when_delivered: rawTimings.realDeliveredAt || rawTimings.whenDelivered || null,
-            when_closed: rawTimings.realDeliveredAt || rawTimings.whenClosed || null,
+            when_delivered: stage === 'delivered' ? (rawTimings.realDeliveredAt || rawTimings.whenDelivered || null) : null,
+            when_closed: stage === 'delivered' ? (rawTimings.realDeliveredAt || rawTimings.whenClosed || null) : null,
             complete_before: rawTimings.completeBefore || null,
             created_time: extractHHMMSS(rawTimings.whenCreated),
             cooking_completed_time: extractHHMMSS(rawTimings.whenCookingCompleted),
             sended_time: extractHHMMSS(rawTimings.whenSended),
             arrived_at_customer_time: extractHHMMSS(rawTimings.whenArrivedAtCustomer),
-            delivered_time: extractHHMMSS(rawTimings.realDeliveredAt || rawTimings.whenDelivered || rawTimings.whenClosed),
-            closed_time: extractHHMMSS(rawTimings.realDeliveredAt || rawTimings.whenClosed),
+            delivered_time: stage === 'delivered' ? extractHHMMSS(rawTimings.realDeliveredAt || rawTimings.whenDelivered || rawTimings.whenClosed) : null,
+            closed_time: stage === 'delivered' ? extractHHMMSS(rawTimings.realDeliveredAt || rawTimings.whenClosed) : null,
             complete_before_time: extractHHMM(rawTimings.completeBefore),
-            delivered_short_time: extractHHMM(rawTimings.realDeliveredAt || rawTimings.whenDelivered || rawTimings.whenClosed),
+            delivered_short_time: stage === 'delivered' ? extractHHMM(rawTimings.realDeliveredAt || rawTimings.whenDelivered || rawTimings.whenClosed) : null,
             has_courier_delivery_time: Boolean(rawTimings.realDeliveredAt),
-            closed_at_handoff: isClosedAtHandoff
+            closed_at_handoff: isClosedAtHandoff,
+            unconfirmed_courier_delivery: Boolean(rawTimings.isCourierInfoOnly && !rawTimings.realDeliveredAt)
           },
           customer: {
             name: finalCustomer.name,
@@ -2724,6 +2817,42 @@ export default async (req, context) => {
           const cleanReason = (!s.reason || s.reason === 'Unknown')
             ? `Locație închisă temporar pe ${(s.platform || 'agregator').toUpperCase()} în timpul programului`
             : s.reason
+
+          // Compute REAL order metrics at the exact moment of the stop (NEVER fabricate charCodeAt fallback numbers!)
+          const stopMs = s.stopped_at ? new Date(s.stopped_at).getTime() : NaN
+          let realActiveCount = config.active_orders_count ?? null
+          let realKitchenAvg = config.last_5_kitchen_avg_min ?? null
+          let realDeliveryAvg = config.last_5_delivery_avg_min ?? null
+          if (!Number.isNaN(stopMs) && (realActiveCount === null || realKitchenAvg === null || realDeliveryAvg === null)) {
+            const restOrders = enrichedOrders.filter(eo => {
+              const sameRest = (s.restaurant_id && eo.restaurant_id === s.restaurant_id) ||
+                (cName && getCanonicalCity(eo.restaurant_city || eo.restaurant_name || '') === cName)
+              if (!sameRest) return false
+              const placedMs = eo.created_at ? new Date(eo.created_at).getTime() : NaN
+              return !Number.isNaN(placedMs) && placedMs <= stopMs
+            })
+            if (realActiveCount === null) {
+              realActiveCount = restOrders.filter(eo => {
+                const placedMs = new Date(eo.created_at).getTime()
+                const doneTs = eo.delivered_at || eo.closed_at
+                if (doneTs) {
+                  const doneMs = new Date(doneTs).getTime()
+                  return !Number.isNaN(doneMs) && doneMs >= stopMs
+                }
+                return (stopMs - placedMs) <= 60 * 60000
+              }).length
+            }
+            const priorSorted = [...restOrders].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            if (realKitchenAvg === null) {
+              const kSamples = priorSorted.map(o => Number(o.kitchen_minutes)).filter(n => Number.isFinite(n) && n > 0 && n < 180).slice(0, 5)
+              realKitchenAvg = kSamples.length > 0 ? Math.round(kSamples.reduce((a, b) => a + b, 0) / kSamples.length) : 0
+            }
+            if (realDeliveryAvg === null) {
+              const dSamples = priorSorted.map(o => Number(o.delivery_minutes)).filter(n => Number.isFinite(n) && n > 0 && n < 240).slice(0, 5)
+              realDeliveryAvg = dSamples.length > 0 ? Math.round(dSamples.reduce((a, b) => a + b, 0) / dSamples.length) : 0
+            }
+          }
+
           return {
             id: s.id,
             restaurant_id: s.restaurant_id,
@@ -2735,9 +2864,9 @@ export default async (req, context) => {
             resumed_at: s.resumed_at,
             duration_minutes: s.duration_minutes || (s.resumed_at ? Math.round((new Date(s.resumed_at) - new Date(s.stopped_at)) / 60000) : Math.round((now - new Date(s.stopped_at)) / 60000)),
             estimated_loss: s.estimated_loss_amount || 0,
-            active_orders_at_stop: config.active_orders_count ?? (Math.floor(s.id?.charCodeAt(0) % 7 || 3) + 4),
-            last_5_kitchen_avg_min: config.last_5_kitchen_avg_min ?? (16 + (s.id?.charCodeAt(1) % 5 || 2)),
-            last_5_delivery_avg_min: config.last_5_delivery_avg_min ?? (32 + (s.id?.charCodeAt(2) % 10 || 4)),
+            active_orders_at_stop: realActiveCount ?? 0,
+            last_5_kitchen_avg_min: realKitchenAvg ?? 0,
+            last_5_delivery_avg_min: realDeliveryAvg ?? 0,
             reason: cleanReason,
             telegram_alert_sent: true
           }
@@ -2756,7 +2885,7 @@ export default async (req, context) => {
         'TIMISOARA': { coords: [45.7366, 21.2415], normalKm: 5.0 },
         'ORADEA': { coords: [47.0465, 21.9102], normalKm: 5.0 },
         'BRASOV': { coords: [45.6408, 25.6182], normalKm: 5.0 },
-        'CLUJ-NAPOCA': { coords: [46.7712, 23.5849], normalKm: 5.5 },
+        'CLUJ-NAPOCA': { coords: [46.7712, 23.5849], normalKm: 4.2 },
         'CONSTANTA': { coords: [44.1782, 28.6534], normalKm: 5.0 },
         'IASI': { coords: [47.1628, 27.5585], normalKm: 5.0 },
         'CRAIOVA': { coords: [44.3188, 23.8165], normalKm: 4.5 },
@@ -2859,12 +2988,12 @@ export default async (req, context) => {
       }
       for (const zKey of Object.keys(deliveryZones)) {
         const z = deliveryZones[zKey]
-        const maxCap = (z.platform === 'wolt' && z.city === 'BUCURESTI') ? 4.0 : 5.5
-        const minChokeKm = (z.platform === 'wolt' && z.city === 'BUCURESTI') ? 2.38 : 3.2
+        const maxCap = (z.platform === 'wolt' && z.city === 'BUCURESTI') ? 4.0 : (z.city === 'CLUJ-NAPOCA' ? 4.5 : 5.5)
+        const minChokeKm = (z.platform === 'wolt' && z.city === 'BUCURESTI') ? 2.38 : (z.city === 'CLUJ-NAPOCA' ? 2.5 : 3.2)
         z.avg_distance_km = Number((z._sumKm / Math.max(1, z.orders_count)).toFixed(2))
         z.active_radius_km = Number(z.active_radius_km.toFixed(2))
         z.normal_radius_km = Number(Math.min(maxCap, Math.max(z.normal_radius_km, Math.min(maxCap, z.active_radius_km))).toFixed(2))
-        z.is_narrowed = Boolean(z.orders_count >= 5 && z.active_radius_km <= minChokeKm && z.active_radius_km < z.normal_radius_km * 0.68)
+        z.is_narrowed = Boolean(z.orders_count >= 10 && z.active_radius_km <= minChokeKm && z.active_radius_km < z.normal_radius_km * 0.68)
         z.narrowed_pct = z.is_narrowed ? Math.round(((z.normal_radius_km - z.active_radius_km) / z.normal_radius_km) * 100) : 0
         delete z._sumKm
       }
@@ -4355,11 +4484,135 @@ export default async (req, context) => {
       console.log(`[NETLIFY WEBHOOK] Received webhook for platform: ${platform}`, JSON.stringify(payload).slice(0, 500))
 
       let processedCount = 0
+      let stopProcessed = null
       let processError = null
       let timedOut = false
 
-      // Automatically ingest iiko, kiosk, valentin, courier, and delivery orders with 2.5s timeout
-      if (
+      // Detect and process REAL Bolt / Wolt / Glovo / Valentin store-status & STOP webhooks directly into Supabase!
+      const rawStatusStr = String(
+        payload?.status || payload?.store_status || payload?.venue_status || payload?.state || payload?.event_type || payload?.event || ''
+      ).toUpperCase()
+      const hasBoolStatus = typeof payload?.is_active === 'boolean' || typeof payload?.is_open === 'boolean' || typeof payload?.online === 'boolean' || typeof payload?.is_available === 'boolean' || typeof payload?.is_stopped === 'boolean'
+      const isStoreStopPayload = (
+        ['bolt', 'wolt', 'glovo', 'valentin', 'stops', 'store-status'].includes(platform) &&
+        !payload?.orderId && !payload?.order_id && !payload?.eventInfo?.order &&
+        (hasBoolStatus || /INACTIVE|OFFLINE|PAUSED|CLOSED|STOP|UNAVAILABLE|DISABLED|ACTIVE|ONLINE|OPEN|AVAILABLE|RESUMED/.test(rawStatusStr))
+      )
+
+      if (isStoreStopPayload && supabase) {
+        try {
+          const targetPlat = ['bolt', 'wolt', 'glovo'].includes(platform)
+            ? platform
+            : String(payload?.platform || payload?.aggregator || payload?.provider || 'bolt').toLowerCase()
+          const effPlat = ['bolt', 'wolt', 'glovo'].includes(targetPlat) ? targetPlat : 'bolt'
+
+          // Determine open vs stopped cleanly
+          let isOnline = true
+          if (typeof payload?.is_stopped === 'boolean') isOnline = !payload.is_stopped
+          else if (typeof payload?.is_active === 'boolean') isOnline = payload.is_active
+          else if (typeof payload?.is_open === 'boolean') isOnline = payload.is_open
+          else if (typeof payload?.online === 'boolean') isOnline = payload.online
+          else if (typeof payload?.is_available === 'boolean') isOnline = payload.is_available
+          else if (/INACTIVE|OFFLINE|PAUSED|CLOSED|STOP|UNAVAILABLE|DISABLED/.test(rawStatusStr)) isOnline = false
+          else if (/ACTIVE|ONLINE|OPEN|AVAILABLE|RESUMED/.test(rawStatusStr)) isOnline = true
+
+          // Resolve exact restaurant in Supabase using ID, Bolt provider_id / short code, Wolt ID, Glovo Store ID, or name
+          const allRestsList = Array.isArray(restaurantsCacheStatic)
+            ? restaurantsCacheStatic
+            : (Array.isArray(restaurantsCacheStatic?.restaurants) ? restaurantsCacheStatic.restaurants : [])
+          const { data: sbRests } = await withTimeout(supabase.from('restaurants').select('*').eq('is_active', true), 1800).catch(() => ({ data: null }))
+          const restsPool = (Array.isArray(sbRests) && sbRests.length > 0) ? sbRests : allRestsList
+
+          const pIdStr = String(payload?.provider_id || payload?.bolt_id || payload?.store_id || payload?.venue_id || payload?.external_id || '').trim()
+          const rNameStr = String(payload?.restaurant_name || payload?.store_name || payload?.venue_name || payload?.name || '').trim().toLowerCase()
+          const rIdDirect = payload?.restaurant_id || null
+
+          let matchedRest = rIdDirect ? restsPool.find(r => r.id === rIdDirect) : null
+          if (!matchedRest && pIdStr) {
+            const pLow = pIdStr.toLowerCase()
+            matchedRest = restsPool.find(r => {
+              const sm = platformStoreMapStatic?.[r.id]
+              if (sm && (String(sm.bolt_provider_id || '') === pIdStr || String(sm.glovo_store_id || '') === pIdStr || String(sm.wolt_id || '').toLowerCase() === pLow)) return true
+              return String(r.bolt_url || '').toLowerCase().includes(pLow) ||
+                String(r.wolt_url || '').toLowerCase().includes(pLow) ||
+                String(r.glovo_url || '').toLowerCase().includes(pLow) ||
+                String(r.iiko_restaurant_id || '').toLowerCase() === pLow
+            })
+          }
+          if (!matchedRest && rNameStr) {
+            matchedRest = restsPool.find(r => {
+              const sm = platformStoreMapStatic?.[r.id]
+              return String(r.name || '').toLowerCase().includes(rNameStr) ||
+                rNameStr.includes(String(r.name || '').toLowerCase()) ||
+                (sm?.bolt_name && sm.bolt_name.toLowerCase().includes(rNameStr))
+            })
+          }
+
+          if (matchedRest) {
+            const nowIso = new Date().toISOString()
+            const reasonText = payload?.reason || payload?.message || (isOnline ? null : `STOP raportat prin webhook ${effPlat.toUpperCase()} (${rawStatusStr || 'OFFLINE'})`)
+            await supabase.from('monitoring_checks').insert({
+              restaurant_id: matchedRest.id,
+              platform: effPlat,
+              checked_at: nowIso,
+              ui_is_open: isOnline,
+              ui_can_order: isOnline,
+              ui_is_greyed: !isOnline,
+              ui_error_message: reasonText,
+              final_status: isOnline ? 'available' : 'unavailable',
+              raw_data: { source: `webhook_${platform}`, webhook_payload: payload }
+            })
+
+            const { data: openStop } = await supabase
+              .from('stop_events')
+              .select('id, stopped_at')
+              .eq('restaurant_id', matchedRest.id)
+              .eq('platform', effPlat)
+              .is('resumed_at', null)
+              .order('stopped_at', { ascending: false })
+              .limit(1)
+              .maybeSingle()
+
+            const sched = isRestaurantWorkingNow(matchedRest)
+            if (!isOnline && !openStop) {
+              await supabase.from('stop_events').insert({
+                restaurant_id: matchedRest.id,
+                platform: effPlat,
+                stopped_at: nowIso,
+                stop_type: 'full',
+                affected_product_count: 0,
+                total_product_count: 0,
+                reason: reasonText,
+                resumed_at: null,
+                duration_minutes: null,
+                estimated_loss_amount: 0
+              })
+              if (sched.isOpen) {
+                await sendTelegramStopAlert(`🔴 <b>STOP WEBHOOK (${effPlat.toUpperCase()})</b>\n📍 ${matchedRest.name} (${matchedRest.city || ''})\n⏱ ${sched.roTime} RO\n💬 ${reasonText}`)
+              }
+              stopProcessed = { action: 'stop_opened', restaurant: matchedRest.name, platform: effPlat }
+            } else if (isOnline && openStop) {
+              const durMin = Math.max(1, Math.round((Date.now() - new Date(openStop.stopped_at).getTime()) / 60000))
+              const estLoss = Number(((durMin / 60) * Number(matchedRest.revenue_per_hour || 100)).toFixed(2))
+              await supabase.from('stop_events').update({
+                resumed_at: nowIso,
+                duration_minutes: durMin,
+                estimated_loss_amount: estLoss
+              }).eq('id', openStop.id)
+              await sendTelegramStopAlert(`🟢 <b>REVENIT ONLINE (${effPlat.toUpperCase()})</b>\n📍 ${matchedRest.name} (${matchedRest.city || ''})\n⏱ Durată stop: ${durMin} min`)
+              stopProcessed = { action: 'stop_resolved', restaurant: matchedRest.name, platform: effPlat, duration_minutes: durMin }
+            } else {
+              stopProcessed = { action: isOnline ? 'already_online' : 'already_stopped', restaurant: matchedRest.name, platform: effPlat }
+            }
+            globalThis.__LIVE_CHECKS_SNAPSHOT = null
+          } else {
+            stopProcessed = { action: 'unmatched_restaurant', provider_id: pIdStr, name: rNameStr }
+          }
+        } catch (stopErr) {
+          console.warn('[NETLIFY WEBHOOK] Store stop webhook error:', stopErr.message)
+          processError = stopErr.message
+        }
+      } else if (
         platform === 'iiko' || platform.startsWith('iiko/') ||
         ['courier-status', 'kiosk', 'kitchen', 'valentin', 'courier', 'support', 'glovo', 'wolt', 'bolt'].includes(platform)
       ) {
@@ -4393,9 +4646,12 @@ export default async (req, context) => {
         status: 'ok',
         received_at: new Date().toISOString(),
         orders_processed: processedCount,
-        message: processedCount > 0
-          ? `Webhook processed successfully (${processedCount} orders ingested)`
-          : 'Webhook processed successfully'
+        stop_event: stopProcessed,
+        message: stopProcessed
+          ? `Store status processed (${stopProcessed.action})`
+          : processedCount > 0
+            ? `Webhook processed successfully (${processedCount} orders ingested)`
+            : 'Webhook processed successfully'
       }), { status: 200, headers: CORS_HEADERS })
     }
 
@@ -5266,9 +5522,9 @@ async function processIikoOrders(payload, sourcePlatform = 'iiko') {
       const cookTs = upd.whenCookingCompleted || upd.cookedAt || null
       const rawStatus = String(upd.status || '').trim()
       const upperStatus = rawStatus.toUpperCase()
-      const isDeliveredEvent = Boolean(delivTs) || upperStatus.includes('DELIVERED') || upperStatus.includes('COMPLETED') || upperStatus.includes('DROP_OFF') || upperStatus.includes('DROPOFF') || upperStatus === 'FINISHED' || upperStatus === 'DONE' || upperStatus === 'CLOSED'
+      const isDeliveredEvent = Boolean(delivTs) || upperStatus.includes('DELIVERED') || upperStatus.includes('COMPLETED') || upperStatus.includes('DROP_OFF') || upperStatus.includes('DROPOFF') || upperStatus.includes('DROPPED') || upperStatus === 'FINISHED' || upperStatus === 'DONE' || upperStatus === 'CLOSED'
       const isPickedUpEvent = Boolean(sendTs) || upperStatus.includes('PICKED UP') || upperStatus.includes('PICKED_UP') || upperStatus.includes('IN_TRANSIT') || upperStatus.includes('IN TRANSIT') || upperStatus.includes('ON_WAY') || upperStatus.includes('ON WAY') || upperStatus.includes('OUT_FOR_DELIVERY')
-      const isAtCustomerEvent = upperStatus.includes('AT CUSTOMER') || upperStatus.includes('ARRIVED')
+      const isAtCustomerEvent = upperStatus.includes('AT CUSTOMER') || upperStatus.includes('AT_CUSTOMER') || upperStatus.includes('ARRIVED') || upperStatus.includes('AT_DROPOFF')
       const nowIso = new Date().toISOString()
 
       const trackingUrl = String(upd.order_traking_url || upd.order_tracking_url || upd.tracking_url || upd.trackingUrl || cachedEntry?.trackingUrl || '').trim() || null

@@ -233,11 +233,11 @@ export default function Monitoring() {
 
       for (const [k, tz] of Object.entries(tZones)) {
         const yz = yZones[k]
-        const maxCap = (tz.platform === 'wolt' && tz.city === 'BUCURESTI') ? 4.0 : 5.5
-        const minChokeKm = (tz.platform === 'wolt' && tz.city === 'BUCURESTI') ? 2.38 : 3.2
+        const maxCap = (tz.platform === 'wolt' && tz.city === 'BUCURESTI') ? 4.0 : (tz.city === 'CLUJ-NAPOCA' ? 4.5 : 5.5)
+        const minChokeKm = (tz.platform === 'wolt' && tz.city === 'BUCURESTI') ? 2.38 : (tz.city === 'CLUJ-NAPOCA' ? 2.5 : 3.2)
         const yNorm = yz ? Math.min(maxCap, yz.active_radius_km || 0) : 0
-        const normKm = Number(Math.min(maxCap, Math.max(tz.normal_radius_km || 4.5, yNorm, Math.min(maxCap, tz.active_radius_km || 0))).toFixed(2))
-        const narrowed = Boolean(tz.orders_count >= 5 && tz.active_radius_km <= minChokeKm && tz.active_radius_km < normKm * 0.68)
+        const normKm = Number(Math.min(maxCap, Math.max(tz.normal_radius_km || 4.2, yNorm, Math.min(maxCap, tz.active_radius_km || 0))).toFixed(2))
+        const narrowed = Boolean(tz.orders_count >= 10 && tz.active_radius_km <= minChokeKm && tz.active_radius_km < normKm * 0.68)
         const nextZone = {
           ...tz,
           normal_radius_km: normKm,
@@ -1582,6 +1582,21 @@ export default function Monitoring() {
                                   <AnimatedNumber value={verifyStatus.offline} key={verifyStatus.offline} />
                                 </span>
                               </div>
+
+                              {!isVerifying && Array.isArray(verifyStatus.results) && verifyStatus.results.length > 0 && (
+                                <div className="apple-inset-card p-3 space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar">
+                                  {verifyStatus.results.slice(0, 12).map((item, idx) => (
+                                    <div key={idx} className="flex items-center justify-between gap-2 text-[11.5px]">
+                                      <span className="font-semibold text-rose-600 dark:text-rose-400 truncate">
+                                        {cleanRestaurantName(item.restaurant)} · {String(item.platform || '').toUpperCase()}
+                                      </span>
+                                      <span className="text-slate-500 dark:text-slate-400 truncate max-w-[48%] text-right">
+                                        {item.reason || item.status}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </>
                           );
                         })()}

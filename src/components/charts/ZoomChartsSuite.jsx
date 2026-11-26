@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { PieChart, Activity, Maximize2, Minimize2, LayoutGrid } from 'lucide-react'
+import { PieChart, Activity, LayoutGrid } from 'lucide-react'
 import { useLanguage } from '../../lib/LanguageContext'
 import ZoomDrilldownPie from './ZoomDrilldownPie'
 import ZoomTimeChart from './ZoomTimeChart'
@@ -8,12 +8,11 @@ export default function ZoomChartsSuite({ restaurants = [], checks = [], salesDa
   const { t: contextT } = useLanguage()
   const tr = t || contextT
   const [activeView, setActiveView] = useState('both') // 'both' | 'pie' | 'timeline'
-  const [isExpanded, setIsExpanded] = useState(false)
 
   return (
     <div className="w-full h-full flex flex-col space-y-2">
-      {/* Clean Executive Header — Compact Laptop & Ultrawide Rhythm */}
-      <div className="flex flex-wrap items-center justify-between gap-2 shrink-0">
+      {/* Clean Executive Header ABOVE the cards — 1:1 height & rhythm with CumulativeHourlyChart (no duplicate fullscreen button) */}
+      <div className="flex flex-wrap items-center justify-between gap-2 min-h-[30px] shrink-0">
         <h3 className="text-[13px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] flex items-center gap-2">
           <LayoutGrid size={15} className="text-[#047857] dark:text-[#10B981]" />
           <span>{tr('charts.suite_title', 'Analiză Operațională & Vizuală')}</span>
@@ -47,43 +46,31 @@ export default function ZoomChartsSuite({ restaurants = [], checks = [], salesDa
               <span>{tr('charts.view_timeline', 'Evoluție')}</span>
             </button>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setIsExpanded(!isExpanded)}
-            aria-label={isExpanded ? tr('charts.minimize', 'Micșorează') : tr('charts.expand', 'Extinde')}
-            title={isExpanded ? tr('charts.minimize', 'Micșorează') : tr('charts.expand', 'Extinde')}
-            className="apple-btn-secondary !w-[30px] !h-[30px] !px-0"
-          >
-            {isExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-          </button>
         </div>
       </div>
 
-      {/* Grid of Charts */}
-      <div className={`flex-1 grid gap-3 transition-all duration-300 ${
+      {/* Grid of Charts — stretches 100% height to match CumulativeHourlyChart pixel-for-pixel */}
+      <div className={`flex-1 grid gap-3 items-stretch transition-all duration-300 ${
         activeView === 'both' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'
       }`}>
         {(activeView === 'both' || activeView === 'pie') && (
-          <div className="w-full min-w-0">
+          <div className="w-full min-w-0 h-full flex flex-col">
             <ZoomDrilldownPie 
               restaurants={restaurants} 
               checks={checks} 
               salesData={salesData}
               isDark={isDark} 
-              isExpanded={isExpanded}
               t={t} 
             />
           </div>
         )}
 
         {(activeView === 'both' || activeView === 'timeline') && (
-          <div className="w-full min-w-0">
+          <div className="w-full min-w-0 h-full flex flex-col">
             <ZoomTimeChart 
               restaurants={restaurants}
               checks={checks} 
               isDark={isDark} 
-              isExpanded={isExpanded}
               t={t} 
             />
           </div>

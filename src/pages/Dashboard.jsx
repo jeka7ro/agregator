@@ -31,7 +31,8 @@ import ZoomChartsSuite from '../components/charts/ZoomChartsSuite'
 import CumulativeHourlyChart from '../components/charts/CumulativeHourlyChart'
 import AppleDateRangePicker, { formatYmdRangeDisplay } from '../components/AppleDateRangePicker'
 import { useExecutiveSales } from '../hooks/useExecutiveSales'
-import { escapeCsvCell, getRestaurantWorkingHoursStatus } from '../lib/orderUtils'
+import { getRestaurantWorkingHoursStatus } from '../lib/orderUtils'
+import { exportSheetsToExcel } from '../lib/excelExport'
 
 function KPICard({ title, online, closed = 0, total, platform, isDark, t, language = 'ro' }) {
   const isAllScheduleClosed = total > 0 && online === 0 && closed === total
@@ -132,6 +133,31 @@ function formatPeriodRange(rangeStr, lang) {
 
 const AUTHORITATIVE_BRANDS = ['Roll Master', 'Poki Woki', 'Love Sushi', 'Smash Me', 'Crunch']
 
+const DASHBOARD_PERIOD_STORAGE_KEY = 'ag_pref_dashboard_period_v1'
+const DASHBOARD_CUSTOM_RANGE_KEY = 'ag_pref_dashboard_custom_range_v1'
+
+function readSavedDashboardRange() {
+  try {
+    const raw = localStorage.getItem(DASHBOARD_CUSTOM_RANGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (parsed?.from && /^\d{4}-\d{2}-\d{2}$/.test(parsed.from)) {
+      const to = (parsed.to && /^\d{4}-\d{2}-\d{2}$/.test(parsed.to)) ? parsed.to : parsed.from
+      return { from: parsed.from, to }
+    }
+  } catch (_) { }
+  return null
+}
+
+function readSavedDashboardPeriod() {
+  try {
+    const saved = localStorage.getItem(DASHBOARD_PERIOD_STORAGE_KEY)
+    if (saved === 'custom' && readSavedDashboardRange()) return 'custom'
+    if (saved && PERIOD_OPTIONS.some(o => o.key === saved)) return saved
+  } catch (_) { }
+  return 'today'
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const { isDark } = useTheme()
@@ -145,7 +171,7 @@ export default function Dashboard() {
       if (p === 'custom' && /^\d{4}-\d{2}-\d{2}$/.test(sp.get('from') || '')) return 'custom'
       if (p && PERIOD_OPTIONS.some(o => o.key === p)) return p
     } catch (_) { }
-    return 'this_month'
+    return readSavedDashboardPeriod()
   })
 
   const [customRange, setCustomRange] = useState(() => {
@@ -156,6 +182,9 @@ export default function Dashboard() {
       if (f && /^\d{4}-\d{2}-\d{2}$/.test(f)) {
         return { from: f, to: (tVal && /^\d{4}-\d{2}-\d{2}$/.test(tVal)) ? tVal : f }
       }
+      if (!sp.get('period') && localStorage.getItem(DASHBOARD_PERIOD_STORAGE_KEY) === 'custom') {
+        return readSavedDashboardRange()
+      }
     } catch (_) { }
     return null
   })
@@ -164,12 +193,10 @@ export default function Dashboard() {
     setSelectedPeriod(periodKey)
     setCustomRange(null)
     try {
+      localStorage.setItem(DASHBOARD_PERIOD_STORAGE_KEY, periodKey)
+      localStorage.removeItem(DASHBOARD_CUSTOM_RANGE_KEY)
       const url = new URL(window.location.href)
-      if (periodKey && periodKey !== 'this_month') {
-        url.searchParams.set('period', periodKey)
-      } else {
-        url.searchParams.delete('period')
-      }
+      url.searchParams.delete('period')
       url.searchParams.delete('from')
       url.searchParams.delete('to')
       window.history.replaceState({}, '', url.toString())
@@ -179,13 +206,16 @@ export default function Dashboard() {
   const handleCustomRangeSelect = ({ from, to }) => {
     if (!from) return
     const endDay = to || from
-    setCustomRange({ from, to: endDay })
+    const nextRange = { from, to: endDay }
+    setCustomRange(nextRange)
     setSelectedPeriod('custom')
     try {
+      localStorage.setItem(DASHBOARD_PERIOD_STORAGE_KEY, 'custom')
+      localStorage.setItem(DASHBOARD_CUSTOM_RANGE_KEY, JSON.stringify(nextRange))
       const url = new URL(window.location.href)
-      url.searchParams.set('period', 'custom')
-      url.searchParams.set('from', from)
-      url.searchParams.set('to', endDay)
+      url.searchParams.delete('period')
+      url.searchParams.delete('from')
+      url.searchParams.delete('to')
       window.history.replaceState({}, '', url.toString())
     } catch (_) { }
   }
@@ -200,20 +230,36 @@ export default function Dashboard() {
         if (p === 'custom' && f && /^\d{4}-\d{2}-\d{2}$/.test(f)) {
           setCustomRange({ from: f, to: (tVal && /^\d{4}-\d{2}-\d{2}$/.test(tVal)) ? tVal : f })
           setSelectedPeriod('custom')
-        } else {
+        } else if (p && PERIOD_OPTIONS.some(o => o.key === p)) {
           setCustomRange(null)
-          setSelectedPeriod(p && PERIOD_OPTIONS.some(o => o.key === p) ? p : 'this_month')
+          setSelectedPeriod(p)
+        } else {
+          const savedP = readSavedDashboardPeriod()
+          setSelectedPeriod(savedP)
+          setCustomRange(savedP === 'custom' ? readSavedDashboardRange() : null)
         }
       } catch (_) { }
     }
+    const onStorage = (e) => {
+      if (e.key === DASHBOARD_PERIOD_STORAGE_KEY || e.key === DASHBOARD_CUSTOM_RANGE_KEY) {
+        const savedP = readSavedDashboardPeriod()
+        setSelectedPeriod(savedP)
+        setCustomRange(savedP === 'custom' ? readSavedDashboardRange() : null)
+      }
+    }
     window.addEventListener('popstate', onPopState)
-    return () => window.removeEventListener('popstate', onPopState)
+    window.addEventListener('storage', onStorage)
+    return () => {
+      window.removeEventListener('popstate', onPopState)
+      window.removeEventListener('storage', onStorage)
+    }
   }, [])
 
   useEffect(() => {
     const onGlobalReset = () => {
-      setSelectedPeriod('this_month')
-      setCustomRange(null)
+      const savedP = readSavedDashboardPeriod()
+      setSelectedPeriod(savedP)
+      setCustomRange(savedP === 'custom' ? readSavedDashboardRange() : null)
     }
     window.addEventListener('global-reset-filters', onGlobalReset)
     return () => window.removeEventListener('global-reset-filters', onGlobalReset)
@@ -495,50 +541,57 @@ export default function Dashboard() {
 
   const localeCode = language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-US' : 'ro-RO'
 
-  // Export CSV Executiv
-  const handleExportCSV = () => {
+  // Export Excel (.xlsx) Executiv — 2 sheet-uri reale: Branduri + Top Orașe
+  const handleExportExcel = async () => {
     setIsExporting(true)
     try {
-      const headers = [
-        'Brand',
-        'Locatii Active',
-        'Comenzi Perioada',
-        'Cota Rețea %',
-        'Venit Brut (RON)',
-        'Bon Mediu (RON)',
-        'Local (Kiosk/Casă) %',
-        'Delivery (Aplicații) %',
-        'Disponibilitate Live %'
-      ]
-      const escape = escapeCsvCell
+      const brandRows = brandMetrics.map((b) => ({
+        'Brand': b.name,
+        'Locații Active': Number(b.locationsCount) || 0,
+        'Comenzi Perioadă': Number(b.orders) || 0,
+        'Cotă Rețea (%)': Number(b.share) || 0,
+        'Venit Net (RON)': Number(b.revenue) || 0,
+        'Venit Brut (RON)': Number(b.grossRevenue || b.revenue) || 0,
+        'Bon Mediu (RON)': Number(b.avgTicket) || 0,
+        'Local Kiosk/Casă (%)': Number(b.localShare) || 0,
+        'Delivery Aplicații (%)': Number(b.deliveryShare) || 0,
+        'Disponibilitate Live (%)': Number(b.uptime) || 0
+      }))
 
-      const csvLines = [
-        headers.map(escape).join(','),
-        ...brandMetrics.map(b => [
-          escape(b.name),
-          b.locationsCount,
-          b.orders,
-          `${b.share}%`,
-          b.revenue,
-          b.avgTicket,
-          `${b.localShare}%`,
-          `${b.deliveryShare}%`,
-          `${b.uptime}%`
-        ].join(','))
-      ]
+      const cityRows = topCities.map((ct, idx) => ({
+        'Nr.': idx + 1,
+        'Oraș': String(ct?.city || ct?.name || ''),
+        'Comenzi': Number(ct?.count) || 0,
+        'Venit Net (RON)': Math.round(Number(ct?.revenue) || 0),
+        'Venit Brut (RON)': Math.round(Number(ct?.grossRevenue || ct?.revenue) || 0),
+        'Glovo': Number(ct?.channels?.glovo) || 0,
+        'Wolt': Number(ct?.channels?.wolt) || 0,
+        'Bolt': Number(ct?.channels?.bolt) || 0,
+        'Kiosk': Number(ct?.channels?.kiosk) || 0,
+        'Casierie': Number(ct?.channels?.casierie) || 0
+      }))
 
-      const csvContent = '\uFEFF' + csvLines.join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `raport_executiv_branduri_${selectedPeriod}_${new Date().toISOString().slice(0, 10)}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      const sheets = [
+        {
+          name: 'Matrice Branduri',
+          headers: ['Brand', 'Locații Active', 'Comenzi Perioadă', 'Cotă Rețea (%)', 'Venit Net (RON)', 'Venit Brut (RON)', 'Bon Mediu (RON)', 'Local Kiosk/Casă (%)', 'Delivery Aplicații (%)', 'Disponibilitate Live (%)'],
+          rows: brandRows
+        }
+      ]
+      if (cityRows.length > 0) {
+        sheets.push({
+          name: 'Top Orașe',
+          headers: ['Nr.', 'Oraș', 'Comenzi', 'Venit Net (RON)', 'Venit Brut (RON)', 'Glovo', 'Wolt', 'Bolt', 'Kiosk', 'Casierie'],
+          rows: cityRows
+        })
+      }
+
+      await exportSheetsToExcel(
+        sheets,
+        `raport_executiv_branduri_${selectedPeriod}_${new Date().toISOString().slice(0, 10)}.xlsx`
+      )
     } catch (err) {
-      console.error('Export CSV error:', err)
+      console.error('Export Excel error:', err)
     } finally {
       setIsExporting(false)
     }
@@ -668,12 +721,27 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ROW 1 — Adaptive Top Command Strip:
-          • Laptop / 2K (< 2050px): 5 Operational KPI Cards above 4 Sales & Period Cards
-          • 5K / 49" Ultrawide (>= 2050px): BOTH side-by-side on 1 unified edge-to-edge cockpit row! */}
-      <div className="grid grid-cols-1 min-[2050px]:grid-cols-12 gap-2.5 items-stretch">
-        {/* Operational Status KPIs (Left 5 cols on Ultrawide) */}
-        <div className="min-[2050px]:col-span-5 grid grid-cols-2 md:grid-cols-5 gap-2.5">
+      {/* ROW 1 — Adaptive Top Command Strip (Exact 50% | 50% symmetry, external section headers ABOVE cards):
+          • Laptop (< 1920px): 5 Operational KPI Cards above 4 Sales & Period Cards
+          • Wide / Fullscreen (>= 1920px): 50% Operational KPIs | 50% Sales & Channel Strip */}
+      <div className="grid grid-cols-1 3xl:grid-cols-2 gap-3 items-stretch">
+        {/* Operational Status KPIs (Left 50% on Wide/Full) */}
+        <div className="min-w-0 flex flex-col space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[30px] shrink-0">
+            <h3 className="text-[13px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] flex items-center gap-2">
+              <ShieldCheck size={15} className="text-[#047857] dark:text-[#10B981] shrink-0" />
+              <span>{language === 'ru' ? 'Статус Сети и Платформ' : language === 'en' ? 'Network & Platform Status' : 'Status Rețea & Platforme'}</span>
+            </h3>
+            <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-semibold tabular-nums ${
+              isDark ? 'bg-white/[0.06] text-[#AEAEB2]' : 'bg-black/[0.05] text-[#636366]'
+            }`}>
+              {stats.isScheduleClosed
+                ? `${stats.closedScheduleLocations}/${stats.activeRestaurants} · ${stats.scheduleLabel}`
+                : `${stats.openNowLocations || stats.activeRestaurants}/${stats.activeRestaurants} ${language === 'ru' ? 'в сети' : language === 'en' ? 'online' : 'online'}`}
+            </span>
+          </div>
+
+          <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-2.5">
           <div className={`px-3.5 py-2.5 rounded-2xl shadow-sm border flex flex-col justify-between transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
             }`}>
             <div className="flex items-center justify-between gap-2">
@@ -712,14 +780,14 @@ export default function Dashboard() {
           <KPICard title="Wolt" online={stats.health.wolt.online} closed={stats.health.wolt.closed} total={stats.health.wolt.total} platform="wolt" isDark={isDark} t={t} language={language} />
           <KPICard title="Bolt Food" online={stats.health.bolt.online} closed={stats.health.bolt.closed} total={stats.health.bolt.total} platform="bolt" isDark={isDark} t={t} language={language} />
           <KPICard title="iiko" online={stats.health.iiko.online} closed={stats.health.iiko.closed} total={stats.health.iiko.total} platform="iiko" isDark={isDark} t={t} language={language} />
+          </div>
         </div>
 
-        {/* Executive Sales & Channel Performance Strip (Right 7 cols on Ultrawide) */}
-        <div className={`min-[2050px]:col-span-7 px-3.5 py-2.5 rounded-2xl shadow-sm border flex flex-col justify-between transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-          }`}>
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5 pb-2 border-b border-black/[0.06] dark:border-white/[0.08]">
+        {/* Executive Sales & Channel Performance Strip (Right 50% on Wide/Full — title & period controls ABOVE cards) */}
+        <div className="min-w-0 flex flex-col space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 min-h-[30px] shrink-0">
           <div className="flex items-center gap-2 shrink-0">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+            <ShoppingBag size={15} className="text-[#047857] dark:text-[#10B981] shrink-0" />
             <h3 className="text-[13px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] whitespace-nowrap">
               {language === 'ru' ? 'Сводка Продаж & Каналов' : language === 'en' ? 'Sales Channels & Volume' : 'Sumar Vânzări & Canale'}
             </h3>
@@ -733,7 +801,7 @@ export default function Dashboard() {
               }
               onSelectRange={handleCustomRangeSelect}
               onSelectPreset={handlePeriodChange}
-              defaultPreset="this_month"
+              defaultPreset="today"
               align="left"
               variant="emerald"
             />
@@ -768,9 +836,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+        <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2.5">
           {/* Card 1: Total Volume */}
-          <div className={`px-3 py-2.5 rounded-xl border flex flex-col justify-between ${isDark ? 'bg-white/[0.035] border-white/[0.08]' : 'bg-[#F5F7FA] border-black/[0.05]'
+          <div className={`px-3.5 py-2.5 rounded-2xl shadow-sm border flex flex-col justify-between transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
             }`}>
             <div className="flex items-center justify-between gap-2">
               <span className="text-[11.5px] font-medium text-[#48484A] dark:text-[#AEAEB2] truncate">
@@ -799,7 +867,7 @@ export default function Dashboard() {
           </div>
 
           {/* Card 2: Local Sales (Kiosk + POS) */}
-          <div className={`px-3 py-2.5 rounded-xl border flex flex-col justify-between ${isDark ? 'bg-white/[0.035] border-white/[0.08]' : 'bg-[#F5F7FA] border-black/[0.05]'
+          <div className={`px-3.5 py-2.5 rounded-2xl shadow-sm border flex flex-col justify-between transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
             }`}>
             <div className="flex items-center justify-between gap-2">
               <span className="text-[11.5px] font-medium text-[#48484A] dark:text-[#AEAEB2] truncate">
@@ -823,7 +891,7 @@ export default function Dashboard() {
           </div>
 
           {/* Card 3: Delivery Apps */}
-          <div className={`px-3 py-2.5 rounded-xl border flex flex-col justify-between ${isDark ? 'bg-white/[0.035] border-white/[0.08]' : 'bg-[#F5F7FA] border-black/[0.05]'
+          <div className={`px-3.5 py-2.5 rounded-2xl shadow-sm border flex flex-col justify-between transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
             }`}>
             <div className="flex items-center justify-between gap-2">
               <span className="text-[11.5px] font-medium text-[#48484A] dark:text-[#AEAEB2] truncate">
@@ -847,7 +915,7 @@ export default function Dashboard() {
           </div>
 
           {/* Card 4: Average Ticket & Top Brand */}
-          <div className={`px-3 py-2.5 rounded-xl border flex flex-col justify-between ${isDark ? 'bg-white/[0.035] border-white/[0.08]' : 'bg-[#F5F7FA] border-black/[0.05]'
+          <div className={`px-3.5 py-2.5 rounded-2xl shadow-sm border flex flex-col justify-between transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
             }`}>
             <div className="flex items-center justify-between gap-2">
               <span className="text-[11.5px] font-medium text-[#48484A] dark:text-[#AEAEB2] truncate">
@@ -873,22 +941,20 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ROW 2 — Adaptive 3-Panel Visual Intelligence Cockpit:
-          • Laptop / 2K (< 2050px): Cumulative Chart full-width above 2-col ZoomChartsSuite
-          • 5K / 49" Ultrawide (>= 2050px): ALL 3 CHARTS SIDE-BY-SIDE (Cumulative | Donut | Uptime) in 1 crisp wall! */}
-      <div className="grid grid-cols-1 min-[2050px]:grid-cols-12 gap-3 items-stretch">
-        <div className="min-[2050px]:col-span-5 min-w-0 flex flex-col">
+      {/* ROW 2 — Symmetric 2-Container Charts Row (50% | 50% on Wide/Full >= 1920px):
+          • Left 50%: Total Comenzi Cumulat (header above card)
+          • Right 50%: Analiză Operațională & Vizuală (header above 2 sub-charts, 100% matched height) */}
+      <div className="grid grid-cols-1 3xl:grid-cols-2 gap-3 items-stretch">
+        <div className="min-w-0 flex flex-col">
           <CumulativeHourlyChart
             selectedPeriod={selectedPeriod}
             customRange={customRange}
-            onPeriodChange={handlePeriodChange}
-            periodOptions={PERIOD_OPTIONS}
             isDark={isDark}
             language={language}
           />
         </div>
 
-        <div className="min-[2050px]:col-span-7 min-w-0 flex flex-col">
+        <div className="min-w-0 flex flex-col">
           <ZoomChartsSuite
             restaurants={restaurants}
             checks={checks}
@@ -899,39 +965,32 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ROW 3 — Adaptive 3-Panel Executive Cockpit:
-          • Laptop / 2K (< 2050px): Brand Matrix (2 cols) + Top Cities (1 col), Alerts below
-          • 5K / 49" Ultrawide (>= 2050px): Brand Matrix (5 cols) | Top Cities (4 cols) | Live Alerts & Stop-List (3 cols) SIDE-BY-SIDE! */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 min-[2050px]:grid-cols-12 gap-3 items-stretch">
+      {/* ROW 3 — Symmetric 2-Container Executive Row directly beneath the 2 Chart Containers (50% | 50%, external section headers ABOVE cards):
+          • Laptop (lg): Brand Matrix (2/3) + Top Cities (1/3)
+          • Wide / Fullscreen (3xl): Brand Matrix (50%) | Top Cities (50%) — aligned 1:1 with Row 1 & Row 2 center seam! */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 3xl:grid-cols-2 gap-3 items-stretch">
 
-        {/* 1. Brand Executive Matrix */}
-        <div className={`lg:col-span-2 min-[2050px]:col-span-5 min-w-0 rounded-2xl shadow-sm border overflow-hidden flex flex-col transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-          }`}>
-          {/* Header */}
-          <div className={`p-3.5 border-b flex items-center justify-between gap-3 ${isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-100 bg-slate-50/60'
-            }`}>
-            <div className="flex items-center gap-2.5 min-w-0">
-              <Store size={17} className="text-[#047857] dark:text-[#34D399] shrink-0" />
-              <div className="min-w-0">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                  {t('dashboard.brand_matrix_title', 'Matrice Executivă de Performanță pe Branduri')}
-                </h3>
-                <p className="text-[11.5px] text-slate-500 dark:text-slate-400 truncate">
-                  {t('dashboard.brand_matrix_subtitle', 'Comparație volum, încasări, canal local vs delivery și disponibilitate în rețea')}
-                </p>
-              </div>
-            </div>
+        {/* 1. Brand Executive Matrix (Left 50% on 3xl, 2/3 on lg — external header ABOVE card) */}
+        <div className="lg:col-span-2 3xl:col-span-1 min-w-0 flex flex-col space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[30px] shrink-0">
+            <h3 className="text-[13px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] flex items-center gap-2 min-w-0 truncate">
+              <Store size={15} className="text-[#047857] dark:text-[#10B981] shrink-0" />
+              <span className="truncate">{t('dashboard.brand_matrix_title', 'Matrice Executivă de Performanță pe Branduri')}</span>
+            </h3>
 
             <button
-              onClick={handleExportCSV}
+              onClick={handleExportExcel}
               disabled={isExporting}
-              className="apple-btn-secondary !h-7 !px-3 !text-[11px] !text-[#047857] dark:!text-[#34D399] shrink-0"
-              title="Exportă Raport Executiv CSV"
+              className="apple-btn-secondary !h-[28px] !px-3 !text-[11px] !text-[#047857] dark:!text-[#34D399] shrink-0"
+              title={language === 'ru' ? 'Экспорт отчета в Excel (.xlsx)' : language === 'en' ? 'Export Executive Report to Excel (.xlsx)' : 'Exportă Raport Executiv Excel (.xlsx)'}
             >
               {isExporting ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-              <span>CSV</span>
+              <span>Excel</span>
             </button>
           </div>
+
+          <div className={`flex-1 min-w-0 rounded-2xl shadow-sm border overflow-hidden flex flex-col transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+            }`}>
 
           {/* Tabel Matrice Branduri — 100% în fereastră, fără scroll orizontal pe laptop */}
           <div className="overflow-x-auto custom-scrollbar">
@@ -1045,29 +1104,34 @@ export default function Dashboard() {
               </tbody>
             </table>
           </div>
+          </div>
         </div>
 
-        {/* 2. Top Orașe & Hub-uri Regionale */}
-        <div className={`min-[2050px]:col-span-4 min-w-0 rounded-2xl shadow-sm border overflow-hidden flex flex-col max-h-[520px] min-[2050px]:max-h-[430px] transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-          }`}>
-          {/* Header */}
-          <div className={`p-3.5 border-b flex items-center justify-between gap-2 ${isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-100 bg-slate-50/60'
+        {/* 2. Top Orașe & Hub-uri Regionale (Right 50% on 3xl, 1/3 on lg — external header ABOVE card matching Brand Matrix 1:1) */}
+        <div className="lg:col-span-1 3xl:col-span-1 min-w-0 flex flex-col space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[30px] shrink-0">
+            <h3 className="text-[13px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] flex items-center gap-2 min-w-0 truncate">
+              <MapPin size={15} className="text-[#047857] dark:text-[#10B981] shrink-0" />
+              <span className="truncate">{t('dashboard.geo_matrix_title', 'Top Orașe & Hub-uri de Vânzări')}</span>
+            </h3>
+            <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-semibold tabular-nums shrink-0 ${
+              isDark ? 'bg-white/[0.06] text-[#AEAEB2]' : 'bg-black/[0.05] text-[#636366]'
             }`}>
-            <div className="flex items-center gap-2 min-w-0">
-              <MapPin size={16} className="text-[#047857] dark:text-[#34D399] shrink-0" />
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                {t('dashboard.geo_matrix_title', 'Top Orașe & Hub-uri de Vânzări')}
-              </h3>
-            </div>
-            <span className="text-[11px] font-bold text-slate-400 shrink-0 tabular-nums">
               {salesData?.cities?.length || 0} {t('common.locations', 'orașe')}
             </span>
           </div>
 
-          {/* Listă orașe */}
-          <div className={`divide-y flex-1 overflow-y-auto ${isDark ? 'divide-slate-800/80' : 'divide-slate-100'}`}>
+          <div className={`flex-1 min-w-0 rounded-2xl shadow-sm border overflow-hidden flex flex-col max-h-[520px] 3xl:max-h-[380px] transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+            }`}>
+
+          {/* Listă orașe — 2 coloane echilibrate pe 3xl când sunt >= 2 orașe */}
+          <div className={`flex-1 overflow-y-auto custom-scrollbar ${
+            topCities.length >= 2
+              ? `grid grid-cols-1 3xl:grid-cols-2 content-start ${isDark ? 'bg-slate-800/40 gap-px' : 'bg-slate-100/90 gap-px'}`
+              : `divide-y ${isDark ? 'divide-slate-800/80' : 'divide-slate-100'}`
+          }`}>
             {topCities.length === 0 ? (
-              <div className="p-6 text-center text-xs text-slate-400 font-medium">
+              <div className="col-span-full p-6 text-center text-xs text-slate-400 font-medium">
                 {t('dashboard.no_records_found', 'Date indisponibile pentru perioada selectată.')}
               </div>
             ) : (
@@ -1078,7 +1142,7 @@ export default function Dashboard() {
                 const cityShare = Math.round(((ct?.revenue || 0) / totalRev) * 100) || 0
 
                 return (
-                  <div key={cityName || idx} className="px-3.5 py-2.5 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors min-w-0">
+                  <div key={cityName || idx} className={`px-3.5 py-2.5 transition-colors min-w-0 ${isDark ? 'bg-slate-900 hover:bg-slate-800/50' : 'bg-white hover:bg-slate-50/70'}`}>
                     <div className="flex items-start justify-between gap-2 mb-1.5 min-w-0">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0 ${idx === 0
@@ -1148,11 +1212,13 @@ export default function Dashboard() {
               })
             )}
           </div>
+          </div>
         </div>
+      </div>
 
-        {/* 3. Centru de Alertă & Excepții Operaționale + Stop-List (Right 3 cols on 5K Ultrawide, full-width below on Laptop/2K) */}
-        <div className="lg:col-span-3 min-[2050px]:col-span-3 min-w-0 flex flex-col gap-3">
-      <div className={`p-4 rounded-2xl shadow-sm border flex-1 transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+      {/* ROW 4 — Centru de Alertă & Excepții Operaționale + Stop-List iiko (Full-width simetric, sau 50% | 50% pe 3xl când există și Stop-List) */}
+      <div className={`grid grid-cols-1 gap-3 items-stretch ${stats.topMissing.length > 0 ? '3xl:grid-cols-2' : ''}`}>
+      <div className={`p-4 rounded-2xl shadow-sm border flex flex-col justify-center transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
         }`}>
         {operationalExceptions.length === 0 ? (
           stats.isScheduleClosed ? (
@@ -1353,7 +1419,6 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-        </div>
       </div>
 
       {/* Modal Dosar Tehnic */}

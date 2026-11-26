@@ -30,7 +30,8 @@ import BrandAvatar, { cleanRestaurantName } from '../components/BrandAvatar'
 import PlatformLogo from '../components/PlatformLogo'
 import AppleDateRangePicker, { formatYmdRangeDisplay, translateRoDateRange } from '../components/AppleDateRangePicker'
 import { getProductImage } from '../lib/productImages'
-import { getCanonicalCity, escapeCsvCell } from '../lib/orderUtils'
+import { getCanonicalCity } from '../lib/orderUtils'
+import { exportSheetsToExcel } from '../lib/excelExport'
 import { getApiUrl } from '../lib/api'
 import { supabase } from '../lib/supabaseClient'
 
@@ -199,15 +200,26 @@ export default function Reports() {
   // Main Tabs: 'analytics' (Executive Suite) vs 'audit' (Scan Logs)
   const [activeTab, setActiveTab] = useState('analytics')
 
-  // Period Selector for Analytics
+  // Period Selector for Analytics — remembers client choice in localStorage across navigation & reloads
+  const REPORTS_PERIOD_KEY = 'ag_pref_reports_period_v1'
+  const REPORTS_RANGE_KEY = 'ag_pref_reports_custom_range_v1'
+
   const [period, setPeriod] = useState(() => {
     try {
       const sp = new URLSearchParams(window.location.search)
       const p = sp.get('period')
       if (p === 'custom' && /^\d{4}-\d{2}-\d{2}$/.test(sp.get('from') || '')) return 'custom'
       if (p) return p
+      const saved = localStorage.getItem(REPORTS_PERIOD_KEY)
+      if (saved === 'custom') {
+        const rawR = localStorage.getItem(REPORTS_RANGE_KEY)
+        const parsedR = rawR ? JSON.parse(rawR) : null
+        if (parsedR?.from && /^\d{4}-\d{2}-\d{2}$/.test(parsedR.from)) return 'custom'
+      } else if (saved) {
+        return saved
+      }
     } catch (_) { }
-    return 'this_week'
+    return 'today'
   })
   const [customRange, setCustomRange] = useState(() => {
     try {
@@ -216,6 +228,13 @@ export default function Reports() {
       const tVal = sp.get('to') || f
       if (f && /^\d{4}-\d{2}-\d{2}$/.test(f)) {
         return { from: f, to: (tVal && /^\d{4}-\d{2}-\d{2}$/.test(tVal)) ? tVal : f }
+      }
+      if (!sp.get('period') && localStorage.getItem(REPORTS_PERIOD_KEY) === 'custom') {
+        const rawR = localStorage.getItem(REPORTS_RANGE_KEY)
+        const parsedR = rawR ? JSON.parse(rawR) : null
+        if (parsedR?.from && /^\d{4}-\d{2}-\d{2}$/.test(parsedR.from)) {
+          return { from: parsedR.from, to: (parsedR.to && /^\d{4}-\d{2}-\d{2}$/.test(parsedR.to)) ? parsedR.to : parsedR.from }
+        }
       }
     } catch (_) { }
     return null
@@ -294,9 +313,10 @@ export default function Reports() {
     setPeriod(p)
     setCustomRange(null)
     try {
+      if (p) localStorage.setItem(REPORTS_PERIOD_KEY, p)
+      localStorage.removeItem(REPORTS_RANGE_KEY)
       const url = new URL(window.location.href)
-      if (p && p !== 'all') url.searchParams.set('period', p)
-      else url.searchParams.delete('period')
+      url.searchParams.delete('period')
       url.searchParams.delete('from')
       url.searchParams.delete('to')
       window.history.replaceState({}, '', url.toString())
@@ -306,13 +326,16 @@ export default function Reports() {
   const handleSelectCustomRange = ({ from, to }) => {
     if (!from) return
     const endDay = to || from
-    setCustomRange({ from, to: endDay })
+    const nextRange = { from, to: endDay }
+    setCustomRange(nextRange)
     setPeriod('custom')
     try {
+      localStorage.setItem(REPORTS_PERIOD_KEY, 'custom')
+      localStorage.setItem(REPORTS_RANGE_KEY, JSON.stringify(nextRange))
       const url = new URL(window.location.href)
-      url.searchParams.set('period', 'custom')
-      url.searchParams.set('from', from)
-      url.searchParams.set('to', endDay)
+      url.searchParams.delete('period')
+      url.searchParams.delete('from')
+      url.searchParams.delete('to')
       window.history.replaceState({}, '', url.toString())
     } catch (_) { }
   }
@@ -718,8 +741,8 @@ export default function Reports() {
     } catch (_) { }
   }
 
-  // Export CSV for Audit Logs
-  const handleExportCSV = async () => {
+  // Export real Excel (.xlsx) for Audit Logs
+  const handleExportExcel = async () => {
     setIsExporting(true)
     try {
       let exportRows = auditData
@@ -741,40 +764,29 @@ export default function Reports() {
         }
       } catch { }
 
-      const headers = [
-        t('reports.th_nr', 'Nr.'),
-        t('reports.th_datetime', 'Data si Ora'),
-        t('reports.th_city', 'Oras'),
-        t('reports.th_location', 'Restaurant'),
-        t('reports.th_platform', 'Platforma'),
-        t('reports.th_status', 'Status'),
-        t('reports.th_diagnostic', 'Diagnostic')
-      ]
+      const hNr = t('reports.th_nr', 'Nr.')
+      const hDt = t('reports.th_datetime', 'Data și Ora')
+      const hCity = t('reports.th_city', 'Oraș')
+      const hLoc = t('reports.th_location', 'Restaurant')
+      const hPlat = t('reports.th_platform', 'Platformă')
+      const hStat = t('reports.th_status', 'Status')
+      const hDiag = t('reports.th_diagnostic', 'Diagnostic')
+      const headers = [hNr, hDt, hCity, hLoc, hPlat, hStat, hDiag]
 
-      const escapeCSV = escapeCsvCell
+      const rows = exportRows.map((row, idx) => ({
+        [hNr]: idx + 1,
+        [hDt]: formatDate(row.checked_at),
+        [hCity]: row.restaurants?.city || '-',
+        [hLoc]: cleanRestaurantName(row.restaurants?.name) || '-',
+        [hPlat]: row.platform || '-',
+        [hStat]: row.final_status === 'available' || row.final_status === 'open' ? 'Online' : 'Oprit',
+        [hDiag]: row.ui_error_message || '-'
+      }))
 
-      const csvLines = [
-        headers.map(escapeCSV).join(','),
-        ...exportRows.map((row, idx) => [
-          idx + 1,
-          escapeCSV(formatDate(row.checked_at)),
-          escapeCSV(row.restaurants?.city || '-'),
-          escapeCSV(cleanRestaurantName(row.restaurants?.name) || '-'),
-          escapeCSV(row.platform || '-'),
-          escapeCSV(row.final_status === 'available' || row.final_status === 'open' ? 'Online' : 'Oprit'),
-          escapeCSV(row.ui_error_message || '-')
-        ].join(','))
-      ]
-
-      const blob = new Blob(['\uFEFF' + csvLines.join('\r\n')], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `raport_audit_${new Date().toISOString().slice(0, 10)}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      await exportSheetsToExcel(
+        [{ name: 'Audit Scanări', headers, rows }],
+        `raport_audit_${new Date().toISOString().slice(0, 10)}.xlsx`
+      )
     } finally {
       setIsExporting(false)
     }
@@ -1336,7 +1348,7 @@ export default function Reports() {
               </div>
 
               {/* ROW 4: Bestselling Products (de sus în jos) & Workpoints Matrix */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 min-[2050px]:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 3xl:grid-cols-2 gap-4">
 
                 {/* Left: Top Produse (Bestsellers de sus în jos) */}
                 <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col">
@@ -1512,7 +1524,7 @@ export default function Reports() {
 
             <div className="flex items-center gap-2.5">
               <button
-                onClick={handleExportCSV}
+                onClick={handleExportExcel}
                 disabled={isExporting || (loadingAudit && auditData.length === 0)}
                 className="px-4 h-9 rounded-full text-xs font-bold border transition-colors flex items-center gap-2 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800/60 dark:text-emerald-400"
               >

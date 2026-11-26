@@ -2355,10 +2355,12 @@ export default function Dispatch() {
             textClass: 'text-amber-600 dark:text-amber-400'
           },
           {
-            label: selectedOrder.timings?.closed_at_handoff
-              ? (language === 'ru' ? 'Выдан' : language === 'en' ? 'Handoff' : 'Predat')
-              : (language === 'ru' ? 'Доставлен' : language === 'en' ? 'Delivered' : 'Livrat'),
-            time: selectedOrder.timings?.delivered_time || null,
+            label: selectedOrder.timings?.unconfirmed_courier_delivery && selectedOrder.stage === 'delivered'
+              ? (language === 'ru' ? 'Закрыт iiko' : language === 'en' ? 'iiko Closed' : 'Închis iiko')
+              : selectedOrder.timings?.closed_at_handoff
+                ? (language === 'ru' ? 'Выдан' : language === 'en' ? 'Handoff' : 'Predat')
+                : (language === 'ru' ? 'Доставлен' : language === 'en' ? 'Delivered' : 'Livrat'),
+            time: selectedOrder.stage === 'delivered' ? (selectedOrder.timings?.delivered_time || null) : null,
             dotClass: 'bg-emerald-500',
             textClass: 'text-emerald-600 dark:text-emerald-400'
           }
@@ -2650,6 +2652,19 @@ export default function Dispatch() {
                               <div className="text-[11.5px] text-slate-500 dark:text-slate-400">
                                 {language === 'ru' ? 'Статус:' : language === 'en' ? 'Status:' : 'Status:'}{' '}
                                 <strong className="font-semibold text-amber-600 dark:text-amber-400">{selectedOrder.courier.status}</strong>
+                              </div>
+                            )}
+                            {selectedOrder.timings?.unconfirmed_courier_delivery && (
+                              <div className={`mt-1.5 px-2 py-1 rounded-lg text-[10.5px] leading-snug border ${
+                                isDark
+                                  ? 'bg-amber-950/30 border-amber-800/50 text-amber-300'
+                                  : 'bg-amber-50 border-amber-200/80 text-amber-800'
+                              }`}>
+                                {language === 'ru'
+                                  ? `${selectedOrder.courier.company || 'Курьер'} не передаёт авто-статус «Доставлен» — точный статус по Live-трекингу.`
+                                  : language === 'en'
+                                    ? `${selectedOrder.courier.company || 'Courier'} does not push a Delivered webhook — check Live Tracking for real-time status.`
+                                    : `${selectedOrder.courier.company || 'Curierul'} nu trimite confirmare automată „Livrat” — verifică link-ul Live-tracking.`}
                               </div>
                             )}
                             {selectedOrder.courier.deliveryFee && (

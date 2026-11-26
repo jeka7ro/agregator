@@ -1913,7 +1913,7 @@ export default function CouriersMap() {
           className={`${
             isMapFullscreen
               ? 'fixed inset-3 z-[9995] shadow-2xl'
-              : 'relative lg:col-span-8 min-[2050px]:col-span-9 h-[calc(100vh-195px)] min-h-[440px] max-h-[1400px]'
+              : 'relative lg:col-span-8 3xl:col-span-9 h-[calc(100vh-195px)] min-h-[440px] max-h-[1400px]'
           } rounded-2xl border overflow-hidden flex flex-col ${
             isDark ? 'bg-slate-900 border-slate-800 couriers-map-dark' : 'bg-white border-slate-200 shadow-xs'
           }`}
@@ -2027,7 +2027,7 @@ export default function CouriersMap() {
         </div>
 
         {/* Panou lateral adaptat exact la înălțimea hărții pe laptop */}
-        <div className={`lg:col-span-4 min-[2050px]:col-span-3 rounded-2xl border flex flex-col h-[calc(100vh-195px)] min-h-[440px] max-h-[1400px] overflow-hidden ${
+        <div className={`lg:col-span-4 3xl:col-span-3 rounded-2xl border flex flex-col h-[calc(100vh-195px)] min-h-[440px] max-h-[1400px] overflow-hidden ${
           isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
         }`}>
           <div className={`px-3.5 py-2.5 border-b flex items-center justify-between ${

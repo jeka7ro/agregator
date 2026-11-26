@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+@theme {
+  --breakpoint-3xl: 120rem; /* 1920px — ordered strictly AFTER 2xl (96rem) in Tailwind v4 */
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ============================================================================
@@ -55,8 +59,9 @@
     0 0 0 0.5px rgba(0, 0, 0, 0.09),
     0 16px 40px -12px rgba(15, 23, 42, 0.22);
 
-  /* Apple macOS Tahoe Segmented Control */
-  --apple-seg-track: rgba(118, 118, 128, 0.12);
+  /* Apple macOS Tahoe Segmented Control — crisp alabaster surface matching search bar (slate-50 / slate-200) */
+  --apple-seg-track: #F8FAFC;
+  --apple-seg-border: #E2E8F0;
   --apple-seg-thumb: #FFFFFF;
   --apple-seg-thumb-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.05);
 
@@ -112,8 +117,9 @@ html.dark {
     0 0 0 0.5px rgba(255, 255, 255, 0.14),
     0 18px 46px -10px rgba(0, 0, 0, 0.75);
 
-  /* Apple Segmented Control Dark */
-  --apple-seg-track: rgba(118, 118, 128, 0.24);
+  /* Apple Segmented Control Dark — clean slate surface matching search bar */
+  --apple-seg-track: rgba(30, 41, 59, 0.72);
+  --apple-seg-border: rgba(255, 255, 255, 0.10);
   --apple-seg-thumb: #3A3A3C;
   --apple-seg-thumb-shadow: 0 1px 3px rgba(0, 0, 0, 0.40), inset 0 0.5px 0 rgba(255, 255, 255, 0.14);
 
@@ -222,6 +228,7 @@ td, th {
   padding: 3px;
   border-radius: 9999px;
   background-color: var(--apple-seg-track);
+  border: 1px solid var(--apple-seg-border);
 }
 
 .apple-segment {

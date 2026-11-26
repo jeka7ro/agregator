@@ -83,7 +83,9 @@ export default function OrderDetailsModal({ order, isOpen, onClose }) {
   const cookedTime = timings.cooking_completed_time || extractTimeStr(timings.whenCookingCompleted || timings.when_cooking_completed)
   const sendedTime = timings.sended_time || extractTimeStr(timings.whenSended || timings.when_sended)
   const arrivedTime = timings.arrived_at_customer_time || extractTimeStr(timings.whenArrivedAtCustomer || timings.when_arrived_at_customer)
-  const deliveredTime = timings.delivered_time || extractTimeStr(timings.realDeliveredAt || timings.real_delivered_at || timings.whenDelivered || timings.when_delivered || timings.whenClosed || timings.when_closed)
+  const deliveredTime = order.stage && order.stage !== 'delivered'
+    ? null
+    : (timings.delivered_time || extractTimeStr(timings.realDeliveredAt || timings.real_delivered_at || timings.whenDelivered || timings.when_delivered || timings.whenClosed || timings.when_closed))
   const hasCourierDelivTime = Boolean(timings.has_courier_delivery_time || timings.real_delivered_at || timings.realDeliveredAt)
   const customerInfo = order.customer || meta.customer || (meta.customerName ? { name: meta.customerName, phone: meta.customerPhone, address: meta.customerAddress } : null)
   const courierInfo = order.courier || meta.courier || (meta.courierName ? { name: meta.courierName, phone: meta.courierPhone } : null)

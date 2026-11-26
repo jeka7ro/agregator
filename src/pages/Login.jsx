@@ -151,10 +151,15 @@ export default function Login() {
           )
         })
       } else if (res.user) {
-        // Warm up Dashboard chunk + API data in parallel while React Router transitions
+        // Warm up Dashboard chunk + API data in parallel for the user's preferred saved period
         preloadDashboard().catch(() => {})
         prefetchLiveChecks()
-        prefetchExecutiveSales(res.user, 'this_month', 5000)
+        let prefPeriod = 'today'
+        try {
+          const savedP = localStorage.getItem('ag_pref_dashboard_period_v1')
+          if (savedP && savedP !== 'custom') prefPeriod = savedP
+        } catch (_) {}
+        prefetchExecutiveSales(res.user, prefPeriod, 5000)
       }
     } catch (err) {
       let msg = err.message || ''

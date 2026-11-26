@@ -418,7 +418,7 @@ export default function ZoomDrilldownPie({ restaurants = [], checks = [], salesD
     <div 
       ref={containerRef}
       onMouseMove={handleMouseMove}
-      className={`relative p-3.5 rounded-2xl border shadow-sm flex flex-col justify-between transition-all select-none overflow-hidden ${isExpanded ? 'h-[540px]' : 'h-[430px]'} ${
+      className={`relative p-3.5 rounded-2xl border shadow-sm flex-1 flex flex-col justify-between transition-all select-none overflow-hidden ${isExpanded ? 'min-h-[540px]' : 'min-h-[430px]'} h-full ${
         isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
       }`}
     >

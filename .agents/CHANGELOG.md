@@ -1,5 +1,118 @@
 # Jurnal de modificări (Antigravity ↔ Paperclip)
 
+### 2026-11-26 16:05 — Monitorizare 100% REALĂ Live (Wolt + Bolt + Glovo fără Puppeteer), Cron Automat la 5 Minute, Webhook Stopuri Valentin, Fix `stop_audit_log` & Calibrare Rază Cluj
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - Rezolvat complet toate problemele identificate la auditul de monitorizare și raportate de Igor (`msg_75–84` + Cluj + Târgu Mureș):
+  - **Engine comun pure-HTTP fără Puppeteer (`0 €`, ~145/152 canale live reale):** creat [live-platform-checkers.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/lib/live-platform-checkers.js) și tabelul verificat [platform-store-map.json](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/data/platform-store-map.json) (**50/50 Wolt** slug-uri via `restaurant-api.wolt.com` + `consumer-api.wolt.com/.../dynamic/`, **50/50 Bolt** integer `provider_id` via `deliveryuser.live.boltsvc.net` `cityWideSearch` + `getProviderAvailabilityStatus`, **Glovo** SSR + `api.glovoapp.com/v3/stores` pentru București + fix `corbeanca` pentru Balotești).
+  - Migrat [wolt-checker.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/checkers/wolt-checker.js), [bolt-checker.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/checkers/bolt-checker.js) și [glovo-checker.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/checkers/glovo-checker.js) pe engine-ul real HTTP — eliminat 100% falsele pozitive `available` pe shell-ul Bolt de 7KB și pe paginile 404/WAF Wolt & Glovo.
+  - **Buton real „Verifică Status” (`POST /api/check-all`) + eliminat timestamp fals `Acum`:** în [netlify/functions/api.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/netlify/functions/api.js) și [workers/src/api-server.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/api-server.js), butonul execută acum scanarea live reală, scrie rezultatele în Supabase (`monitoring_checks` + `stop_events`), numără real `closed`/`unavailable` în `Canale Oprite` și afișează lista canalelor oprite în [Monitoring.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Monitoring.jsx).
+  - **Auto-scanare la fiecare 5 minute + alerte Telegram la STOP:** creat Netlify Scheduled Function [monitor-cron.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/netlify/functions/monitor-cron.js) (`*/5 * * * *`, activ 10:00–22:00 RO) + actualizat [workers/src/index.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/index.js) și [netlify.toml](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/netlify.toml).
+  - **Webhook stopuri Valentin pe producție (`POST /api/webhooks/bolt`, `/wolt`, `/glovo`, `/valentin`):** adăugat suport complet în `netlify/functions/api.js` pentru a primi direct notificări de STOP/REVENIRE de la Valentin în `monitoring_checks`, `stop_events` și Telegram.
+  - **Eliminat cifrele simulate (`charCodeAt` → `10 чеков / 20 мин / 37 мин`) din `stop_audit_log`** în ambele backend-uri (calcul real din comenzile iiko din momentul stopului, `0` dacă chiar erau 0 comenzi).
+  - **Calibrat raza de livrare Cluj-Napoca (`4.2 km` normă, prag minim `>= 10` comenzi)** în ambele backend-uri și în `Monitoring.jsx` ca să nu mai aprindă alarme roșii premature în prima parte a zilei.
+- **Fișiere:** `lib/live-platform-checkers.js`, `data/platform-store-map.json`, `netlify/functions/monitor-cron.js`, `netlify.toml`, `netlify/functions/api.js`, `workers/src/api-server.js`, `workers/src/index.js`, `workers/src/checkers/wolt-checker.js`, `workers/src/checkers/bolt-checker.js`, `workers/src/checkers/glovo-checker.js`, `src/pages/Monitoring.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, așteaptă aprobare push & deploy)
+- **Build / Teste:** Verificat live E2E (`POST /api/check-all`, `stop_audit_log`, `delivery_zones`), `node --check` 8/8 OK, `npm run build` OK + `run_prepush_audit.py`.
+
+### 2026-11-26 14:22 — Fix Status Fals „Livrat” pentru Curieri Activi (Wolt Drive `INFO_RECEIVED` + Glovo `ORDER DELAYED` / `COURIER AT RESTAURANT`)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - Rezolvat bug-ul semnalat de Igor pe Telegram (`msg_59` / `msg_60`, comanda `#27219 BUC CORA`): închiderea prematură a bonului în iiko POS (la ~3 min după predare) marca fals comenzile **Wolt Drive (`INFO_RECEIVED`)** și **Glovo (`ORDER DELAYED` / `COURIER AT RESTAURANT`)** drept `Livrat / Доставлен` cu timp fals (`4m`) și bară verde `100%`, deși pe live-tracking curierul abia pleca spre client.
+  - Implementat paritate `1:1` în [api-server.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/api-server.js) și [api.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/netlify/functions/api.js):
+    - Introdus rang monotonic `getCourierStatusRank()` pentru a nu mai pierde actualizările intermediare de status (`INFO_RECEIVED` → `AT RESTAURANT` → `PICKED UP` / `DELAYED` → `AT CUSTOMER` → `DELIVERED`).
+    - Comenzile cu status activ de curier (`ORDER DELAYED`, `COURIER AT RESTAURANT`, `ASSIGNED`, `PICKED UP`, `AT CUSTOMER`) nu mai preiau `whenDelivered` / `whenClosed` din iiko POS (rămân corect în `ready` sau `on_way`).
+    - Comenzile **Wolt Drive (`INFO_RECEIVED`, fără webhook `ORDER DELIVERED` de la middleware)** rămân activ în `on_way` pe fereastra live de livrare (`< 35 min` de la predare, fără oră falsă `Доставлен` și fără `4m` falși în KPI), apoi sunt marcate onest `Închis iiko` (`closed_at_handoff: true`, `unconfirmed_courier_delivery: true`).
+    - Aliniat parser-ul de webhook-uri în `workers/src/api-server.js` cu `netlify/functions/api.js` (recunoaște inclusiv `ORDER DELIVERED`, `DROPPED_OFF`, `ORDER PICKED UP`, `AT_DROPOFF`).
+  - Afișat notă transparentă în modalul din [Dispatch.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dispatch.jsx) și curățat `deliveredTime` pentru comenzi active în [OrderDetailsModal.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/OrderDetailsModal.jsx).
+- **Fișiere:** `workers/src/api-server.js`, `netlify/functions/api.js`, `src/pages/Dispatch.jsx`, `src/components/OrderDetailsModal.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, așteaptă aprobare push & deploy)
+- **Build / Teste:** `node --check` OK pe ambele backend-uri, test live pe `#27219` / `#24358` / `#24359`, `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-25 11:58 — Aliniere Culoare Filtre (`.apple-segmented`) cu Bara de Căutare (`#F8FAFC` + `#E2E8F0`)
+- **Autor:** Antigravity
+- **Ce s-a făcut:** Înlocuit fundalul gri închis (`rgba(118, 118, 128, 0.12)`) al tuturor barelor de filtre `.apple-segmented` din [index.css](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/index.css) cu același gri curat deschis și contur fin ca al barei de căutare (`#F8FAFC` / `1px solid #E2E8F0` în Light Mode, `rgba(30, 41, 59, 0.72)` / `rgba(255, 255, 255, 0.10)` în Dark Mode; contrast WCAG AAA `8.7:1` Light / `7.1:1` Dark).
+- **Fișiere:** `src/index.css`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, live pe `http://localhost:5174`, așteaptă aprobare push & deploy)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-25 10:40 — Export Real Excel (`.xlsx`) Peste Tot în Aplicație (Înlocuit Toate Exporturile CSV)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - Creat helper-ul lazy-loaded [excelExport.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/lib/excelExport.js) (`await import('xlsx')`, `0 KB` în bundle-ul inițial) care generează fișiere binare reale **Excel `.xlsx`** (SheetJS) cu celule numerice native, protecție împotriva formula injection și lățimi auto-fit pe coloane (`!cols`).
+  - Migrat toate cele 3 exporturi rămase din CSV → **Excel (`.xlsx`)**:
+    - [Dashboard.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dashboard.jsx): buton `Excel` cu workbook pe 2 sheet-uri (`Matrice Branduri` + `Top Orașe`).
+    - [Customers.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Customers.jsx): buton `Export Excel` (`clienti_*.xlsx`) cu coloane numerice reale pentru comenzi, recenzii, total cheltuit și bon mediu.
+    - [Reports.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Reports.jsx): buton `Export Excel` (`raport_audit_*.xlsx`) pentru jurnalul de audit scanări.
+  - Actualizat etichetele și traducerile din CSV → Excel în [translations.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/lib/translations.js) (`ro`, `en`, `ru`).
+- **Fișiere:** `src/lib/excelExport.js`, `src/pages/Dashboard.jsx`, `src/pages/Customers.jsx`, `src/pages/Reports.jsx`, `src/lib/translations.js`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, live pe `http://localhost:5174`, așteaptă aprobare push & deploy)
+- **Build / Teste:** Test binar `.xlsx` cu SheetJS (verificat header ZIP `PK` + re-citire sheet-uri și tipuri numerice), `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-25 10:36 — Persistență Reală pentru Perioada Aleasă & Tema Light/Dark (Strict Alegerea Clientului)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - **Persistență perioadă aleasă de client (`localStorage` + sync multi-tab):**
+    - [Dashboard.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dashboard.jsx): salvează automat perioada selectată (`ag_pref_dashboard_period_v1`) și intervalul custom (`ag_pref_dashboard_custom_range_v1`), păstrându-le la navigare între pagini, refresh, redeschidere browser și login/logout (fără a mai reseta la `Luna Curentă`; fallback inițial pe prima vizită: `Azi`).
+    - [Reports.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Reports.jsx): salvează și restaurează perioada + intervalul custom (`ag_pref_reports_period_v1` / `ag_pref_reports_custom_range_v1`).
+    - [CumulativeHourlyChart.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/CumulativeHourlyChart.jsx): memorează și modul de comparație + metrica (`RON + Cmd` / `RON` / `Comenzi`).
+    - [Login.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Login.jsx): preîncarcă datele exact pentru perioada preferată salvată a clientului.
+  - **Persistență curată pentru Tema Light/Dark ([ThemeContext.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/lib/ThemeContext.jsx), [index.html](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/index.html)):**
+    - Trecut pe cheia dedicată `app-theme-user-v3` (ignorând vechea cheie `app-theme-v2` unde codul vechi de dinainte de 23 nov scrisese automat `'dark'` la prima deschidere chiar dacă clientul nu apăsase pe toggle).
+    - Nu mai suprascrie `localStorage` la mount — salvează `'dark'` sau `'light'` **exclusiv când clientul apasă butonul de temă**, pornind implicit în Light Mode și sincronizând instant alegerea între toate tab-urile deschise.
+- **Fișiere:** `index.html`, `src/lib/ThemeContext.jsx`, `src/pages/Dashboard.jsx`, `src/pages/Reports.jsx`, `src/components/charts/CumulativeHourlyChart.jsx`, `src/pages/Login.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, live pe `http://localhost:5174`, așteaptă aprobare push & deploy)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-25 10:36 — Persistență Reală pentru Perioada Aleasă & Tema Light/Dark (Strict Alegerea Clientului)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - **Persistență perioadă aleasă de client (`localStorage` + sync multi-tab):**
+    - [Dashboard.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dashboard.jsx): salvează automat perioada selectată (`ag_pref_dashboard_period_v1`) și intervalul custom (`ag_pref_dashboard_custom_range_v1`), păstrându-le la navigare între pagini, refresh, redeschidere browser și login/logout (fără a mai reseta la `Luna Curentă`; fallback inițial pe prima vizită: `Azi`).
+    - [Reports.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Reports.jsx): salvează și restaurează perioada + intervalul custom (`ag_pref_reports_period_v1` / `ag_pref_reports_custom_range_v1`).
+    - [CumulativeHourlyChart.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/CumulativeHourlyChart.jsx): memorează și modul de comparație + metrica (`RON + Cmd` / `RON` / `Comenzi`).
+    - [Login.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Login.jsx): preîncarcă datele exact pentru perioada preferată salvată a clientului.
+  - **Persistență curată pentru Tema Light/Dark ([ThemeContext.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/lib/ThemeContext.jsx), [index.html](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/index.html)):**
+    - Trecut pe cheia dedicată `app-theme-user-v3` (ignorând vechea cheie `app-theme-v2` unde codul vechi de dinainte de 23 nov scrisese automat `'dark'` la prima deschidere chiar dacă clientul nu apăsase pe toggle).
+    - Nu mai suprascrie `localStorage` la mount — salvează `'dark'` sau `'light'` **exclusiv când clientul apasă butonul de temă**, pornind implicit în Light Mode și sincronizând instant alegerea între toate tab-urile deschise.
+- **Fișiere:** `index.html`, `src/lib/ThemeContext.jsx`, `src/pages/Dashboard.jsx`, `src/pages/Reports.jsx`, `src/components/charts/CumulativeHourlyChart.jsx`, `src/pages/Login.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, live pe `http://localhost:5174`, așteaptă aprobare push & deploy)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-25 10:30 — Headere Externe Uniforme pe Tot Dashboard-ul, Eliminare Fullscreen Duplicat & Înălțime Identică pe Grafice
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - **Headere uniforme deasupra cardurilor peste tot în [Dashboard.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dashboard.jsx):** scos titlurile și controalele deasupra cardurilor albe/dark (identic cu Row 2) și pe **Row 1** (`Status Rețea & Platforme` + 5 carduri KPI | `Sumar Vânzări & Canale` + selector perioadă + 4 carduri KPI curate) și pe **Row 3** (`Matrice Executivă pe Branduri` + `CSV` | `Top Orașe & Hub-uri` + badge orașe).
+  - **Eliminat butoanele Fullscreen (`⤢`) duplicate** din [CumulativeHourlyChart.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/CumulativeHourlyChart.jsx) și [ZoomChartsSuite.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/ZoomChartsSuite.jsx) — rămâne exclusiv butonul global Fullscreen din bara flotantă de sus (`MainLayout.jsx`).
+  - **Înălțime identică pixel-pe-pixel în Row 2:** înlocuit `h-[430px]` fix cu `h-full min-h-[430px] flex-1` în [ZoomDrilldownPie.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/ZoomDrilldownPie.jsx) și [ZoomTimeChart.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/ZoomTimeChart.jsx), adăugat `items-stretch` + `h-full flex flex-col` în [ZoomChartsSuite.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/ZoomChartsSuite.jsx) și calibrat `H` maxim (`352px`) + `min-h-[430px]` în [CumulativeHourlyChart.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/CumulativeHourlyChart.jsx) pentru zero diferență de înălțime între cele 3 grafice.
+- **Fișiere:** `src/pages/Dashboard.jsx`, `src/components/charts/CumulativeHourlyChart.jsx`, `src/components/charts/ZoomChartsSuite.jsx`, `src/components/charts/ZoomDrilldownPie.jsx`, `src/components/charts/ZoomTimeChart.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, live pe `http://localhost:5174`, așteaptă aprobare push & deploy)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-25 10:20 — Grilă Simetrică 2×2 (50% | 50%) pe Full / Ultrawide + Fix Breakpoint Tailwind v4 (`3xl:`)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - Definit breakpoint-ul nativ Tailwind v4 `@theme { --breakpoint-3xl: 120rem; }` (`1920px`) în [index.css](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/index.css) pentru a elimina bug-ul de ordonare CSS din Tailwind v4 unde `min-[2050px]:` era emis înaintea lui `lg:` (cauzând golul din dreapta lui `Matrice Executivă` pe monitor ultrawide).
+  - Aliniat întregul [Dashboard.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dashboard.jsx) pe o **simetrie perfectă `50% | 50%`** (`3xl:grid-cols-2`) de sus până jos cu același ax central (`gap-3`):
+    - **Rândul 1 (`50% | 50%`):** 5 carduri KPI operaționale | `Sumar Vânzări & Canale`.
+    - **Rândul 2 (`50% | 50%` — 2 containere de grafice):** `Total Comenzi Cumulat` | `Analiză Operațională & Vizuală` (`Distribuție` + `Evoluție`), aliniate identic sus și jos.
+    - **Rândul 3 (`50% | 50%` — 2 containere direct sub grafice):** `Matrice Executivă de Performanță pe Branduri` | `Top Orașe & Hub-uri de Vânzări` (cu listă internă pe 2 coloane pe `3xl:` când există ≥ 2 orașe, zero spațiu gol).
+    - **Rândul 4:** `Rețea Operațională / Excepții` (`100%` simetric, sau `50% | 50%` alături de `Stop-List iiko` când există produse oprite).
+  - Migrat și `min-[2050px]:` → `3xl:` în [CouriersMap.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/CouriersMap.jsx) și [Reports.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Reports.jsx).
+- **Fișiere:** `src/index.css`, `src/pages/Dashboard.jsx`, `src/pages/CouriersMap.jsx`, `src/pages/Reports.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, live pe `http://localhost:5174`, așteaptă aprobare push & deploy)
+- **Build / Teste:** `npm run build` OK + verificare ordine `@media (width>=120rem)` după `@media (width>=64rem)` + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-25 10:15 — Aliniere Header `Total Comenzi Cumulat` deasupra cardului & Butoane/Taburi Deep Brand Emerald
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - Mutat bara de titlu `Total Comenzi Cumulat` (iconiță emerald `15px`, titlu `13px`, badge interval) împreună cu controalele segmented (`Fără / Ieri / -7z`, `RON + Cmd / RON / Comenzi`) și butonul Fullscreen (`30×30px`) **deasupra cardului graficului** în [CumulativeHourlyChart.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/CumulativeHourlyChart.jsx), în ritm vizual `1:1` cu `Analiză Operațională & Vizuală` (`ZoomChartsSuite.jsx`), păstrând în interiorul cardului doar strip-ul curat de totaluri + badge-uri delta și graficul SVG.
+  - Eliminat complet clasa albastră `activeBluePillClass`, iconița pătrată albastră și spinner-ele albastre — toate butoanele, taburile segmented (inclusiv în Fullscreen) și elementele de UI chrome folosesc exclusiv culoarea de brand **GetApp.Food Deep Brand Emerald** (`apple-segment-active`, `#047857 / #10B981`), păstrând barele/curba din SVG în Apple Blue + Amber/Violet.
+  - Limitat lățimea coloanei de highlight la hover (`hoverW` plafonat) ca pe dimineți cu un singur punct (`10:00`) să nu mai acopere întreaga lățime a graficului.
+- **Fișiere:** `src/components/charts/CumulativeHourlyChart.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, live pe `http://localhost:5174`, așteaptă aprobare push & deploy)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
 ### 2026-11-24 16:53 — Fix Loop Tremurat `ResizeObserver` pe `CumulativeHourlyChart.jsx`
 - **Autor:** Antigravity
 - **Ce s-a făcut:** Eliminat bucla de feedback vertical din `ResizeObserver` în [CumulativeHourlyChart.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/charts/CumulativeHourlyChart.jsx): în modul inline înălțimea `H` depinde acum strict de lățimea măsurată `measuredWidth` (niciodată de propria înălțime a containerului), iar în Fullscreen direct de `window.innerHeight`, eliminând 100% orice oscilație/tremurat.
