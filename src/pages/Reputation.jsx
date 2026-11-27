@@ -37,7 +37,7 @@ import PlatformLogo from '../components/PlatformLogo'
 import BrandAvatar, { getBrandInfo, cleanRestaurantName } from '../components/BrandAvatar'
 import OrderDetailsModal from '../components/OrderDetailsModal'
 import { getProductImage } from '../lib/productImages'
-import { getApiUrl } from '../lib/api'
+import { getApiUrl, fetchJsonDedup } from '../lib/api'
 
 const AUTHORITATIVE_BRANDS = ['Roll Master', 'Poki Woki', 'Love Sushi', 'Smash Me', 'Crunch']
 
@@ -367,30 +367,27 @@ export default function Reputation() {
       const endpoint = forceSync
         ? `/api/reviews?limit=300&sync=1&_t=${Date.now()}`
         : '/api/reviews?limit=300'
-      const res = await fetch(getApiUrl(endpoint))
-      if (res.ok) {
-        const data = await res.json()
-        if (data.success) {
-          setReviewsData({
-            reviews: data.reviews || [],
-            kpis: data.kpis || null,
-            ratings_by_restaurant: data.ratings_by_restaurant || {}
-          })
-          if (forceSync) {
-            const timeStr = new Date().toLocaleTimeString(language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-US' : 'ro-RO', { hour: '2-digit', minute: '2-digit' })
-            showToast(
-              'success',
-              language === 'ru'
-                ? `Отзывы синхронизированы в ${timeStr}`
-                : language === 'en'
-                  ? `Reviews synced at ${timeStr}`
-                  : `Recenziile au fost sincronizate live la ${timeStr}`
-            )
-          }
+      const data = await fetchJsonDedup(getApiUrl(endpoint), { ttlMs: 30000, force: forceSync })
+      if (data?.success) {
+        setReviewsData({
+          reviews: data.reviews || [],
+          kpis: data.kpis || null,
+          ratings_by_restaurant: data.ratings_by_restaurant || {}
+        })
+        if (forceSync) {
+          const timeStr = new Date().toLocaleTimeString(language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-US' : 'ro-RO', { hour: '2-digit', minute: '2-digit' })
+          showToast(
+            'success',
+            language === 'ru'
+              ? `Отзывы синхронизированы в ${timeStr}`
+              : language === 'en'
+                ? `Reviews synced at ${timeStr}`
+                : `Recenziile au fost sincronizate live la ${timeStr}`
+          )
         }
       }
     } catch (err) {
-      console.error('[Reputation] fetchReviews error:', err)
+      if (err?.name !== 'AbortError') console.error('[Reputation] fetchReviews error:', err)
     } finally {
       setReviewsLoading(false)
     }
@@ -412,8 +409,7 @@ export default function Reputation() {
   useEffect(() => {
     fetchReviews()
     if (user?.role === 'admin') {
-      fetch(getApiUrl('/api/reviews/email-config'))
-        .then(r => r.ok ? r.json() : null)
+      fetchJsonDedup(getApiUrl('/api/reviews/email-config'), { ttlMs: 60000 })
         .then(d => {
           if (d?.success && d.config) {
             setImapConfigInfo(d.config)
@@ -1546,6 +1542,7 @@ export default function Reputation() {
             <div className="flex gap-1.5">
               <button
                 type="button"
+                aria-label="Pagina anterioară"
                 className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
                   isDark ? 'border-slate-700 text-slate-200 hover:bg-slate-800' : 'border-slate-200 text-slate-700 hover:bg-slate-100'
                 }`}
@@ -1556,6 +1553,7 @@ export default function Reputation() {
               </button>
               <button
                 type="button"
+                aria-label="Pagina următoare"
                 className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
                   isDark ? 'border-slate-700 text-slate-200 hover:bg-slate-800' : 'border-slate-200 text-slate-700 hover:bg-slate-100'
                 }`}

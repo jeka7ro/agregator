@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { getApiUrl } from './api'
+import { getApiUrl, fetchJsonDedup } from './api'
 import { getCanonicalCity } from './orderUtils'
 import { getBrandInfo } from '../components/BrandAvatar'
 
@@ -192,8 +192,7 @@ export function AuthProvider({ children }) {
       // Skip immediate /api/users re-sync if user just logged in (< 10s ago — login already returned fresh user)
       if (Date.now() - lastFreshLoginAtRef.current < 10000) return
 
-      fetch(getApiUrl('/api/users'))
-        .then(r => r.json())
+      fetchJsonDedup(getApiUrl('/api/users'), { ttlMs: 15000 })
         .then(data => {
           if (cancelled || !data?.success || !Array.isArray(data.users)) return
           const fresh = data.users.find(u => u.id === activeUserId || u.email === activeUserEmail)

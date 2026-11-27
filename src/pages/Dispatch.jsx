@@ -45,6 +45,7 @@ import BrandAvatar, { getBrandInfo, cleanRestaurantName } from '../components/Br
 import PlatformLogo from '../components/PlatformLogo'
 import OrderLiveRouteMap from '../components/OrderLiveRouteMap'
 import OrderWeatherBadge from '../components/OrderWeatherBadge'
+import RefreshCountdown from '../components/RefreshCountdown'
 import AppleDateRangePicker, { formatYmdRangeDisplay } from '../components/AppleDateRangePicker'
 import { getProductImage } from '../lib/productImages'
 import { getCanonicalCity, getCityDisplayName, maskPhone, maskCustomerName, maskAddress, formatDisplayOrderNumber, parseDeliveryAddress } from '../lib/orderUtils'
@@ -403,7 +404,7 @@ export default function Dispatch() {
     fetchData, 
     isAutoRefreshEnabled, 
     setIsAutoRefreshEnabled,
-    secondsUntilRefresh
+    nextRefreshAt
   } = useLiveDispatch({ 
     city: selectedCity, 
     brand: selectedBrand, 
@@ -1063,9 +1064,7 @@ export default function Dispatch() {
               <>
                 <span>{language === 'ru' ? 'Авто (5м)' : 'Auto (5m)'}</span>
                 <span className="text-[#6E6E73] dark:text-[#8E8E93] font-semibold text-[11px] tabular-nums">
-                  {secondsUntilRefresh >= 60
-                    ? `${Math.floor(secondsUntilRefresh / 60)}:${String(secondsUntilRefresh % 60).padStart(2, '0')}`
-                    : `${secondsUntilRefresh}${language === 'ru' ? 'с' : 's'}`}
+                  <RefreshCountdown nextRefreshAt={nextRefreshAt} enabled={isAutoRefreshEnabled} language={language} />
                 </span>
               </>
             ) : (
@@ -1403,12 +1402,12 @@ export default function Dispatch() {
           {/* Divider subtil */}
           <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 shrink-0 mx-0.5" />
 
-          {/* Filtru de Perioadă — Apple Segmented Control */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          {/* Filtru de Perioadă — Apple Segmented Control (scrollable on narrow mobile) */}
+          <div className="flex items-center gap-1.5 max-w-full min-w-0">
             <span className="text-slate-400 flex items-center shrink-0" title={t('dispatch.period_filter_label', 'Perioadă:')}>
               <Calendar size={12} />
             </span>
-            <div role="group" className="apple-segmented">
+            <div role="group" className="apple-segmented max-w-full overflow-x-auto">
               {PERIOD_OPTIONS.map(opt => {
                 const isSelected = selectedPeriod === opt.key
                 const fullLabel = t(opt.labelKey, opt.fallback)
@@ -1476,7 +1475,7 @@ export default function Dispatch() {
             <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
           </div>
           <div className="mt-1.5">
-            <div className={`text-[18px] font-bold tracking-tight tabular-nums leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            <div className={`text-[15px] sm:text-[18px] font-bold tracking-tight tabular-nums leading-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
               {formatMoney(calculatedTodaySales)}
             </div>
             {calculatedTodayGrossSales > calculatedTodaySales + 1 && (
@@ -1566,7 +1565,7 @@ export default function Dispatch() {
               <span className="text-[11px] font-medium text-slate-400">{language === 'ru' ? 'мин' : 'min'}</span>
             </div>
             <div className="mt-1">
-              <span className={`inline-block px-2 py-0.5 rounded-full text-[10.5px] font-semibold border ${getTimingColor(calculatedKpis.avg_delivery_time, 30)}`}>
+              <span className={`inline-block max-w-full truncate px-2 py-0.5 rounded-full text-[10.5px] font-semibold border ${getTimingColor(calculatedKpis.avg_delivery_time, 30)}`}>
                 {calculatedKpis.on_way_count} {t('dispatch.tab_on_way', 'pe drum')}
               </span>
             </div>

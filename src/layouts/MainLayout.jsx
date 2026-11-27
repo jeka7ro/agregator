@@ -273,7 +273,7 @@ export default function MainLayout() {
                 >
                   HQ
                 </div>
-                <span className="text-[9px] text-[#636366] dark:text-[#8E8E93] tabular-nums">#{BUILD_INFO.buildNumber}</span>
+                <span className="text-[9px] text-[#636366] dark:text-[#8E8E93] tabular-nums">{BUILD_INFO.buildNumber}</span>
               </div>
             )}
           </div>
@@ -331,7 +331,7 @@ export default function MainLayout() {
             </div>
 
             {/* Right: Concentric macOS Tahoe Capsules — Language, Fullscreen, Theme & Full User Profile */}
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <LanguageToggle />
 
               <button
@@ -343,7 +343,7 @@ export default function MainLayout() {
                     : (language === 'ru' ? 'На весь экран' : language === 'en' ? 'Fullscreen' : 'Ecran complet')
                 }
                 aria-pressed={isAppFullscreen}
-                className={`apple-btn-secondary !w-8 !h-8 !p-0 shrink-0 ${
+                className={`!hidden sm:!inline-flex apple-btn-secondary !w-8 !h-8 !p-0 shrink-0 ${
                   isAppFullscreen ? '!border-[#047857]/50 !text-[#047857] dark:!border-[#34D399]/50 dark:!text-[#34D399] !bg-emerald-500/10' : ''
                 }`}
                 title={

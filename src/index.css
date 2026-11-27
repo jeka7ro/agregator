@@ -180,6 +180,21 @@ html.dark {
     outline-offset: 2px;
   }
 
+  /* Vercel Web Interface Guidelines: instant mobile touch response (no 300ms double-tap delay) */
+  button, a, input, select, textarea, [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* iOS Safari anti-auto-zoom on form controls (web-design-guidelines: font-size >= 16px on mobile) */
+  @media (max-width: 767px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+
   button:not(.flex-col):not(.whitespace-normal),
   a[class*="rounded-"]:not(.flex-col):not(.whitespace-normal),
   span.rounded-full:not(.flex-col):not(.whitespace-normal) {
@@ -406,6 +421,7 @@ html.dark .apple-sheet-backdrop {
   color: var(--apple-label);
   border-radius: 22px;
   border: 0.5px solid var(--apple-separator-strong);
+  overscroll-behavior: contain;
   box-shadow:
     0 0 0 0.5px rgba(0, 0, 0, 0.08),
     0 28px 72px -18px rgba(15, 23, 42, 0.36),

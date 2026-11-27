@@ -31,7 +31,8 @@ import {
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
 import { useAuth, ROLE_META } from '../lib/AuthContext'
-import { getApiUrl } from '../lib/api'
+import { getApiUrl, fetchJsonDedup, clearApiDedupCache } from '../lib/api'
+import { getCanonicalCity } from '../lib/orderUtils'
 import { supabase } from '../lib/supabaseClient'
 import UserAvatar, { compressAvatarImage } from '../components/UserAvatar'
 import BrandAvatar, { cleanRestaurantName } from '../components/BrandAvatar'
@@ -144,12 +145,13 @@ export default function UsersManagement() {
     }, 4500)
   }
 
-  const fetchAll = async () => {
+  const fetchAll = async (force = false) => {
     setLoading(true)
     try {
-      const [uRes, rRes] = await Promise.all([
-        fetch(getApiUrl('/api/users')).then(r => r.json()).catch(() => null),
-        supabase.from('restaurants').select('id, name, brand, city, is_active').order('name')
+      if (force) clearApiDedupCache('/api/users')
+      const [uRes, rApiRes] = await Promise.all([
+        fetchJsonDedup(getApiUrl('/api/users'), { ttlMs: 15000, force }).catch(() => null),
+        fetchJsonDedup(getApiUrl('/api/settings/restaurants'), { ttlMs: 60000, force }).catch(() => null)
       ])
       if (uRes?.success) {
         setUsers(uRes.users || [])
@@ -159,8 +161,13 @@ export default function UsersManagement() {
           setBrevoSenderNameInput(uRes.brevo.senderName || 'GetApp.FooD')
         }
       }
-      if (Array.isArray(rRes?.data)) {
-        setRestaurants(rRes.data)
+      if (rApiRes?.success && Array.isArray(rApiRes.restaurants) && rApiRes.restaurants.length > 0) {
+        setRestaurants(rApiRes.restaurants.map(r => ({ ...r, brand: r.brands?.name || r.brand || '' })))
+      } else {
+        const rRes = await supabase.from('restaurants').select('id, name, brand_id, city, is_active, brands(name)').order('name')
+        if (Array.isArray(rRes?.data)) {
+          setRestaurants(rRes.data.map(r => ({ ...r, brand: r.brands?.name || '' })))
+        }
       }
     } catch (_) {}
     setLoading(false)
@@ -171,9 +178,10 @@ export default function UsersManagement() {
   }, [])
 
   const availableCities = useMemo(() => {
-    const set = new Set(DEFAULT_CITIES)
+    const set = new Set(DEFAULT_CITIES.map(c => getCanonicalCity(c) || c))
     for (const r of restaurants) {
-      if (r.city) set.add(String(r.city).trim().toUpperCase())
+      const canon = getCanonicalCity(r.city || r.name || '')
+      if (canon && canon !== 'NECUNOSCUT') set.add(canon)
     }
     return Array.from(set).sort()
   }, [restaurants])
@@ -443,7 +451,7 @@ export default function UsersManagement() {
         }
       }
       setIsUserModalOpen(false)
-      fetchAll()
+      fetchAll(true)
     } catch (err) {
       showToast('error', err.message)
     } finally {
@@ -473,7 +481,7 @@ export default function UsersManagement() {
           `Временный пароль сгенерирован: ${data.tempPassword}`
         ))
       }
-      fetchAll()
+      fetchAll(true)
     } catch (err) {
       showToast('error', err.message)
     }
@@ -493,7 +501,7 @@ export default function UsersManagement() {
         `Аккаунт ${deleteTargetUser.full_name} удален.`
       ))
       setDeleteTargetUser(null)
-      fetchAll()
+      fetchAll(true)
     } catch (err) {
       showToast('error', err.message)
     }
@@ -836,9 +844,9 @@ export default function UsersManagement() {
                     </td>
 
                     {/* Col 2: Utilizator (Single-line compact) */}
-                    <td className="py-2 px-2 max-w-[185px]">
+                    <td className="py-2 !px-2 max-w-[165px]">
                       <div className="flex items-center gap-2 min-w-0">
-                        <UserAvatar user={u} size={30} showOnlineDot={u.status === 'active' && !u.must_change_password} />
+                        <UserAvatar user={u} size={28} showOnlineDot={u.status === 'active' && !u.must_change_password} />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1 truncate">
                             <span className="font-extrabold text-slate-900 dark:text-white truncate">
@@ -856,7 +864,7 @@ export default function UsersManagement() {
                     </td>
 
                     {/* Col 3: Rol */}
-                    <td className="py-2 px-2 whitespace-nowrap">
+                    <td className="py-2 !px-2 whitespace-nowrap">
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border whitespace-nowrap shrink-0 ${roleMeta.badgeClass}`}>
                         <ShieldCheck size={11} />
                         <span>{roleLabel}</span>
@@ -864,7 +872,7 @@ export default function UsersManagement() {
                     </td>
 
                     {/* Col 4: Orașe Permise (Single-line truncate) */}
-                    <td className="py-2 px-2 max-w-[130px]">
+                    <td className="py-2 !px-2 max-w-[115px]">
                       {allCities ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
                           <MapPin size={10} className="text-emerald-600" />
@@ -881,7 +889,7 @@ export default function UsersManagement() {
                     </td>
 
                     {/* Col 5: Branduri Permise — AVATARE LOGO BRAND ÎN LOC DE TEXT */}
-                    <td className="py-2 px-2 whitespace-nowrap">
+                    <td className="py-2 !px-1.5 whitespace-nowrap">
                       <div
                         className="inline-flex items-center gap-1"
                         title={allBrands ? tr('Toate brandurile (5)', 'All brands (5)', 'Все бренды (5)') : userBrandsList.join(', ')}
@@ -1029,7 +1037,7 @@ export default function UsersManagement() {
                     </td>
 
                     {/* Col 9: Acțiuni */}
-                    <td className="py-2 px-2 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <td className="py-2 !px-2 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       <div className="inline-flex items-center justify-end gap-1">
                         <button
                           type="button"
@@ -1044,7 +1052,7 @@ export default function UsersManagement() {
                           type="button"
                           onClick={() => copyCredentials(u)}
                           title={tr('Copiază datele de logare', 'Copy login credentials', 'Скопировать доступы')}
-                          className={`p-1.5 rounded-full border transition-colors cursor-pointer ${
+                          className={`p-1 rounded-full border transition-colors cursor-pointer ${
                             isDark ? 'border-slate-700 hover:bg-slate-800 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-600'
                           }`}
                         >
@@ -1054,7 +1062,7 @@ export default function UsersManagement() {
                           type="button"
                           onClick={() => handleResendInvite(u)}
                           title={tr('Retrimite invitația pe email', 'Resend invitation email', 'Отправить приглашение на email повторно')}
-                          className={`p-1.5 rounded-full border transition-colors cursor-pointer ${
+                          className={`p-1 rounded-full border transition-colors cursor-pointer ${
                             isDark ? 'border-slate-700 hover:bg-slate-800 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-600'
                           }`}
                         >
@@ -1064,7 +1072,7 @@ export default function UsersManagement() {
                           type="button"
                           onClick={() => openEditModal(u)}
                           title={tr('Editează rol și limite de acces', 'Edit role & access scope', 'Редактировать права')}
-                          className={`p-1.5 rounded-full border transition-colors cursor-pointer ${
+                          className={`p-1 rounded-full border transition-colors cursor-pointer ${
                             isDark ? 'border-slate-700 hover:bg-slate-800 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-600'
                           }`}
                         >
@@ -1074,7 +1082,7 @@ export default function UsersManagement() {
                           type="button"
                           onClick={() => setDeleteTargetUser(u)}
                           title={tr('Șterge utilizator', 'Delete user', 'Удалить аккаунт')}
-                          className={`p-1.5 rounded-full border transition-colors cursor-pointer ${
+                          className={`p-1 rounded-full border transition-colors cursor-pointer ${
                             isDark ? 'border-slate-700 hover:bg-rose-950/50 text-slate-400 hover:text-rose-400' : 'border-slate-200 hover:bg-rose-50 text-slate-500 hover:text-rose-600'
                           }`}
                         >
@@ -1112,19 +1120,19 @@ export default function UsersManagement() {
                 </td>
                 <td className="py-2.5 px-3">
                   <div>{totals.pageCities} {tr('orașe', 'cities', 'гор.')}</div>
-                  <div className="text-[10px] text-slate-400 font-semibold">Gen: {totals.genCities} {tr('orașe', 'cities', 'гор.')}</div>
+                  <div className="text-[10px] text-slate-400 font-semibold">{tr('Gen:', 'All:', 'Всего:')} {totals.genCities} {tr('orașe', 'cities', 'гор.')}</div>
                 </td>
                 <td className="py-2.5 px-3">
                   <div>{totals.pageBrands} {tr('branduri', 'brands', 'бренд.')}</div>
-                  <div className="text-[10px] text-slate-400 font-semibold">Gen: {totals.genBrands} {tr('branduri', 'brands', 'бренд.')}</div>
+                  <div className="text-[10px] text-slate-400 font-semibold">{tr('Gen:', 'All:', 'Всего:')} {totals.genBrands} {tr('branduri', 'brands', 'бренд.')}</div>
                 </td>
                 <td className="py-2.5 px-3 text-center">
-                  <div>{totals.pageModules} mod.</div>
-                  <div className="text-[10px] text-slate-400 font-semibold">Gen: {totals.genModules} mod.</div>
+                  <div>{totals.pageModules} {tr('mod.', 'mod.', 'мод.')}</div>
+                  <div className="text-[10px] text-slate-400 font-semibold">{tr('Gen:', 'All:', 'Всего:')} {totals.genModules} {tr('mod.', 'mod.', 'мод.')}</div>
                 </td>
                 <td className="py-2.5 px-3" colSpan={3}>
                   <div>{totals.pageActive} {tr('activi pe pagină', 'active on page', 'активных на стр.')}</div>
-                  <div className="text-[10px] text-slate-400 font-semibold">Gen: {totals.genActive} {tr('activi în total', 'active total', 'активных всего')}</div>
+                  <div className="text-[10px] text-slate-400 font-semibold">{tr('Gen:', 'All:', 'Всего:')} {totals.genActive} {tr('activi în total', 'active total', 'активных всего')}</div>
                 </td>
               </tr>
             </tfoot>
@@ -1158,7 +1166,7 @@ export default function UsersManagement() {
           </div>
 
           <div className="text-[11px] font-bold">
-            Total: <span className="font-extrabold text-emerald-600 dark:text-emerald-400">{filteredUsers.length}</span>{' '}
+            {tr('Total:', 'Total:', 'Всего:')} <span className="font-extrabold text-emerald-600 dark:text-emerald-400">{filteredUsers.length}</span>{' '}
             {tr('înregistrări', 'records', 'записей')} ({kpis.active} {tr('activi', 'active', 'активных')})
           </div>
 
@@ -1168,6 +1176,7 @@ export default function UsersManagement() {
             </span>
             <button
               type="button"
+              aria-label="Pagina anterioară"
               disabled={safePage <= 1}
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               className={`w-7 h-7 rounded-full border flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 ${
@@ -1178,6 +1187,7 @@ export default function UsersManagement() {
             </button>
             <button
               type="button"
+              aria-label="Pagina următoare"
               disabled={safePage >= totalPages}
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               className={`w-7 h-7 rounded-full border flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 ${

@@ -182,17 +182,9 @@ export default function OrderWeatherBadge({ city, restaurantName = '', timestamp
   const isSevere = weather?.severity === 'severe'
   const isRain = weather?.severity === 'rain'
 
-  const containerCls = isSevere
-    ? isDark
-      ? 'bg-rose-950/35 border-rose-500/35 text-rose-100'
-      : 'bg-rose-50/85 border-rose-200 text-rose-950'
-    : isRain
-      ? isDark
-        ? 'bg-sky-950/35 border-sky-500/30 text-sky-100'
-        : 'bg-sky-50/85 border-sky-200 text-sky-950'
-      : isDark
-        ? 'bg-white/[0.03] border-white/[0.08] text-slate-200'
-        : 'bg-[#F8FAFC] border-[#E2E8F0] text-slate-800'
+  const containerCls = isDark
+    ? 'bg-white/[0.04] border-white/[0.08] text-slate-100'
+    : 'bg-[#F8FAFC] border-[#E2E8F0] text-slate-800'
 
   const labelTitle = language === 'ru'
     ? 'Погода в момент заказа'
@@ -265,9 +257,7 @@ export default function OrderWeatherBadge({ city, restaurantName = '', timestamp
             </div>
             <div className="min-w-0 leading-tight">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className={`text-[10.5px] font-medium ${
-                  isSevere ? 'text-rose-700 dark:text-rose-300' : isRain ? 'text-sky-700 dark:text-sky-300' : 'text-slate-500 dark:text-slate-400'
-                }`}>
+                <span className="text-[10.5px] font-medium text-slate-500 dark:text-slate-400">
                   {labelTitle}
                 </span>
                 <span className="text-[10.5px] font-semibold tabular-nums opacity-75">

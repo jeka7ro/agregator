@@ -26,7 +26,7 @@ import BrandAvatar, { cleanRestaurantName, getBrandInfo } from '../components/Br
 import PlatformLogo from '../components/PlatformLogo'
 import RestaurantDetailsModal from '../components/RestaurantDetailsModal'
 import WebhookIntegrationModal from '../components/WebhookIntegrationModal'
-import { getApiUrl } from '../lib/api'
+import { getApiUrl, fetchJsonDedup, clearApiDedupCache } from '../lib/api'
 import { supabase } from '../lib/supabaseClient'
 
 const AUTHORITATIVE_BRANDS = ['Roll Master', 'Poki Woki', 'Love Sushi', 'Smash Me', 'Crunch']
@@ -152,12 +152,16 @@ export default function Settings() {
   }
 
   // Load status and restaurants
-  const fetchData = async () => {
+  const fetchData = async (force = false) => {
     try {
       setLoading(true)
+      if (force) {
+        clearApiDedupCache('/api/settings/status')
+        clearApiDedupCache('/api/settings/restaurants')
+      }
       const [statusRes, restsRes] = await Promise.all([
-        fetch(getApiUrl('/api/settings/status')).then(r => r.json()).catch(() => null),
-        fetch(getApiUrl('/api/settings/restaurants')).then(r => r.json()).catch(() => null)
+        fetchJsonDedup(getApiUrl('/api/settings/status'), { ttlMs: 15000, force }).catch(() => null),
+        fetchJsonDedup(getApiUrl('/api/settings/restaurants'), { ttlMs: 30000, force }).catch(() => null)
       ])
 
       if (statusRes && statusRes.success) setStatusInfo(statusRes)
@@ -291,22 +295,27 @@ export default function Settings() {
     return ['all', ...AUTHORITATIVE_BRANDS]
   }, [])
 
-  // Filtered restaurants
+  // Filtered restaurants (active locations always sorted first for immediate operational visibility)
   const filteredRestaurants = useMemo(() => {
-    return restaurants.filter(r => {
-      const brandInfo = getBrandInfo(r)
-      const matchBrand = selectedBrand === 'all' || brandInfo.name === selectedBrand
-      const matchActive = !showOnlyActive || r.is_active
+    return restaurants
+      .filter(r => {
+        const brandInfo = getBrandInfo(r)
+        const matchBrand = selectedBrand === 'all' || brandInfo.name === selectedBrand
+        const matchActive = !showOnlyActive || r.is_active
 
-      const cleanedName = cleanRestaurantName(r.name)
-      const query = searchTerm.toLowerCase().trim()
-      const matchSearch = !query || 
-        (cleanedName && cleanedName.toLowerCase().includes(query)) ||
-        (r.city && r.city.toLowerCase().includes(query)) ||
-        (r.address && r.address.toLowerCase().includes(query))
+        const cleanedName = cleanRestaurantName(r.name)
+        const query = searchTerm.toLowerCase().trim()
+        const matchSearch = !query || 
+          (cleanedName && cleanedName.toLowerCase().includes(query)) ||
+          (r.city && r.city.toLowerCase().includes(query)) ||
+          (r.address && r.address.toLowerCase().includes(query))
 
-      return matchBrand && matchActive && matchSearch
-    })
+        return matchBrand && matchActive && matchSearch
+      })
+      .sort((a, b) => {
+        if (Boolean(b.is_active) !== Boolean(a.is_active)) return b.is_active ? 1 : -1
+        return String(a.name || '').localeCompare(String(b.name || ''))
+      })
   }, [restaurants, selectedBrand, showOnlyActive, searchTerm])
 
   // Pagination logic
@@ -902,6 +911,8 @@ export default function Settings() {
 
             <div className="flex items-center gap-1.5">
               <button
+                type="button"
+                aria-label="Pagina anterioară"
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1 || itemsPerPage === 9999}
                 className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
@@ -914,6 +925,8 @@ export default function Settings() {
               </button>
 
               <button
+                type="button"
+                aria-label="Pagina următoare"
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages || itemsPerPage === 9999}
                 className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${

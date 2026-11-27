@@ -32,7 +32,7 @@ import AppleDateRangePicker, { formatYmdRangeDisplay, translateRoDateRange } fro
 import { getProductImage } from '../lib/productImages'
 import { getCanonicalCity } from '../lib/orderUtils'
 import { exportSheetsToExcel } from '../lib/excelExport'
-import { getApiUrl } from '../lib/api'
+import { getApiUrl, fetchJsonDedup } from '../lib/api'
 import { supabase } from '../lib/supabaseClient'
 
 function StatusBadge({ status }) {
@@ -430,8 +430,7 @@ export default function Reports() {
     if (filterChannel) params.set('channel', filterChannel)
     const cacheStorageKey = `reports_cache_v5_${params.toString()}`
     try {
-      const res = await fetch(getApiUrl(`/api/sales/executive-summary?${params.toString()}`))
-      const json = await res.json()
+      const json = await fetchJsonDedup(getApiUrl(`/api/sales/executive-summary?${params.toString()}`), { ttlMs: 30000 })
       if (!isMountedRef.current || reqId !== analyticsReqIdRef.current) return
       if (json.success) {
         setAnalyticsData(json)

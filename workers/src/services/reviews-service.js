@@ -27,6 +27,8 @@ export class ReviewsService {
         this.reviews = []
         this.ratingsMap = new Map() // key: `${restaurant_id}_${platform}` -> latest rating_history row
         this.lastRatingsFetch = 0
+        this._enrichedBaseCache = null
+        this._enrichedBaseCacheAt = 0
         this.emailConfig = {
             email: process.env.REVIEW_EMAIL_USER || 'jeka7ro@gmail.com',
             appPassword: process.env.REVIEW_EMAIL_APP_PASSWORD || '',
@@ -804,6 +806,8 @@ export class ReviewsService {
     }
 
     _saveCache() {
+        this._enrichedBaseCache = null
+        this._enrichedBaseCacheAt = 0
         try {
             fs.mkdirSync(path.dirname(REVIEWS_CACHE_FILE), { recursive: true })
             fs.writeFileSync(REVIEWS_CACHE_FILE, JSON.stringify(this.reviews.slice(0, 2000), null, 2), 'utf8')
@@ -1363,120 +1367,135 @@ export class ReviewsService {
      * Return enriched reviews with matched order details from platform_sales + KPI summary
      */
     async getEnrichedReviews({ brand, city, platform, sentiment, search, limit = 200 } = {}) {
-        const { data: restaurants } = await supabase
-            .from('restaurants')
-            .select('id, name, city, brand_id, brands(name, logo_url)')
-            .eq('is_active', true)
+        const nowTs = Date.now()
+        let enriched
+        let ratingsMap
 
-        await this.ensureSeeded(restaurants || [])
-        const ratingsMap = await this.getLatestRatingsMap()
+        if (this._enrichedBaseCache && (nowTs - this._enrichedBaseCacheAt) < 90_000) {
+            enriched = this._enrichedBaseCache.enriched
+            ratingsMap = this._enrichedBaseCache.ratingsMap
+        } else {
+            const { data: restaurants } = await supabase
+                .from('restaurants')
+                .select('id, name, city, brand_id, brands(name, logo_url)')
+                .eq('is_active', true)
 
-        // Fetch recent orders from platform_sales to attach live order details (items, courier, kitchen timings)
-        const iikoIds = [...new Set(this.reviews.map(r => r.iiko_order_id).filter(Boolean))]
-        const sinceIso = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()
+            await this.ensureSeeded(restaurants || [])
+            ratingsMap = await this.getLatestRatingsMap()
 
-        const [byIdsRes, recentRes] = await Promise.all([
-            iikoIds.length > 0
-                ? supabase
+            // Fetch matched orders from platform_sales via fast indexed order_id lookup (no full-table placed_at scan!)
+            const iikoIds = [...new Set(this.reviews.map(r => r.iiko_order_id).filter(Boolean))]
+            const byIdsRes = iikoIds.length > 0
+                ? await supabase
                     .from('platform_sales')
                     .select('id, order_id, platform, restaurant_id, total_amount, placed_at, items')
                     .in('order_id', iikoIds.slice(0, 100))
-                : Promise.resolve({ data: [] }),
-            supabase
-                .from('platform_sales')
-                .select('id, order_id, platform, restaurant_id, total_amount, placed_at, items')
-                .gte('placed_at', sinceIso)
-                .order('placed_at', { ascending: false })
-                .limit(1000)
-        ])
+                : { data: [] }
 
-        const recentSales = [...(byIdsRes.data || []), ...(recentRes.data || [])]
+            const recentSales = byIdsRes.data || []
 
-        const salesByOrderNum = new Map()
-        const salesById = new Map()
-        for (const s of (recentSales || [])) {
-            salesById.set(s.order_id, s)
-            const meta = s.items?.[0]?._order_meta || {}
-            if (meta.orderNumber) salesByOrderNum.set(String(meta.orderNumber).trim(), s)
-            if (meta.externalOrderId) salesByOrderNum.set(String(meta.externalOrderId).trim(), s)
-        }
+            const salesByOrderNum = new Map()
+            const salesById = new Map()
+            for (const s of (recentSales || [])) {
+                salesById.set(s.order_id, s)
+                const meta = s.items?.[0]?._order_meta || {}
+                if (meta.orderNumber) salesByOrderNum.set(String(meta.orderNumber).trim(), s)
+                if (meta.externalOrderId) salesByOrderNum.set(String(meta.externalOrderId).trim(), s)
+            }
 
-        const enriched = this.reviews.map(r => {
-            const matchedOrder = (r.iiko_order_id && salesById.get(r.iiko_order_id)) ||
-                (r.order_id && salesByOrderNum.get(String(r.order_id).trim())) ||
-                null
-
-            let orderDetails = null
-            if (matchedOrder) {
-                const meta = matchedOrder.items?.[0]?._order_meta || {}
-                const timings = meta.timings || {}
-                const extractHHMMSS = (str) => (typeof str === 'string' && str.match(/(\d{2}:\d{2}:\d{2})/)) ? str.match(/(\d{2}:\d{2}:\d{2})/)[1] : null
-                const tCreated = timings.whenCreated ? new Date(timings.whenCreated.replace(' ', 'T')) : null
-                const tCooked = timings.whenCookingCompleted ? new Date(timings.whenCookingCompleted.replace(' ', 'T')) : null
-                const tDelivered = (timings.whenDelivered || timings.whenClosed) ? new Date((timings.whenDelivered || timings.whenClosed).replace(' ', 'T')) : null
-                const cookMin = (tCreated && tCooked) ? Math.max(1, Math.round((tCooked - tCreated) / 60000)) : null
-                const totalMin = (tCreated && tDelivered) ? Math.max(1, Math.round((tDelivered - tCreated) / 60000)) : null
-
-                orderDetails = {
-                    id: matchedOrder.id,
-                    order_id: matchedOrder.order_id,
-                    order_number: meta.orderNumber || r.order_id,
-                    platform: matchedOrder.platform,
-                    brand_name: r.brand_name,
-                    restaurant_name: r.restaurant_name,
-                    total_amount: matchedOrder.total_amount,
-                    placed_at: matchedOrder.placed_at,
-                    items: enrichOrderItems((matchedOrder.items || []).filter(it => it.product_name || it.name), r.brand_name),
-                    customer: meta.customer || { name: meta.customerName || r.customer_name, phone: meta.customerPhone || r.customer_phone, address: meta.customerAddress },
-                    courier: meta.courier || (meta.courierName ? { name: meta.courierName, phone: meta.courierPhone } : null),
-                    kitchen_minutes: cookMin,
-                    total_minutes: totalMin,
-                    timings: {
-                        created_time: extractHHMMSS(timings.whenCreated),
-                        cooking_completed_time: extractHHMMSS(timings.whenCookingCompleted),
-                        sended_time: extractHHMMSS(timings.whenSended),
-                        delivered_time: extractHHMMSS(timings.whenDelivered || timings.whenClosed)
+            // Pre-index customers ONCE in O(C) instead of O(R * C) scanning inside this.reviews.map()
+            const custByReviewId = new Map()
+            const custByOrderNum = new Map()
+            const custByName = new Map()
+            for (const c of customersService.customersByKey.values()) {
+                for (const rv of (c.reviews || [])) {
+                    if (rv?.id && !custByReviewId.has(rv.id)) custByReviewId.set(rv.id, c)
+                }
+                for (const ro of (c.recent_orders || [])) {
+                    if (ro?.order_number && !custByOrderNum.has(String(ro.order_number))) {
+                        custByOrderNum.set(String(ro.order_number), c)
                     }
                 }
-            } else {
-                // Fallback la baza de date persistentă de clienți & comenzi (customersService)
-                const custList = Array.from(customersService.customersByKey.values())
-                const matchedCust = custList.find(c =>
-                    (c.reviews || []).some(rv => rv.id === r.id) ||
-                    (r.order_id && (c.recent_orders || []).some(ro => String(ro.order_number) === String(r.order_id))) ||
-                    (r.customer_name && c.name === r.customer_name)
-                )
-                const ro = matchedCust
-                    ? ((matchedCust.recent_orders || []).find(o => String(o.order_number) === String(r.order_id)) || (matchedCust.recent_orders || [])[0])
-                    : null
-                if (matchedCust && ro) {
+                if (c.name && !custByName.has(c.name)) custByName.set(c.name, c)
+            }
+
+            enriched = this.reviews.map(r => {
+                const matchedOrder = (r.iiko_order_id && salesById.get(r.iiko_order_id)) ||
+                    (r.order_id && salesByOrderNum.get(String(r.order_id).trim())) ||
+                    null
+
+                let orderDetails = null
+                if (matchedOrder) {
+                    const meta = matchedOrder.items?.[0]?._order_meta || {}
+                    const timings = meta.timings || {}
+                    const extractHHMMSS = (str) => (typeof str === 'string' && str.match(/(\d{2}:\d{2}:\d{2})/)) ? str.match(/(\d{2}:\d{2}:\d{2})/)[1] : null
+                    const tCreated = timings.whenCreated ? new Date(timings.whenCreated.replace(' ', 'T')) : null
+                    const tCooked = timings.whenCookingCompleted ? new Date(timings.whenCookingCompleted.replace(' ', 'T')) : null
+                    const tDelivered = (timings.whenDelivered || timings.whenClosed) ? new Date((timings.whenDelivered || timings.whenClosed).replace(' ', 'T')) : null
+                    const cookMin = (tCreated && tCooked) ? Math.max(1, Math.round((tCooked - tCreated) / 60000)) : null
+                    const totalMin = (tCreated && tDelivered) ? Math.max(1, Math.round((tDelivered - tCreated) / 60000)) : null
+
                     orderDetails = {
-                        id: ro.order_id || ro.base_uuid,
-                        order_id: ro.base_uuid || ro.order_id,
-                        order_number: ro.order_number || r.order_id,
-                        platform: ro.platform || r.platform,
-                        brand_name: ro.brand_name || r.brand_name,
-                        restaurant_name: ro.restaurant_name || r.restaurant_name,
-                        total_amount: ro.total_amount,
-                        placed_at: ro.placed_at,
-                        items: enrichOrderItems(ro.items || [], ro.brand_name || r.brand_name),
-                        customer: {
-                            name: matchedCust.name,
-                            phone: matchedCust.phone,
-                            address: ro.address || matchedCust.address
-                        },
-                        courier: ro.courier || null,
-                        timings: ro.timings || null
+                        id: matchedOrder.id,
+                        order_id: matchedOrder.order_id,
+                        order_number: meta.orderNumber || r.order_id,
+                        platform: matchedOrder.platform,
+                        brand_name: r.brand_name,
+                        restaurant_name: r.restaurant_name,
+                        total_amount: matchedOrder.total_amount,
+                        placed_at: matchedOrder.placed_at,
+                        items: enrichOrderItems((matchedOrder.items || []).filter(it => it.product_name || it.name), r.brand_name),
+                        customer: meta.customer || { name: meta.customerName || r.customer_name, phone: meta.customerPhone || r.customer_phone, address: meta.customerAddress },
+                        courier: meta.courier || (meta.courierName ? { name: meta.courierName, phone: meta.courierPhone } : null),
+                        kitchen_minutes: cookMin,
+                        total_minutes: totalMin,
+                        timings: {
+                            created_time: extractHHMMSS(timings.whenCreated),
+                            cooking_completed_time: extractHHMMSS(timings.whenCookingCompleted),
+                            sended_time: extractHHMMSS(timings.whenSended),
+                            delivered_time: extractHHMMSS(timings.whenDelivered || timings.whenClosed)
+                        }
+                    }
+                } else {
+                    const matchedCust = custByReviewId.get(r.id) ||
+                        (r.order_id && custByOrderNum.get(String(r.order_id))) ||
+                        (r.customer_name && custByName.get(r.customer_name)) ||
+                        null
+                    const ro = matchedCust
+                        ? ((matchedCust.recent_orders || []).find(o => String(o.order_number) === String(r.order_id)) || (matchedCust.recent_orders || [])[0])
+                        : null
+                    if (matchedCust && ro) {
+                        orderDetails = {
+                            id: ro.order_id || ro.base_uuid,
+                            order_id: ro.base_uuid || ro.order_id,
+                            order_number: ro.order_number || r.order_id,
+                            platform: ro.platform || r.platform,
+                            brand_name: ro.brand_name || r.brand_name,
+                            restaurant_name: ro.restaurant_name || r.restaurant_name,
+                            total_amount: ro.total_amount,
+                            placed_at: ro.placed_at,
+                            items: enrichOrderItems(ro.items || [], ro.brand_name || r.brand_name),
+                            customer: {
+                                name: matchedCust.name,
+                                phone: matchedCust.phone,
+                                address: ro.address || matchedCust.address
+                            },
+                            courier: ro.courier || null,
+                            timings: ro.timings || null
+                        }
                     }
                 }
-            }
 
-            return {
-                ...r,
-                comment_translations: r.comment_translations || this.buildDefaultTranslations(r.comment),
-                matched_order: orderDetails
-            }
-        })
+                return {
+                    ...r,
+                    comment_translations: r.comment_translations || this.buildDefaultTranslations(r.comment),
+                    matched_order: orderDetails
+                }
+            })
+
+            this._enrichedBaseCache = { enriched, ratingsMap }
+            this._enrichedBaseCacheAt = Date.now()
+        }
 
         // Filter
         let filtered = enriched

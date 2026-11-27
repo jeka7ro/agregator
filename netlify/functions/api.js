@@ -1028,9 +1028,13 @@ export default async (req, context) => {
         return true
       })
 
+      const slimEvents = filteredEvents.map(ev => ({
+        ...ev,
+        restaurants: ev.restaurants ? { name: ev.restaurants.name, city: ev.restaurants.city } : null
+      }))
       return new Response(JSON.stringify({
         success: true,
-        events: restaurantId ? filteredEvents.filter(e => e.restaurant_id === restaurantId) : filteredEvents
+        events: restaurantId ? slimEvents.filter(e => e.restaurant_id === restaurantId) : slimEvents
       }), { status: 200, headers: CORS_HEADERS })
     }
 
@@ -1421,16 +1425,29 @@ export default async (req, context) => {
         } catch (_) { }
       }
 
-      // Execute REAL live HTTP probes across Wolt, Bolt, and Glovo (zero Puppeteer, writes real results to Supabase)
+      let bodyFilter = {}
+      try {
+        bodyFilter = await req.json().catch(() => ({}))
+      } catch (_) {}
+      const filterCity = bodyFilter?.city && bodyFilter.city !== 'all' ? getCanonicalCity(bodyFilter.city) : null
+      const filterRestId = bodyFilter?.restaurantId || null
+      const targetRests = activeRests.filter(r => {
+        if (filterRestId) return r.id === filterRestId
+        if (filterCity) return getCanonicalCity(r.city || r.name || '') === filterCity
+        return true
+      })
+
+      // Execute REAL live HTTP probes across Wolt, Bolt, and Glovo (capped budget to guarantee zero Netlify 10s 504 timeouts!)
       let scan = { duration_ms: 0, total_tasks: 0, valid_checked: 0, errors: 0, offline: 0, stopped_channels: [], checks: [] }
       try {
+        const effectiveRests = targetRests.length > 0 ? targetRests : activeRests
         scan = await runFullLivePlatformScan({
-          restaurants: activeRests,
+          restaurants: effectiveRests,
           storeMap: platformStoreMapStatic,
           supabase,
           persistToDb: Boolean(supabase),
           notifyTelegram: true,
-          budgetMs: 6500
+          budgetMs: effectiveRests.length <= 15 ? 6500 : 5800
         })
       } catch (scanErr) {
         console.error('[Netlify check-all] Live scan error:', scanErr.message)
@@ -1908,12 +1925,16 @@ export default async (req, context) => {
       }
 
       // Verificare cache în memorie pentru răspuns instantaneu (<1ms) și protecție anti-congestie Supabase
+      const zonesOnly = url.searchParams.get('zones_only') === '1'
       const cacheKey = `${cityFilter || 'all'}_${brandFilter || 'all'}_${restaurantFilter || 'all'}_${channelFilter || 'all'}_${effectivePeriodKey}_${fromYmd || ''}_${toYmd || ''}_${searchFilter || ''}`
       const isPureHistoricalCustom = effectivePeriodKey === 'custom' && toYmd && toYmd < roDateStr
       const dispatchCacheTtl = isPureHistoricalCustom ? 300000 : LIVE_CACHE_TTL_MS
       const cached = liveDispatchCache.get(cacheKey)
       if (cached && (Date.now() - cached.timestamp < dispatchCacheTtl)) {
-        return new Response(JSON.stringify(cached.data), {
+        const bodyOut = zonesOnly
+          ? { success: true, period: cached.data.period, delivery_zones: cached.data.delivery_zones }
+          : cached.data
+        return new Response(JSON.stringify(bodyOut), {
           status: 200,
           headers: CORS_HEADERS
         })
@@ -2711,7 +2732,13 @@ export default async (req, context) => {
           brand_logo: brandLogo,
           restaurant_name: displayRestaurantName,
           restaurant_city: displayCity,
-          items: Array.isArray(o.items) ? o.items : [],
+          review: meta.review || null,
+          items: Array.isArray(o.items) ? o.items.map(it => {
+            if (!it || typeof it !== 'object') return it
+            const { _order_meta, image, ...slimItem } = it
+            if (image && !slimItem.imageUrl) slimItem.image = image
+            return slimItem
+          }) : [],
           stage,
           stage_label: stageLabel,
           status_color: statusColor,
@@ -3087,7 +3114,10 @@ export default async (req, context) => {
 
       // Never cache customer PII on public CDN nodes
       const dispatchHeaders = { ...CORS_HEADERS, 'Cache-Control': 'private, no-store' }
-      return new Response(JSON.stringify(responsePayload), { status: 200, headers: dispatchHeaders })
+      const finalBody = zonesOnly
+        ? { success: true, period: responsePayload.period, delivery_zones: responsePayload.delivery_zones }
+        : responsePayload
+      return new Response(JSON.stringify(finalBody), { status: 200, headers: dispatchHeaders })
     }
 
     if (path === '/sales/cumulative-hourly' && req.method === 'GET') {
@@ -5099,8 +5129,10 @@ export default async (req, context) => {
       const restMap = {}
       for (const r of activeRests) restMap[r.id] = r
 
-      // Compute real average platform ratings from rating_history
+      // Compute real average platform ratings + ratings_by_restaurant from rating_history
+      const ratingsOnly = url.searchParams.get('ratings_only') === '1'
       const platSums = { glovo: { s: 0, c: 0 }, wolt: { s: 0, c: 0 }, bolt: { s: 0, c: 0 } }
+      const ratingsByRestaurant = {}
       const seenRatingRest = new Set()
       for (const ev of ratingEvents) {
         const p = String(ev.platform || '').toLowerCase()
@@ -5108,11 +5140,19 @@ export default async (req, context) => {
         const rk = `${ev.restaurant_id}_${p}`
         if (seenRatingRest.has(rk)) continue
         seenRatingRest.add(rk)
+        if (!ratingsByRestaurant[ev.restaurant_id]) ratingsByRestaurant[ev.restaurant_id] = {}
+        ratingsByRestaurant[ev.restaurant_id][p] = {
+          rating: ev.rating,
+          previous_rating: ev.previous_rating,
+          review_count: ev.review_count,
+          change_direction: ev.change_direction,
+          recorded_at: ev.recorded_at
+        }
         const val = parseFloat(ev.rating)
         if (val > 0) { platSums[p].s += val; platSums[p].c++ }
       }
 
-      const filtered = baseEmailReviews.filter(r => {
+      const filtered = ratingsOnly ? [] : baseEmailReviews.filter(r => {
         if (platformFilter !== 'all' && r.platform !== platformFilter) return false
         if (sentimentFilter !== 'all' && r.sentiment !== sentimentFilter) return false
         if (brandFilter !== 'all' && (r.brand_name || '').toLowerCase() !== brandFilter.toLowerCase()) return false
@@ -5141,9 +5181,10 @@ export default async (req, context) => {
       return new Response(JSON.stringify({
         success: true,
         reviews: filtered,
+        ratings_by_restaurant: ratingsByRestaurant,
         last_synced_at: globalThis.__LAST_IMAP_SYNC_TS ? new Date(globalThis.__LAST_IMAP_SYNC_TS).toISOString() : null,
         kpis: {
-          total_reviews: filtered.length,
+          total_reviews: ratingsOnly ? baseEmailReviews.length : filtered.length,
           positive_count: posCount,
           negative_count: negCount,
           positive_rate: filtered.length > 0 ? Math.round((posCount / filtered.length) * 100) : 100,

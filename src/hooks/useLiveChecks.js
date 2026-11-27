@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { getApiUrl } from '../lib/api'
+import { getApiUrl, fetchJsonDedup } from '../lib/api'
 import { useAuth } from '../lib/AuthContext'
 import { getCanonicalCity } from '../lib/orderUtils'
 import { getBrandInfo } from '../components/BrandAvatar'
@@ -99,13 +99,13 @@ async function runSharedLiveChecksFetch(forceRefresh = false) {
       : getApiUrl('/api/live-checks')
 
     const [restResResult, checksResResult] = await Promise.allSettled([
-      fetchWithTimeout(getApiUrl('/api/settings/restaurants'), 6000),
+      fetchJsonDedup(getApiUrl('/api/settings/restaurants'), { ttlMs: 30000, force: forceRefresh, timeoutMs: 6000 }),
       fetchWithTimeout(checksEndpoint, 8500)
     ])
 
     let rests = []
-    if (restResResult.status === 'fulfilled' && restResResult.value.ok) {
-      const localJson = await restResResult.value.json()
+    if (restResResult.status === 'fulfilled' && restResResult.value) {
+      const localJson = restResResult.value
       if (localJson.success && Array.isArray(localJson.restaurants) && localJson.restaurants.length > 0) {
         rests = localJson.restaurants
       }

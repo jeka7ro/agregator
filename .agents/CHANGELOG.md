@@ -1,5 +1,70 @@
 # Jurnal de modificări (Antigravity ↔ Paperclip)
 
+### 2026-11-27 13:24 — Inspecție Vizuală Pixel-cu-Pixel pe Toate 11 Ecranele (19 Capturi) + 6 Fix-uri Vizuale/Mobile
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - Capturat și inspectat vizual toate cele 11 ecrane + modale + Light Mode + Mobil `390px` în Playwright, remediind fiecare detaliu vizual identificat:
+    1. **Tabel `/users` ([UsersManagement.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/UsersManagement.jsx)):** compactat padding-ul (`!px-2`) astfel încât coloana `Действия` și toate cele 5 butoane de acțiune să încapă complet fără tăiere la `1440px`, canonicalizat lista de orașe cu `getCanonicalCity()` (`31` dubluri → `22` orașe curate) și tradus complet `tfoot`/paginare (`Всего:`, `мод.`).
+    2. **Tabel `/settings` ([Settings.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Settings.jsx)):** sortat restaurantele active primele (`is_active === true` sus), astfel încât pagina se deschide direct pe cele 52 locații active în loc de rânduri gri inactive.
+    3. **Dark Mode `/customers` ([Customers.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Customers.jsx)):** neutralizat badge-urile albastre de oraș în gri-carbon neutru Apple Tahoe (`bg-white/[0.07]`).
+    4. **Mobil `390px` ([MainLayout.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/layouts/MainLayout.jsx), [Dashboard.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dashboard.jsx), [Dispatch.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/Dispatch.jsx)):** eliminat `#` dublu (`##252` → `#252`), ascuns butonul Fullscreen desktop pe ecrane `< 640px` (`!hidden sm:!inline-flex`) eliminând suprapunerea din topbar, adăugat scroll orizontal curat pe bara segmented de perioadă și ajustat KPI-urile mobile (`text-[15px] sm:text-[18px]` + `truncate`).
+- **Fișiere:** `src/layouts/MainLayout.jsx`, `src/pages/{UsersManagement,Settings,Customers,Dashboard,Dispatch}.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, nepushuit — așteaptă accept explicit)
+- **Build / Teste:** Re-capturat și verificat vizual toate cele 6 ecrane reparate + `npm run build` + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-27 12:45 — Optimizare Maximă Viteză & Trafic pe Toate 11 Ecranele (Payload -90%..99.7%, Zero Cereri Duplicate, Zero Re-render la 1s, Gzip Express & Paritate Netlify)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - **Audit complet Playwright + Network Profiler pe toate cele 11 ecrane (Admin + Manager `BUCURESTI`, Desktop + Mobil `390px`, Dark + Light)** și fixarea tuturor blocajelor identificate:
+    1. **Reducere `322×` pe `/monitoring` (`12,195 KB` → `37.8 KB`!):** adăugate modurile slim `?zones_only=1` în `/api/dispatch/live` (`4,702 KB` → `1.6 KB` gzip) și `?ratings_only=1` în `/api/reviews` (`542 KB` → `1.4 KB` gzip) cu paritate `1:1` în [api-server.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/workers/src/api-server.js) și [api.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/netlify/functions/api.js), plus reparat lipsa `ratings_by_restaurant` din Netlify `/reviews`.
+    2. **Eliminare bloat `_order_meta` & duplicat `stop_events` + compresie Gzip nativă (`zlib`) pe Express:** strip `_order_meta` redundant din `orders[].items` pe ambele backend-uri (păstrând `description`, `ingredients`, `review`), trim nested `restaurants` în `/api/stop-events?slim=1` (`239 KB` → `7.8 KB` wire) + cache de răspuns `15s/120s` pe `/api/dispatch/live` (`3037ms` → `28ms` cached).
+    3. **Deduplicare globală GET (`fetchJsonDedup` în [api.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/lib/api.js)):** eliminate toate apelurile API duplicate `2×–3×` pe toate cele 11 ecrane (`useLiveDispatch`, `useLiveChecks`, `useNetworkWeather`, `ZoomTimeChart`, `Monitoring`, `Reputation`, `Customers`, `Reports`, `UsersManagement`, `Settings`, `AuthContext`).
+    4. **Eliminare furtună de 60 re-render-uri/minut pe `/dispatch` și `/couriers-map`:** scos `setSecondsUntilRefresh` la fiecare `1s` din [useLiveDispatch.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/hooks/useLiveDispatch.js) și izolat numărătoarea inversă în componenta `React.memo` [RefreshCountdown.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/RefreshCountdown.jsx).
+    5. **Reducere DOM cu `42%` pe `/couriers-map` (`9,051` → `5,278` noduri):** paginare progresivă pe lista laterală din [CouriersMap.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/CouriersMap.jsx) (`30` inițial + buton „Afișează mai multe”) + `<link rel="preconnect">` Supabase/Open-Meteo în [index.html](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/index.html).
+- **Fișiere:** `index.html`, `src/lib/api.js`, `src/lib/AuthContext.jsx`, `src/components/RefreshCountdown.jsx`, `src/components/charts/ZoomTimeChart.jsx`, `src/hooks/{useLiveDispatch,useLiveChecks,useNetworkWeather}.js`, `src/pages/{Dispatch,CouriersMap,Monitoring,Reputation,Customers,Reports,UsersManagement,Settings}.jsx`, `workers/src/api-server.js`, `netlify/functions/api.js`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, gata pentru push cu acordul utilizatorului)
+- **Build / Teste:** Playwright 11/11 ecrane Admin + 7/7 Manager + 10/10 Mobil `390px`: `0` erori consolă, `0` excepții JS, `0` overflow orizontal, `0` erori interactive + `vite build` (`594ms`) + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-27 12:24 — Instalare 5 Skill-uri Oficiale (Vercel, Anthropic, Superpowers) + Checkup Complet Playwright/API & 9 Fix-uri Reale
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - **Skill-uri & Reguli noi instalate oficial:**
+    - `vercel-labs/agent-skills`: [.agents/skills/web-design-guidelines/SKILL.md](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/.agents/skills/web-design-guidelines/SKILL.md) (+ `references/web-interface-guidelines.md`)
+    - `anthropics/skills`: [.agents/skills/webapp-testing/SKILL.md](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/.agents/skills/webapp-testing/SKILL.md) + [.agents/skills/frontend-design/SKILL.md](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/.agents/skills/frontend-design/SKILL.md)
+    - `obra/superpowers`: [.agents/skills/verification-before-completion/SKILL.md](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/.agents/skills/verification-before-completion/SKILL.md) + [.agents/skills/systematic-debugging/SKILL.md](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/.agents/skills/systematic-debugging/SKILL.md)
+    - Activate permanent prin `.agents/rules/web-interface-and-testing.md`, `.agents/rules/superpowers-verification.md` și `.agents/AGENTS.md`.
+  - **Checkup real Playwright (32 rulări: Desktop Dark/Light `1440×900`, iPhone 16 `390×844`, iPhone Mini `375×812`) + Audit API & Fix-uri aplicate:**
+    1. **Fix critic `/users` HTTP 400 (`UsersManagement.jsx:152`):** `.select('id, name, brand, ...')` interoga coloana inexistentă `brand` (lăsând lista de restaurante goală la asignarea managerilor) → reparat cu `brand_id, brands(name)` și mapare `brand: r.brands?.name || ''`.
+    2. **Fix critic performanță `GET /api/reviews` (`workers/src/services/reviews-service.js`):** eliminat full-table scan-ul `platform_sales` care făcea statement timeout în Postgres după `8,358ms` și înlocuit căutarea `O(R×C)` prin clienți cu index `Map` `O(1)` + cache 90s → **`9,024ms` → `780ms` cold / `9ms` warm (1,000× mai rapid!)**.
+    3. **Fix deadline strict `scanAllWoltViaHubs` (`lib/live-platform-checkers.js` + `netlify/functions/api.js`):** `Wolt` ignora `deadlineMs` ducând scanarea globală la `10.3s` (risc `504` pe Netlify `10s`) → acum respectă strict `deadlineMs` (`6.63s` total, `0` erori Glovo `429`), plus paritate filtru `{ city, restaurantId }` în `POST /api/check-all` (`workers/src/api-server.js` + `netlify/functions/api.js` + `src/pages/Monitoring.jsx` → `32/32` canale pe `BUCURESTI`).
+    4. **Fix hartă orașe (`src/pages/CouriersMap.jsx` + `src/components/OrderLiveRouteMap.jsx`):** adăugate coordonatele pentru `BOTOSANI`, `BRAILA`, `TULCEA`, `PIATRA NEAMT`, `CLUJ` (comenzile nu mai pică în București Sector 1) + deduplicare logică dropdown locații (`84 → 60`).
+    5. **Fix badge tab Zone Livrare (`src/pages/Monitoring.jsx`):** afișează `…` cât timp se încarcă datele în loc de fals `0`.
+    6. **Fix iOS Safari & Web Interface (`src/index.css`):** `font-size: 16px` pe input-uri mobile (anti auto-zoom), `touch-action: manipulation`, `-webkit-tap-highlight-color: transparent`, `overscroll-behavior: contain` pe `.apple-sheet`.
+    7. **Fix A11y (`Monitoring.jsx`, `Reputation.jsx`, `Customers.jsx`, `Settings.jsx`, `UsersManagement.jsx`):** adăugate `aria-label` și `type="button"` pe toate butoanele icon-only de paginare (`NO_ARIA_BTN`: `16 → 0`).
+- **Fișiere:** `.agents/AGENTS.md`, `.agents/rules/web-interface-and-testing.md`, `.agents/rules/superpowers-verification.md`, `.agents/skills/{web-design-guidelines,webapp-testing,frontend-design,verification-before-completion,systematic-debugging}/`, `lib/live-platform-checkers.js`, `netlify/functions/api.js`, `workers/src/api-server.js`, `workers/src/services/reviews-service.js`, `src/index.css`, `src/components/OrderLiveRouteMap.jsx`, `src/pages/{CouriersMap,Monitoring,Reputation,Customers,Settings,UsersManagement}.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, nepushuit — așteaptă accept explicit `push`)
+- **Build / Teste:** Playwright 32/32 viewports `0` overflow / `0` HTTP 4xx / `0` broken imgs / `0` A11y errors + `node --check` 5/5 OK + `npm run build` (`702ms`) + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-27 11:55 — Blindare Monitorizare Producție Netlify (Glovo v3 API pe Toate Orașele, Pacing Bolt anti-429 & Zero Stopuri False la 10:00/21:45)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - În [live-platform-checkers.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/lib/live-platform-checkers.js):
+    - Migrat **Glovo** pe **API-ul oficial `api.glovoapp.com/v3/stores/{id}` ca metodă primară pentru TOATE orașele** (elimină 100% blocajele Cloudflare WAF de pe IP-urile AWS ale Netlify care tăiau Glovo SSR la `10/52` când Mac-ul era închis → urcă direct la **`48/52` Glovo 100% autonom pe Netlify**, ritmat `3` paralel + `450ms` fără `429`).
+    - Ritmat **Bolt `cityWideSearch`** (`2` paralel + `620ms` + retry automat la `429` + adăugat sub-zonele `BUC_CORA`, `BUC_TITAN`, `BALOTESTI`), eliminând rate-limit-ul de 6 cereri simultane.
+    - Eliminat complet cele `26` de stopuri false de dimineață (`10:00–11:00`) și închiderile normale de seară (`21:40–22:00`): adăugat guard universal `isScheduledHoursMessage()` (`Deschide la...`, `Opens at...`, `Open until...`) pe toate 3 platformele + fereastră implicită de livrare `11:05–21:35 RO` când `working_hours` e gol `{}`.
+  - Actualizat `budgetMs: 24000` în [monitor-cron.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/netlify/functions/monitor-cron.js) (funcție cron 30s) și `budgetMs: 7500` în [api.js](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/netlify/functions/api.js).
+- **Fișiere:** `lib/live-platform-checkers.js`, `netlify/functions/monitor-cron.js`, `netlify/functions/api.js`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (local, gata pentru push & deploy)
+- **Build / Teste:** Verificat live E2E `runFullLivePlatformScan()` + `node --check` + `npm run build` + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
+### 2026-11-26 23:12 — Eliminare Fundal Albastru de pe Cardurile Meteo în Dark Mode (100% Neutru Apple Tahoe)
+- **Autor:** Antigravity
+- **Ce s-a făcut:**
+  - În [OrderWeatherBadge.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/OrderWeatherBadge.jsx), [WeatherCitiesStrip.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/components/WeatherCitiesStrip.jsx) și [CouriersMap.jsx](file:///Users/eugeniucazmal/Downloads/dev_office/agregattor%202.0%20(july%202026)/src/pages/CouriersMap.jsx): eliminat fundalurile și bordurile albastre (`bg-sky-950/35 border-sky-500/30` / `rgba(12,74,110,0.92)`) care se activau când ploua; cardurile meteo rămân acum 100% gri-carbon neutru identic cu `apple-inset-card` (`bg-white/[0.04] border-white/[0.08]`), păstrând culoarea semantică strict pe iconiță și badge-ul de precipitații.
+- **Fișiere:** `src/components/OrderWeatherBadge.jsx`, `src/components/WeatherCitiesStrip.jsx`, `src/pages/CouriersMap.jsx`, `.agents/CHANGELOG.md`
+- **Ramură / Commit:** `main` (gata de push rapid)
+- **Build / Teste:** `npm run build` OK + `run_prepush_audit.py` VERDE (`24/24 PASS`).
+
 ### 2026-11-26 20:07 — Fix Jurnal Audit STOP (Zero Stopuri False Bolt, Deduplicare UUID, Corecție Decalaț 2h & Status Real Revenit/TG)
 - **Autor:** Antigravity
 - **Ce s-a făcut:**

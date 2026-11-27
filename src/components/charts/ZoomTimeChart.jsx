@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Activity, Clock, ZoomIn, ZoomOut, RefreshCw, AlertTriangle, TrendingUp, Info, ExternalLink } from 'lucide-react'
 import { useLanguage } from '../../lib/LanguageContext'
-import { getApiUrl } from '../../lib/api'
+import { getApiUrl, fetchJsonDedup } from '../../lib/api'
 import { cleanRestaurantName } from '../BrandAvatar'
 
 // Monotone / Catmull-Rom to Cubic Bezier curve path
@@ -44,8 +44,7 @@ export default function ZoomTimeChart({ restaurants = [], checks = [], isDark = 
 
   useEffect(() => {
     let mounted = true
-    fetch(getApiUrl('/api/stop-events?limit=150'))
-      .then(r => r.ok ? r.json() : null)
+    fetchJsonDedup(getApiUrl('/api/stop-events?limit=120&slim=1'), { ttlMs: 30000 })
       .then(d => {
         if (mounted && d) {
           const list = Array.isArray(d.events) ? d.events : (Array.isArray(d.stop_events) ? d.stop_events : [])

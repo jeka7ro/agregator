@@ -808,9 +808,9 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Period Selector — Apple Segmented Control (compact single row) */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <div role="group" className="apple-segmented">
+          {/* Period Selector — Apple Segmented Control (scrollable on narrow mobile, zero clipping) */}
+          <div className="flex items-center gap-2 flex-wrap max-w-full min-w-0">
+            <div role="group" className="apple-segmented max-w-full overflow-x-auto">
               {PERIOD_OPTIONS.map(opt => {
                 const isSelected = selectedPeriod === opt.key
                 const label = opt[language] || opt.ro

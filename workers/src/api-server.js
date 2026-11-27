@@ -4,6 +4,7 @@ import express from 'express'
 import cors from 'cors'
 import fs from 'fs'
 import path from 'path'
+import zlib from 'zlib'
 import { fileURLToPath } from 'url'
 import { discoverUrls } from './utils/url-discovery.js'
 import { supabase } from './services/supabase.js'
@@ -72,6 +73,27 @@ app.use((req, res, next) => {
 })
 app.use(cors())
 app.use(express.json({ limit: '5mb' }))
+// Lightweight built-in gzip compression for JSON payloads > 2KB (zero extra dependencies, 5-10x faster wire transfer)
+app.use((req, res, next) => {
+    const ae = String(req.headers['accept-encoding'] || '')
+    if (!ae.includes('gzip')) return next()
+    const origJson = res.json.bind(res)
+    res.json = (body) => {
+        try {
+            const str = JSON.stringify(body)
+            if (!str || str.length < 2048) return origJson(body)
+            const gz = zlib.gzipSync(str, { level: 4 })
+            res.setHeader('Content-Type', 'application/json; charset=utf-8')
+            res.setHeader('Content-Encoding', 'gzip')
+            res.setHeader('Vary', 'Accept-Encoding')
+            res.setHeader('Content-Length', gz.length)
+            return res.end(gz)
+        } catch (_) {
+            return origJson(body)
+        }
+    }
+    next()
+})
 
 // ─── HELPER: Clean Human Order Numbers for Kiosk, POS and Aggregators ───
 function cleanKioskOrderNumber(orderNum, orderId, platform = '') {
@@ -728,15 +750,24 @@ app.get('/api/live-checks', async (req, res) => {
 // ─── REVIEWS & REPUTATION INBOX API (Email, Excel/CSV, Portal Scrapers & Order Linking) ───
 app.get('/api/reviews', async (req, res) => {
     try {
-        const { brand, city, platform, sentiment, search, limit } = req.query
+        const { brand, city, platform, sentiment, search, limit, ratings_only } = req.query
         const data = await reviewsService.getEnrichedReviews({
             brand,
             city,
             platform,
             sentiment,
             search,
-            limit: parseInt(limit || '200', 10)
+            limit: ratings_only === '1' ? 1 : parseInt(limit || '200', 10)
         })
+        if (ratings_only === '1') {
+            return res.json({
+                success: true,
+                reviews: [],
+                total: data.total,
+                kpis: data.kpis,
+                ratings_by_restaurant: data.ratings_by_restaurant
+            })
+        }
         res.json({ success: true, ...data })
     } catch (err) {
         console.error('[API SERVER] GET /api/reviews error:', err)
@@ -3607,7 +3638,21 @@ app.get('/api/dispatch/live', async (req, res) => {
         const toParam = String(req.query.to || '').trim()
         const searchFilter = String(req.query.search || '').replace(/^#+/, '').trim().toLowerCase()
         const limit = parseInt(req.query.limit || ((periodFilter === 'today' || periodFilter === 'yesterday' || periodFilter === 'custom' || searchFilter) ? '3500' : '2000'))
+        const zonesOnly = req.query.zones_only === '1'
+        const forceRefreshDispatch = req.query.refresh === '1'
         const periodInfo = getPeriodFilter(periodFilter, fromParam, toParam)
+
+        const respCacheKey = `resp_${cityFilter || 'all'}_${brandFilter || 'all'}_${restaurantFilter || 'all'}_${channelFilter || 'all'}_${periodInfo.key}_${fromParam}_${toParam}_${searchFilter}`
+        if (!forceRefreshDispatch) {
+            const cachedResp = localLiveDispatchCache.get(respCacheKey)
+            const ttlMs = (periodInfo.key === 'yesterday') ? 120000 : 15000
+            if (cachedResp && (Date.now() - cachedResp.timestamp < ttlMs)) {
+                if (zonesOnly) {
+                    return res.json({ success: true, period: cachedResp.data.period, delivery_zones: cachedResp.data.delivery_zones })
+                }
+                return res.json(cachedResp.data)
+            }
+        }
         const isSingleDayCustom = periodInfo.key === 'custom' && periodInfo.fromYmd && periodInfo.fromYmd === periodInfo.toYmd
         const targetSyrveDay = (periodInfo.key === 'today' || periodInfo.key === 'yesterday' || isSingleDayCustom) && periodInfo.startDate
             ? periodInfo.startDate.slice(0, 10)
@@ -4425,7 +4470,13 @@ app.get('/api/dispatch/live', async (req, res) => {
                 brand_logo: brandLogo,
                 restaurant_name: displayRestaurantName,
                 restaurant_city: displayCity,
-                items: enrichOrderItems(o.items || [], bName),
+                review: meta.review || null,
+                items: enrichOrderItems(o.items || [], bName).map(it => {
+                    if (!it || typeof it !== 'object') return it
+                    const { _order_meta, image, ...slimItem } = it
+                    if (image && !slimItem.imageUrl) slimItem.image = image
+                    return slimItem
+                }),
                 stage,
                 stage_label: stageLabel,
                 status_color: statusColor,
@@ -4778,7 +4829,7 @@ app.get('/api/dispatch/live', async (req, res) => {
             delete z._sumKm
         }
 
-        res.json({
+        const dispatchPayload = {
             success: true,
             period: periodInfo.key,
             period_label: periodInfo.label,
@@ -4806,7 +4857,14 @@ app.get('/api/dispatch/live', async (req, res) => {
             stop_matrix: stopMatrix,
             stop_audit_log: stopAuditLog,
             delivery_zones: deliveryZones
-        })
+        }
+        if (enrichedOrders.length > 0) {
+            localLiveDispatchCache.set(respCacheKey, { timestamp: Date.now(), data: dispatchPayload })
+        }
+        if (zonesOnly) {
+            return res.json({ success: true, period: periodInfo.key, delivery_zones: deliveryZones })
+        }
+        res.json(dispatchPayload)
     } catch (err) {
         console.error('[DispatchLive] Error:', err)
         res.status(500).json({ success: false, error: err.message })
@@ -4901,12 +4959,22 @@ app.get('/api/stop-events', async (req, res) => {
             return true
         })
 
+        const slimEvents = (list) => list.map(ev => ({
+            ...ev,
+            restaurants: ev.restaurants ? { name: ev.restaurants.name, city: ev.restaurants.city } : null
+        }))
+        const isSlim = req.query.slim === '1'
+
         if (!data || data.length === 0 || error) {
-            const local = filterValidStops(loadStopEventsCache() || []).slice(0, limit)
-            return res.json({ success: true, events: local, stop_events: local, count: local.length, source: 'local_cache' })
+            const local = slimEvents(filterValidStops(loadStopEventsCache() || []).slice(0, limit))
+            return res.json(isSlim
+                ? { success: true, events: local, count: local.length, source: 'local_cache' }
+                : { success: true, events: local, stop_events: local, count: local.length, source: 'local_cache' })
         }
-        const valid = filterValidStops(data)
-        res.json({ success: true, events: valid, stop_events: valid, count: valid.length, source: 'database' })
+        const valid = slimEvents(filterValidStops(data))
+        res.json(isSlim
+            ? { success: true, events: valid, count: valid.length, source: 'database' }
+            : { success: true, events: valid, stop_events: valid, count: valid.length, source: 'database' })
     } catch (err) {
         const local = loadStopEventsCache() || []
         res.json({ success: true, events: local, stop_events: local, count: local.length, source: 'fallback_cache' })
@@ -5088,7 +5156,15 @@ app.post('/api/check-all', async (req, res) => {
             .eq('is_active', true)
 
         if (error) throw error
-        const activeRests = restaurants || []
+        const allActiveRests = restaurants || []
+        const bodyFilter = req.body && typeof req.body === 'object' ? req.body : {}
+        const filterCity = bodyFilter.city && bodyFilter.city !== 'all' ? getCanonicalCity(bodyFilter.city) : null
+        const filterRestId = bodyFilter.restaurantId || null
+        const activeRests = allActiveRests.filter(r => {
+            if (filterRestId) return r.id === filterRestId
+            if (filterCity) return getCanonicalCity(r.city || r.name || '') === filterCity
+            return true
+        })
         if (!global.liveChecks) global.liveChecks = []
 
         const totalConfigured = activeRests.reduce((acc, r) => {

@@ -44,7 +44,7 @@ import PlatformLogo from '../components/PlatformLogo'
 import BrandAvatar, { getBrandInfo, cleanRestaurantName } from '../components/BrandAvatar'
 import RestaurantDetailsModal from '../components/RestaurantDetailsModal'
 import OrderDetailsModal from '../components/OrderDetailsModal'
-import { getApiUrl } from '../lib/api'
+import { getApiUrl, fetchJsonDedup } from '../lib/api'
 import { getCanonicalCity, getCityDisplayName, getRestaurantWorkingHoursStatus } from '../lib/orderUtils'
 import WebhookIntegrationModal from '../components/WebhookIntegrationModal'
 
@@ -174,6 +174,7 @@ export default function Monitoring() {
   const [deliveryZonesMap, setDeliveryZonesMap] = useState({})
   const [todayZonesMap, setTodayZonesMap] = useState({})
   const [yesterdayZonesMap, setYesterdayZonesMap] = useState({})
+  const [zonesLoading, setZonesLoading] = useState(true)
   const [reviewsLoading, setReviewsLoading] = useState(false)
   const [reviewFilter, setReviewFilter] = useState('all') // 'all' | 'negative' | 'positive' | 'with_comment' | 'matched'
   const [reviewPlatformFilter, setReviewPlatformFilter] = useState('all')
@@ -197,19 +198,16 @@ export default function Monitoring() {
   const fetchReviews = useCallback(async () => {
     setReviewsLoading(true)
     try {
-      const res = await fetch(getApiUrl('/api/reviews?limit=300'))
-      if (res.ok) {
-        const data = await res.json()
-        if (data.success) {
-          setReviewsData({
-            reviews: data.reviews || [],
-            kpis: data.kpis || null,
-            ratings_by_restaurant: data.ratings_by_restaurant || {}
-          })
-        }
+      const data = await fetchJsonDedup(getApiUrl('/api/reviews?ratings_only=1'), { ttlMs: 60000 })
+      if (data?.success) {
+        setReviewsData({
+          reviews: data.reviews || [],
+          kpis: data.kpis || null,
+          ratings_by_restaurant: data.ratings_by_restaurant || {}
+        })
       }
     } catch (err) {
-      console.error('[Monitoring] fetchReviews error:', err)
+      if (err?.name !== 'AbortError') console.error('[Monitoring] fetchReviews error:', err)
     } finally {
       setReviewsLoading(false)
     }
@@ -223,8 +221,8 @@ export default function Monitoring() {
     const suffix = forceRefresh ? `&refresh=1&_t=${Date.now()}` : ''
     try {
       const [tData, yData] = await Promise.all([
-        fetch(getApiUrl(`/api/dispatch/live?period=today&limit=1500${suffix}`)).then(r => (r.ok ? r.json() : null)).catch(() => null),
-        fetch(getApiUrl(`/api/dispatch/live?period=yesterday&limit=1500`)).then(r => (r.ok ? r.json() : null)).catch(() => null)
+        fetchJsonDedup(getApiUrl(`/api/dispatch/live?period=today&zones_only=1${suffix}`), { ttlMs: 30000, force: forceRefresh }).catch(() => null),
+        fetchJsonDedup(getApiUrl(`/api/dispatch/live?period=yesterday&zones_only=1`), { ttlMs: 120000, force: forceRefresh }).catch(() => null)
       ])
       const yZones = yData?.delivery_zones || {}
       const tZones = tData?.delivery_zones || {}
@@ -253,7 +251,10 @@ export default function Monitoring() {
       setTodayZonesMap(calibratedToday)
       setYesterdayZonesMap(yZones)
       setDeliveryZonesMap(statusMerged)
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      setZonesLoading(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -652,7 +653,13 @@ export default function Monitoring() {
     setIsVerifying(true)
     setShowReport(true)
     setVerifyStatus({ isRunning: true, totalChecks: 204, current: 0, errors: 0, offline: 0, results: [] })
-    fetch(getApiUrl('/api/check-all'), { method: 'POST', signal: controller.signal })
+    const scanPayload = cityFilter && cityFilter !== 'all' ? { city: cityFilter } : {}
+    fetch(getApiUrl('/api/check-all'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(scanPayload),
+      signal: controller.signal
+    })
       .then(async (res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json().catch(() => null)
@@ -932,7 +939,7 @@ export default function Monitoring() {
                   : 'Rază & Zone Livrare (Statistică)'}
             </span>
             <span className="text-[11px] font-semibold tabular-nums text-[#636366] dark:text-[#8E8E93]">
-              {zonesList.length}
+              {zonesLoading ? '…' : zonesList.length}
             </span>
             {zonesKpis.narrowedCount > 0 && (
               <span className="w-1.5 h-1.5 rounded-full bg-rose-500" title={`${zonesKpis.narrowedCount} sujate`} />
@@ -1460,6 +1467,8 @@ export default function Monitoring() {
                               </span>
                               <div className="flex gap-1.5">
                                 <button
+                                  type="button"
+                                  aria-label="Pagina anterioară"
                                   className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${isDark ? 'border-slate-700 text-slate-200 hover:bg-slate-800' : 'border-slate-200 text-slate-700 hover:bg-slate-100'
                                     }`}
                                   onClick={() => setPage(p => p - 1)}
@@ -1468,6 +1477,8 @@ export default function Monitoring() {
                                   <ChevronLeft size={16} />
                                 </button>
                                 <button
+                                  type="button"
+                                  aria-label="Pagina următoare"
                                   className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${isDark ? 'border-slate-700 text-slate-200 hover:bg-slate-800' : 'border-slate-200 text-slate-700 hover:bg-slate-100'
                                     }`}
                                   onClick={() => setPage(p => p + 1)}

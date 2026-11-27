@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useTheme } from '../lib/ThemeContext'
 import { useLanguage } from '../lib/LanguageContext'
 import { useAuth } from '../lib/AuthContext'
-import { getApiUrl } from '../lib/api'
+import { getApiUrl, fetchJsonDedup } from '../lib/api'
 import PlatformLogo from '../components/PlatformLogo'
 import BrandAvatar from '../components/BrandAvatar'
 import OrderDetailsModal from '../components/OrderDetailsModal'
@@ -240,8 +240,7 @@ export default function Customers() {
         page: String(page),
         limit: String(rowsPerPage)
       })
-      const resp = await fetch(getApiUrl(`/api/customers?${params.toString()}`))
-      const json = await resp.json()
+      const json = await fetchJsonDedup(getApiUrl(`/api/customers?${params.toString()}`), { ttlMs: 15000 })
       if (!isMountedRef.current || reqId !== fetchReqIdRef.current) return
       if (json.success) {
         let list = json.customers || []
@@ -930,7 +929,7 @@ export default function Customers() {
                       {/* Col 4: City & Clean Single-Line Street Address (Details hidden in Modal!) */}
                       <td className="py-2 px-2.5 w-60 max-w-[240px]">
                         <div className="flex items-center gap-1.5">
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-black bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 shrink-0">
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-black/[0.045] text-[#1D1D1F] border border-black/[0.08] dark:bg-white/[0.07] dark:text-[#F5F5F7] dark:border-white/[0.12] shrink-0">
                             {getCityDisplayName(cust.city || '—')}
                           </span>
                           {hasExtraDetails && (
@@ -1184,6 +1183,7 @@ export default function Customers() {
             <div className="flex gap-1.5">
               <button
                 type="button"
+                aria-label="Pagina anterioară"
                 className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
                   isDark ? 'border-slate-700 text-slate-200 hover:bg-slate-800' : 'border-slate-200 text-slate-700 hover:bg-slate-100'
                 }`}
@@ -1194,6 +1194,7 @@ export default function Customers() {
               </button>
               <button
                 type="button"
+                aria-label="Pagina următoare"
                 className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
                   isDark ? 'border-slate-700 text-slate-200 hover:bg-slate-800' : 'border-slate-200 text-slate-700 hover:bg-slate-100'
                 }`}

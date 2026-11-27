@@ -27,6 +27,7 @@ const CACHE_KEY = 'ag_network_weather_v1'
 const CACHE_TTL_MS = 15 * 60 * 1000 // 15 minutes (0 EUR Open-Meteo direct client cache)
 
 let memoryCache = null
+let inFlightWeatherPromise = null
 
 /**
  * Decode WMO Weather Interpretation Code into icon key, severity, and RO/RU/EN labels.
@@ -136,45 +137,60 @@ export function useNetworkWeather() {
     setLoading(true)
     setError(null)
     try {
+      if (!force && inFlightWeatherPromise) {
+        const entry = await inFlightWeatherPromise
+        if (entry) {
+          setCities(entry.cities)
+          setUpdatedAt(entry.ts)
+        }
+        return
+      }
       const lats = WEATHER_CITIES.map(c => c.lat).join(',')
       const lngs = WEATHER_CITIES.map(c => c.lng).join(',')
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lngs}&current=temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,is_day&timezone=Europe%2FBucharest`
-      const res = await fetch(url)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const json = await res.json()
-      const list = Array.isArray(json) ? json : [json]
+      const reqPromise = (async () => {
+        const res = await fetch(url)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const json = await res.json()
+        const list = Array.isArray(json) ? json : [json]
 
-      const mapped = WEATHER_CITIES.map((city, idx) => {
-        const cur = list[idx]?.current || {}
-        const temp = typeof cur.temperature_2m === 'number' ? Math.round(cur.temperature_2m) : null
-        const feelsLike = typeof cur.apparent_temperature === 'number' ? Math.round(cur.apparent_temperature) : null
-        const precip = typeof cur.precipitation === 'number' ? Number(cur.precipitation.toFixed(1)) : 0
-        const wind = typeof cur.wind_speed_10m === 'number' ? Math.round(cur.wind_speed_10m) : 0
-        const isDay = cur.is_day ?? 1
-        const wmo = decodeWmoWeather(cur.weather_code, isDay, precip, wind)
-        return {
-          key: city.key,
-          label: city.label,
-          lat: city.lat,
-          lng: city.lng,
-          temp,
-          feelsLike,
-          precip,
-          wind,
-          isDay,
-          weatherCode: cur.weather_code ?? 0,
-          icon: wmo.icon,
-          severity: wmo.severity,
-          conditionLabel: wmo.label
-        }
+        const mapped = WEATHER_CITIES.map((city, idx) => {
+          const cur = list[idx]?.current || {}
+          const temp = typeof cur.temperature_2m === 'number' ? Math.round(cur.temperature_2m) : null
+          const feelsLike = typeof cur.apparent_temperature === 'number' ? Math.round(cur.apparent_temperature) : null
+          const precip = typeof cur.precipitation === 'number' ? Number(cur.precipitation.toFixed(1)) : 0
+          const wind = typeof cur.wind_speed_10m === 'number' ? Math.round(cur.wind_speed_10m) : 0
+          const isDay = cur.is_day ?? 1
+          const wmo = decodeWmoWeather(cur.weather_code, isDay, precip, wind)
+          return {
+            key: city.key,
+            label: city.label,
+            lat: city.lat,
+            lng: city.lng,
+            temp,
+            feelsLike,
+            precip,
+            wind,
+            isDay,
+            weatherCode: cur.weather_code ?? 0,
+            icon: wmo.icon,
+            severity: wmo.severity,
+            conditionLabel: wmo.label
+          }
+        })
+
+        const entry = { ts: Date.now(), cities: mapped }
+        memoryCache = entry
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(entry))
+        } catch (_) { }
+        return entry
+      })()
+      inFlightWeatherPromise = reqPromise
+      const entry = await reqPromise.finally(() => {
+        if (inFlightWeatherPromise === reqPromise) inFlightWeatherPromise = null
       })
-
-      const entry = { ts: Date.now(), cities: mapped }
-      memoryCache = entry
-      try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(entry))
-      } catch (_) { }
-      setCities(mapped)
+      setCities(entry.cities)
       setUpdatedAt(entry.ts)
     } catch (err) {
       setError(err?.message || 'Weather fetch failed')

@@ -37,6 +37,7 @@ import BrandAvatar, { getBrandInfo, cleanRestaurantName } from '../components/Br
 import PlatformLogo from '../components/PlatformLogo'
 import OrderLiveRouteMap from '../components/OrderLiveRouteMap'
 import OrderWeatherBadge from '../components/OrderWeatherBadge'
+import RefreshCountdown from '../components/RefreshCountdown'
 import { WeatherIcon } from '../components/WeatherCitiesStrip'
 import { getProductImage } from '../lib/productImages'
 import { getCanonicalCity, getCityDisplayName, formatDisplayOrderNumber, parseDeliveryAddress, escapeHtml, isSafeHttpUrl } from '../lib/orderUtils'
@@ -294,6 +295,11 @@ const CITY_COORDS = {
   'GALATI': { lat: 45.4353, lng: 28.0080, zoom: 13 },
   'ARAD': { lat: 46.1866, lng: 21.3123, zoom: 13 },
   'TARGU MURES': { lat: 46.5386, lng: 24.5575, zoom: 13 },
+  'BOTOSANI': { lat: 47.7486, lng: 26.6694, zoom: 13 },
+  'BRAILA': { lat: 45.2692, lng: 27.9575, zoom: 13 },
+  'TULCEA': { lat: 45.1787, lng: 28.8051, zoom: 13 },
+  'PIATRA NEAMT': { lat: 46.9275, lng: 26.3708, zoom: 13 },
+  'CLUJ': { lat: 46.7712, lng: 23.6236, zoom: 13 },
   'BAIA MARE': { lat: 47.6567, lng: 23.5850, zoom: 13 },
   'SATU MARE': { lat: 47.7926, lng: 22.8859, zoom: 13 },
   'BUZAU': { lat: 45.1500, lng: 26.8167, zoom: 13 }
@@ -821,6 +827,7 @@ export default function CouriersMap() {
   const markersLayerRef = useRef(null)
   const streetRoutesCacheRef = useRef(new Map())
   const [streetRoutes, setStreetRoutes] = useState({})
+  const [visibleSidebarLimit, setVisibleSidebarLimit] = useState(30)
   const [leafletReady, setLeafletReady] = useState(() => Boolean(typeof window !== 'undefined' && window.L))
 
   const {
@@ -829,7 +836,7 @@ export default function CouriersMap() {
     lastUpdated,
     isAutoRefreshEnabled,
     setIsAutoRefreshEnabled,
-    secondsUntilRefresh,
+    nextRefreshAt,
     fetchData
   } = useLiveDispatch({
     city: 'all',
@@ -896,31 +903,47 @@ export default function CouriersMap() {
       })
   }, [orders])
 
-  // Lista completă de restaurante (din useLiveChecks + din comenzile active)
+  // Lista completă și deduplicată de restaurante (evită dublarea ID-urilor vechi iiko / alias Sushi Master -> 52 reale, nu 84!)
   const allRestaurants = useMemo(() => {
-    const byId = new Map()
+    const byLogicalKey = new Map()
+    const seenIds = new Set()
+    const makeKey = (name, city, brand) => {
+      const c = getCanonicalCity(city || name || '') || ''
+      const clean = cleanRestaurantName(name || '', brand || '').toLowerCase().replace(/\s+/g, ' ').trim()
+      const b = String(brand || '').toLowerCase().trim()
+      return `${c}|${clean}|${b}`
+    }
     ;(liveRestaurants || []).forEach(r => {
       if (r && r.id && r.is_active !== false) {
-        byId.set(String(r.id), {
-          id: r.id,
-          name: r.name,
-          city: r.city || r.name,
-          brand: getBrandInfo(r).name
-        })
+        const brandName = getBrandInfo(r).name
+        const lKey = makeKey(r.name, r.city, brandName)
+        seenIds.add(String(r.id))
+        if (!byLogicalKey.has(lKey)) {
+          byLogicalKey.set(lKey, {
+            id: r.id,
+            name: r.name,
+            city: r.city || r.name,
+            brand: brandName
+          })
+        }
       }
     })
     deliveryOrders.forEach(o => {
       const rId = String(o.restaurant_id || o.restaurant_name || '')
-      if (rId && !byId.has(rId)) {
-        byId.set(rId, {
+      if (!rId || seenIds.has(rId)) return
+      const brandName = getBrandInfo(o.brand_name || o.restaurant_name || '').name
+      const lKey = makeKey(o.restaurant_name, o.restaurant_city || o.city || o.cityCanon, brandName)
+      if (!byLogicalKey.has(lKey)) {
+        seenIds.add(rId)
+        byLogicalKey.set(lKey, {
           id: o.restaurant_id || o.restaurant_name,
           name: o.restaurant_name,
           city: o.restaurant_city || o.city || o.cityCanon,
-          brand: getBrandInfo(o.brand_name || o.restaurant_name || '').name
+          brand: brandName
         })
       }
     })
-    return Array.from(byId.values())
+    return Array.from(byLogicalKey.values())
   }, [liveRestaurants, deliveryOrders])
 
   const availableCities = useMemo(() => {
@@ -1142,18 +1165,14 @@ export default function CouriersMap() {
       const condText = escapeHtml(c.conditionLabel?.[language] || c.conditionLabel?.ro || '')
       const isSevere = c.severity === 'severe'
       const isRain = c.severity === 'rain'
-      const bg = isSevere
-        ? 'rgba(136,19,55,0.92)'
-        : isRain
-          ? 'rgba(12,74,110,0.92)'
-          : (isDark ? 'rgba(28,28,30,0.90)' : 'rgba(255,255,255,0.94)')
+      const bg = isDark ? 'rgba(28,28,30,0.92)' : 'rgba(255,255,255,0.94)'
       const border = isSevere
-        ? 'rgba(251,113,133,0.75)'
+        ? 'rgba(251,113,133,0.65)'
         : isRain
-          ? 'rgba(56,189,248,0.75)'
-          : (isDark ? 'rgba(255,255,255,0.20)' : 'rgba(15,23,42,0.16)')
-      const textColor = (isSevere || isRain || isDark) ? '#f8fafc' : '#0f172a'
-      const subColor = isSevere ? '#fecdd3' : isRain ? '#bae6fd' : (isDark ? '#94a3b8' : '#475569')
+          ? 'rgba(255,255,255,0.22)'
+          : (isDark ? 'rgba(255,255,255,0.18)' : 'rgba(15,23,42,0.16)')
+      const textColor = isDark ? '#f5f5f7' : '#1d1d1f'
+      const subColor = isSevere ? '#fda4af' : (isDark ? '#aeaeb2' : '#48484a')
 
       const weatherIcon = L.divIcon({
         className: 'custom-weather-pin',
@@ -1853,9 +1872,7 @@ export default function CouriersMap() {
               <>
                 <span>{language === 'ru' ? 'Авто (5м)' : 'Auto (5m)'}</span>
                 <span className="text-[#6E6E73] dark:text-[#8E8E93] font-semibold text-[11px] tabular-nums">
-                  {secondsUntilRefresh >= 60
-                    ? `${Math.floor(secondsUntilRefresh / 60)}:${String(secondsUntilRefresh % 60).padStart(2, '0')}`
-                    : `${secondsUntilRefresh}${language === 'ru' ? 'с' : 's'}`}
+                  <RefreshCountdown nextRefreshAt={nextRefreshAt} enabled={isAutoRefreshEnabled} language={language} />
                 </span>
               </>
             ) : (
@@ -2456,7 +2473,8 @@ export default function CouriersMap() {
                 {ui.noDeliveries}
               </div>
             ) : (
-              filteredDeliveries.slice(0, 80).map(ord => {
+              <>
+              {filteredDeliveries.slice(0, visibleSidebarLimit).map(ord => {
                 const isSelected = selectedOrderId === ord.id
                 const displayNum = getCleanOrderNumber(ord)
                 const statusBadge = formatCourierStatusBadge(ord, ui)
@@ -2800,7 +2818,21 @@ export default function CouriersMap() {
                     </div>
                   </div>
                 )
-              })
+              })}
+              {filteredDeliveries.length > visibleSidebarLimit && (
+                <button
+                  type="button"
+                  onClick={() => setVisibleSidebarLimit(n => n + 40)}
+                  className="w-full py-2 rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-black/[0.025] dark:bg-white/[0.04] hover:bg-black/[0.05] dark:hover:bg-white/[0.08] text-xs font-bold text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                >
+                  {language === 'ru'
+                    ? `Показать ещё (${Math.min(40, filteredDeliveries.length - visibleSidebarLimit)} из ${filteredDeliveries.length - visibleSidebarLimit})`
+                    : language === 'en'
+                      ? `Show more (${Math.min(40, filteredDeliveries.length - visibleSidebarLimit)} of ${filteredDeliveries.length - visibleSidebarLimit})`
+                      : `Afișează mai multe (+${Math.min(40, filteredDeliveries.length - visibleSidebarLimit)} din ${filteredDeliveries.length - visibleSidebarLimit})`}
+                </button>
+              )}
+              </>
             )}
           </div>
         </div>

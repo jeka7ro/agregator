@@ -48,3 +48,12 @@ Aplică cele 4 principii din skill-ul `.agents/skills/karpathy-guidelines/SKILL.
 Pentru orice modificare vizuală, layout, tabel, grafic, dark mode, Liquid Glass sau audit UI/UX în `src/`:
 - Încarcă `.agents/skills/apple-design/SKILL.md` și citește strict paginile relevante din `.agents/skills/apple-design/references/hig/` (8–12 fișiere: setul de bază `accessibility.md`, `layout.md`, `typography.md`, `color.md`, `designing-for-macos.md`, `references/cross-platform.md` + 3–6 pagini pentru ce e pe ecran).
 - Folosește cifre verificabile (contrast WCAG `>= 4.5:1`, `tabular-nums`, zero scroll orizontal mobil, `prefers-reduced-motion` / `prefers-reduced-transparency`), aplică Liquid Glass exclusiv pe navigație/bare (nu pe conținut de date) și citează regula exactă (`file.md › Heading` + `path:line`).
+
+## Reguli Web Interface, iOS Safari & Testare Headless (OBLIGATORIU — `.agents/rules/web-interface-and-testing.md`)
+Aplică `.agents/skills/web-design-guidelines/references/web-interface-guidelines.md` (Vercel), `.agents/skills/frontend-design/SKILL.md` și `.agents/skills/webapp-testing/SKILL.md` (Anthropic):
+- `font-size >= 16px` pe `<input>/<select>/<textarea>` pe mobil (anti-zoom iOS Safari), `touch-action: manipulation`, `overscroll-behavior: contain` pe modale, `min-w-0` pe flex/grid, zero overflow orizontal pe mobile (`375px`/`390px`) și desktop (`1440px`), verificat matematic în browser real la audituri UI.
+
+## Reguli Superpowers: Verification Before Completion & Systematic Debugging (OBLIGATORIU — `.agents/rules/superpowers-verification.md`)
+Aplică `.agents/skills/verification-before-completion/SKILL.md` și `.agents/skills/systematic-debugging/SKILL.md` (`obra/superpowers`):
+- **Nicio declarație „rezolvat / merge” fără rulare proaspătă de verificare și dovezi reale.**
+- **Nicio reparație „la ghici” fără analiza cauzei rădăcină (Phase 1–4) la toate granițele sistemului (UI ↔ Local API ↔ Netlify AWS ↔ Supabase ↔ Platforme externe).**

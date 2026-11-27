@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { getApiUrl } from '../lib/api'
+import { getApiUrl, fetchJsonDedup } from '../lib/api'
 import { useAuth } from '../lib/AuthContext'
 import { getCanonicalCity } from '../lib/orderUtils'
 import { getBrandInfo } from '../components/BrandAvatar'
@@ -67,9 +67,8 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
   const [loading, setLoading] = useState(() => data.orders.length === 0)
   const [lastUpdated, setLastUpdated] = useState(() => new Date())
   const [isAutoRefreshEnabled, setIsAutoRefreshEnabled] = useState(true)
-  const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(autoRefreshSeconds)
+  const [nextRefreshAt, setNextRefreshAt] = useState(() => Date.now() + autoRefreshSeconds * 1000)
   const timerRef = useRef(null)
-  const countdownRef = useRef(autoRefreshSeconds)
   const isFetchingRef = useRef(false)
   const fetchDataRef = useRef(null)
   const isMountedRef = useRef(true)
@@ -82,8 +81,7 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
   }, [])
 
   const fetchData = useCallback(async (silent = false, forceRefresh = false) => {
-    countdownRef.current = autoRefreshSeconds
-    setSecondsUntilRefresh(autoRefreshSeconds)
+    setNextRefreshAt(Date.now() + autoRefreshSeconds * 1000)
 
     if (isFetchingRef.current && silent) return
     const reqId = ++reqIdRef.current
@@ -110,10 +108,11 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
         params.set('_t', String(Date.now()))
       }
 
-      const res = await fetch(getApiUrl(`/api/dispatch/live?${params.toString()}`))
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-
-      const json = await res.json()
+      const json = await fetchJsonDedup(getApiUrl(`/api/dispatch/live?${params.toString()}`), {
+        ttlMs: period === 'yesterday' ? 60000 : 12000,
+        force: forceRefresh,
+        timeoutMs: 20000
+      })
       if (!isMountedRef.current || reqId !== reqIdRef.current) return
       if (json && json.success) {
         const incomingOrders = Array.isArray(json.orders) ? json.orders : []
@@ -180,8 +179,7 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
       return
     }
 
-    countdownRef.current = autoRefreshSeconds
-    setSecondsUntilRefresh(autoRefreshSeconds)
+    setNextRefreshAt(Date.now() + autoRefreshSeconds * 1000)
 
     timerRef.current = setInterval(() => {
       // Nu consuma resurse când tab-ul este în fundal sau în pauza nocturnă 22:00 - 10:00
@@ -197,17 +195,11 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
         if (roHour >= 22 || roHour < 10) return
       } catch (_) {}
 
-      if (countdownRef.current <= 1) {
-        countdownRef.current = autoRefreshSeconds
-        setSecondsUntilRefresh(autoRefreshSeconds)
-        if (fetchDataRef.current) {
-          fetchDataRef.current(true)
-        }
-      } else {
-        countdownRef.current -= 1
-        setSecondsUntilRefresh(countdownRef.current)
+      setNextRefreshAt(Date.now() + autoRefreshSeconds * 1000)
+      if (fetchDataRef.current) {
+        fetchDataRef.current(true)
       }
-    }, 1000)
+    }, autoRefreshSeconds * 1000)
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
@@ -356,6 +348,7 @@ export function useLiveDispatch({ city = 'all', brand = 'all', restaurantId = 'a
     fetchData,
     isAutoRefreshEnabled,
     setIsAutoRefreshEnabled,
-    secondsUntilRefresh
+    nextRefreshAt,
+    secondsUntilRefresh: autoRefreshSeconds
   }
 }

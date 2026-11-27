@@ -240,17 +240,9 @@ export default function WeatherCitiesStrip({
 
               const chipStyle = isSelected
                 ? 'bg-[#047857] border-[#047857] text-white dark:bg-[#10B981] dark:border-[#10B981] dark:text-slate-950 shadow-xs'
-                : c.severity === 'severe'
-                  ? isDark
-                    ? 'bg-rose-950/35 border-rose-500/35 hover:border-rose-400/60 text-rose-100'
-                    : 'bg-rose-50/85 border-rose-200 hover:border-rose-300 text-rose-950'
-                  : c.severity === 'rain'
-                    ? isDark
-                      ? 'bg-sky-950/35 border-sky-500/30 hover:border-sky-400/55 text-sky-100'
-                      : 'bg-sky-50/80 border-sky-200 hover:border-sky-300 text-sky-950'
-                    : isDark
-                      ? 'bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-100'
-                      : 'bg-white border-slate-200 hover:border-slate-300 text-[#1D1D1F] shadow-2xs'
+                : isDark
+                  ? 'bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-100'
+                  : 'bg-white border-slate-200 hover:border-slate-300 text-[#1D1D1F] shadow-2xs'
 
               return (
                 <button

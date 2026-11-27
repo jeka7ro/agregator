@@ -41,7 +41,8 @@ export default async function handler() {
     storeMap: platformStoreMapStatic,
     supabase,
     persistToDb: true,
-    notifyTelegram: true
+    notifyTelegram: true,
+    budgetMs: 24000
   })
 
   console.log(

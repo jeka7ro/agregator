@@ -22,6 +22,11 @@ const CITY_COORDS = {
   'GALATI': { lat: 45.4353, lng: 28.0080 },
   'ARAD': { lat: 46.1866, lng: 21.3123 },
   'TARGU MURES': { lat: 46.5386, lng: 24.5575 },
+  'BOTOSANI': { lat: 47.7486, lng: 26.6694 },
+  'BRAILA': { lat: 45.2692, lng: 27.9575 },
+  'TULCEA': { lat: 45.1787, lng: 28.8051 },
+  'PIATRA NEAMT': { lat: 46.9275, lng: 26.3708 },
+  'CLUJ': { lat: 46.7712, lng: 23.6236 },
   'BAIA MARE': { lat: 47.6567, lng: 23.5850 },
   'SATU MARE': { lat: 47.7926, lng: 22.8859 },
   'BUZAU': { lat: 45.1500, lng: 26.8167 }
